@@ -14,9 +14,9 @@ const BODY = [
   [9, 72], [32, 38], [64, 25],
   [84, 17], [110, 15], [130, 21],
   [158, 30], [179, 53], [185, 76],
-  [188, 88], [185, 98], [178, 100],
-  [171, 102], [165, 104], [164, 112],
-  [163, 122], [186, 128], [185, 147],
+  [188, 88], [187, 97], [181, 100],
+  [176, 103], [173, 106], [173, 113],
+  [173, 122], [188, 128], [186, 147],
   [184, 162], [160, 168], [132, 168],
   [120, 168], [108, 168], [96, 168],
 ];
@@ -41,9 +41,9 @@ const MELT = [
   [10, 90], [32, 52], [66, 38],
   [86, 30], [110, 29], [130, 33],
   [158, 41], [178, 60], [183, 80],
-  [186, 91], [183, 100], [176, 102],
-  [169, 104], [164, 107], [164, 115],
-  [164, 128], [180, 137], [187, 150],
+  [186, 91], [185, 100], [180, 102],
+  [176, 105], [173, 108], [173, 116],
+  [173, 128], [184, 137], [188, 150],
   [196, 163], [176, 170], [140, 170],
   [122, 170], [108, 170], [96, 169],
 ];
@@ -307,6 +307,10 @@ export class Dot {
     this.lean = { s: 0, v: 0, t: 0 };
     // How far the body has morphed into the picked-up and melting shapes (0 to 1).
     this.form = { held: { s: 0, t: 0 }, melt: { s: 0, t: 0 } };
+    this.spring = { k: 0.07, damp: 0.86, meltRate: 0.955 };
+    this.jump = { s: 0, v: 0 };   // height off the ground (negative = up) for the plop bounce
+    this.timers = [];
+    this.shadow = container.querySelector(".dot-shadow");
     this.energy = 0;
     this.start = performance.now();
     this.frame = this.frame.bind(this);
@@ -322,8 +326,8 @@ export class Dot {
     this.last = now;
     const still = reduceMotion();
     for (const k of [this.sx, this.sy, this.lean]) {
-      k.v += (k.t - k.s) * 0.07 * step;
-      k.v *= Math.pow(0.86, step);
+      k.v += (k.t - k.s) * this.spring.k * step;
+      k.v *= Math.pow(this.spring.damp, step);
       k.s += k.v * step;
     }
     this.energy *= Math.pow(0.965, step);
@@ -336,7 +340,16 @@ export class Dot {
     const { anchors, held, melt, angle, grip, top } = this.geo;
     // Morph speed: quick into the picked-up shape, slower out of a splat so the squish is visible.
     this.form.held.s += (this.form.held.t - this.form.held.s) * (1 - Math.pow(still ? 0 : 0.9, step));
-    this.form.melt.s += (this.form.melt.t - this.form.melt.s) * (1 - Math.pow(still ? 0 : 0.955, step));
+    this.form.melt.s += (this.form.melt.t - this.form.melt.s) * (1 - Math.pow(still ? 0 : this.spring.meltRate, step));
+    // A little hop with gravity; landing gives a small extra squish.
+    if (this.jump.s < 0 || this.jump.v < 0) {
+      this.jump.v += 0.45 * step;
+      this.jump.s += this.jump.v * step;
+      if (this.jump.s >= 0) {
+        if (this.jump.v > 1.5) { this.sx.s = 1.25; this.sy.s = 0.76; this.sx.v = 0; this.sy.v = 0; this.nudge(0, 0.4); }
+        this.jump.s = 0; this.jump.v = 0;
+      }
+    }
     const h = this.form.held.s, m = this.form.melt.s, b = 1 - h - m;
     const flames = this.flameShapes(t, still);
     const pts = anchors.map(([bx, by], i) => {
@@ -362,7 +375,9 @@ export class Dot {
     if (flames) this.drawCores(flames);
     const sx = this.sx.s + breathe, sy = this.sy.s - breathe, lean = this.lean.s;
     // Squash/stretch around the bottom centre, plus a lean (shear) when moving.
-    this.jelly.setAttribute("transform", `matrix(${sx.toFixed(4)} 0 ${(-lean).toFixed(4)} ${sy.toFixed(4)} ${(CX - sx * CX + lean * GROUND).toFixed(2)} ${(GROUND - sy * GROUND).toFixed(2)})`);
+    this.jelly.setAttribute("transform", `matrix(${sx.toFixed(4)} 0 ${(-lean).toFixed(4)} ${sy.toFixed(4)} ${(CX - sx * CX + lean * GROUND).toFixed(2)} ${(GROUND - sy * GROUND + this.jump.s).toFixed(2)})`);
+    const sh = 1 + this.jump.s / 70;
+    this.shadow.setAttribute("transform", `translate(94 169) scale(${(sh * sx).toFixed(3)} ${sh.toFixed(3)}) translate(-94 -169)`);
     requestAnimationFrame(this.frame);
   }
 
@@ -401,7 +416,12 @@ export class Dot {
     this.sy.v -= amount * 0.04;
   }
 
+  clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; }
+
   pickUp() {
+    this.clearTimers();
+    this.jump.s = 0; this.jump.v = 0;
+    this.spring.k = 0.07; this.spring.damp = 0.86; this.spring.meltRate = 0.955;
     this.setMood("held");
     this.figure.classList.add("dragging");
     this.energy = 1;
@@ -409,15 +429,28 @@ export class Dot {
 
   drop() {
     this.figure.classList.remove("dragging");
+    this.clearTimers();
     this.lean.t = 0;
     this.setMood("plop");
-    // Splat into a flat puddle, then spring back up with a bounce.
+    // 1. Splat: flatten into a wide puddle and hold it for a moment.
     this.form.held.s = 0;
-    this.form.melt.s = 1; this.form.melt.t = 0;
-    this.sx.s = 1.3; this.sy.s = 0.58; this.sx.v = -0.01; this.sy.v = 0.005;
+    this.form.melt.s = 1; this.form.melt.t = 1;
+    this.spring.k = 0.25; this.spring.damp = 0.7; this.spring.meltRate = 0.85;
+    this.sx.s = 1.5; this.sy.s = 0.42; this.sx.v = 0; this.sy.v = 0;
+    this.sx.t = 1.46; this.sy.t = 0.45;
     this.energy = 1.5;
-    clearTimeout(this.moodTimer);
-    this.moodTimer = setTimeout(() => this.setMood("happy", { revertAfter: 1800 }), 700);
+    const later = (ms, fn) => this.timers.push(setTimeout(fn, ms));
+    // 2. Rebound: spring up tall, pop into a small hop, and lose the puddle shape.
+    later(190, () => {
+      this.spring.k = 0.09; this.spring.damp = 0.8;
+      this.form.melt.t = 0;
+      this.sx.t = 1; this.sy.t = 1;
+      this.sx.v = -0.06; this.sy.v = 0.09;
+      this.jump.v = -4.4;
+    });
+    // 3. Land (small squish handled in frame()), wobble, then settle and smile.
+    later(700, () => this.setMood("idle"));
+    later(1300, () => { this.spring.k = 0.07; this.spring.damp = 0.86; this.spring.meltRate = 0.955; });
   }
 
   setAccessory(id) { if (id) this.figure.dataset.acc = id; else delete this.figure.dataset.acc; }
