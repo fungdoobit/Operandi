@@ -51,12 +51,12 @@ const MELT = [
 const SPLASH = [
   [96, 168],
   [60, 169], [10, 169], [-4, 166],
-  [-12, 160], [-10, 134], [-3, 128],
-  [3, 123], [8, 146], [20, 150],
+  [-16, 160], [-14, 132], [0, 130],
+  [12, 128], [16, 142], [24, 148],
   [36, 140], [62, 110], [96, 110],
   [130, 110], [156, 140], [172, 150],
-  [184, 146], [189, 123], [195, 128],
-  [202, 134], [204, 160], [196, 166],
+  [176, 142], [180, 128], [192, 130],
+  [206, 132], [208, 160], [196, 166],
   [182, 169], [132, 169], [96, 168],
 ];
 const GROUND = 166, CX = 96, CY = 100;
@@ -105,6 +105,19 @@ function geometry(count) {
   };
 }
 const GEO = { dot: geometry(44), pyro: geometry(120) };
+
+function taubin(pts, strength, rounds = 4) {
+  const n = pts.length;
+  for (let r = 0; r < rounds; r++) {
+    for (const f of [0.5 * strength, -0.53 * strength]) {
+      pts = pts.map(([x, y], i) => {
+        const [ax, ay] = pts[(i - 1 + n) % n], [bx, by] = pts[(i + 1) % n];
+        return [x + f * ((ax + bx) / 2 - x), y + f * ((ay + by) / 2 - y)];
+      });
+    }
+  }
+  return pts;
+}
 
 function smoothPath(pts) {
   const n = pts.length, f = (v) => v.toFixed(2);
@@ -370,23 +383,31 @@ export class Dot {
     }
     const h = this.form.held.s, m = this.form.melt.s, c = this.form.crown.s, b = 1 - h - m - c;
     const flames = this.flameShapes(t, still);
-    const pts = anchors.map(([bx, by], i) => {
+    let pts = anchors.map(([bx, by], i) => {
       const x = bx * b + held[i][0] * h + melt[i][0] * m + crown[i][0] * c;
       const y = by * b + held[i][1] * h + melt[i][1] * m + crown[i][1] * c;
       const a = angle[i];
       const w = amp * grip[i] * (0.65 * Math.sin(2 * a + t * 1.15) + 0.35 * Math.sin(3 * a - t * 0.85));
-      let px = x + Math.cos(a) * w, py = y + Math.sin(a) * w;
-      // PYRO: the top of the outline itself bulges up into round flame tufts,
-      // so one continuous outline wraps body and flames together.
-      if (flames && top[i] > 0) {
+      return [x + Math.cos(a) * w, y + Math.sin(a) * w];
+    });
+    // While blending between shapes, iron out small bumps (Taubin smoothing:
+    // smooths without shrinking), so in-between shapes stay perfectly round.
+    const blending = Math.min(1, (h + m + c) * 2);
+    if (blending > 0.01) pts = taubin(pts, blending);
+    // PYRO: the top of the outline itself bulges up into round flame tufts,
+    // so one continuous outline wraps body and flames together.
+    if (flames) {
+      pts = pts.map(([px, py], i) => {
+        if (top[i] <= 0) return [px, py];
         for (const f of flames) {
           const k = Math.exp(-(((px - f.cx) / f.w) ** 4));
           py -= f.H * k * top[i];
           px += f.sway * k * top[i] * 0.4;
         }
-      }
-      return [px, py];
-    });
+        return [px, py];
+      });
+      pts = taubin(pts, 0.6, 1); // round off the flame tips a touch
+    }
     const d = smoothPath(pts);
     this.body.setAttribute("d", d);
     this.outline.setAttribute("d", d);
@@ -409,7 +430,7 @@ export class Dot {
     const spec = SKINS[this.skin].flames;
     if (!spec) return null;
     const mood = this.figure.dataset.mood;
-    const size = { sad: 0.45, sleepy: 0.55, worried: 0.85, held: 0.8, happy: 1.3, celebrate: 2 }[mood] || 1;
+    const size = { sad: 0.45, sleepy: 0.55, worried: 0.85, held: 0.5, plop: 0.45, happy: 1.3, celebrate: 2 }[mood] || 1;
     this.flameSize = (this.flameSize ?? size) + (size - (this.flameSize ?? size)) * 0.06;
     return spec.map(({ x, top, w, h, p }) => {
       const f = still ? 1 : 1 + 0.1 * Math.sin(t * 3.6 + p) + 0.05 * Math.sin(t * 5.9 + p * 2);
