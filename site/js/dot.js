@@ -47,6 +47,18 @@ const MELT = [
   [196, 163], [176, 170], [140, 170],
   [122, 170], [108, 170], [96, 169],
 ];
+// Splat: like a drop hitting water, a flat puddle with its edges flicked up (a "crown").
+const SPLASH = [
+  [96, 168],
+  [60, 169], [10, 169], [-4, 166],
+  [-12, 160], [-10, 134], [-3, 128],
+  [3, 123], [8, 146], [20, 150],
+  [36, 140], [62, 110], [96, 110],
+  [130, 110], [156, 140], [172, 150],
+  [184, 146], [189, 123], [195, 128],
+  [202, 134], [204, 160], [196, 166],
+  [182, 169], [132, 169], [96, 168],
+];
 const GROUND = 166, CX = 96, CY = 100;
 
 // Sample the outline into evenly spread anchor points once. Each frame the
@@ -83,6 +95,7 @@ function geometry(count) {
     anchors,
     held: sample(HELD, count),
     melt: sample(MELT, count),
+    crown: sample(SPLASH, count),
     angle: anchors.map(([x, y]) => Math.atan2(y - CY, x - CX)),
     // How free each point is to wobble: 0 at the ground (DOT stays planted),
     // easing up to 1 by mid-body, so there's no crease where the two meet.
@@ -180,7 +193,7 @@ function svg(id, skin) {
         <circle cx="104" cy="150" r="4" fill="${k.shine}" opacity=".35"/>
       </g>
       <path class="dot-outline" style="stroke:${k.outline}"/>
-      <g class="dot-face">
+      <g class="face-shift"><g class="dot-face">
         <g class="dot-eyes" filter="url(#eyeGlow${id})">
           <g class="dot-eye"><circle class="eye-white" cx="36" cy="103" r="16.5"/><path class="eye-line eye-arc" d="M22 106 Q36 92 50 106"/><path class="eye-line eye-shut" d="M22 103 Q36 112 50 103"/><path class="eye-line eye-squeeze" d="M25 96 L44 103 L25 110"/></g>
           <g class="dot-eye"><circle class="eye-white" cx="98" cy="108" r="19"/><path class="eye-line eye-arc" d="M82 111 Q98 95 114 111"/><path class="eye-line eye-shut" d="M82 108 Q98 118 114 108"/><path class="eye-line eye-squeeze" d="M109 100 L88 108 L109 116"/></g>
@@ -191,9 +204,10 @@ function svg(id, skin) {
         <g class="acc acc-bow"><path d="M52 32 L34 20 L36 46 Z"/><path d="M56 32 L74 20 L72 46 Z"/><circle cx="54" cy="33" r="6"/></g>
         <g class="acc acc-party"><path d="M84 22 L104 -26 L126 18 Z"/><path class="stripe" d="M92 4 L117 0 M98 -10 L111 -12"/><circle cx="104" cy="-28" r="6"/></g>
         <g class="acc acc-crown"><path d="M74 22 L80 -2 L92 14 L102 -8 L112 14 L124 -2 L128 22 Z"/><circle cx="102" cy="-8" r="3.5"/><circle cx="80" cy="-2" r="3"/><circle cx="124" cy="-2" r="3"/></g>
-      </g>
+      </g></g>
     </g>
   </g>
+  <g class="dot-fx"></g>
   <g class="dot-zz"><text x="150" y="30">z</text><text x="164" y="12">z</text></g>
   <g class="dot-sparkles">
     <path d="M20 30 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z"/>
@@ -306,11 +320,14 @@ export class Dot {
     this.sy = { s: 1, v: 0, t: 1 };
     this.lean = { s: 0, v: 0, t: 0 };
     // How far the body has morphed into the picked-up and melting shapes (0 to 1).
-    this.form = { held: { s: 0, t: 0 }, melt: { s: 0, t: 0 } };
+    this.form = { held: { s: 0, t: 0 }, melt: { s: 0, t: 0 }, crown: { s: 0, t: 0 } };
+    this.fx = container.querySelector(".dot-fx");
+    this.particles = [];
     this.spring = { k: 0.07, damp: 0.86, meltRate: 0.955 };
     this.jump = { s: 0, v: 0 };   // height off the ground (negative = up) for the plop bounce
     this.timers = [];
     this.shadow = container.querySelector(".dot-shadow");
+    this.faceShift = container.querySelector(".face-shift");
     this.energy = 0;
     this.start = performance.now();
     this.frame = this.frame.bind(this);
@@ -337,23 +354,25 @@ export class Dot {
     const amp = this.amp;
     const breathe = still ? 0 : Math.sin(t * 1.5) * 0.016;
     // Slow, broad waves around the body: neighbouring points move together.
-    const { anchors, held, melt, angle, grip, top } = this.geo;
+    const { anchors, held, melt, crown, angle, grip, top } = this.geo;
     // Morph speed: quick into the picked-up shape, slower out of a splat so the squish is visible.
     this.form.held.s += (this.form.held.t - this.form.held.s) * (1 - Math.pow(still ? 0 : 0.9, step));
     this.form.melt.s += (this.form.melt.t - this.form.melt.s) * (1 - Math.pow(still ? 0 : this.spring.meltRate, step));
+    this.form.crown.s += (this.form.crown.t - this.form.crown.s) * (1 - Math.pow(still ? 0 : 0.8, step));
     // A little hop with gravity; landing gives a small extra squish.
     if (this.jump.s < 0 || this.jump.v < 0) {
       this.jump.v += 0.45 * step;
       this.jump.s += this.jump.v * step;
       if (this.jump.s >= 0) {
-        if (this.jump.v > 1.5) { this.sx.s = 1.25; this.sy.s = 0.76; this.sx.v = 0; this.sy.v = 0; this.nudge(0, 0.4); }
+        if (this.jump.v > 1.5) { this.sx.s = 1.25; this.sy.s = 0.76; this.sx.v = 0; this.sy.v = 0; this.nudge(0, 0.4); this.splash(0.35); }
         this.jump.s = 0; this.jump.v = 0;
       }
     }
-    const h = this.form.held.s, m = this.form.melt.s, b = 1 - h - m;
+    const h = this.form.held.s, m = this.form.melt.s, c = this.form.crown.s, b = 1 - h - m - c;
     const flames = this.flameShapes(t, still);
     const pts = anchors.map(([bx, by], i) => {
-      const x = bx * b + held[i][0] * h + melt[i][0] * m, y = by * b + held[i][1] * h + melt[i][1] * m;
+      const x = bx * b + held[i][0] * h + melt[i][0] * m + crown[i][0] * c;
+      const y = by * b + held[i][1] * h + melt[i][1] * m + crown[i][1] * c;
       const a = angle[i];
       const w = amp * grip[i] * (0.65 * Math.sin(2 * a + t * 1.15) + 0.35 * Math.sin(3 * a - t * 0.85));
       let px = x + Math.cos(a) * w, py = y + Math.sin(a) * w;
@@ -376,6 +395,9 @@ export class Dot {
     const sx = this.sx.s + breathe, sy = this.sy.s - breathe, lean = this.lean.s;
     // Squash/stretch around the bottom centre, plus a lean (shear) when moving.
     this.jelly.setAttribute("transform", `matrix(${sx.toFixed(4)} 0 ${(-lean).toFixed(4)} ${sy.toFixed(4)} ${(CX - sx * CX + lean * GROUND).toFixed(2)} ${(GROUND - sy * GROUND + this.jump.s).toFixed(2)})`);
+    // Keep the face inside the body when it splats down into the crown shape.
+    this.faceShift.setAttribute("transform", `translate(${(c * 10).toFixed(2)} ${(c * 26).toFixed(2)})`);
+    this.stepParticles(step);
     const sh = 1 + this.jump.s / 70;
     this.shadow.setAttribute("transform", `translate(94 169) scale(${(sh * sx).toFixed(3)} ${sh.toFixed(3)}) translate(-94 -169)`);
     requestAnimationFrame(this.frame);
@@ -420,6 +442,7 @@ export class Dot {
 
   pickUp() {
     this.clearTimers();
+    this.form.crown.t = 0;
     this.jump.s = 0; this.jump.v = 0;
     this.spring.k = 0.07; this.spring.damp = 0.86; this.spring.meltRate = 0.955;
     this.setMood("held");
@@ -432,25 +455,77 @@ export class Dot {
     this.clearTimers();
     this.lean.t = 0;
     this.setMood("plop");
-    // 1. Splat: flatten into a wide puddle and hold it for a moment.
-    this.form.held.s = 0;
-    this.form.melt.s = 1; this.form.melt.t = 1;
-    this.spring.k = 0.25; this.spring.damp = 0.7; this.spring.meltRate = 0.85;
-    this.sx.s = 1.5; this.sy.s = 0.42; this.sx.v = 0; this.sy.v = 0;
-    this.sx.t = 1.46; this.sy.t = 0.45;
-    this.energy = 1.5;
+    // 1. Splat: like a drop hitting water, a flat crown with the edges flicked up.
+    this.form.held.s = 0; this.form.melt.s = 0;
+    this.form.crown.s = 1; this.form.crown.t = 1;
+    this.spring.k = 0.25; this.spring.damp = 0.7;
+    this.sx.s = 1.18; this.sy.s = 0.8; this.sx.v = 0; this.sy.v = 0;
+    this.sx.t = 1.16; this.sy.t = 0.82;
+    this.energy = 1.2;
+    this.splash(1);
     const later = (ms, fn) => this.timers.push(setTimeout(fn, ms));
-    // 2. Rebound: spring up tall, pop into a small hop, and lose the puddle shape.
-    later(190, () => {
+    // 2. Bounce back: the middle shoots up tall and narrow, with a small hop.
+    later(170, () => {
       this.spring.k = 0.09; this.spring.damp = 0.8;
-      this.form.melt.t = 0;
-      this.sx.t = 1; this.sy.t = 1;
-      this.sx.v = -0.06; this.sy.v = 0.09;
+      this.form.crown.t = 0; this.form.held.t = 1;
+      this.sx.t = 0.9; this.sy.t = 1.15;
+      this.sx.v = -0.04; this.sy.v = 0.07;
       this.jump.v = -4.4;
     });
-    // 3. Land (small squish handled in frame()), wobble, then settle and smile.
+    // 3. Round back into shape; landing gives a small squish and splash (frame()).
+    later(360, () => { this.form.held.t = 0; this.sx.t = 1; this.sy.t = 1; });
     later(700, () => this.setMood("idle"));
     later(1300, () => { this.spring.k = 0.07; this.spring.damp = 0.86; this.spring.meltRate = 0.955; });
+  }
+
+  // A subtle splash: a few droplets (DOT) or sparks (PYRO) and a faint ring on
+  // the ground. strength 1 = a full plop, smaller = a light landing.
+  splash(strength = 1) {
+    if (reduceMotion()) return;
+    const fire = this.skin === "pyro";
+    const ns = "http://www.w3.org/2000/svg";
+    const ring = document.createElementNS(ns, "ellipse");
+    ring.setAttribute("cx", 94); ring.setAttribute("cy", 168);
+    ring.setAttribute("fill", "none");
+    ring.setAttribute("stroke", fire ? "#ffb35c" : "#9fe3fa");
+    ring.setAttribute("stroke-width", "2");
+    this.fx.append(ring);
+    this.particles.push({ el: ring, ring: true, life: 0.7, max: 0.7, strength });
+    const count = Math.round((fire ? 8 : 6) * strength);
+    for (let i = 0; i < count; i++) {
+      const side = i % 2 ? 1 : -1;
+      const el = document.createElementNS(ns, fire ? "circle" : "ellipse");
+      const p = fire
+        ? { x: 94 + side * (78 + Math.random() * 26), y: 156, vx: side * (0.3 + Math.random() * 0.8), vy: -(1.4 + Math.random() * 1.6) * strength, g: -0.01, life: 0.9, size: 1.5 + Math.random() * 1.5 }
+        : { x: 94 + side * (70 + Math.random() * 22), y: 150, vx: side * (0.9 + Math.random() * 1.3), vy: -(2.2 + Math.random() * 1.6) * strength, g: 0.16, life: 0.65, size: 2.2 + Math.random() * 1.6 };
+      if (fire) { el.setAttribute("r", p.size); el.setAttribute("fill", Math.random() < 0.5 ? "#ffd36b" : "#ff9a3c"); }
+      else { el.setAttribute("rx", p.size * 0.75); el.setAttribute("ry", p.size); el.setAttribute("fill", "#bdeeff"); el.setAttribute("stroke", INK); el.setAttribute("stroke-opacity", ".3"); }
+      this.fx.append(el);
+      this.particles.push({ el, ...p, max: p.life });
+    }
+  }
+
+  stepParticles(step) {
+    const dt = step / 60;
+    this.particles = this.particles.filter((p) => {
+      p.life -= dt;
+      if (p.life <= 0) { p.el.remove(); return false; }
+      const k = p.life / p.max;
+      if (p.ring) {
+        const grow = 1 - k;
+        p.el.setAttribute("rx", (60 + grow * 55 * p.strength).toFixed(1));
+        p.el.setAttribute("ry", (5 + grow * 5 * p.strength).toFixed(1));
+        p.el.setAttribute("opacity", (0.35 * k * p.strength).toFixed(3));
+        return true;
+      }
+      p.vy += p.g * step; p.x += p.vx * step; p.y += p.vy * step;
+      const ang = Math.atan2(p.vy, p.vx) * 180 / Math.PI - 90;
+      p.el.setAttribute("cx", p.x.toFixed(1));
+      p.el.setAttribute("cy", p.y.toFixed(1));
+      if (p.el.tagName === "ellipse") p.el.setAttribute("transform", `rotate(${ang.toFixed(0)} ${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+      p.el.setAttribute("opacity", (0.85 * Math.min(1, k * 1.6)).toFixed(3));
+      return true;
+    });
   }
 
   setAccessory(id) { if (id) this.figure.dataset.acc = id; else delete this.figure.dataset.acc; }
