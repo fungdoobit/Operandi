@@ -20,6 +20,33 @@ const BODY = [
   [184, 162], [160, 168], [132, 168],
   [120, 168], [108, 168], [96, 168],
 ];
+// Other body shapes DOT and PYRO morph into. They start at the same point and
+// run the same way round, so the outlines blend smoothly into each other.
+// Picked up: long and droopy, heavy at the bottom, no C-shaped notch.
+const HELD = [
+  [96, 168],
+  [64, 169], [34, 166], [24, 150],
+  [12, 130], [16, 92], [32, 64],
+  [48, 36], [72, 14], [98, 14],
+  [124, 14], [148, 36], [162, 64],
+  [178, 94], [182, 128], [172, 150],
+  [164, 164], [136, 168], [118, 168],
+  [110, 168], [104, 168], [96, 168],
+];
+// Melting: low and spread out, with little puddle lips at the base.
+const MELT = [
+  [96, 169],
+  [56, 170], [12, 171], [0, 163],
+  [-10, 155], [6, 148], [8, 130],
+  [10, 90], [32, 52], [66, 38],
+  [86, 30], [110, 29], [130, 33],
+  [158, 41], [178, 60], [183, 80],
+  [186, 91], [183, 100], [176, 102],
+  [169, 104], [164, 107], [164, 115],
+  [164, 128], [180, 137], [187, 150],
+  [196, 163], [176, 170], [140, 170],
+  [122, 170], [108, 170], [96, 169],
+];
 const GROUND = 166, CX = 96, CY = 100;
 
 // Sample the outline into evenly spread anchor points once. Each frame the
@@ -29,27 +56,33 @@ function cubic(p0, p1, p2, p3, t) {
   const u = 1 - t;
   return [0, 1].map((k) => u * u * u * p0[k] + 3 * u * u * t * p1[k] + 3 * u * t * t * p2[k] + t * t * t * p3[k]);
 }
-const dense = [];
-for (let i = 0; i + 3 < BODY.length; i += 3) {
-  for (let j = 0; j < 40; j++) dense.push(cubic(BODY[i], BODY[i + 1], BODY[i + 2], BODY[i + 3], j / 40));
-}
-const lengths = [0];
-for (let i = 1; i <= dense.length; i++) {
-  const a = dense[i - 1], b = dense[i % dense.length];
-  lengths.push(lengths[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1]));
-}
-const smooth = (k) => { k = Math.min(1, Math.max(0, k)); return k * k * (3 - 2 * k); };
-// `count` evenly spaced points around the outline. PYRO uses more points so
-// his flame tufts (part of the outline itself) stay perfectly round.
-function geometry(count) {
-  const anchors = [];
+// `count` evenly spaced points around an outline.
+function sample(shape, count) {
+  const dense = [];
+  for (let i = 0; i + 3 < shape.length; i += 3) {
+    for (let j = 0; j < 40; j++) dense.push(cubic(shape[i], shape[i + 1], shape[i + 2], shape[i + 3], j / 40));
+  }
+  const lengths = [0];
+  for (let i = 1; i <= dense.length; i++) {
+    const a = dense[i - 1], b = dense[i % dense.length];
+    lengths.push(lengths[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1]));
+  }
+  const out = [];
   for (let k = 0, i = 0; k < count; k++) {
     const want = (k / count) * lengths[lengths.length - 1];
     while (lengths[i + 1] < want) i++;
-    anchors.push(dense[i]);
+    out.push(dense[i]);
   }
+  return out;
+}
+const smooth = (k) => { k = Math.min(1, Math.max(0, k)); return k * k * (3 - 2 * k); };
+// PYRO uses more points so his flame tufts (part of the outline itself) stay round.
+function geometry(count) {
+  const anchors = sample(BODY, count);
   return {
     anchors,
+    held: sample(HELD, count),
+    melt: sample(MELT, count),
     angle: anchors.map(([x, y]) => Math.atan2(y - CY, x - CX)),
     // How free each point is to wobble: 0 at the ground (DOT stays planted),
     // easing up to 1 by mid-body, so there's no crease where the two meet.
@@ -272,6 +305,8 @@ export class Dot {
     this.sx = { s: 1, v: 0, t: 1 };
     this.sy = { s: 1, v: 0, t: 1 };
     this.lean = { s: 0, v: 0, t: 0 };
+    // How far the body has morphed into the picked-up and melting shapes (0 to 1).
+    this.form = { held: { s: 0, t: 0 }, melt: { s: 0, t: 0 } };
     this.energy = 0;
     this.start = performance.now();
     this.frame = this.frame.bind(this);
@@ -298,9 +333,14 @@ export class Dot {
     const amp = this.amp;
     const breathe = still ? 0 : Math.sin(t * 1.5) * 0.016;
     // Slow, broad waves around the body: neighbouring points move together.
-    const { anchors, angle, grip, top } = this.geo;
+    const { anchors, held, melt, angle, grip, top } = this.geo;
+    // Morph speed: quick into the picked-up shape, slower out of a splat so the squish is visible.
+    this.form.held.s += (this.form.held.t - this.form.held.s) * (1 - Math.pow(still ? 0 : 0.9, step));
+    this.form.melt.s += (this.form.melt.t - this.form.melt.s) * (1 - Math.pow(still ? 0 : 0.955, step));
+    const h = this.form.held.s, m = this.form.melt.s, b = 1 - h - m;
     const flames = this.flameShapes(t, still);
-    const pts = anchors.map(([x, y], i) => {
+    const pts = anchors.map(([bx, by], i) => {
+      const x = bx * b + held[i][0] * h + melt[i][0] * m, y = by * b + held[i][1] * h + melt[i][1] * m;
       const a = angle[i];
       const w = amp * grip[i] * (0.65 * Math.sin(2 * a + t * 1.15) + 0.35 * Math.sin(3 * a - t * 0.85));
       let px = x + Math.cos(a) * w, py = y + Math.sin(a) * w;
@@ -332,7 +372,7 @@ export class Dot {
     const spec = SKINS[this.skin].flames;
     if (!spec) return null;
     const mood = this.figure.dataset.mood;
-    const size = { sad: 0.5, sleepy: 0.55, worried: 0.85, held: 0.8, happy: 1.2, celebrate: 1.35 }[mood] || 1;
+    const size = { sad: 0.45, sleepy: 0.55, worried: 0.85, held: 0.8, happy: 1.3, celebrate: 2 }[mood] || 1;
     this.flameSize = (this.flameSize ?? size) + (size - (this.flameSize ?? size)) * 0.06;
     return spec.map(({ x, top, w, h, p }) => {
       const f = still ? 1 : 1 + 0.1 * Math.sin(t * 3.6 + p) + 0.05 * Math.sin(t * 5.9 + p * 2);
@@ -364,7 +404,6 @@ export class Dot {
   pickUp() {
     this.setMood("held");
     this.figure.classList.add("dragging");
-    this.sx.t = 0.84; this.sy.t = 1.22;
     this.energy = 1;
   }
 
@@ -372,12 +411,13 @@ export class Dot {
     this.figure.classList.remove("dragging");
     this.lean.t = 0;
     this.setMood("plop");
-    // Splat flat, then spring back with a wobble.
-    this.sx.t = 1; this.sy.t = 1;
-    this.sx.s = 1.35; this.sy.s = 0.62; this.sx.v = 0; this.sy.v = 0;
+    // Splat into a flat puddle, then spring back up with a bounce.
+    this.form.held.s = 0;
+    this.form.melt.s = 1; this.form.melt.t = 0;
+    this.sx.s = 1.3; this.sy.s = 0.58; this.sx.v = -0.01; this.sy.v = 0.005;
     this.energy = 1.5;
     clearTimeout(this.moodTimer);
-    this.moodTimer = setTimeout(() => this.setMood("happy", { revertAfter: 1800 }), 650);
+    this.moodTimer = setTimeout(() => this.setMood("happy", { revertAfter: 1800 }), 700);
   }
 
   setAccessory(id) { if (id) this.figure.dataset.acc = id; else delete this.figure.dataset.acc; }
@@ -386,8 +426,12 @@ export class Dot {
     clearTimeout(this.moodTimer);
     this.figure.dataset.mood = mood;
     this.mouth.setAttribute("d", MOUTHS[mood] || MOUTHS.idle);
-    if (mood === "sad") { this.sx.t = 1.07; this.sy.t = 0.9; }
-    else if (mood !== "held") { this.sx.t = 1; this.sy.t = 1; }
+    // Body shape for the mood: stretched when held, melting a little when sad.
+    this.form.held.t = mood === "held" ? 1 : 0;
+    this.form.melt.t = mood === "sad" ? 0.75 : 0;
+    if (mood === "held") { this.sx.t = 0.9; this.sy.t = 1.12; }
+    else if (mood === "sad") { this.sx.t = 1.06; this.sy.t = 0.86; }
+    else { this.sx.t = 1; this.sy.t = 1; }
     if (mood === "happy" || mood === "celebrate") this.nudge(0, 0.5);
     if (revertAfter) this.moodTimer = setTimeout(() => this.setMood("idle"), revertAfter);
   }
