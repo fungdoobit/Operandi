@@ -38,16 +38,27 @@ for (let i = 1; i <= dense.length; i++) {
   const a = dense[i - 1], b = dense[i % dense.length];
   lengths.push(lengths[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1]));
 }
-const ANCHOR_COUNT = 44, ANCHORS = [];
-for (let k = 0, i = 0; k < ANCHOR_COUNT; k++) {
-  const want = (k / ANCHOR_COUNT) * lengths[lengths.length - 1];
-  while (lengths[i + 1] < want) i++;
-  ANCHORS.push(dense[i]);
+const smooth = (k) => { k = Math.min(1, Math.max(0, k)); return k * k * (3 - 2 * k); };
+// `count` evenly spaced points around the outline. PYRO uses more points so
+// his flame tufts (part of the outline itself) stay perfectly round.
+function geometry(count) {
+  const anchors = [];
+  for (let k = 0, i = 0; k < count; k++) {
+    const want = (k / count) * lengths[lengths.length - 1];
+    while (lengths[i + 1] < want) i++;
+    anchors.push(dense[i]);
+  }
+  return {
+    anchors,
+    angle: anchors.map(([x, y]) => Math.atan2(y - CY, x - CX)),
+    // How free each point is to wobble: 0 at the ground (DOT stays planted),
+    // easing up to 1 by mid-body, so there's no crease where the two meet.
+    grip: anchors.map(([, y]) => smooth((GROUND + 4 - y) / 70)),
+    // How much of the top of the head a point is: where PYRO's flames rise.
+    top: anchors.map(([x, y]) => smooth((62 - y) / 30) * smooth((Math.atan2(CY - y, Math.abs(x - CX) + 1) - 0.25) / 0.5)),
+  };
 }
-const ANGLE = ANCHORS.map(([x, y]) => Math.atan2(y - CY, x - CX));
-// How free each point is to wobble: 0 at the ground (DOT stays planted),
-// easing up to 1 by mid-body, so there's no crease where the two meet.
-const GRIP = ANCHORS.map(([, y]) => { const k = Math.min(1, Math.max(0, (GROUND + 4 - y) / 70)); return k * k * (3 - 2 * k); });
+const GEO = { dot: geometry(44), pyro: geometry(120) };
 
 function smoothPath(pts) {
   const n = pts.length, f = (v) => v.toFixed(2);
@@ -88,7 +99,8 @@ const SKINS = {
     glow: "#ff9a3c", outline: "#5a1a0a", shine: "#fff7dc",
     inner: [[60, 150, 0], [96, 158, 1.1], [132, 152, 2.3], [78, 140, 3.0], [116, 146, 0.6], [146, 138, 1.8]]
       .map(([x, y, d]) => `<circle class="ember" cx="${x}" cy="${y}" r="2.6" style="animation-delay:${d}s"/>`).join(""),
-    flames: [{ x: 70, y: 40, w: 20, h: 26, p: 0 }, { x: 106, y: 32, w: 24, h: 36, p: 1.7 }, { x: 142, y: 42, w: 18, h: 24, p: 3.1 }],
+    // Flame tufts rise out of the top of the outline: x = centre, w = width, h = height.
+    flames: [{ x: 70, top: 23, w: 15, h: 16, p: 0 }, { x: 106, top: 15, w: 18, h: 24, p: 1.7 }, { x: 142, top: 26, w: 14, h: 14, p: 3.1 }],
   },
 };
 
@@ -106,7 +118,7 @@ function svg(id, skin) {
       <stop offset="100%" stop-color="${k.stops[3]}" stop-opacity="0.95"/>
     </radialGradient>
     <linearGradient id="dotFlame${id}" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0%" stop-color="#ff7a2e"/><stop offset="55%" stop-color="#ffb347"/><stop offset="100%" stop-color="#ffe9a6"/>
+      <stop offset="0%" stop-color="#ffe9a6" stop-opacity="0"/><stop offset="60%" stop-color="#ffe9a6" stop-opacity=".45"/><stop offset="100%" stop-color="#fff6d6" stop-opacity=".7"/>
     </linearGradient>
     <filter id="dotGlow${id}" x="-40%" y="-40%" width="180%" height="180%">
       <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="b"/>
@@ -125,10 +137,10 @@ function svg(id, skin) {
   <ellipse class="dot-shadow" cx="94" cy="169" rx="92" ry="8"/>
   <g class="dot-hop">
     <g class="dot-jelly">
-      ${k.flames ? `<g class="dot-flames" filter="url(#dotGlow${id})">${k.flames.map(() => `<path fill="url(#dotFlame${id})"/><path class="flame-core" fill="#ffe9a6" opacity=".85"/>`).join("")}</g>` : ""}
       <path class="dot-body" fill="url(#dotBody${id})" filter="url(#dotGlow${id})"/>
       <g clip-path="url(#dotClip${id})" class="dot-inner">
         ${k.inner}
+        ${k.flames ? `<g class="flame-cores">${k.flames.map(() => `<path fill="url(#dotFlame${id})"/>`).join("")}</g>` : ""}
         <ellipse cx="118" cy="36" rx="20" ry="7" fill="${k.shine}" opacity=".55" transform="rotate(-8 118 36)"/>
         <circle cx="90" cy="30" r="4" fill="${k.shine}" opacity=".6"/>
         <circle cx="146" cy="48" r="3" fill="${k.shine}" opacity=".45"/>
@@ -245,7 +257,8 @@ export class Dot {
     if (!SKINS[skin]) skin = "dot";
     this.skin = skin;
     container.innerHTML = `<div class="dot-wrap"><div class="dot-figure" data-mood="idle" data-skin="${skin}">${svg(id, skin)}</div><div class="dot-bubble" hidden aria-live="polite"></div></div>`;
-    this.flamePaths = [...container.querySelectorAll(".dot-flames path")]; // outer, core, outer, core...
+    this.geo = GEO[skin] || GEO.dot;
+    this.flameCores = [...container.querySelectorAll(".flame-cores path")];
     this.figure = container.querySelector(".dot-figure");
     this.bubble = container.querySelector(".dot-bubble");
     this.mouth = container.querySelector(".dot-mouth");
@@ -285,38 +298,58 @@ export class Dot {
     const amp = this.amp;
     const breathe = still ? 0 : Math.sin(t * 1.5) * 0.016;
     // Slow, broad waves around the body: neighbouring points move together.
-    const pts = ANCHORS.map(([x, y], i) => {
-      const a = ANGLE[i];
-      const w = amp * GRIP[i] * (0.65 * Math.sin(2 * a + t * 1.15) + 0.35 * Math.sin(3 * a - t * 0.85));
-      return [x + Math.cos(a) * w, y + Math.sin(a) * w];
+    const { anchors, angle, grip, top } = this.geo;
+    const flames = this.flameShapes(t, still);
+    const pts = anchors.map(([x, y], i) => {
+      const a = angle[i];
+      const w = amp * grip[i] * (0.65 * Math.sin(2 * a + t * 1.15) + 0.35 * Math.sin(3 * a - t * 0.85));
+      let px = x + Math.cos(a) * w, py = y + Math.sin(a) * w;
+      // PYRO: the top of the outline itself bulges up into round flame tufts,
+      // so one continuous outline wraps body and flames together.
+      if (flames && top[i] > 0) {
+        for (const f of flames) {
+          const k = Math.exp(-(((px - f.cx) / f.w) ** 4));
+          py -= f.H * k * top[i];
+          px += f.sway * k * top[i] * 0.4;
+        }
+      }
+      return [px, py];
     });
     const d = smoothPath(pts);
     this.body.setAttribute("d", d);
     this.outline.setAttribute("d", d);
     this.clip.setAttribute("d", d);
-    if (this.flamePaths.length) this.drawFlames(t, still);
+    if (flames) this.drawCores(flames);
     const sx = this.sx.s + breathe, sy = this.sy.s - breathe, lean = this.lean.s;
     // Squash/stretch around the bottom centre, plus a lean (shear) when moving.
     this.jelly.setAttribute("transform", `matrix(${sx.toFixed(4)} 0 ${(-lean).toFixed(4)} ${sy.toFixed(4)} ${(CX - sx * CX + lean * GROUND).toFixed(2)} ${(GROUND - sy * GROUND).toFixed(2)})`);
     requestAnimationFrame(this.frame);
   }
 
-  // Soft, rounded flame tongues that flicker smoothly. Their bases sit behind
-  // the body, so they look like they grow out of PYRO's head.
-  drawFlames(t, still) {
+  // Where each of PYRO's flame tufts is this frame: they flicker, sway when
+  // he moves, and grow or shrink with his mood.
+  flameShapes(t, still) {
+    const spec = SKINS[this.skin].flames;
+    if (!spec) return null;
     const mood = this.figure.dataset.mood;
-    const size = { sad: 0.55, sleepy: 0.6, worried: 0.85, held: 0.8, happy: 1.2, celebrate: 1.35 }[mood] || 1;
+    const size = { sad: 0.5, sleepy: 0.55, worried: 0.85, held: 0.8, happy: 1.2, celebrate: 1.35 }[mood] || 1;
     this.flameSize = (this.flameSize ?? size) + (size - (this.flameSize ?? size)) * 0.06;
-    const r = (v) => v.toFixed(2);
-    // A puffy, round-topped flame tuft: flat tangent at the top, so no point.
-    const tuft = (x, y, w, H, sway) =>
-      `M${r(x - w)} ${r(y)} C${r(x - w)} ${r(y - H * 0.6)} ${r(x - w * 0.55 + sway)} ${r(y - H)} ${r(x + sway)} ${r(y - H)} ` +
-      `C${r(x + w * 0.55 + sway)} ${r(y - H)} ${r(x + w)} ${r(y - H * 0.6)} ${r(x + w)} ${r(y)} Z`;
-    SKINS[this.skin].flames.forEach(({ x, y, w, h, p }, i) => {
+    return spec.map(({ x, top, w, h, p }) => {
       const f = still ? 1 : 1 + 0.1 * Math.sin(t * 3.6 + p) + 0.05 * Math.sin(t * 5.9 + p * 2);
-      const H = h * f * this.flameSize, sway = still ? 0 : 3 * Math.sin(t * 2.6 + p) - this.lean.s * 25;
-      this.flamePaths[i * 2].setAttribute("d", tuft(x, y, w, H, sway));
-      this.flamePaths[i * 2 + 1].setAttribute("d", tuft(x + sway * 0.2, y, w * 0.5, H * 0.62, sway * 0.7));
+      const sway = still ? 0 : 3 * Math.sin(t * 2.6 + p) - this.lean.s * 25;
+      return { cx: x + sway * 0.5, w, H: h * f * this.flameSize, sway, top };
+    });
+  }
+
+  // A soft yellow glow inside each tuft (clipped to the body), so the flames
+  // look hot at the tips and blend into the body below.
+  drawCores(flames) {
+    const r = (v) => v.toFixed(2);
+    flames.forEach(({ cx, w, H, sway, top }, i) => {
+      const x = cx + sway * 0.3, y = top + 4, cw = w * 0.6, ch = H * 0.85;
+      this.flameCores[i].setAttribute("d",
+        `M${r(x - cw)} ${r(y)} C${r(x - cw)} ${r(y - ch * 0.6)} ${r(x - cw * 0.5)} ${r(y - ch)} ${r(x)} ${r(y - ch)} ` +
+        `C${r(x + cw * 0.5)} ${r(y - ch)} ${r(x + cw)} ${r(y - ch * 0.6)} ${r(x + cw)} ${r(y)} Z`);
     });
   }
 
