@@ -8,16 +8,17 @@ const INK = "#16304a";
 // Body outline as cubic segments: [start, c1, c2, end, c1, c2, end, ...].
 // Bottom points (y >= 150) barely wobble, so DOT sits on the ground.
 const BODY = [
-  [40, 166],
-  [24, 166], [10, 156], [9, 134],
-  [8, 98], [24, 56], [46, 38],
-  [64, 23], [86, 16], [108, 16],
-  [136, 16], [160, 30], [172, 54],
-  [179, 68], [184, 81], [180, 91],
-  [176, 100], [166, 100], [159, 104],
-  [152, 108], [149, 118], [150, 130],
-  [151, 146], [153, 160], [136, 165],
-  [110, 168], [64, 167], [40, 166],
+  [96, 168],
+  [60, 169], [28, 168], [13, 156],
+  [1, 146], [-1, 126], [3, 108],
+  [9, 72], [32, 38], [64, 25],
+  [84, 17], [110, 15], [130, 21],
+  [158, 30], [179, 53], [185, 76],
+  [188, 88], [185, 98], [178, 100],
+  [171, 102], [165, 104], [164, 112],
+  [163, 122], [186, 128], [185, 147],
+  [184, 162], [160, 168], [132, 168],
+  [120, 168], [108, 168], [96, 168],
 ];
 const GROUND = 166, CX = 96, CY = 100;
 
@@ -76,7 +77,7 @@ let uid = 0;
 
 function svg(id) {
   return `
-<svg class="dot-svg" viewBox="0 -30 200 205" role="img" aria-label="DOT, your Operandi teammate">
+<svg class="dot-svg" viewBox="-8 -30 208 205" role="img" aria-label="DOT, your Operandi teammate">
   <defs>
     <radialGradient id="dotBody${id}" cx="40%" cy="40%" r="75%">
       <stop offset="0%" stop-color="#e9fbff" stop-opacity="0.98"/>
@@ -98,7 +99,7 @@ function svg(id) {
     </filter>
     <clipPath id="dotClip${id}"><path class="dot-clip"/></clipPath>
   </defs>
-  <ellipse class="dot-shadow" cx="94" cy="168" rx="78" ry="8"/>
+  <ellipse class="dot-shadow" cx="94" cy="169" rx="92" ry="8"/>
   <g class="dot-hop">
     <g class="dot-jelly">
       <path class="dot-body" fill="url(#dotBody${id})" filter="url(#dotGlow${id})"/>
@@ -139,7 +140,7 @@ export const DOT_CSS = `
 .dot-wrap { display: flex; align-items: flex-end; gap: 10px; }
 .dot-figure { width: 96px; flex: none; touch-action: none; }
 .dot-svg { width: 100%; height: auto; overflow: visible; display: block; }
-.dot-shadow { fill: #000; opacity: 0.16; transform-origin: 94px 168px; transition: transform .25s, opacity .25s; }
+.dot-shadow { fill: #000; opacity: 0.16; transform-origin: 94px 169px; transition: transform .25s, opacity .25s; }
 .dot-hop { transform-origin: 96px 164px; }
 .dot-outline { fill: none; stroke: ${INK}; stroke-opacity: .55; stroke-width: 2.2; }
 .ripple { fill: none; stroke: #ffffff; stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; animation: dot-ripple 5.5s ease-out infinite; }
