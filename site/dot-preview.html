@@ -1,26 +1,51 @@
-<!doctype html><html><head><meta charset="utf-8"><title>DOT preview</title>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DOT preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=IBM+Plex+Sans:wght@400;500&display=swap">
 <style>
 body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: #12151c; color: #e7e9ef; --surface: #1b1f29; --ink: #e7e9ef; }
-h1 { font-size: 22px; margin: 0 0 4px; } p { margin: 0 0 18px; color: #9aa1b0; }
+h1 { font: 700 26px "Bricolage Grotesque", system-ui, sans-serif; margin: 0 0 4px; } p { margin: 0 0 16px; color: #9aa1b0; }
 main { padding: 24px; }
-.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-.cell { background: #181c25; border: 1px solid #262b37; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.cell .dot-figure { width: 130px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+.cell { background: #181c25; border: 1px solid #262b37; border-radius: 12px; padding: 16px 10px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.cell .dot-figure { width: 120px; }
 .cell span { font: 600 12px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: #8fd6f4; }
-.light { background: #eef0f3; color: #14161b; --surface: #fff; --ink: #14161b; border-radius: 12px; padding: 18px; margin-top: 18px; }
+.play { position: relative; height: 320px; margin-top: 18px; border: 1px dashed #2f3645; border-radius: 12px; overflow: hidden; background: radial-gradient(circle at 50% 120%, #1c2a36, #12151c 60%); }
+.play .label { position: absolute; left: 14px; top: 10px; font-size: 13px; color: #9aa1b0; }
+.roamer { position: absolute; left: 40px; top: 200px; width: 110px; cursor: grab; user-select: none; }
+.roamer .dot-bubble { display: none; }
 </style></head><body><main>
-<h1>DOT · Digital Operandi Teammate</h1><p>Moods: idle, happy, celebrate, thinking, worried, sad, sleepy</p>
+<h1>DOT · Digital Operandi Teammate</h1><p>Each mood below wobbles live. In the playground, DOT wanders around: grab him with your mouse (or finger) and drop him anywhere.</p>
 <div class="grid" id="grid"></div>
-<div class="light"><div id="talk"></div></div>
+<div class="play" id="play"><span class="label">Playground: drag DOT</span><div class="roamer" id="roamer"></div></div>
 </main>
 <script type="module">
 import { Dot, DOT_CSS } from "./js/dot.js";
 const st = document.createElement("style"); st.textContent = DOT_CSS; document.head.append(st);
-for (const m of ["idle","happy","celebrate","thinking","worried","sad","sleepy"]) {
-  const c = document.createElement("div"); c.className = "cell"; const holder = document.createElement("div"); c.append(holder);
-  const l = document.createElement("span"); l.textContent = m; c.append(l); document.getElementById("grid").append(c);
-  const d = new Dot(holder); d.setMood(m);
+const loops = { happy: 2600, celebrate: 3200 };
+for (const m of ["idle","happy","celebrate","thinking","worried","sad","sleepy","held","plop"]) {
+  const c = document.createElement("div"); c.className = "cell"; const h = document.createElement("div"); c.append(h);
+  const l = document.createElement("span"); l.textContent = m === "held" ? "picked up" : m === "plop" ? "plopped down" : m; c.append(l); document.getElementById("grid").append(c);
+  const d = new Dot(h);
+  if (m === "held") d.pickUp(); else if (m === "plop") { const again = () => { d.drop(); setTimeout(() => d.setMood("plop"), 600); }; again(); setInterval(again, 2400); } else d.setMood(m);
+  if (loops[m]) setInterval(() => d.setMood(m), loops[m]);
 }
-const big = new Dot(document.getElementById("talk"), { size: 110 });
-big.say("You wrote nmae on line 2, but your variable is called name. Python is picky about spelling.", { title: "Looks like a typo", mood: "thinking", actions: [{ label: "Explain NameError", onClick(){} }, { label: "Use a hint (15 left)", onClick(){} }] });
+// Playground: roam + drag.
+const play = document.getElementById("play"), el = document.getElementById("roamer");
+const dot = new Dot(el);
+let x = 40, y = 200, tx = 300, drag = null, last = 0;
+function place() { el.style.left = x + "px"; el.style.top = y + "px"; }
+function tick(now) {
+  if (!drag) {
+    const dx = tx - x;
+    if (Math.abs(dx) < 2) { if (now - last > 2500) { tx = Math.random() * (play.clientWidth - 120); last = now; } }
+    else { const step = Math.sign(dx) * Math.min(1.1, Math.abs(dx)); x += step; dot.nudge(step * 2, 0.02); }
+    const floor = play.clientHeight - el.offsetHeight - 6;
+    if (y < floor) { y = Math.min(floor, y + 9); if (y === floor) dot.drop(); }
+    place();
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+el.addEventListener("pointerdown", (e) => { drag = { ox: e.clientX - x, oy: e.clientY - y, px: e.clientX }; el.setPointerCapture(e.pointerId); dot.pickUp(); });
+el.addEventListener("pointermove", (e) => { if (!drag) return; x = e.clientX - drag.ox; y = e.clientY - drag.oy; dot.nudge(e.clientX - drag.px, 0.08); drag.px = e.clientX; place(); });
+el.addEventListener("pointerup", () => { if (!drag) return; drag = null; tx = x; last = performance.now(); const floor = play.clientHeight - el.offsetHeight - 6; if (y >= floor - 2) { y = floor; dot.drop(); } });
 </script></body></html>

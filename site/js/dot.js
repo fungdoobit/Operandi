@@ -1,101 +1,147 @@
-// DOT, the Digital Operandi Teammate. An original goopy blob drawn in SVG.
-// Moods change the eyes, mouth and animation; say() shows a speech bubble.
+// DOT, the Digital Operandi Teammate: an original goopy water blob in SVG.
+// The body outline is re-drawn every frame with a soft wobble, so DOT always
+// looks a little liquid, and jiggles harder when moved (nudge, pick up, plop).
+// Moods change the face; say() shows a speech bubble.
 
-const BODY_A = "M28 150 C6 150 8 98 28 66 C48 30 92 12 128 20 C166 30 184 66 186 104 C187 118 181 125 171 122 C160 119 152 124 152 134 C152 144 148 152 138 153 L48 155 C37 155 30 154 28 150 Z";
-const BODY_B = "M26 151 C5 149 11 96 31 66 C51 33 94 17 129 24 C164 35 181 69 183 105 C184 120 178 127 168 124 C158 121 151 126 151 136 C151 145 147 153 137 154 L47 155 C36 156 28 155 26 151 Z";
-const BODY_C = "M30 149 C9 151 6 100 26 67 C46 28 90 9 128 17 C168 27 187 63 189 102 C190 116 184 122 174 120 C163 117 154 122 154 132 C154 142 150 150 140 152 L50 154 C39 154 32 153 30 149 Z";
+const INK = "#16304a";
+
+// Body outline as cubic segments: [start, c1, c2, end, c1, c2, end, ...].
+// Bottom points (y >= 150) barely wobble, so DOT sits on the ground.
+const BODY = [
+  [26, 164],
+  [14, 158], [8, 140], [10, 118],
+  [12, 88], [26, 58], [48, 40],
+  [68, 24], [90, 18], [106, 20],
+  [134, 22], [158, 40], [172, 64],
+  [180, 76], [191, 88], [188, 98],
+  [185, 108], [171, 106], [162, 109],
+  [154, 112], [150, 121], [151, 132],
+  [152, 144], [152, 154], [146, 160],
+  [120, 167], [50, 168], [26, 164],
+];
+const PHASE = BODY.map((_, i) => i * 1.7);
+const GROUND = 164, CX = 96;
 
 const MOUTHS = {
-  idle: "M84 133 Q91 128 98 133",
-  happy: "M82 130 Q91 141 100 130",
-  celebrate: "M80 128 Q91 146 102 128 Z",
-  worried: "M82 135 Q86 131 91 135 Q96 139 100 135",
-  sad: "M83 136 Q91 128 99 136",
-  thinking: "M86 133 L97 132",
-  sleepy: "M86 133 Q91 135 96 133",
+  idle: "M54 128 Q60 133 66 128",
+  happy: "M52 126 Q60 136 68 126",
+  celebrate: "M50 124 Q60 140 70 124 Z",
+  thinking: "M55 130 L65 129",
+  worried: "M52 131 Q56 127 60 131 Q64 135 68 131",
+  sad: "M53 132 Q60 125 67 132",
+  sleepy: "M56 130 Q60 132 64 130",
+  held: "M57 130 a3.5 4.5 0 1 0 7 0 a3.5 4.5 0 1 0 -7 0",
+  plop: "M53 129 Q60 133 67 129",
 };
 
 let uid = 0;
 
 function svg(id) {
   return `
-<svg class="dot-svg" viewBox="0 0 200 172" role="img" aria-label="DOT, your Operandi teammate">
+<svg class="dot-svg" viewBox="0 -30 200 205" role="img" aria-label="DOT, your Operandi teammate">
   <defs>
-    <radialGradient id="dotBody${id}" cx="45%" cy="42%" r="70%">
-      <stop offset="0%" stop-color="#e6fbff"/>
-      <stop offset="45%" stop-color="#a6e6fb"/>
-      <stop offset="85%" stop-color="#6cc6ee"/>
-      <stop offset="100%" stop-color="#4fb0e0"/>
+    <radialGradient id="dotBody${id}" cx="40%" cy="40%" r="75%">
+      <stop offset="0%" stop-color="#e9fbff" stop-opacity="0.98"/>
+      <stop offset="40%" stop-color="#b3ebfc" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#7fd0f2" stop-opacity="0.93"/>
+      <stop offset="100%" stop-color="#5bb7e4" stop-opacity="0.95"/>
     </radialGradient>
     <filter id="dotGlow${id}" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="7" result="b"/>
-      <feFlood flood-color="#7fdcff" flood-opacity="0.75"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="b"/>
+      <feFlood flood-color="#8ae2ff" flood-opacity="0.7"/>
       <feComposite in2="b" operator="in" result="g"/>
       <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <filter id="eyeGlow${id}" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="3" result="b"/>
-      <feFlood flood-color="#ffffff" flood-opacity="0.9"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3.5" result="b"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.95"/>
       <feComposite in2="b" operator="in" result="g"/>
       <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+    <clipPath id="dotClip${id}"><path class="dot-clip"/></clipPath>
   </defs>
-  <ellipse class="dot-shadow" cx="100" cy="161" rx="70" ry="8"/>
-  <g class="dot-bob">
-    <g class="dot-squish">
-      <path class="dot-body" d="${BODY_A}" fill="url(#dotBody${id})" filter="url(#dotGlow${id})">
-        <animate attributeName="d" dur="2.6s" repeatCount="indefinite" calcMode="spline"
-          keySplines="0.45 0 0.55 1;0.45 0 0.55 1;0.45 0 0.55 1"
-          values="${BODY_A};${BODY_B};${BODY_C};${BODY_A}"/>
-      </path>
-      <ellipse cx="84" cy="42" rx="22" ry="9" fill="#ffffff" opacity="0.45" transform="rotate(-14 84 42)"/>
-      <circle cx="114" cy="34" r="4" fill="#ffffff" opacity="0.5"/>
-      <circle cx="150" cy="60" r="7" fill="#ffffff" opacity="0.16"/>
-      <circle cx="120" cy="140" r="5" fill="#ffffff" opacity="0.2"/>
+  <ellipse class="dot-shadow" cx="94" cy="168" rx="78" ry="8"/>
+  <g class="dot-hop">
+    <g class="dot-jelly">
+      <path class="dot-body" fill="url(#dotBody${id})" filter="url(#dotGlow${id})"/>
+      <g clip-path="url(#dotClip${id})" class="dot-inner">
+        <circle class="ripple r1" cx="120" cy="80" r="26"/>
+        <circle class="ripple r2" cx="70" cy="70" r="18"/>
+        <circle class="ripple r3" cx="130" cy="135" r="20"/>
+        <ellipse cx="118" cy="36" rx="20" ry="7" fill="#fff" opacity=".55" transform="rotate(-8 118 36)"/>
+        <circle cx="90" cy="30" r="4" fill="#fff" opacity=".6"/>
+        <circle cx="146" cy="48" r="3" fill="#fff" opacity=".45"/>
+        <circle cx="104" cy="150" r="4" fill="#fff" opacity=".35"/>
+      </g>
+      <path class="dot-outline"/>
       <g class="dot-face">
         <g class="dot-eyes" filter="url(#eyeGlow${id})">
-          <g class="dot-eye"><ellipse class="eye-white" cx="62" cy="106" rx="19" ry="20"/><path class="eye-arc" d="M46 110 Q62 92 78 110"/><path class="eye-shut" d="M47 106 Q62 116 77 106"/></g>
-          <g class="dot-eye"><ellipse class="eye-white" cx="114" cy="108" rx="19" ry="20"/><path class="eye-arc" d="M98 112 Q114 94 130 112"/><path class="eye-shut" d="M99 108 Q114 118 129 108"/></g>
+          <g class="dot-eye"><circle class="eye-white" cx="36" cy="103" r="16.5"/><path class="eye-line eye-arc" d="M22 106 Q36 92 50 106"/><path class="eye-line eye-shut" d="M22 103 Q36 112 50 103"/><path class="eye-line eye-squeeze" d="M25 96 L44 103 L25 110"/></g>
+          <g class="dot-eye"><circle class="eye-white" cx="98" cy="108" r="19"/><path class="eye-line eye-arc" d="M82 111 Q98 95 114 111"/><path class="eye-line eye-shut" d="M82 108 Q98 118 114 108"/><path class="eye-line eye-squeeze" d="M109 100 L88 108 L109 116"/></g>
         </g>
         <path class="dot-mouth" d="${MOUTHS.idle}"/>
-        <g class="dot-sweat"><path d="M150 74 Q157 85 150 92 Q143 85 150 74 Z"/></g>
-        <g class="acc acc-glasses"><rect x="40" y="85" width="44" height="40" rx="14"/><rect x="92" y="87" width="44" height="40" rx="14"/><path d="M84 103 Q88 99 92 104"/></g>
-        <g class="acc acc-bow" transform="translate(-6 0)"><path d="M58 30 L40 18 L42 44 Z"/><path d="M62 30 L80 18 L78 44 Z"/><circle cx="60" cy="31" r="6"/></g>
-        <g class="acc acc-party"><path d="M98 22 L120 -22 L140 18 Z"/><path class="stripe" d="M106 6 L131 1 M112 -8 L126 -10"/><circle cx="120" cy="-24" r="6"/></g>
-        <g class="acc acc-crown"><path d="M78 20 L84 -4 L96 12 L106 -10 L116 12 L128 -4 L132 20 Z"/><circle cx="106" cy="-10" r="3.5"/><circle cx="84" cy="-4" r="3"/><circle cx="128" cy="-4" r="3"/></g>
-        <g class="dot-zz"><text x="152" y="40">z</text><text x="166" y="24">z</text></g>
+        <path class="dot-sweat" d="M150 66 Q157 77 150 84 Q143 77 150 66 Z"/>
+        <g class="acc acc-glasses"><rect x="15" y="85" width="42" height="36" rx="13"/><rect x="77" y="88" width="44" height="40" rx="14"/><path d="M57 101 Q67 96 77 102"/></g>
+        <g class="acc acc-bow"><path d="M52 32 L34 20 L36 46 Z"/><path d="M56 32 L74 20 L72 46 Z"/><circle cx="54" cy="33" r="6"/></g>
+        <g class="acc acc-party"><path d="M84 22 L104 -26 L126 18 Z"/><path class="stripe" d="M92 4 L117 0 M98 -10 L111 -12"/><circle cx="104" cy="-28" r="6"/></g>
+        <g class="acc acc-crown"><path d="M74 22 L80 -2 L92 14 L102 -8 L112 14 L124 -2 L128 22 Z"/><circle cx="102" cy="-8" r="3.5"/><circle cx="80" cy="-2" r="3"/><circle cx="124" cy="-2" r="3"/></g>
       </g>
     </g>
   </g>
+  <g class="dot-zz"><text x="150" y="30">z</text><text x="164" y="12">z</text></g>
   <g class="dot-sparkles">
-    <path d="M30 40 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z"/>
-    <path d="M172 28 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z"/>
-    <path d="M182 120 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z"/>
+    <path d="M20 30 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z"/>
+    <path d="M178 14 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z"/>
+    <path d="M190 128 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z"/>
   </g>
 </svg>`;
 }
 
 export const DOT_CSS = `
 .dot-wrap { display: flex; align-items: flex-end; gap: 10px; }
-.dot-figure { width: 96px; flex: none; }
+.dot-figure { width: 96px; flex: none; touch-action: none; }
 .dot-svg { width: 100%; height: auto; overflow: visible; display: block; }
-.dot-shadow { fill: #000; opacity: 0.18; transform-origin: 100px 161px; animation: dot-shadow 2.6s ease-in-out infinite; }
-.dot-squish { transform-origin: 100px 155px; animation: dot-squish 2.6s ease-in-out infinite; }
-.dot-bob { transform-origin: 100px 155px; }
-.eye-white { fill: #f7fdff; stroke: #16304a; stroke-width: 3.5; }
-.eye-arc { fill: none; stroke: #f7fdff; stroke-width: 6; stroke-linecap: round; display: none; }
-.eye-shut { fill: none; stroke: #16304a; stroke-width: 4; stroke-linecap: round; display: none; }
-.dot-eyes { transform-origin: 88px 107px; animation: dot-blink 4.2s infinite; }
-.dot-face { transition: transform .4s ease; }
-.dot-mouth { fill: none; stroke: #16304a; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; transition: d .3s; }
-.dot-sweat { display: none; fill: #dff7ff; stroke: #4fb0e0; stroke-width: 1.5; }
-.dot-zz { display: none; font: 600 14px var(--font-mono, monospace); fill: #a6e6fb; }
-.dot-sparkles { display: none; fill: #ffe27a; }
+.dot-shadow { fill: #000; opacity: 0.16; transform-origin: 94px 168px; transition: transform .25s, opacity .25s; }
+.dot-hop { transform-origin: 96px 164px; }
+.dot-outline { fill: none; stroke: ${INK}; stroke-opacity: .55; stroke-width: 2.2; }
+.ripple { fill: none; stroke: #ffffff; stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; animation: dot-ripple 5.5s ease-out infinite; }
+.ripple.r2 { animation-delay: 1.8s; } .ripple.r3 { animation-delay: 3.6s; }
+.eye-white { fill: #fbfeff; stroke: ${INK}; stroke-width: 3.5; transform-box: fill-box; transform-origin: center; transition: transform .2s; }
+.eye-line { fill: none; stroke: ${INK}; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; display: none; }
+.dot-eyes { transform-origin: 66px 105px; animation: dot-blink 4.6s infinite; }
+.dot-face { transition: transform .35s ease; }
+.dot-mouth { fill: none; stroke: ${INK}; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.dot-sweat { display: none; fill: #e3f8ff; stroke: #4fb0e0; stroke-width: 1.5; }
+.dot-zz { display: none; font: 600 14px var(--font-mono, monospace); fill: #7fd0f2; }
+.dot-sparkles { display: none; fill: #ffd54a; }
 .acc { display: none; }
+
+/* Moods */
+.dot-figure[data-mood="happy"] .eye-white, .dot-figure[data-mood="celebrate"] .eye-white,
+.dot-figure[data-mood="sleepy"] .eye-white, .dot-figure[data-mood="plop"] .eye-white { display: none; }
+.dot-figure[data-mood="happy"] .eye-arc, .dot-figure[data-mood="celebrate"] .eye-arc { display: inline; }
+.dot-figure[data-mood="sleepy"] .eye-shut { display: inline; }
+.dot-figure[data-mood="plop"] .eye-squeeze { display: inline; }
+.dot-figure:is([data-mood="happy"],[data-mood="celebrate"],[data-mood="sleepy"],[data-mood="plop"],[data-mood="held"]) .dot-eyes { animation: none; }
+.dot-figure[data-mood="happy"] .dot-hop { animation: dot-hop 1s ease-in-out 2; }
+.dot-figure[data-mood="celebrate"] .dot-hop { animation: dot-hop .7s ease-in-out 4; }
+.dot-figure[data-mood="celebrate"] .dot-sparkles { display: inline; animation: dot-twinkle .6s ease-in-out infinite alternate; }
+.dot-figure[data-mood="celebrate"] .dot-mouth { fill: ${INK}; }
+.dot-figure[data-mood="thinking"] .dot-face { transform: translate(5px, -5px); }
+.dot-figure[data-mood="thinking"] .eye-white { transform: scale(1, .9); }
+.dot-figure[data-mood="worried"] .dot-sweat { display: inline; animation: dot-drip 1.6s ease-in infinite; }
+.dot-figure[data-mood="sad"] .dot-face { transform: translateY(6px); }
+.dot-figure[data-mood="sleepy"] .dot-zz { display: inline; animation: dot-float 2.4s ease-in-out infinite; }
+.dot-figure[data-mood="held"] .eye-white { transform: scale(1.12); }
+.dot-figure[data-mood="held"] .dot-mouth { fill: ${INK}; }
+.dot-figure[data-mood="held"] .dot-shadow { transform: scale(.55); opacity: .08; }
+.dot-figure[data-mood="held"] .dot-hop { animation: dot-dangle 1.1s ease-in-out infinite; transform-origin: 96px 20px; }
+.dot-figure.dragging { cursor: grabbing; }
+
 .dot-figure[data-acc="glasses"] .acc-glasses, .dot-figure[data-acc="bow"] .acc-bow,
 .dot-figure[data-acc="party"] .acc-party, .dot-figure[data-acc="crown"] .acc-crown { display: inline; }
-.acc-glasses rect { fill: rgba(255,255,255,.08); stroke: #16304a; stroke-width: 3.5; }
-.acc-glasses path { fill: none; stroke: #16304a; stroke-width: 3.5; }
+.acc-glasses rect { fill: rgba(255,255,255,.08); stroke: ${INK}; stroke-width: 3.5; }
+.acc-glasses path { fill: none; stroke: ${INK}; stroke-width: 3.5; }
 .acc-bow { fill: #ff8fbf; stroke: #c2477e; stroke-width: 2; stroke-linejoin: round; }
 .acc-party path:first-child { fill: #ffcf4a; stroke: #c98a12; stroke-width: 2; stroke-linejoin: round; }
 .acc-party .stripe { fill: none; stroke: #ff6fa8; stroke-width: 4; stroke-linecap: round; }
@@ -103,49 +149,26 @@ export const DOT_CSS = `
 .acc-crown path { fill: #ffd54a; stroke: #b8860b; stroke-width: 2.5; stroke-linejoin: round; }
 .acc-crown circle { fill: #ff6f91; }
 
-/* Moods */
-.dot-figure[data-mood="happy"] .dot-bob { animation: dot-hop 1.1s ease-in-out 2; }
-.dot-figure[data-mood="happy"] .eye-white,
-.dot-figure[data-mood="celebrate"] .eye-white { display: none; }
-.dot-figure[data-mood="happy"] .eye-arc,
-.dot-figure[data-mood="celebrate"] .eye-arc { display: inline; }
-.dot-figure[data-mood="happy"] .dot-eyes,
-.dot-figure[data-mood="celebrate"] .dot-eyes { animation: none; }
-.dot-figure[data-mood="celebrate"] .dot-bob { animation: dot-hop .7s ease-in-out 4; }
-.dot-figure[data-mood="celebrate"] .dot-sparkles { display: inline; animation: dot-twinkle .7s ease-in-out infinite alternate; }
-.dot-figure[data-mood="celebrate"] .dot-mouth { fill: #16304a; }
-.dot-figure[data-mood="thinking"] .dot-face { transform: translate(6px, -4px); }
-.dot-figure[data-mood="thinking"] .eye-white { transform: scaleY(0.92); transform-box: fill-box; transform-origin: center; }
-.dot-figure[data-mood="worried"] .dot-sweat { display: inline; animation: dot-drip 1.6s ease-in infinite; }
-.dot-figure[data-mood="worried"] .dot-squish { animation-duration: 1.3s; }
-.dot-figure[data-mood="sad"] .dot-squish { animation: dot-droop 3s ease-in-out infinite; }
-.dot-figure[data-mood="sad"] .dot-face { transform: translateY(5px); }
-.dot-figure[data-mood="sleepy"] .eye-white { display: none; }
-.dot-figure[data-mood="sleepy"] .eye-shut { display: inline; }
-.dot-figure[data-mood="sleepy"] .dot-eyes { animation: none; }
-.dot-figure[data-mood="sleepy"] .dot-zz { display: inline; animation: dot-float 2.4s ease-in-out infinite; }
-.dot-figure[data-mood="sleepy"] .dot-squish { animation-duration: 4s; }
-
-@keyframes dot-squish { 0%,100% { transform: scale(1,1); } 50% { transform: scale(1.04,.96); } }
-@keyframes dot-shadow { 0%,100% { transform: scaleX(1); } 50% { transform: scaleX(1.06); } }
-@keyframes dot-blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.08); } }
-@keyframes dot-hop { 0%,100% { transform: translateY(0) scale(1,1); } 15% { transform: translateY(0) scale(1.12,.86); } 45% { transform: translateY(-26px) scale(.92,1.1); } 75% { transform: translateY(0) scale(1.1,.9); } }
-@keyframes dot-droop { 0%,100% { transform: scale(1.06,.9); } 50% { transform: scale(1.09,.87); } }
+@keyframes dot-blink { 0%,93%,100% { transform: scaleY(1); } 96% { transform: scaleY(.08); } }
+@keyframes dot-hop { 0%,100% { transform: translateY(0); } 45% { transform: translateY(-24px); } }
+@keyframes dot-dangle { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes dot-ripple { 0% { opacity: .5; transform: scale(.2); } 70% { opacity: 0; transform: scale(1.4); } 100% { opacity: 0; } }
 @keyframes dot-drip { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(14px); opacity: 0; } }
 @keyframes dot-float { 0% { transform: translateY(0); opacity: .3; } 50% { opacity: 1; } 100% { transform: translateY(-10px); opacity: .2; } }
 @keyframes dot-twinkle { from { opacity: .3; } to { opacity: 1; } }
 
-.dot-bubble { position: relative; background: var(--surface, #fff); color: var(--ink, #14161b); border: 1.5px solid var(--dot-line, #9fdcf5); border-radius: 14px; padding: 10px 14px; font-size: 14px; line-height: 1.45; max-width: 46ch; box-shadow: 0 0 0 4px color-mix(in srgb, #7fdcff 18%, transparent); min-width: 0; }
+.dot-bubble { position: relative; background: var(--surface, #fff); color: var(--ink, #14161b); border: 1.5px solid var(--dot-line, #9fdcf5); border-radius: 14px; padding: 10px 14px; font-size: 14px; line-height: 1.45; max-width: 46ch; box-shadow: 0 0 0 4px rgb(127 220 255 / .18); min-width: 0; }
 .dot-bubble::before { content: ""; position: absolute; left: -8px; bottom: 18px; width: 14px; height: 14px; background: inherit; border-left: 1.5px solid var(--dot-line, #9fdcf5); border-bottom: 1.5px solid var(--dot-line, #9fdcf5); transform: rotate(45deg); }
 .dot-bubble b.dot-title { display: block; margin-bottom: 2px; }
 .dot-bubble .dot-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .dot-bubble .dot-actions button { font: inherit; font-size: 13px; border: 1px solid var(--dot-line, #9fdcf5); background: transparent; color: inherit; border-radius: 999px; padding: 3px 12px; cursor: pointer; }
-.dot-bubble .dot-actions button:hover { background: color-mix(in srgb, #7fdcff 20%, transparent); }
-.dot-bubble[hidden] { display: none; }
+.dot-bubble .dot-actions button:hover { background: rgb(127 220 255 / .2); }
 
 @media (prefers-reduced-motion: reduce) {
   .dot-figure *, .dot-figure { animation: none !important; transition: none !important; }
 }`;
+
+const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export class Dot {
   constructor(container, { size } = {}) {
@@ -154,9 +177,76 @@ export class Dot {
     this.figure = container.querySelector(".dot-figure");
     this.bubble = container.querySelector(".dot-bubble");
     this.mouth = container.querySelector(".dot-mouth");
+    this.body = container.querySelector(".dot-body");
+    this.outline = container.querySelector(".dot-outline");
+    this.clip = container.querySelector(".dot-clip");
+    this.jelly = container.querySelector(".dot-jelly");
     if (size) this.figure.style.width = size + "px";
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) container.querySelector("svg").pauseAnimations?.();
     this.moodTimer = null;
+    // Squash and stretch springs: s = current, v = velocity, target set by mood.
+    this.sx = { s: 1, v: 0, t: 1 };
+    this.sy = { s: 1, v: 0, t: 1 };
+    this.lean = { s: 0, v: 0, t: 0 };
+    this.energy = 0;
+    this.start = performance.now();
+    this.frame = this.frame.bind(this);
+    requestAnimationFrame(this.frame);
+  }
+
+  // One animation frame: wobble the outline and settle the springs.
+  frame(now) {
+    if (!this.figure.isConnected) return; // removed from the page: stop
+    const t = (now - this.start) / 1000;
+    const still = reduceMotion();
+    for (const k of [this.sx, this.sy, this.lean]) {
+      k.v += (k.t - k.s) * 0.12;
+      k.v *= 0.82;
+      k.s += k.v;
+    }
+    this.energy *= 0.95;
+    const amp = still ? 0 : 1.1 + this.energy * 5;
+    const breathe = still ? 0 : Math.sin(t * 2.2) * 0.018;
+    const pts = BODY.map(([x, y], i) => {
+      const ground = Math.min(1, Math.max(0, (GROUND - y) / 40));
+      return [x + Math.sin(t * 2.6 + PHASE[i]) * amp * ground, y + Math.cos(t * 2.1 + PHASE[i] * 1.3) * amp * ground];
+    });
+    let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+    for (let i = 1; i < pts.length; i += 3) d += ` C${pts[i].join(" ")} ${pts[i + 1].join(" ")} ${pts[i + 2].join(" ")}`;
+    d = d.replace(/(\d+\.\d)\d+/g, "$1") + " Z";
+    this.body.setAttribute("d", d);
+    this.outline.setAttribute("d", d);
+    this.clip.setAttribute("d", d);
+    const sx = this.sx.s + breathe, sy = this.sy.s - breathe, lean = this.lean.s;
+    // Squash/stretch around the bottom centre, plus a lean (shear) when moving.
+    this.jelly.setAttribute("transform", `matrix(${sx.toFixed(4)} 0 ${(-lean).toFixed(4)} ${sy.toFixed(4)} ${(CX - sx * CX + lean * GROUND).toFixed(2)} ${(GROUND - sy * GROUND).toFixed(2)})`);
+    requestAnimationFrame(this.frame);
+  }
+
+  // Give DOT a jiggle, e.g. while being moved. vx = horizontal speed in px/frame.
+  nudge(vx = 0, amount = 0.6) {
+    this.energy = Math.min(1.5, this.energy + amount);
+    this.lean.t = Math.max(-0.22, Math.min(0.22, vx * 0.02));
+    this.sx.v += amount * 0.04;
+    this.sy.v -= amount * 0.04;
+  }
+
+  pickUp() {
+    this.setMood("held");
+    this.figure.classList.add("dragging");
+    this.sx.t = 0.84; this.sy.t = 1.22;
+    this.energy = 1;
+  }
+
+  drop() {
+    this.figure.classList.remove("dragging");
+    this.lean.t = 0;
+    this.setMood("plop");
+    // Splat flat, then spring back with a wobble.
+    this.sx.t = 1; this.sy.t = 1;
+    this.sx.s = 1.35; this.sy.s = 0.62; this.sx.v = 0; this.sy.v = 0;
+    this.energy = 1.5;
+    clearTimeout(this.moodTimer);
+    this.moodTimer = setTimeout(() => this.setMood("happy", { revertAfter: 1800 }), 650);
   }
 
   setAccessory(id) { if (id) this.figure.dataset.acc = id; else delete this.figure.dataset.acc; }
@@ -165,6 +255,9 @@ export class Dot {
     clearTimeout(this.moodTimer);
     this.figure.dataset.mood = mood;
     this.mouth.setAttribute("d", MOUTHS[mood] || MOUTHS.idle);
+    if (mood === "sad") { this.sx.t = 1.07; this.sy.t = 0.9; }
+    else if (mood !== "held") { this.sx.t = 1; this.sy.t = 1; }
+    if (mood === "happy" || mood === "celebrate") this.nudge(0, 0.5);
     if (revertAfter) this.moodTimer = setTimeout(() => this.setMood("idle"), revertAfter);
   }
 
@@ -185,6 +278,7 @@ export class Dot {
       b.append(row);
     }
     b.hidden = false;
+    this.nudge(0, 0.25);
   }
 
   hush() { this.bubble.hidden = true; }
