@@ -31,7 +31,7 @@ IN:
   - full solution (gives no reward)
   - cosmetics: editor themes and mascot outfits
 - **Always free, never sold:** error explanations, typo detection, FAQ, glossary. Only hints, peeks and full solutions cost Bits (decided with Isaac).
-- **Mascot companion:**
+- **Mascot companion: DOT (Digital Operandi Teammate)**
   - a cute goopy blob, based on Isaac's reference image
     - glowing light-blue body with a soft dome and a droopy curl on one side
     - two simple glowing white eyes, tiny mouth
@@ -95,6 +95,6 @@ OUT:
 
 ## 6. Open questions
 - Decided: currency "Bits"; levels Operand → Program, earned by finishing modules; starting items 15 hints, 15 peeks, 5 solutions; FAQ always free; templates "as many as possible, per module".
-- Mascot name: still open (suggestion: "Dot").
+- Decided: mascot is **DOT, the Digital Operandi Teammate**.
 - Isaac must create a Firebase project and connect the repo to Vercel. Claude walks him through both.
 - Reuse an existing open-source error explainer (friendly-traceback, or the Raspberry Pi Foundation's python-friendly-error-messages) or write our own rules? Licenses not checked yet.
