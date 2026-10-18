@@ -1,0 +1,1144 @@
+<title>Operandi</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a workbench. Course rail on the left, the brief (lesson or challenge) in the middle, the editor and results on the right. Levels run along the top as a track from Operand to Program. */
+:root {
+  --bg: #eef0f3;
+  --surface: #ffffff;
+  --ink: #14161b;
+  --muted: #5b6170;
+  --line: #d9dde4;
+  --accent: #3043f0;
+  --accent-soft: #e4e7ff;
+  --on-accent: #ffffff;
+  --gold: #e0a800;
+  --gold-soft: #fff4cc;
+  --pass: #17834a;
+  --pass-soft: #def3e6;
+  --fail: #c03a24;
+  --fail-soft: #fbe3de;
+  --editor-bg: #161922;
+  --editor-ink: #e6e8ef;
+  --editor-dim: #6b7285;
+  --code-inline: #eceef3;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1015; --surface: #161920; --ink: #e7e9ef; --muted: #9aa1b0; --line: #282d38;
+    --accent: #8090ff; --accent-soft: #232a55; --on-accent: #0b0d14;
+    --gold: #f2c443; --gold-soft: #3a3010; --pass: #4cc27e; --pass-soft: #12321f;
+    --fail: #ff806b; --fail-soft: #3a1a14; --editor-bg: #0b0d12; --editor-ink: #e6e8ef;
+    --editor-dim: #5d6478; --code-inline: #232733; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1015; --surface: #161920; --ink: #e7e9ef; --muted: #9aa1b0; --line: #282d38;
+  --accent: #8090ff; --accent-soft: #232a55; --on-accent: #0b0d14;
+  --gold: #f2c443; --gold-soft: #3a3010; --pass: #4cc27e; --pass-soft: #12321f;
+  --fail: #ff806b; --fail-soft: #3a1a14; --editor-bg: #0b0d12; --editor-ink: #e6e8ef;
+  --editor-dim: #5d6478; --code-inline: #232733; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, pre, textarea.code { font-family: var(--font-mono); }
+
+.app { min-height: 100%; display: flex; flex-direction: column; }
+@media (min-width: 1101px) {
+  .app { height: 100%; }
+  .body { overflow: hidden; }
+  .rail { overflow-y: auto; }
+}
+
+/* Top bar */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); }
+.mark { font-family: var(--font-mono); font-weight: 600; font-size: 18px; letter-spacing: -0.02em; white-space: nowrap; }
+.mark .dot { color: var(--accent); }
+.track { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.track-steps { display: flex; gap: 4px; }
+.step { flex: 1; min-width: 0; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.step.reached { color: var(--ink); }
+.step.current { color: var(--accent); font-weight: 600; }
+.track-bar { display: flex; gap: 4px; }
+.seg { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.seg > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .6s ease; }
+.stats { display: flex; gap: 16px; align-items: center; font-variant-numeric: tabular-nums; }
+.stat { display: flex; flex-direction: column; line-height: 1.15; }
+.stat b { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
+.stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat.xp b { color: var(--gold); }
+
+/* Main grid */
+.body { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr) minmax(0, 1.1fr); min-height: 0; }
+.rail { border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 18px; background: var(--surface); }
+.rail h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.rail-item { width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; }
+.rail-item:hover:not(:disabled) { background: var(--bg); }
+.rail-item[aria-current="true"] { background: var(--accent-soft); }
+.rail-item:disabled { cursor: not-allowed; opacity: 0.5; }
+.rail-item .n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
+.rail-item.done .n { color: var(--pass); }
+.rail-item .t { font-size: 14px; line-height: 1.3; }
+.rail-item .sub { display: block; font-size: 12px; color: var(--muted); }
+.rail-note { font-size: 12px; color: var(--muted); margin: 0; }
+.save-state { margin-top: auto; font-size: 12px; color: var(--muted); }
+
+.brief { padding: 28px 32px 48px; overflow-y: auto; min-width: 0; }
+.brief-inner { max-width: 66ch; }
+.eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin: 0 0 6px; }
+.brief h1 { font-family: var(--font-display); font-size: 34px; line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 14px; text-wrap: balance; font-weight: 700; }
+.brief h3 { font-family: var(--font-display); font-size: 19px; margin: 28px 0 6px; font-weight: 700; text-wrap: balance; }
+.brief p, .brief li { color: var(--ink); }
+.brief code { background: var(--code-inline); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+.example { margin: 10px 0 14px; border-radius: var(--radius); background: var(--editor-bg); color: var(--editor-ink); overflow: hidden; }
+.example pre { margin: 0; padding: 12px 14px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; }
+.example .bar { display: flex; justify-content: flex-end; gap: 8px; padding: 6px 8px; border-top: 1px solid #ffffff14; }
+.example .bar button { background: transparent; border: 1px solid #ffffff2a; color: var(--editor-ink); border-radius: 6px; padding: 2px 10px; font-size: 12px; }
+.example .bar button:hover { border-color: var(--editor-ink); }
+.note { margin: 18px 0; padding: 12px 16px; border-left: 3px solid var(--gold); background: var(--gold-soft); border-radius: 0 var(--radius) var(--radius) 0; }
+.note b:first-child { display: block; margin-bottom: 4px; }
+.note ul { margin: 4px 0; padding-left: 20px; }
+.task { margin-top: 28px; padding: 18px 20px; border: 1.5px solid var(--accent); border-radius: var(--radius); background: var(--surface); }
+.task h3 { margin-top: 0; }
+.task .expected { margin: 10px 0 0; }
+.task .expected span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.task .expected pre { margin: 4px 0 0; padding: 10px 12px; background: var(--bg); border-radius: 8px; font-size: 13.5px; overflow-x: auto; }
+.task-steps { white-space: pre-wrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.chip { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.chip.gold { background: var(--gold-soft); color: var(--ink); border-color: transparent; }
+
+/* Ask box */
+.ask { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+.ask label { font-weight: 600; display: block; margin-bottom: 6px; }
+.ask-row { display: flex; gap: 8px; }
+.ask input { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; }
+.answer { margin-top: 10px; white-space: pre-wrap; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+
+/* Practice controls */
+.diff { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.diff button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 14px; text-align: left; }
+.diff button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.diff button small { display: block; color: var(--muted); font-size: 12px; }
+.inline-confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; padding: 10px 12px; background: var(--fail-soft); border-radius: 8px; }
+
+/* Work column */
+.work { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); }
+.editor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.file { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.engine { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.engine i { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); display: inline-block; }
+.engine.ok i { background: var(--pass); }
+.engine.bad i { background: var(--fail); }
+.editor { position: relative; display: grid; grid-template-columns: 44px 1fr; background: var(--editor-bg); flex: 1 1 320px; min-height: 260px; }
+.gutter { padding: 14px 8px 14px 0; text-align: right; color: var(--editor-dim); font-family: var(--font-mono); font-size: 14px; line-height: 1.6; overflow: hidden; user-select: none; white-space: pre; }
+textarea.code { border: 0; resize: none; background: transparent; color: var(--editor-ink); font-size: 14px; line-height: 1.6; padding: 14px 14px 14px 10px; outline: none; white-space: pre; overflow: auto; tab-size: 4; caret-color: var(--gold); width: 100%; height: 100%; }
+textarea.code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.actions { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); align-items: center; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 16px; font-weight: 500; }
+.btn:hover:not(:disabled) { border-color: var(--ink); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--accent); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.actions .kbd { margin-left: auto; font-size: 12px; color: var(--muted); }
+.tabs { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+.tab { border: 0; background: transparent; padding: 10px 12px; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.tab .count { font-family: var(--font-mono); font-size: 12px; margin-left: 4px; }
+.panel { flex: 1 1 260px; overflow-y: auto; padding: 14px; min-height: 200px; }
+.out { font-family: var(--font-mono); font-size: 13.5px; white-space: pre-wrap; margin: 0; word-break: break-word; }
+.out.err { color: var(--fail); margin-top: 8px; }
+.empty { color: var(--muted); font-size: 14px; }
+.tests { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tests li { padding: 10px 12px; border-radius: 8px; display: grid; grid-template-columns: 54px 1fr; gap: 10px; }
+.tests li.ok { background: var(--pass-soft); }
+.tests li.no { background: var(--fail-soft); }
+.tests .tag { font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.tests li.ok .tag { color: var(--pass); }
+.tests li.no .tag { color: var(--fail); }
+.tests .msg { display: block; font-size: 13px; color: var(--muted); }
+
+/* Feedback */
+.fb { display: flex; flex-direction: column; gap: 16px; }
+.fb-head { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+.score { font-family: var(--font-display); font-weight: 700; font-size: 52px; line-height: 1; font-variant-numeric: tabular-nums; }
+.score small { font-size: 20px; color: var(--muted); font-weight: 500; }
+.verdict { display: flex; flex-direction: column; gap: 6px; }
+.pill { align-self: flex-start; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; letter-spacing: 0.04em; text-transform: uppercase; }
+.pill.ok { background: var(--pass-soft); color: var(--pass); }
+.pill.no { background: var(--fail-soft); color: var(--fail); }
+.headline { font-size: 16px; font-weight: 500; }
+.xp-gain { font-family: var(--font-mono); font-size: 13px; color: var(--ink); background: var(--gold-soft); padding: 8px 12px; border-radius: 8px; }
+.fb h5 { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.fb ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.fix { list-style: none; margin-left: -18px; display: grid; grid-template-columns: 56px 1fr; gap: 8px; }
+.line-btn { font-family: var(--font-mono); font-size: 12px; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 1px 6px; align-self: start; }
+.why { display: block; color: var(--muted); font-size: 14px; }
+.hint { padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; }
+.thinking { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.thinking i { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .thinking i, .seg > i { animation: none; transition: none; } }
+
+.toast { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 14px; z-index: 20; }
+
+@media (max-width: 1100px) {
+  .body { grid-template-columns: 200px minmax(0, 1fr); }
+  .work { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); }
+}
+@media (max-width: 720px) {
+  .body { grid-template-columns: minmax(0, 1fr); }
+  .rail { border-right: 0; border-bottom: 1px solid var(--line); }
+  .brief { padding: 20px max(16px, env(safe-area-inset-right, 0px)) 32px max(16px, env(safe-area-inset-left, 0px)); }
+  .brief h1 { font-size: 28px; }
+  .stats { gap: 12px; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="mark">operandi<span class="dot">.</span>code</div>
+    <div class="track" aria-label="Level progress">
+      <div class="track-steps" id="trackSteps"></div>
+      <div class="track-bar" id="trackBar"></div>
+    </div>
+    <div class="stats">
+      <div class="stat xp"><b id="xpVal">0</b><span>XP</span></div>
+      <div class="stat"><b id="streakVal">0</b><span>Day streak</span></div>
+      <div class="stat"><b id="passVal">0</b><span>Solved</span></div>
+    </div>
+  </header>
+
+  <div class="body">
+    <nav class="rail" aria-label="Course">
+      <div>
+        <h4>Module 1 · Basics</h4>
+        <ol id="lessonList"></ol>
+      </div>
+      <div>
+        <h4>Practice</h4>
+        <ol><li><button class="rail-item" id="practiceBtn"><span class="n">∞</span><span class="t">Challenges<span class="sub" id="practiceSub">Finish lesson 1 to unlock</span></span></button></li></ol>
+      </div>
+      <p class="rail-note">Module 2 (decisions with <code>if</code>) arrives after Module 1.</p>
+      <p class="save-state" id="saveState">Loading progress…</p>
+    </nav>
+
+    <section class="brief" id="brief" aria-live="polite"><div class="brief-inner" id="briefInner"></div></section>
+
+    <section class="work" aria-label="Code editor">
+      <div class="editor-head">
+        <span class="file">main.py</span>
+        <span class="engine" id="engine"><i></i><span>Loading Python…</span></span>
+      </div>
+      <div class="editor">
+        <div class="gutter" id="gutter" aria-hidden="true">1</div>
+        <textarea class="code" id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Your Python code"></textarea>
+      </div>
+      <div class="actions">
+        <button class="btn" id="runBtn" disabled>Run</button>
+        <button class="btn primary" id="submitBtn" disabled>Submit</button>
+        <button class="btn" id="resetBtn">Reset code</button>
+        <span class="kbd">Ctrl + Enter runs</span>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-output" aria-selected="true" data-tab="output">Output</button>
+        <button class="tab" role="tab" id="tab-tests" aria-selected="false" data-tab="tests">Tests<span class="count" id="testCount"></span></button>
+        <button class="tab" role="tab" id="tab-feedback" aria-selected="false" data-tab="feedback">Feedback</button>
+      </div>
+      <div class="panel" id="panel-output" role="tabpanel"><p class="empty">Press Run to see what your program prints.</p></div>
+      <div class="panel" id="panel-tests" role="tabpanel" hidden><p class="empty">Press Submit to check your code against the tests.</p></div>
+      <div class="panel" id="panel-feedback" role="tabpanel" hidden><p class="empty">Submit your code and your teacher will mark it out of 10.</p></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+
+/* ---------- Course content ---------- */
+
+const LESSONS = [
+  {
+    id: "l1", title: "Your first program", sub: "print() and text",
+    topics: "print() with text (strings) and numbers; comments with #",
+    html: `
+<p>A program is a list of instructions. Python reads them from the top line to the bottom line, one at a time, and does what each line says.</p>
+<h3>print() shows something on the screen</h3>
+<pre data-run>print("Hello!")</pre>
+<p><code>print</code> is a <b>function</b>: a named action that Python already knows how to do. You use it by writing its name, then brackets. Whatever you put inside the brackets gets shown.</p>
+<h3>Text goes inside quotes</h3>
+<p>A piece of text in Python is called a <b>string</b>. You make one by wrapping the text in quotes. Double quotes and single quotes both work, as long as you start and end with the same kind.</p>
+<pre data-run>print("I can use double quotes.")
+print('Or single quotes.')</pre>
+<p>Notice that each <code>print()</code> starts a new line.</p>
+<h3>Numbers don't need quotes</h3>
+<pre data-run>print(42)
+print(3.5)
+print(10 + 5)</pre>
+<p>Python works out <code>10 + 5</code> first, then prints the answer. Put it in quotes, <code>"10 + 5"</code>, and Python treats it as text and prints it exactly as written.</p>
+<h3>Comments are notes for humans</h3>
+<p>Anything after a <code>#</code> is a <b>comment</b>. Python skips it. Use comments to explain your code to yourself and others.</p>
+<pre data-run># This whole line is skipped
+print("This line runs")  # a comment can sit at the end of a line too</pre>
+<div class="note"><b>Common mistakes</b><ul>
+<li><code>Print("hi")</code>: Python is case-sensitive, so <code>print</code> must be lowercase. You'd get a <code>NameError</code>.</li>
+<li><code>print("hi)</code>: the closing quote is missing. You'd get a <code>SyntaxError</code>.</li>
+<li><code>print(hi)</code>: without quotes, Python looks for something <i>named</i> hi and can't find it.</li>
+</ul>Errors are normal. Read the <b>last line</b> of an error first: it says what went wrong. The line number above it says where.</div>`,
+    task: {
+      text: `<p>Print these two lines, exactly as shown. Spelling, capital letters and punctuation all count.</p>`,
+      expected: "Hello, Operandi!\nI am learning Python.",
+      starter: "# Print two lines below\n",
+      tests: [
+        { name: "Prints exactly two lines", code: `assert len(LINES) == 2, f"Expected 2 lines of output, but your program printed {len(LINES)}."` },
+        { name: "Line 1 is correct", code: `first = LINES[0] if LINES else ""\nassert first == "Hello, Operandi!", "Line 1 should be: Hello, Operandi!   You printed: " + first` },
+        { name: "Line 2 is correct", code: `second = LINES[1] if len(LINES) > 1 else ""\nassert second == "I am learning Python.", "Line 2 should be: I am learning Python.   You printed: " + second` },
+      ],
+    },
+  },
+  {
+    id: "l2", title: "Variables", sub: "Giving values a name",
+    topics: "variables; assigning with =; changing a variable; naming rules (snake_case); print() with several values separated by commas",
+    html: `
+<p>A <b>variable</b> is a name that points to a value. You create one with <code>=</code>.</p>
+<pre data-run>hero = "Ada"
+print(hero)</pre>
+<p>Read <code>hero = "Ada"</code> as "<i>hero</i> now holds the value Ada". In Python, <code>=</code> means <b>store this</b>, not "is equal to".</p>
+<h3>Name versus text</h3>
+<pre data-run>hero = "Ada"
+print(hero)    # no quotes: use the variable, prints Ada
+print("hero")  # quotes: just the text, prints hero</pre>
+<h3>Variables can change</h3>
+<p>Because Python runs top to bottom, a variable holds whatever was stored in it most recently.</p>
+<pre data-run>score = 10
+print(score)
+score = 25
+print(score)</pre>
+<h3>Printing several things at once</h3>
+<p>Separate values with commas inside <code>print()</code>. Python puts one space between each.</p>
+<pre data-run>name = "Sam"
+age = 21
+print(name, "is", age, "years old")</pre>
+<h3>Naming rules</h3>
+<ul>
+<li>Use letters, digits and underscores. No spaces: <code>favourite_food</code>, not <code>favourite food</code>.</li>
+<li>A name can't start with a digit: <code>2nd_place</code> is not allowed, <code>second_place</code> is.</li>
+<li>Names are case-sensitive: <code>Score</code> and <code>score</code> are two different variables.</li>
+<li>Python style is lowercase words joined by underscores, called <b>snake_case</b>. Pick names that say what the value is.</li>
+</ul>
+<div class="note"><b>Common mistakes</b><ul>
+<li>Using a variable before creating it gives <code>NameError: name '...' is not defined</code>. Check the spelling and the order of your lines.</li>
+<li>Writing <code>"hero"</code> when you meant <code>hero</code> prints the word instead of the value.</li>
+</ul></div>`,
+    task: {
+      text: `<ol><li>Make a variable called <code>hero</code> that holds <code>"Ada"</code>.</li><li>Make a variable called <code>power</code> that holds <code>"coding"</code>.</li><li>Print the sentence below using <b>the two variables</b> and commas. Don't type Ada or coding inside the print.</li></ol>`,
+      expected: "Ada has the power of coding",
+      rule: "The learner must print the sentence using the variables hero and power, not by typing the words Ada or coding inside print().",
+      starter: "# 1. Make the hero variable\n\n# 2. Make the power variable\n\n# 3. Print the sentence\n",
+      tests: [
+        { name: "hero holds \"Ada\"", code: `assert globals().get("hero") == "Ada", "Make a variable called hero that holds \\"Ada\\" (check the spelling and capital A)."` },
+        { name: "power holds \"coding\"", code: `assert globals().get("power") == "coding", "Make a variable called power that holds \\"coding\\"."` },
+        { name: "Prints the sentence", code: `assert LINES == ["Ada has the power of coding"], f"Expected exactly one line: Ada has the power of coding. Your output was: {LINES}"` },
+      ],
+    },
+  },
+  {
+    id: "l3", title: "Numbers and maths", sub: "Calculating with Python",
+    topics: "whole numbers (int) and decimals (float); + - * /; // (whole-number division) and % (remainder); ** (power); brackets and order of operations; updating a variable with += and -=",
+    html: `
+<p>Python has two main kinds of number. An <b>int</b> is a whole number like <code>7</code> or <code>-3</code>. A <b>float</b> has a decimal point, like <code>2.5</code>.</p>
+<h3>The maths operators</h3>
+<pre data-run>print(7 + 2)   # add: 9
+print(7 - 2)   # subtract: 5
+print(7 * 2)   # multiply: 14
+print(7 / 2)   # divide: 3.5
+print(7 // 2)  # whole-number divide: 3
+print(7 % 2)   # remainder: 1
+print(7 ** 2)  # power (7 squared): 49</pre>
+<p><code>/</code> always gives a float, even when it divides evenly: <code>10 / 2</code> is <code>5.0</code>. <code>%</code> is handy for things like "is this number even?" (the remainder after dividing by 2 is 0).</p>
+<h3>Order of operations</h3>
+<p>Python follows the same order as maths class: <code>**</code> first, then <code>* / // %</code>, then <code>+ -</code>. Brackets go before everything.</p>
+<pre data-run>print(2 + 3 * 4)    # 14, because 3 * 4 happens first
+print((2 + 3) * 4)  # 20, the brackets go first</pre>
+<h3>Maths with variables</h3>
+<pre data-run>price = 8
+quantity = 3
+total = price * quantity
+print(total)</pre>
+<p>To change a number stored in a variable, calculate the new value and store it back. <code>+=</code> is a shortcut for that.</p>
+<pre data-run>coins = 10
+coins = coins + 5   # coins is now 15
+coins += 5          # same idea, shorter: coins is now 20
+coins -= 3          # take away 3: coins is now 17
+print(coins)</pre>
+<h3>Numbers versus text that looks like a number</h3>
+<pre data-run>print(5 + 5)       # 10: maths
+print("5" + "5")   # 55: two pieces of text stuck together
+print(type(5), type("5"), type(2.5))</pre>
+<p><code>type()</code> tells you what kind of value something is. <code>int</code>, <code>str</code> (string) and <code>float</code> are the three you've met so far.</p>
+<div class="note"><b>Common mistakes</b><ul>
+<li>Expecting <code>/</code> to give a whole number. Use <code>//</code> if you want one.</li>
+<li>Forgetting brackets: <code>100 - 20 * 2</code> is 60, not 160.</li>
+</ul></div>`,
+    task: {
+      text: `<p>A cinema charges 12 for an adult ticket and 8 for a child ticket.</p><ol><li>Make <code>adults = 2</code> and <code>children = 3</code>.</li><li>Make a variable <code>total</code> that <b>calculates</b> the cost using those variables. Don't type the answer yourself.</li><li>Print <code>total</code>.</li><li>The 5 people split the cost equally. Make <code>per_person</code> by dividing <code>total</code> by 5, and print it.</li></ol>`,
+      expected: "48\n9.6",
+      rule: "total must be calculated from the adults and children variables (for example adults * 12 + children * 8), not typed in as 48.",
+      starter: "adults = 2\nchildren = 3\n\n# Calculate total, then print it\n\n# Calculate per_person, then print it\n",
+      tests: [
+        { name: "adults and children are set", code: `assert globals().get("adults") == 2 and globals().get("children") == 3, "Keep adults = 2 and children = 3."` },
+        { name: "total is 48", code: `assert "total" in globals(), "Make a variable called total."\nassert total == 48, f"total should be 48, but it is {total}. Check the prices: adult 12, child 8."` },
+        { name: "per_person is 9.6", code: `assert "per_person" in globals(), "Make a variable called per_person."\nassert abs(per_person - 9.6) < 1e-9, f"per_person should be 9.6, but it is {per_person}."` },
+        { name: "Prints both answers", code: `assert LINES == ["48", "9.6"], f"Expected two lines, 48 and then 9.6. Your output was: {LINES}"` },
+      ],
+    },
+  },
+  {
+    id: "l4", title: "Working with text", sub: "Joining, measuring, cleaning",
+    topics: "joining strings with + and repeating with *; converting with str() and int(); len(); string methods .upper() .lower() .title() .strip() .replace(); getting one character with [0] and [-1]",
+    html: `
+<h3>Joining strings</h3>
+<p><code>+</code> sticks two strings together. It adds no space by itself, so you add one yourself.</p>
+<pre data-run>first = "Grace"
+last = "Hopper"
+print(first + " " + last)
+print("ha" * 3)   # * repeats a string: hahaha</pre>
+<h3>Text and numbers don't mix with +</h3>
+<pre data-run>age = 30
+print("Age: " + str(age))   # str() turns a number into text
+print(int("42") + 1)        # int() turns text into a whole number: 43</pre>
+<p>Without <code>str()</code>, <code>"Age: " + age</code> gives <code>TypeError: can only concatenate str (not "int") to str</code>. That error means you tried to join text and a number.</p>
+<h3>len() counts characters</h3>
+<pre data-run>print(len("hello"))     # 5
+print(len("hi there"))  # 8, the space counts too</pre>
+<h3>String methods</h3>
+<p>A <b>method</b> is a function that belongs to a value. You call it with a dot: <code>value.method()</code>.</p>
+<pre data-run>word = "  Hello World  "
+print(word.upper())     # "  HELLO WORLD  "
+print(word.lower())     # "  hello world  "
+print(word.strip())     # "Hello World": spaces at both ends removed
+print("ada lovelace".title())                # "Ada Lovelace"
+print("I like tea".replace("tea", "coffee")) # "I like coffee"</pre>
+<p>Methods give you a <b>new</b> string. The original stays the same unless you store the result: <code>word = word.strip()</code>.</p>
+<p>You can chain methods. They run left to right: <code>"  hi  ".strip().upper()</code> gives <code>"HI"</code>.</p>
+<h3>Picking out one character</h3>
+<p>Each character has a position number called an <b>index</b>. Counting starts at <b>0</b>, not 1. Negative numbers count from the end.</p>
+<pre data-run>word = "python"
+print(word[0])    # p, the first character
+print(word[1])    # y
+print(word[-1])   # n, the last character</pre>
+<div class="note"><b>Common mistakes</b><ul>
+<li>Calling a method but not storing the result, then wondering why the variable didn't change.</li>
+<li>Forgetting the brackets: <code>word.upper</code> without <code>()</code> doesn't run the method.</li>
+</ul></div>`,
+    task: {
+      text: `<p>Someone typed a title badly. The starter code stores it in <code>raw</code>.</p><ol><li>Make a variable <code>clean</code>: <code>raw</code> with the spaces at both ends removed and each word starting with a capital letter.</li><li>Print <code>clean</code>.</li><li>Print how many characters <code>clean</code> has.</li><li>Print the first character of <code>clean</code>.</li></ol>`,
+      expected: "Python Is Fun\n13\nP",
+      rule: "clean must be made from raw using string methods, not typed in by hand. The length and first character must come from len() and indexing.",
+      starter: 'raw = "  pYTHON is FUN  "\n\n# Make clean from raw\n\n# Print clean, its length, and its first character\n',
+      tests: [
+        { name: "raw is unchanged", code: `assert globals().get("raw") == "  pYTHON is FUN  ", "Keep raw exactly as it is in the starter code."` },
+        { name: "clean is \"Python Is Fun\"", code: `assert "clean" in globals(), "Make a variable called clean."\nassert clean == "Python Is Fun", f"clean should be 'Python Is Fun' but it is {clean!r}. Which two methods remove the spaces and fix the capitals?"` },
+        { name: "Prints the three lines", code: `assert LINES == ["Python Is Fun", "13", "P"], f"Expected three lines: Python Is Fun, 13, P. Your output was: {LINES}"` },
+      ],
+    },
+  },
+  {
+    id: "l5", title: "f-strings", sub: "Putting values inside text",
+    topics: "f-strings with {variables} and {expressions}; number formatting with :.2f (2 decimal places) and :, (thousands separator)",
+    html: `
+<p>Joining text with <code>+</code> and <code>str()</code> gets messy fast:</p>
+<pre data-run>name = "Lin"
+age = 25
+print("Hi " + name + ", you are " + str(age) + ".")</pre>
+<p>An <b>f-string</b> is cleaner. Put an <code>f</code> right before the opening quote, then put variables inside <code>{curly brackets}</code>. You don't need <code>str()</code>.</p>
+<pre data-run>name = "Lin"
+age = 25
+print(f"Hi {name}, you are {age}.")</pre>
+<h3>Calculations inside the brackets</h3>
+<pre data-run>price = 3
+qty = 4
+print(f"{qty} items cost {price * qty}")</pre>
+<h3>Formatting numbers</h3>
+<p>After the value, add a colon and a format code:</p>
+<pre data-run>cost = 7.5
+print(f"{cost:.2f}")       # 7.50: always 2 decimal places
+big = 1234567
+print(f"{big:,}")          # 1,234,567: commas between thousands
+money = 1234.5
+print(f"{money:,.2f}")     # 1,234.50: both together</pre>
+<p><code>:.2f</code> means "show this as a decimal with 2 places". It rounds: <code>f"{2.678:.2f}"</code> gives <code>2.68</code>.</p>
+<div class="note"><b>Common mistakes</b><ul>
+<li>Forgetting the <code>f</code>: <code>"Hi {name}"</code> prints the curly brackets literally.</li>
+<li>Putting the <code>f</code> inside the quotes: <code>"f Hi {name}"</code>. It goes before the first quote.</li>
+</ul></div>`,
+    task: {
+      text: `<p>Write a mini receipt. The starter code sets <code>item</code>, <code>price</code>, <code>qty</code> and <code>budget</code>.</p><ol><li>Print the first line below using one f-string. Work out the total from <code>price</code> and <code>qty</code> and show it with 2 decimal places.</li><li>Work out how much of the budget is left after paying, and print the second line with a thousands comma and 2 decimal places.</li></ol>`,
+      expected: "3 x Coffee = $13.50\nBudget left: $1,236.50",
+      rule: "Both lines must be built with f-strings from the variables (item, price, qty, budget), with the numbers calculated, not typed in.",
+      starter: 'item = "Coffee"\nprice = 4.5\nqty = 3\nbudget = 1250\n\n# Print the receipt line\n\n# Print the budget line\n',
+      tests: [
+        { name: "Starter values unchanged", code: `assert (item, price, qty, budget) == ("Coffee", 4.5, 3, 1250), "Keep item, price, qty and budget as they are in the starter code."` },
+        { name: "Receipt line", code: `first = LINES[0] if LINES else ""\nassert first == "3 x Coffee = $13.50", "Line 1 should be: 3 x Coffee = $13.50   You printed: " + first` },
+        { name: "Budget line", code: `second = LINES[1] if len(LINES) > 1 else ""\nassert second == "Budget left: $1,236.50", "Line 2 should be: Budget left: $1,236.50   You printed: " + second` },
+        { name: "Exactly two lines", code: `assert len(LINES) == 2, f"Expected exactly 2 lines, got {len(LINES)}."` },
+      ],
+    },
+  },
+];
+
+const LEVELS = [
+  { name: "Operand", xp: 0 }, { name: "Operator", xp: 150 }, { name: "Expression", xp: 400 },
+  { name: "Function", xp: 800 }, { name: "Module", xp: 1400 }, { name: "Program", xp: 2200 },
+];
+const DIFFS = { 1: { label: "Easy", xp: 15 }, 2: { label: "Medium", xp: 30 }, 3: { label: "Hard", xp: 50 } };
+const LESSON_XP = 25;
+const RUN_LIMIT_MS = 5000;
+
+/* ---------- Helpers ---------- */
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const yesterday = () => { const d = new Date(); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const stripHtml = (h) => { const d = document.createElement("div"); d.innerHTML = h; return d.textContent.replace(/\n{3,}/g, "\n\n").trim(); };
+let toastTimer;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 3200); }
+
+/* ---------- Progress (saved in the artifact database) ---------- */
+
+const FRESH = () => ({ xp: 0, lessons: {}, passes: { 1: 0, 2: 0, 3: 0 }, streak: { count: 0, last: null }, history: [], recentTitles: [], challenge: null });
+let progress = FRESH();
+let db = null, progressRef = null, saving = Promise.resolve();
+
+async function loadProgress() {
+  try { db = await window.claude?.use?.("db"); } catch { db = null; }
+  if (db) {
+    try {
+      progressRef = db.doc("progress/main");
+      const snap = await progressRef.get();
+      if (snap.exists) progress = Object.assign(FRESH(), structuredClone(snap.data()));
+      $("saveState").textContent = "Progress saves to your Operandi account.";
+      return;
+    } catch { db = null; }
+  }
+  const local = lsGet("operandi:progress");
+  if (local) { try { progress = Object.assign(FRESH(), JSON.parse(local)); } catch {} }
+  $("saveState").textContent = "Progress is saved in this browser only.";
+}
+
+function saveProgress() {
+  const body = structuredClone(progress);
+  lsSet("operandi:progress", JSON.stringify(body));
+  if (!progressRef) return;
+  saving = saving.then(() => progressRef.set(body)).then(
+    () => { $("saveState").textContent = "Progress saved."; },
+    () => { $("saveState").textContent = "Couldn't save to your account. Progress is kept in this browser."; }
+  );
+}
+
+function logHistory(entry) {
+  progress.history.unshift({ ...entry, at: new Date().toISOString() });
+  progress.history = progress.history.slice(0, 60);
+}
+
+function bumpStreak() {
+  const t = today();
+  if (progress.streak.last === t) return;
+  progress.streak.count = progress.streak.last === yesterday() ? progress.streak.count + 1 : 1;
+  progress.streak.last = t;
+}
+
+function levelIndex(xp) { let i = 0; LEVELS.forEach((l, k) => { if (xp >= l.xp) i = k; }); return i; }
+
+function renderTop() {
+  const xp = progress.xp, li = levelIndex(xp);
+  $("trackSteps").innerHTML = LEVELS.map((l, k) => `<span class="step ${k <= li ? "reached" : ""} ${k === li ? "current" : ""}" title="${l.name}: ${l.xp} XP">${l.name}</span>`).join("");
+  $("trackBar").innerHTML = LEVELS.map((l, k) => {
+    const next = LEVELS[k + 1];
+    let pct = 0;
+    if (k < li) pct = 100;
+    else if (k === li) pct = next ? Math.min(100, ((xp - l.xp) / (next.xp - l.xp)) * 100) : 100;
+    return `<span class="seg"><i style="width:${pct}%"></i></span>`;
+  }).join("");
+  $("xpVal").textContent = xp;
+  const s = progress.streak;
+  $("streakVal").textContent = s.last === today() || s.last === yesterday() ? s.count : 0;
+  const solved = Object.values(progress.lessons).filter((l) => l.done).length + progress.passes[1] + progress.passes[2] + progress.passes[3];
+  $("passVal").textContent = solved;
+}
+
+function lessonUnlocked(i) { return i === 0 || !!progress.lessons[LESSONS[i - 1].id]?.done; }
+function doneLessons() { return LESSONS.filter((l) => progress.lessons[l.id]?.done); }
+
+function renderRail() {
+  $("lessonList").innerHTML = LESSONS.map((l, i) => {
+    const done = progress.lessons[l.id]?.done, open = lessonUnlocked(i);
+    const cur = current.kind === "lesson" && current.id === l.id;
+    return `<li><button class="rail-item ${done ? "done" : ""}" data-lesson="${l.id}" ${open ? "" : "disabled"} aria-current="${cur}">
+      <span class="n">${done ? "✓" : String(i + 1).padStart(2, "0")}</span>
+      <span class="t">${esc(l.title)}<span class="sub">${done ? `Marked ${progress.lessons[l.id].mark ?? "–"}/10` : open ? esc(l.sub) : "Locked"}</span></span></button></li>`;
+  }).join("");
+  const unlocked = doneLessons().length > 0;
+  $("practiceBtn").disabled = !unlocked;
+  $("practiceBtn").setAttribute("aria-current", String(current.kind === "challenge"));
+  const total = progress.passes[1] + progress.passes[2] + progress.passes[3];
+  $("practiceSub").textContent = unlocked ? `${total} solved · unlimited` : "Finish lesson 1 to unlock";
+}
+
+/* ---------- Python runner (Pyodide in a worker) ---------- */
+
+let worker = null, workerReady = false, workerFailed = false, pending = new Map(), nextId = 1;
+
+function setEngine(state, text) {
+  const e = $("engine");
+  e.className = "engine" + (state === "ok" ? " ok" : state === "bad" ? " bad" : "");
+  e.querySelector("span").textContent = text;
+  $("runBtn").disabled = state !== "ok";
+  $("submitBtn").disabled = state !== "ok";
+}
+
+function startWorker() {
+  workerReady = false;
+  setEngine("loading", "Loading Python…");
+  try { worker = new Worker("worker.js"); }
+  catch (e) { workerFailed = true; setEngine("bad", "Python couldn't start in this view"); return; }
+  worker.onmessage = (ev) => {
+    const m = ev.data;
+    if (m.type === "ready") { workerReady = true; setEngine("ok", "Python 3.12 ready"); return; }
+    if (m.type === "failed") { workerFailed = true; setEngine("bad", "Python couldn't load"); showOutput({ output: "", error: "Python couldn't load: " + m.error }); return; }
+    const p = pending.get(m.id);
+    if (p) { pending.delete(m.id); clearTimeout(p.timer); m.ok ? p.resolve(m.result) : p.reject(new Error(m.error)); }
+  };
+  worker.onerror = (ev) => { workerFailed = true; setEngine("bad", "Python couldn't load"); };
+}
+
+function runPython(code, tests) {
+  return new Promise((resolve, reject) => {
+    if (!worker || !workerReady) return reject(new Error("Python is still loading."));
+    const id = nextId++;
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      worker.terminate();
+      startWorker();
+      resolve({ output: "", error: `Your program ran for more than ${RUN_LIMIT_MS / 1000} seconds, so it was stopped.`, results: (tests || []).map((t) => ({ name: t.name, passed: false, message: "Stopped: the program took too long." })), timedOut: true });
+    }, RUN_LIMIT_MS);
+    pending.set(id, { resolve, reject, timer });
+    worker.postMessage({ id, code, tests: tests || [] });
+  });
+}
+
+/* ---------- Editor ---------- */
+
+const ed = $("code");
+let draftTimer;
+function updateGutter() {
+  const n = ed.value.split("\n").length;
+  $("gutter").textContent = Array.from({ length: n }, (_, i) => i + 1).join("\n");
+  $("gutter").scrollTop = ed.scrollTop;
+}
+ed.addEventListener("input", () => { updateGutter(); clearTimeout(draftTimer); draftTimer = setTimeout(() => lsSet("operandi:draft:" + itemKey(), ed.value), 400); });
+ed.addEventListener("scroll", () => ($("gutter").scrollTop = ed.scrollTop));
+ed.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); doRun(); return; }
+  const { selectionStart: s, selectionEnd: en, value: v } = ed;
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const lineStart = v.lastIndexOf("\n", s - 1) + 1;
+    if (e.shiftKey) {
+      const m = v.slice(lineStart).match(/^ {1,4}/);
+      if (m) { ed.setRangeText("", lineStart, lineStart + m[0].length, "preserve"); }
+    } else {
+      ed.setRangeText("    ", s, en, "end");
+    }
+    ed.dispatchEvent(new Event("input"));
+  } else if (e.key === "Enter") {
+    const lineStart = v.lastIndexOf("\n", s - 1) + 1;
+    const line = v.slice(lineStart, s);
+    let indent = line.match(/^ */)[0];
+    if (/:\s*$/.test(line)) indent += "    ";
+    e.preventDefault();
+    ed.setRangeText("\n" + indent, s, en, "end");
+    ed.dispatchEvent(new Event("input"));
+  }
+});
+function setCode(code) { ed.value = code; updateGutter(); }
+function goToLine(n) {
+  const lines = ed.value.split("\n");
+  if (!n || n < 1 || n > lines.length) return;
+  const start = lines.slice(0, n - 1).reduce((a, l) => a + l.length + 1, 0);
+  ed.focus();
+  ed.setSelectionRange(start, start + lines[n - 1].length);
+  ed.scrollTop = Math.max(0, (n - 4) * 22.4);
+}
+
+/* ---------- Tabs and panels ---------- */
+
+function showTab(name) {
+  ["output", "tests", "feedback"].forEach((t) => {
+    $("tab-" + t).setAttribute("aria-selected", String(t === name));
+    $("panel-" + t).hidden = t !== name;
+  });
+}
+document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+function showOutput(r) {
+  const out = r.output ? `<pre class="out">${esc(r.output)}</pre>` : (r.error ? "" : `<p class="empty">Your program ran but printed nothing.</p>`);
+  const err = r.error ? `<pre class="out err">${esc(r.error)}</pre>` : "";
+  $("panel-output").innerHTML = out + err;
+}
+
+function showTests(results) {
+  const passed = results.filter((x) => x.passed).length;
+  $("testCount").textContent = results.length ? ` ${passed}/${results.length}` : "";
+  $("panel-tests").innerHTML = results.length ? `<ul class="tests">${results.map((x) => `<li class="${x.passed ? "ok" : "no"}"><span class="tag">${x.passed ? "PASS" : "FAIL"}</span><span>${esc(x.name)}${x.message && !x.passed ? `<span class="msg">${esc(x.message)}</span>` : ""}</span></li>`).join("")}</ul>` : `<p class="empty">No tests for this one.</p>`;
+}
+
+/* ---------- Teacher (Claude, through the sample capability) ---------- */
+
+let sampleFn = null, sampleOff = false;
+async function getSample() {
+  if (sampleOff) return null;
+  if (!sampleFn) { try { sampleFn = await window.claude?.use?.("sample"); } catch { sampleFn = null; } }
+  return sampleFn;
+}
+function teacherErrorText(e) {
+  const code = e && e.code;
+  if (code === "not_granted" || code === "sampling_disabled" || code === "not_declared" || code === "capability_disabled") { sampleOff = true; return "Your teacher isn't available in this view, so only the automatic tests marked this one."; }
+  if (code === "rate_limited") return "Your teacher is busy (you've hit a usage limit). The tests still marked your code. Try again in a while for written feedback.";
+  if (code === "session_expired") return "You've been signed out of Claude. Sign in again to get feedback.";
+  if (code === "invalid_json" || code === "empty_completion") return "Your teacher's reply came back garbled. Submit again to get it re-marked.";
+  return "Couldn't reach your teacher just now. Submit again in a moment.";
+}
+
+function numbered(code) { return code.split("\n").map((l, i) => `${String(i + 1).padStart(2, " ")} | ${l}`).join("\n"); }
+
+function knownTopics() {
+  const done = doneLessons();
+  const list = (current.kind === "lesson" ? LESSONS.slice(0, LESSONS.findIndex((l) => l.id === current.id) + 1) : done).map((l) => "- " + l.topics);
+  return list.join("\n");
+}
+
+function markingPrompt(item, code, run, attempt) {
+  const tests = run.results.map((r) => `- ${r.passed ? "PASS" : "FAIL"}: ${r.name}${r.passed ? "" : " (" + r.message + ")"}`).join("\n") || "- (no tests)";
+  return `You are the teacher inside Operandi, a Python course. Your learner is a complete beginner: they had never written code before this course. You are marking one submission.
+
+How to write:
+- Plain, simple English. Short sentences. If you use a technical word, explain it in a few words.
+- Be direct and honest. No empty praise like "Great job!". When something is good, say exactly what and why.
+- Point to line numbers when you can (the code below is numbered).
+- Give hints, not the full corrected program. ${attempt >= 3 ? "This is attempt " + attempt + ", so you may show ONE corrected line in a fix if they are stuck." : "Do not show corrected code."}
+- Only use ideas the learner has covered so far:
+${knownTopics()}
+  Don't suggest if-statements, loops, lists, functions or imports unless they appear above.
+
+The task:
+${item.taskText}
+Expected output:
+${item.expected || "(see task)"}
+${item.rule ? "Rule for this task: " + item.rule : ""}
+
+The learner's code (attempt ${attempt}):
+${numbered(code)}
+
+What it printed:
+${run.output || "(nothing)"}
+${run.error ? "It stopped with this error:\n" + run.error : ""}
+
+Automatic test results:
+${tests}
+
+Marking:
+- "mark" is a whole number from 0 to 10 for the quality of this code for a beginner at this stage.
+  9-10: correct, clear, good names, nothing worth fixing. 7-8: correct with small style issues. 4-6: partly works, or works in a fragile way. 0-3: doesn't run or misses the task.
+- If any test failed, the mark is at most 5. Focus the fixes on the first failing test.
+- Set "accept" to false ONLY if every test passed but the code dodges what the task asks (for example the task says to calculate a value but the learner typed the answer by hand). Otherwise "accept" is true.
+
+Reply with only JSON in this shape:
+{"mark": 7, "accept": true, "headline": "One sentence verdict.", "good": ["specific thing done well"], "fixes": [{"line": 3, "issue": "what is wrong or could be better", "why": "why it matters"}], "hint": "a nudge toward the next improvement, or an empty string", "tip": "one short concept tip connected to their code, or an empty string"}
+"good" has 0 to 3 items. "fixes" has 0 to 4 items. "line" may be null.`;
+}
+
+function renderThinking(label) {
+  $("panel-feedback").innerHTML = `<div class="thinking"><i></i><span>${esc(label)}</span></div>`;
+}
+
+function renderFeedback(f, ctx) {
+  const passed = ctx.passed;
+  const mark = Number.isFinite(f?.mark) ? Math.max(0, Math.min(10, Math.round(f.mark))) : null;
+  let html = `<div class="fb"><div class="fb-head"><div class="score">${mark ?? "–"}<small>/10</small></div><div class="verdict"><span class="pill ${passed ? "ok" : "no"}">${passed ? "Passed" : "Not yet"}</span><span class="headline">${esc(f?.headline || ctx.fallbackHeadline)}</span></div></div>`;
+  if (ctx.xpLine) html += `<div class="xp-gain">${esc(ctx.xpLine)}</div>`;
+  if (ctx.note) html += `<p class="empty">${esc(ctx.note)}</p>`;
+  if (f?.good?.length) html += `<div><h5>What works</h5><ul>${f.good.slice(0, 3).map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>`;
+  if (f?.fixes?.length) html += `<div><h5>To fix or improve</h5><ul>${f.fixes.slice(0, 4).map((x) => `<li class="fix">${x.line ? `<button class="line-btn" data-line="${Number(x.line)}">line ${Number(x.line)}</button>` : `<span></span>`}<span>${esc(x.issue)}${x.why ? `<span class="why">${esc(x.why)}</span>` : ""}</span></li>`).join("")}</ul></div>`;
+  if (f?.hint) html += `<div class="hint"><b>Hint:</b> ${esc(f.hint)}</div>`;
+  if (f?.tip) html += `<div><h5>Concept tip</h5><p style="margin:0">${esc(f.tip)}</p></div>`;
+  if (!passed) html += `<p class="empty">Change your code and press Submit again.</p>`;
+  if (passed && ctx.next) html += `<div><button class="btn primary" id="nextBtn">${esc(ctx.next.label)}</button></div>`;
+  html += `</div>`;
+  $("panel-feedback").innerHTML = html;
+  $("nextBtn")?.addEventListener("click", ctx.next?.go);
+  $("panel-feedback").querySelectorAll(".line-btn").forEach((b) => b.addEventListener("click", () => goToLine(Number(b.dataset.line))));
+}
+
+/* ---------- Current item ---------- */
+
+let current = { kind: "lesson", id: "l1" };
+let attempts = {};          // attempts this visit, per item key
+let busy = false;
+let difficulty = 1;
+
+function itemKey() { return current.kind === "lesson" ? current.id : "challenge:" + (progress.challenge?.c?.title || "none"); }
+
+function currentItem() {
+  if (current.kind === "lesson") {
+    const l = LESSONS.find((x) => x.id === current.id);
+    return { title: l.title, taskText: stripHtml(l.task.text), expected: l.task.expected, rule: l.task.rule, tests: l.task.tests, starter: l.task.starter };
+  }
+  const c = progress.challenge?.c;
+  if (!c) return null;
+  return { title: c.title, taskText: c.scenario + "\n" + c.task, expected: c.expected_output, rule: "The learner should use variables and calculate or format values as the task describes, not type the final printed text by hand.", tests: c.tests, starter: c.starter };
+}
+
+function openLesson(id) {
+  current = { kind: "lesson", id };
+  const l = LESSONS.find((x) => x.id === id), idx = LESSONS.indexOf(l);
+  const rec = progress.lessons[id];
+  $("briefInner").innerHTML = `
+    <p class="eyebrow">Lesson ${idx + 1} of ${LESSONS.length}${rec?.done ? " · completed" : ""}</p>
+    <h1>${esc(l.title)}</h1>
+    ${l.html}
+    <div class="task"><h3>Your turn</h3>${l.task.text}
+      <div class="expected"><span>Expected output</span><pre>${esc(l.task.expected)}</pre></div>
+      <div class="chips"><span class="chip gold">${LESSON_XP} XP · first-try bonus +50%</span></div>
+    </div>
+    ${idx === LESSONS.length - 1 && rec?.done ? `<div class="note"><b>Module 1 complete</b>Keep practising in Challenges. Module 2 starts with decisions using <code>if</code>.</div>` : ""}
+    ${askBox()}`;
+  wireBrief();
+  setCode(lsGet("operandi:draft:" + id) ?? l.task.starter);
+  resetPanels();
+  renderRail();
+  $("brief").scrollTop = 0;
+}
+
+function askBox() {
+  return `<div class="ask"><label for="askInput">Stuck? Ask your teacher about this page</label>
+    <div class="ask-row"><input id="askInput" placeholder="e.g. Why does 7 / 2 give 3.5 and not 3?"><button class="btn" id="askBtn">Ask</button></div>
+    <div class="answer" id="askAnswer" hidden></div></div>`;
+}
+
+function resetPanels() {
+  $("testCount").textContent = "";
+  $("panel-output").innerHTML = `<p class="empty">Press Run to see what your program prints.</p>`;
+  $("panel-tests").innerHTML = `<p class="empty">Press Submit to check your code against the tests.</p>`;
+  $("panel-feedback").innerHTML = `<p class="empty">Submit your code and your teacher will mark it out of 10.</p>`;
+  showTab("output");
+}
+
+function wireBrief() {
+  document.querySelectorAll("#briefInner pre[data-run]").forEach((pre) => {
+    const code = pre.textContent;
+    const wrap = document.createElement("div");
+    wrap.className = "example";
+    pre.replaceWith(wrap);
+    const p = document.createElement("pre");
+    p.textContent = code;
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.innerHTML = `<button type="button">Run example</button>`;
+    bar.firstChild.addEventListener("click", async () => {
+      try { const r = await runPython(code, []); showOutput(r); showTab("output"); }
+      catch (e) { toast(e.message); }
+    });
+    wrap.append(p, bar);
+  });
+  const askBtn = $("askBtn");
+  if (askBtn) {
+    askBtn.addEventListener("click", ask);
+    $("askInput").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
+  }
+}
+
+let askCtl = null;
+async function ask() {
+  const q = $("askInput").value.trim();
+  if (!q) return;
+  const box = $("askAnswer");
+  box.hidden = false;
+  const sample = await getSample();
+  if (!sample) { box.textContent = "Your teacher isn't available in this view."; return; }
+  askCtl?.abort();
+  askCtl = new AbortController();
+  box.textContent = "Thinking…";
+  const page = stripHtml($("briefInner").innerHTML).slice(0, 6000);
+  const prompt = `You are the teacher inside Operandi, a Python course for a complete beginner. Answer their question in plain, simple English, in under 150 words. Use a tiny code example only if it helps, and only with ideas from this page or earlier lessons. Be direct, no filler.
+
+The page they are on:
+${page}
+
+Their current code:
+${ed.value.slice(0, 3000) || "(empty)"}
+
+Their question: ${q}`;
+  try {
+    await sample(prompt, { signal: askCtl.signal, cache: false, onText: ({ text }) => { box.textContent = text; } });
+  } catch (e) {
+    if (e?.code !== "cancelled") box.textContent = (e?.text ? e.text + "\n\n" : "") + teacherErrorText(e);
+  }
+}
+
+/* ---------- Run and Submit ---------- */
+
+async function doRun() {
+  if (busy || !workerReady) return;
+  try { const r = await runPython(ed.value, []); showOutput(r); showTab("output"); }
+  catch (e) { toast(e.message); }
+}
+
+function xpFor({ base, attempt, mark, repeat }) {
+  let xp = base * (attempt === 1 ? 1.5 : Math.max(0.4, 1 - 0.2 * (attempt - 1)));
+  if (repeat) xp *= 0.5;
+  return Math.round(xp + (mark || 0));
+}
+
+async function doSubmit() {
+  if (busy || !workerReady) return;
+  const item = currentItem();
+  if (!item) return;
+  busy = true; $("submitBtn").disabled = true;
+  const code = ed.value;
+  const key = itemKey();
+  try {
+    const run = await runPython(code, item.tests);
+    showOutput(run); showTests(run.results);
+    const allPass = run.results.length > 0 && run.results.every((r) => r.passed) && !run.error;
+    const alreadyDone = current.kind === "lesson" ? !!progress.lessons[current.id]?.done : !!progress.challenge?.solved;
+    const attempt = (current.kind === "challenge" ? (progress.challenge.attempts = (progress.challenge.attempts || 0) + 1) : (attempts[key] = (attempts[key] || 0) + 1));
+    showTab("feedback");
+    renderThinking("Your teacher is marking your code…");
+
+    let fb = null, note = "";
+    const sample = await getSample();
+    if (sample) {
+      try { fb = await sample.json(markingPrompt(item, code, run, attempt)); }
+      catch (e) { note = teacherErrorText(e); }
+    } else { note = "Your teacher isn't available in this view, so only the automatic tests marked this one."; }
+
+    const accepted = fb ? fb.accept !== false : true;
+    const passed = allPass && accepted;
+    const mark = Number.isFinite(fb?.mark) ? Math.max(0, Math.min(10, Math.round(fb.mark))) : null;
+    let xpLine = "";
+
+    if (passed && !alreadyDone) {
+      let gained = 0;
+      if (current.kind === "lesson") {
+        gained = xpFor({ base: LESSON_XP, attempt, mark });
+        progress.lessons[current.id] = { done: true, mark, attempts: attempt, at: new Date().toISOString() };
+      } else {
+        const d = progress.challenge.c.difficulty;
+        const repeat = d < 3 && progress.passes[d] >= 5;
+        gained = progress.challenge.revealed ? 0 : xpFor({ base: DIFFS[d].xp, attempt, mark, repeat });
+        progress.passes[d] += 1;
+        progress.challenge.solved = true;
+        progress.challenge.mark = mark;
+        if (repeat && !progress.challenge.revealed) note = (note ? note + " " : "") + `You've solved 5+ ${DIFFS[d].label} challenges, so they now give half XP. Try a harder one.`;
+      }
+      const before = levelIndex(progress.xp);
+      progress.xp += gained;
+      bumpStreak();
+      xpLine = gained ? `+${gained} XP${attempt === 1 ? " (first-try bonus)" : ""}${mark != null ? ` · includes +${mark} for your mark` : ""}` : "No XP: the solution was shown for this one.";
+      const after = levelIndex(progress.xp);
+      if (after > before) setTimeout(() => toast(`Level up: you're now ${LEVELS[after].name}.`), 400);
+    } else if (passed && alreadyDone) {
+      note = (note ? note + " " : "") + "Already completed, so no extra XP. Practice in Challenges to keep earning.";
+    } else if (allPass && !accepted) {
+      note = (note ? note + " " : "") + "The tests pass, but the task wants you to work the values out in code rather than type them in.";
+    }
+
+    logHistory({ kind: current.kind, id: current.kind === "lesson" ? current.id : null, title: item.title, attempt, passed, mark, failed: run.results.filter((r) => !r.passed).map((r) => r.name).slice(0, 3), firstFix: fb?.fixes?.[0]?.issue || null });
+    saveProgress();
+    renderTop(); renderRail();
+    let next = null;
+    if (passed && current.kind === "lesson") {
+      const i = LESSONS.findIndex((l) => l.id === current.id);
+      next = LESSONS[i + 1] ? { label: `Next: ${LESSONS[i + 1].title} →`, go: () => openLesson(LESSONS[i + 1].id) } : { label: "Start practising challenges →", go: openPractice };
+    }
+    renderFeedback(fb, { passed, xpLine, note, next, fallbackHeadline: allPass ? "All tests passed." : `${run.results.filter((r) => r.passed).length} of ${run.results.length} tests passed.` });
+    if (current.kind === "challenge") renderChallengeBrief();
+  } catch (e) {
+    $("panel-feedback").innerHTML = `<p class="empty">${esc(e.message || "Something went wrong running your code.")}</p>`;
+  } finally {
+    busy = false; $("submitBtn").disabled = !workerReady;
+  }
+}
+
+$("runBtn").addEventListener("click", doRun);
+$("submitBtn").addEventListener("click", doSubmit);
+$("resetBtn").addEventListener("click", () => {
+  const item = currentItem();
+  if (!item) return;
+  const btn = $("resetBtn");
+  if (btn.dataset.confirm !== "1") { btn.dataset.confirm = "1"; btn.textContent = "Click again to reset"; setTimeout(() => { btn.dataset.confirm = ""; btn.textContent = "Reset code"; }, 2500); return; }
+  btn.dataset.confirm = ""; btn.textContent = "Reset code";
+  setCode(item.starter); lsSet("operandi:draft:" + itemKey(), item.starter);
+});
+
+/* ---------- Challenges ---------- */
+
+function challengePrompt(d, retryNote) {
+  const topics = doneLessons().map((l) => "- " + l.topics).join("\n");
+  const recent = progress.recentTitles.slice(0, 12).join("; ") || "(none yet)";
+  return `You write practice challenges for Operandi, a Python course for a complete beginner.
+
+The learner has learned ONLY these ideas:
+${topics}
+Do NOT require anything else: no if/else, loops, lists, dictionaries, functions (def), imports, or input().
+
+Difficulty ${d} of 3. 1 = one or two steps using one idea, 2-4 lines of code. 2 = combine two or three ideas, 4-8 lines. 3 = a small realistic task combining most of the ideas above, 6-12 lines.
+
+Scenario: a short, realistic situation. Make it clearly different from these recent challenges: ${recent}. Vary the setting (shops, sport, games, travel, school, cooking, money, music, fitness, office work, science).
+All values are given in the task. The learner stores them in variables you name, works things out, and prints the result.
+
+Tests are Python snippets run AFTER the learner's code, in the same namespace. They can use the learner's variables, OUTPUT (everything printed, one string) and LINES (a list of the printed lines, each right-stripped, blank lines at the start and end removed). Write 2 to 4 tests using plain assert with a helpful message. Read variables with globals().get("name") so a missing variable gives your message instead of a crash. Example:
+  assert globals().get("total") == 48, "total should be 48. Check the prices."
+  assert LINES == ["Total: 48"], f"Expected the line 'Total: 48' but got {LINES}"
+Messages help without giving away the answer. If a float is involved, compare with abs(a - b) < 1e-9 or check the printed, formatted text.
+
+"starter": a few comment lines guiding the steps; may already set the given variables. It must NOT pass the tests.
+"solution": a clean reference solution that passes every test.
+${retryNote || ""}
+Reply with only JSON in this shape:
+{"title": "short title", "scenario": "2-3 sentences setting the scene", "task": "1. first step\\n2. second step", "expected_output": "exact text the finished program prints", "topics": ["variables", "f-strings"], "difficulty": ${d}, "starter": "python code", "tests": [{"name": "short test name", "code": "python code"}], "solution": "python code"}`;
+}
+
+function validShape(c) {
+  return c && typeof c.title === "string" && typeof c.task === "string" && typeof c.solution === "string" && typeof c.starter === "string" && Array.isArray(c.tests) && c.tests.length >= 1 && c.tests.every((t) => t && typeof t.code === "string" && typeof t.name === "string");
+}
+
+async function generateChallenge() {
+  if (busy) return;
+  const sample = await getSample();
+  if (!sample) { toast("Challenges need your teacher, who isn't available in this view."); return; }
+  busy = true;
+  $("briefInner").innerHTML = `<p class="eyebrow">Practice · ${DIFFS[difficulty].label}</p><h1>Writing a new challenge…</h1><div class="thinking"><i></i><span>Your teacher is writing a challenge and checking that it can be solved. This takes up to a minute.</span></div>`;
+  let made = null, lastProblem = "";
+  for (let round = 0; round < 2 && !made; round++) {
+    try {
+      const c = await sample.json(challengePrompt(difficulty, round ? `Your previous attempt was rejected: ${lastProblem}. Write a different challenge and make sure the solution passes the tests.` : ""), { cache: false });
+      if (!validShape(c)) { lastProblem = "the JSON was missing fields"; continue; }
+      c.difficulty = difficulty;
+      const sol = await runPython(c.solution, c.tests);
+      if (sol.error || !sol.results.every((r) => r.passed)) { lastProblem = "the solution failed its own tests"; continue; }
+      const st = await runPython(c.starter, c.tests);
+      if (!st.error && st.results.every((r) => r.passed)) { lastProblem = "the starter code already passed"; continue; }
+      made = c;
+    } catch (e) {
+      busy = false;
+      $("briefInner").innerHTML = `<p class="eyebrow">Practice</p><h1>No challenge this time</h1><p>${esc(teacherErrorText(e))}</p><button class="btn primary" id="retryGen">Try again</button>`;
+      $("retryGen").addEventListener("click", generateChallenge);
+      return;
+    }
+  }
+  busy = false;
+  if (!made) {
+    $("briefInner").innerHTML = `<p class="eyebrow">Practice</p><h1>That challenge didn't check out</h1><p>Your teacher wrote a challenge whose own answer failed the tests, so it was thrown away rather than shown to you. Try again for a fresh one.</p><button class="btn primary" id="retryGen">Write another</button>`;
+    $("retryGen").addEventListener("click", generateChallenge);
+    return;
+  }
+  progress.challenge = { c: made, attempts: 0, solved: false, revealed: false, at: new Date().toISOString() };
+  progress.recentTitles = [made.title, ...progress.recentTitles].slice(0, 20);
+  saveProgress();
+  setCode(made.starter);
+  resetPanels();
+  renderChallengeBrief();
+}
+
+function openPractice() {
+  current = { kind: "challenge" };
+  renderRail();
+  const ch = progress.challenge;
+  if (ch?.c) {
+    setCode(lsGet("operandi:draft:" + itemKey()) ?? ch.c.starter);
+    resetPanels();
+    renderChallengeBrief();
+  } else {
+    renderPracticeHome();
+  }
+  $("brief").scrollTop = 0;
+}
+
+function diffPicker() {
+  return `<div class="diff" role="group" aria-label="Difficulty">${[1, 2, 3].map((d) => `<button type="button" data-d="${d}" aria-pressed="${d === difficulty}">${DIFFS[d].label}<small>${DIFFS[d].xp} XP · ${progress.passes[d]} solved${d < 3 && progress.passes[d] >= 5 ? " · half XP now" : ""}</small></button>`).join("")}</div>`;
+}
+function wireDiff() {
+  document.querySelectorAll(".diff button").forEach((b) => b.addEventListener("click", () => {
+    difficulty = Number(b.dataset.d);
+    document.querySelectorAll(".diff button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  }));
+}
+
+function renderPracticeHome() {
+  const topics = doneLessons().map((l) => `<span class="chip">${esc(l.title)}</span>`).join("");
+  $("briefInner").innerHTML = `<p class="eyebrow">Practice</p><h1>Challenges</h1>
+    <p>Your teacher writes a fresh challenge every time, using only what you've learned. Before you see it, Operandi runs the teacher's own answer against the tests. If that answer fails, the challenge is thrown away.</p>
+    <div class="chips">${topics}</div>
+    <h3>Pick a difficulty</h3>${diffPicker()}
+    <button class="btn primary" id="genBtn">Give me a challenge</button>
+    <p class="empty" style="margin-top:14px">XP: first try earns +50%. Each extra attempt lowers it a little (never below 40%). Your mark out of 10 is added on top.</p>`;
+  wireDiff();
+  $("genBtn").addEventListener("click", generateChallenge);
+}
+
+function renderChallengeBrief() {
+  const ch = progress.challenge, c = ch.c;
+  const failedEnough = ch.attempts >= 3 && !ch.solved;
+  $("briefInner").innerHTML = `
+    <p class="eyebrow">Practice · ${DIFFS[c.difficulty]?.label || "Challenge"}${ch.solved ? " · solved" : ""}</p>
+    <h1>${esc(c.title)}</h1>
+    <p>${esc(c.scenario)}</p>
+    <div class="task"><h3>Your task</h3><div class="task-steps">${esc(c.task)}</div>
+      ${c.expected_output ? `<div class="expected"><span>Expected output</span><pre>${esc(c.expected_output)}</pre></div>` : ""}
+      <div class="chips">${(c.topics || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("")}<span class="chip gold">${DIFFS[c.difficulty]?.xp ?? 0} XP base</span>${ch.attempts ? `<span class="chip">Attempt ${ch.attempts}</span>` : ""}</div>
+    </div>
+    ${ch.revealed ? `<h3>Teacher's solution</h3><div class="example"><pre>${esc(c.solution)}</pre></div>` : ch.solved ? `<details style="margin-top:16px"><summary>Compare with the teacher's solution</summary><div class="example"><pre>${esc(c.solution)}</pre></div></details>` : ""}
+    ${failedEnough && !ch.revealed ? `<p>Stuck after ${ch.attempts} attempts? You can see the teacher's solution, but this challenge will then give no XP.</p><button class="btn" id="revealBtn">Show the solution</button>` : ""}
+    ${ch.solved ? `<h3>Next challenge</h3>${diffPicker()}<button class="btn primary" id="genBtn">Give me another</button>` : `<div style="margin-top:20px"><button class="btn" id="skipBtn">Skip this challenge</button><div id="skipConfirm"></div></div>`}
+    ${askBox()}`;
+  wireBrief();
+  if (ch.solved) { wireDiff(); $("genBtn").addEventListener("click", generateChallenge); }
+  $("revealBtn")?.addEventListener("click", () => { ch.revealed = true; saveProgress(); renderChallengeBrief(); });
+  $("skipBtn")?.addEventListener("click", () => {
+    $("skipConfirm").innerHTML = `<div class="inline-confirm"><span>Skip it? You won't get XP for this one.</span><button class="btn" id="skipYes">Skip</button><button class="btn" id="skipNo">Keep going</button></div>`;
+    $("skipYes").addEventListener("click", () => { logHistory({ kind: "challenge", title: c.title, skipped: true, attempt: ch.attempts }); progress.challenge = null; saveProgress(); renderRail(); renderPracticeHome(); });
+    $("skipNo").addEventListener("click", () => ($("skipConfirm").innerHTML = ""));
+  });
+}
+
+/* ---------- Navigation and start-up ---------- */
+
+$("lessonList").addEventListener("click", (e) => { const b = e.target.closest("[data-lesson]"); if (b && !b.disabled && !busy) openLesson(b.dataset.lesson); });
+$("practiceBtn").addEventListener("click", () => { if (!busy) openPractice(); });
+
+(async function start() {
+  startWorker();
+  renderTop();
+  openLesson("l1");
+  await loadProgress();
+  renderTop();
+  const firstOpen = LESSONS.find((l, i) => lessonUnlocked(i) && !progress.lessons[l.id]?.done);
+  openLesson((firstOpen || LESSONS[LESSONS.length - 1]).id);
+})();
+</script>
