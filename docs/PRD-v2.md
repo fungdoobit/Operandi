@@ -98,3 +98,25 @@ OUT:
 - Decided: mascot is **DOT, the Digital Operandi Teammate**.
 - Isaac must create a Firebase project and connect the repo to Vercel. Claude walks him through both.
 - Reuse an existing open-source error explainer (friendly-traceback, or the Raspberry Pi Foundation's python-friendly-error-messages) or write our own rules? Licenses not checked yet.
+
+## Addendum A: roaming DOT, new shop items, PYRO (draft, awaiting "go")
+
+Decided with Isaac on 2026-10-18:
+- **Roaming:**
+  - DOT free-roams anywhere on screen.
+  - Isaac can pick him up (picked-up face, stretch) and plop him down (splat, squeezed eyes). DOT then stays parked there, remembered across visits.
+  - Double-click sets him roaming again.
+  - His speech bubble follows him and flips to stay on screen.
+  - Works with mouse and touch (iPad).
+- **New shop items:**
+  - fake moustache 100
+  - sunglasses 120
+  - nerdy big black-frame glasses 150 (replaces the old "Reading glasses")
+  - wizard hat 250
+  - laptop 300 (DOT types along when Isaac types)
+- **PYRO** (PYthon Runtime Operative), 800 Bits:
+  - His own character with a slightly redesigned look, in the same cute, chubby, soft, rounded style as DOT.
+  - Flames instead of watery goop: warm orange-red glow, soft round flame flicker on top, floating embers inside. Same black-line face style.
+  - Personality: energetic and fired-up, where DOT is calm and patient. Same help content, own voice for greetings and reactions.
+  - Isaac chooses which teammate is active and can switch any time.
+- **Prices:** confirmed by Isaac.

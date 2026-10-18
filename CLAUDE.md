@@ -71,7 +71,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Its stdlib is renamed `python_stdlib.zip.wasm` because the artifact host won't serve .zip.
 
 ## Open threads
-- [ ] Proposed, awaiting sign-off: DOT roams the screen and can be dragged and dropped; new shop items (sunglasses, big nerd glasses, moustache, wizard hat, laptop that types along with Isaac); a fire-element DOT skin (Ember Lumen vibe) with its own acronym name.
+- [ ] Addendum A in docs/PRD-v2.md (roaming, new shop items, PYRO = PYthon Runtime Operative): all details decided, waiting on Isaac's "go".
 - [ ] Isaac sets up Vercel and Firebase (`docs/SETUP.md`), then pastes the Firebase config into `site/js/firebase-config.js`.
 - [ ] Firebase sign-in and sync are untested: the cloud sandbox couldn't reach Google. Test once Isaac has a config.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
