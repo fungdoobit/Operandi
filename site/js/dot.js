@@ -10,10 +10,10 @@ const INK = "#16304a";
 const BODY = [
   [26, 164],
   [14, 158], [8, 140], [10, 118],
-  [12, 88], [26, 58], [48, 40],
-  [68, 24], [90, 18], [106, 20],
-  [134, 22], [158, 40], [172, 64],
-  [180, 76], [191, 88], [188, 98],
+  [12, 84], [24, 56], [46, 38],
+  [64, 23], [86, 16], [108, 16],
+  [136, 16], [160, 30], [174, 54],
+  [183, 70], [192, 86], [188, 98],
   [185, 108], [171, 106], [162, 109],
   [154, 112], [150, 121], [151, 132],
   [152, 146], [155, 159], [140, 164],
@@ -28,9 +28,20 @@ function cubic(p0, p1, p2, p3, t) {
   const u = 1 - t;
   return [0, 1].map((k) => u * u * u * p0[k] + 3 * u * u * t * p1[k] + 3 * u * t * t * p2[k] + t * t * t * p3[k]);
 }
-const ANCHORS = [];
+const dense = [];
 for (let i = 0; i + 3 < BODY.length; i += 3) {
-  for (let j = 0; j < 4; j++) ANCHORS.push(cubic(BODY[i], BODY[i + 1], BODY[i + 2], BODY[i + 3], j / 4));
+  for (let j = 0; j < 40; j++) dense.push(cubic(BODY[i], BODY[i + 1], BODY[i + 2], BODY[i + 3], j / 40));
+}
+const lengths = [0];
+for (let i = 1; i <= dense.length; i++) {
+  const a = dense[i - 1], b = dense[i % dense.length];
+  lengths.push(lengths[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1]));
+}
+const ANCHOR_COUNT = 44, ANCHORS = [];
+for (let k = 0, i = 0; k < ANCHOR_COUNT; k++) {
+  const want = (k / ANCHOR_COUNT) * lengths[lengths.length - 1];
+  while (lengths[i + 1] < want) i++;
+  ANCHORS.push(dense[i]);
 }
 const ANGLE = ANCHORS.map(([x, y]) => Math.atan2(y - CY, x - CX));
 // How free each point is to wobble: 0 at the ground (DOT stays planted),
@@ -150,8 +161,8 @@ export const DOT_CSS = `
 .dot-figure[data-mood="sleepy"] .eye-shut { display: inline; }
 .dot-figure[data-mood="plop"] .eye-squeeze { display: inline; }
 .dot-figure:is([data-mood="happy"],[data-mood="celebrate"],[data-mood="sleepy"],[data-mood="plop"],[data-mood="held"]) .dot-eyes { animation: none; }
-.dot-figure[data-mood="happy"] .dot-hop { animation: dot-hop 1s ease-in-out 2; }
-.dot-figure[data-mood="celebrate"] .dot-hop { animation: dot-hop .7s ease-in-out 4; }
+.dot-figure[data-mood="happy"] .dot-hop { animation: dot-hop 1.1s 2; }
+.dot-figure[data-mood="celebrate"] .dot-hop { animation: dot-hop .85s 3; }
 .dot-figure[data-mood="celebrate"] .dot-sparkles { display: inline; animation: dot-twinkle .6s ease-in-out infinite alternate; }
 .dot-figure[data-mood="celebrate"] .dot-mouth { fill: ${INK}; }
 .dot-figure[data-mood="thinking"] .dot-face { transform: translate(5px, -5px); }
@@ -162,7 +173,7 @@ export const DOT_CSS = `
 .dot-figure[data-mood="held"] .eye-white { transform: scale(1.12); }
 .dot-figure[data-mood="held"] .dot-mouth { fill: ${INK}; }
 .dot-figure[data-mood="held"] .dot-shadow { transform: scale(.55); opacity: .08; }
-.dot-figure[data-mood="held"] .dot-hop { animation: dot-dangle 1.1s ease-in-out infinite; transform-origin: 96px 20px; }
+.dot-figure[data-mood="held"] .dot-hop { animation: dot-dangle 1.6s ease-in-out infinite; transform-origin: 96px 20px; }
 .dot-figure.dragging { cursor: grabbing; }
 
 .dot-figure[data-acc="glasses"] .acc-glasses, .dot-figure[data-acc="bow"] .acc-bow,
@@ -177,8 +188,14 @@ export const DOT_CSS = `
 .acc-crown circle { fill: #ff6f91; }
 
 @keyframes dot-blink { 0%,93%,100% { transform: scaleY(1); } 96% { transform: scaleY(.08); } }
-@keyframes dot-hop { 0%,100% { transform: translateY(0); } 45% { transform: translateY(-24px); } }
-@keyframes dot-dangle { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes dot-hop {
+  0% { transform: translateY(0) scale(1, 1); animation-timing-function: cubic-bezier(.3, 0, .5, 1); }
+  10% { transform: translateY(0) scale(1.06, .94); animation-timing-function: cubic-bezier(.2, .6, .4, 1); }
+  48% { transform: translateY(-22px) scale(.97, 1.04); animation-timing-function: cubic-bezier(.6, 0, .8, .4); }
+  82% { transform: translateY(0) scale(1.07, .93); animation-timing-function: cubic-bezier(.3, 0, .4, 1); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+@keyframes dot-dangle { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
 @keyframes dot-ripple { 0% { opacity: .5; transform: scale(.2); } 70% { opacity: 0; transform: scale(1.4); } 100% { opacity: 0; } }
 @keyframes dot-drip { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(14px); opacity: 0; } }
 @keyframes dot-float { 0% { transform: translateY(0); opacity: .3; } 50% { opacity: 1; } 100% { transform: translateY(-10px); opacity: .2; } }
@@ -224,19 +241,25 @@ export class Dot {
   frame(now) {
     if (!this.figure.isConnected) return; // removed from the page: stop
     const t = (now - this.start) / 1000;
+    // Scale every step by real elapsed time, so motion is the same speed at 60 or 120 fps.
+    const step = Math.min(3, (now - (this.last ?? now)) / (1000 / 60)) || 1;
+    this.last = now;
     const still = reduceMotion();
     for (const k of [this.sx, this.sy, this.lean]) {
-      k.v += (k.t - k.s) * 0.12;
-      k.v *= 0.82;
-      k.s += k.v;
+      k.v += (k.t - k.s) * 0.07 * step;
+      k.v *= Math.pow(0.86, step);
+      k.s += k.v * step;
     }
-    this.energy *= 0.95;
-    const amp = still ? 0 : 1.3 + this.energy * 4.5;
-    const breathe = still ? 0 : Math.sin(t * 2.2) * 0.018;
+    this.energy *= Math.pow(0.965, step);
+    // Ease the wobble size toward its target instead of jumping, for a calm, liquid feel.
+    const want = still ? 0 : 1.0 + this.energy * 4;
+    this.amp = (this.amp ?? want) + (want - (this.amp ?? want)) * Math.min(1, 0.08 * step);
+    const amp = this.amp;
+    const breathe = still ? 0 : Math.sin(t * 1.5) * 0.016;
     // Slow, broad waves around the body: neighbouring points move together.
     const pts = ANCHORS.map(([x, y], i) => {
       const a = ANGLE[i];
-      const w = amp * GRIP[i] * (0.6 * Math.sin(2 * a + t * 1.9) + 0.4 * Math.sin(3 * a - t * 1.4));
+      const w = amp * GRIP[i] * (0.65 * Math.sin(2 * a + t * 1.15) + 0.35 * Math.sin(3 * a - t * 0.85));
       return [x + Math.cos(a) * w, y + Math.sin(a) * w];
     });
     const d = smoothPath(pts);
