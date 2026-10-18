@@ -1,0 +1,9 @@
+{
+  "name": "operandi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "node tools/validate.mjs 60",
+    "serve": "cd site && python3 -m http.server 8000"
+  }
+}

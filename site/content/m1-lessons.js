@@ -1,0 +1,229 @@
+// Module 1 lessons. The expected output of each task comes from running its
+// solution, so it can never disagree with what Python really prints.
+
+export const MODULE_1 = {
+  id: 1,
+  title: "Basics",
+  blurb: "Printing, variables, maths, text and f-strings.",
+  topics: ["print()", "variables", "numbers and maths", "strings", "f-strings"],
+};
+
+export const M1_LESSONS = [
+  {
+    id: "m1l1", module: 1, title: "Your first program", sub: "print() and text",
+    html: `
+<p>A program is a list of instructions. Python reads them from the top line to the bottom line, one at a time, and does what each line says.</p>
+<h3>print() shows something on the screen</h3>
+<pre data-run>print("Hello!")</pre>
+<p><code>print</code> is a <b>function</b>: a named action Python already knows. You use it by writing its name, then brackets. Whatever you put inside the brackets gets shown.</p>
+<h3>Text goes inside quotes</h3>
+<p>A piece of text in Python is called a <b>string</b>. You make one by wrapping the text in quotes. Double quotes and single quotes both work, as long as you start and end with the same kind.</p>
+<pre data-run>print("I can use double quotes.")
+print('Or single quotes.')</pre>
+<p>Each <code>print()</code> starts a new line.</p>
+<h3>Numbers don't need quotes</h3>
+<pre data-run>print(42)
+print(3.5)
+print(10 + 5)</pre>
+<p>Python works out <code>10 + 5</code> first, then prints the answer. Put it in quotes, <code>"10 + 5"</code>, and Python treats it as text and prints it exactly as written.</p>
+<h3>Comments are notes for humans</h3>
+<p>Anything after a <code>#</code> is a <b>comment</b>. Python skips it.</p>
+<pre data-run># This whole line is skipped
+print("This line runs")  # a comment can sit at the end of a line too</pre>
+<div class="note"><b>Common mistakes</b><ul>
+<li><code>Print("hi")</code>: Python is case-sensitive, so <code>print</code> must be lowercase.</li>
+<li><code>print("hi)</code>: the closing quote is missing.</li>
+<li><code>print(hi)</code>: without quotes, Python looks for something <i>named</i> hi.</li>
+</ul>Don't worry about memorising these. DOT spots them for you.</div>`,
+    task: {
+      text: `<p>Print these two lines, exactly as shown. Spelling, capital letters and punctuation all count.</p>`,
+      starter: "# Print two lines below\n",
+      solution: 'print("Hello, Operandi!")\nprint("I am learning Python.")',
+      noHardcode: false,
+      checks: [],
+      hints: [
+        "You need two print() lines, one for each line of output.",
+        "Text goes inside quotes, inside the brackets: print(\"...\").",
+        "Line 1 is print(\"Hello, Operandi!\"). Copy that pattern for line 2 and check the full stop.",
+      ],
+    },
+  },
+  {
+    id: "m1l2", module: 1, title: "Variables", sub: "Giving values a name",
+    html: `
+<p>A <b>variable</b> is a name that points to a value. You create one with <code>=</code>.</p>
+<pre data-run>hero = "Ada"
+print(hero)</pre>
+<p>Read <code>hero = "Ada"</code> as "<i>hero</i> now holds Ada". In Python, <code>=</code> means <b>store this</b>, not "is equal to".</p>
+<h3>Name versus text</h3>
+<pre data-run>hero = "Ada"
+print(hero)    # no quotes: the variable, prints Ada
+print("hero")  # quotes: just the text, prints hero</pre>
+<h3>Variables can change</h3>
+<pre data-run>score = 10
+print(score)
+score = 25
+print(score)</pre>
+<h3>Printing several things at once</h3>
+<p>Separate values with commas inside <code>print()</code>. Python puts one space between each.</p>
+<pre data-run>name = "Sam"
+age = 21
+print(name, "is", age, "years old")</pre>
+<h3>Naming rules</h3>
+<ul>
+<li>Letters, digits and underscores only. No spaces: <code>favourite_food</code>.</li>
+<li>Can't start with a digit: <code>second_place</code>, not <code>2nd_place</code>.</li>
+<li>Case-sensitive: <code>Score</code> and <code>score</code> are different.</li>
+<li>Python style is <b>snake_case</b>: lowercase words joined by underscores. Pick names that say what the value is.</li>
+</ul>`,
+    task: {
+      text: `<ol><li>Make a variable <code>hero</code> that holds <code>"Ada"</code>.</li><li>Make a variable <code>power</code> that holds <code>"coding"</code>.</li><li>Print the sentence below using <b>the two variables</b> and commas. Don't type Ada or coding inside the print.</li></ol>`,
+      starter: "# 1. Make the hero variable\n\n# 2. Make the power variable\n\n# 3. Print the sentence\n",
+      solution: 'hero = "Ada"\npower = "coding"\nprint(hero, "has the power of", power)',
+      noHardcode: true,
+      checks: [
+        { name: "Uses the variables in print()", code: `assert not print_has_literal("Ada") and not print_has_literal("coding"), "Use the variables hero and power inside print(), not the words typed again."`, peek: "Inside print(), write hero and power without quotes. The only typed text is \"has the power of\"." },
+        { name: "hero holds \"Ada\"", code: `assert globals().get("hero") == "Ada", "Make a variable called hero that holds \\"Ada\\"."`, peek: 'hero should be "Ada" (capital A).' },
+        { name: "power holds \"coding\"", code: `assert globals().get("power") == "coding", "Make a variable called power that holds \\"coding\\"."`, peek: 'power should be "coding" (all lowercase).' },
+      ],
+      hints: [
+        "Create each variable with name = \"value\" on its own line.",
+        "print() can take several things separated by commas, and it adds the spaces for you.",
+        "The middle part is the text \"has the power of\". Put hero before it and power after it, all inside one print().",
+      ],
+    },
+  },
+  {
+    id: "m1l3", module: 1, title: "Numbers and maths", sub: "Calculating with Python",
+    html: `
+<p>Python has two main kinds of number. An <b>int</b> is a whole number like <code>7</code>. A <b>float</b> has a decimal point, like <code>2.5</code>.</p>
+<h3>The maths operators</h3>
+<pre data-run>print(7 + 2)   # add: 9
+print(7 - 2)   # subtract: 5
+print(7 * 2)   # multiply: 14
+print(7 / 2)   # divide: 3.5
+print(7 // 2)  # whole-number divide: 3
+print(7 % 2)   # remainder: 1
+print(7 ** 2)  # power: 49</pre>
+<p><code>/</code> always gives a float, even when it divides evenly: <code>10 / 2</code> is <code>5.0</code>.</p>
+<h3>Order of operations</h3>
+<pre data-run>print(2 + 3 * 4)    # 14: 3 * 4 happens first
+print((2 + 3) * 4)  # 20: brackets go first</pre>
+<h3>Maths with variables</h3>
+<pre data-run>price = 8
+quantity = 3
+total = price * quantity
+print(total)</pre>
+<p>To change a number in a variable, store the new value back. <code>+=</code> is a shortcut.</p>
+<pre data-run>coins = 10
+coins = coins + 5   # 15
+coins += 5          # 20
+coins -= 3          # 17
+print(coins)</pre>
+<h3>Numbers versus text that looks like a number</h3>
+<pre data-run>print(5 + 5)       # 10: maths
+print("5" + "5")   # 55: two pieces of text joined
+print(type(5), type("5"), type(2.5))</pre>`,
+    task: {
+      text: `<p>A cinema charges 12 for an adult ticket and 8 for a child ticket.</p><ol><li>Make <code>adults = 2</code> and <code>children = 3</code>.</li><li>Make <code>total</code> that <b>calculates</b> the cost from those variables.</li><li>Print <code>total</code>.</li><li>The 5 people split the cost equally. Make <code>per_person</code> by dividing <code>total</code> by 5, and print it.</li></ol>`,
+      starter: "adults = 2\nchildren = 3\n\n# Calculate total, then print it\n\n# Calculate per_person, then print it\n",
+      solution: "adults = 2\nchildren = 3\ntotal = adults * 12 + children * 8\nprint(total)\nper_person = total / 5\nprint(per_person)",
+      noHardcode: true,
+      checks: [
+        { name: "adults and children unchanged", code: `assert globals().get("adults") == 2 and globals().get("children") == 3, "Keep adults = 2 and children = 3."`, peek: "adults must stay 2 and children must stay 3." },
+        { name: "total is right", code: `assert "total" in globals(), "Make a variable called total."\nassert total == 48, "total isn't right yet. Check the prices: adult 12, child 8."`, peek: "total should be 48 (2 × 12 + 3 × 8)." },
+        { name: "per_person is right", code: `assert "per_person" in globals(), "Make a variable called per_person."\nassert abs(per_person - 9.6) < 1e-9, "per_person isn't right yet."`, peek: "per_person should be 9.6 (48 / 5)." },
+      ],
+      hints: [
+        "Multiply each group by its price, then add the two results.",
+        "total = adults * 12 + children * 8. Python does the * before the +.",
+        "per_person = total / 5, then print(per_person) on the next line.",
+      ],
+    },
+  },
+  {
+    id: "m1l4", module: 1, title: "Working with text", sub: "Joining, measuring, cleaning",
+    html: `
+<h3>Joining strings</h3>
+<p><code>+</code> sticks two strings together. It adds no space by itself.</p>
+<pre data-run>first = "Grace"
+last = "Hopper"
+print(first + " " + last)
+print("ha" * 3)   # * repeats a string: hahaha</pre>
+<h3>Text and numbers don't mix with +</h3>
+<pre data-run>age = 30
+print("Age: " + str(age))   # str() turns a number into text
+print(int("42") + 1)        # int() turns text into a whole number: 43</pre>
+<h3>len() counts characters</h3>
+<pre data-run>print(len("hello"))     # 5
+print(len("hi there"))  # 8: the space counts too</pre>
+<h3>String methods</h3>
+<p>A <b>method</b> is a function that belongs to a value. You call it with a dot: <code>value.method()</code>.</p>
+<pre data-run>word = "  Hello World  "
+print(word.upper())
+print(word.lower())
+print(word.strip())     # spaces at both ends removed
+print("ada lovelace".title())
+print("I like tea".replace("tea", "coffee"))</pre>
+<p>Methods give you a <b>new</b> string. Store it to keep it: <code>word = word.strip()</code>. You can chain them: <code>"  hi  ".strip().upper()</code> gives <code>"HI"</code>.</p>
+<h3>Picking out one character</h3>
+<p>Positions (called <b>indexes</b>) start at <b>0</b>. Negative numbers count from the end.</p>
+<pre data-run>word = "python"
+print(word[0])    # p
+print(word[1])    # y
+print(word[-1])   # n</pre>`,
+    task: {
+      text: `<p>Someone typed a title badly. The starter code stores it in <code>raw</code>.</p><ol><li>Make <code>clean</code>: <code>raw</code> with the spaces at both ends removed and each word starting with a capital letter.</li><li>Print <code>clean</code>.</li><li>Print how many characters <code>clean</code> has.</li><li>Print the first character of <code>clean</code>.</li></ol>`,
+      starter: 'raw = "  pYTHON is FUN  "\n\n# Make clean from raw\n\n# Print clean, its length, and its first character\n',
+      solution: 'raw = "  pYTHON is FUN  "\nclean = raw.strip().title()\nprint(clean)\nprint(len(clean))\nprint(clean[0])',
+      noHardcode: true,
+      checks: [
+        { name: "raw unchanged", code: `assert globals().get("raw") == "  pYTHON is FUN  ", "Keep raw exactly as it is in the starter code."`, peek: "raw must stay exactly as the starter code has it." },
+        { name: "clean is right", code: `assert "clean" in globals(), "Make a variable called clean."\nassert clean == "Python Is Fun", "clean isn't right yet. Which two methods remove the spaces and fix the capitals?"`, peek: 'clean should be "Python Is Fun".' },
+      ],
+      hints: [
+        "You need two methods: one removes outside spaces, one capitalises each word.",
+        "Chain them: raw.strip().title()",
+        "Then print(clean), print(len(clean)) and print(clean[0]).",
+      ],
+    },
+  },
+  {
+    id: "m1l5", module: 1, title: "f-strings", sub: "Putting values inside text",
+    html: `
+<p>Joining text with <code>+</code> and <code>str()</code> gets messy fast:</p>
+<pre data-run>name = "Lin"
+age = 25
+print("Hi " + name + ", you are " + str(age) + ".")</pre>
+<p>An <b>f-string</b> is cleaner. Put an <code>f</code> right before the opening quote, then put values inside <code>{curly brackets}</code>.</p>
+<pre data-run>name = "Lin"
+age = 25
+print(f"Hi {name}, you are {age}.")</pre>
+<h3>Calculations inside the brackets</h3>
+<pre data-run>price = 3
+qty = 4
+print(f"{qty} items cost {price * qty}")</pre>
+<h3>Formatting numbers</h3>
+<pre data-run>cost = 7.5
+print(f"{cost:.2f}")     # 7.50: always 2 decimal places
+big = 1234567
+print(f"{big:,}")        # 1,234,567
+money = 1234.5
+print(f"{money:,.2f}")   # 1,234.50</pre>
+<div class="note"><b>Common mistake</b>Forgetting the <code>f</code>: <code>"Hi {name}"</code> prints the curly brackets literally. DOT will point it out.</div>`,
+    task: {
+      text: `<p>Write a mini receipt. The starter code sets <code>item</code>, <code>price</code>, <code>qty</code> and <code>budget</code>.</p><ol><li>Print the first line below with one f-string. Work out the total from <code>price</code> and <code>qty</code>, shown with 2 decimal places.</li><li>Work out what's left of the budget after paying, and print the second line with a thousands comma and 2 decimal places.</li></ol>`,
+      starter: 'item = "Coffee"\nprice = 4.5\nqty = 3\nbudget = 1250\n\n# Print the receipt line\n\n# Print the budget line\n',
+      solution: 'item = "Coffee"\nprice = 4.5\nqty = 3\nbudget = 1250\ntotal = price * qty\nprint(f"{qty} x {item} = ${total:.2f}")\nprint(f"Budget left: ${budget - total:,.2f}")',
+      noHardcode: true,
+      checks: [
+        { name: "Starter values unchanged", code: `assert (item, price, qty, budget) == ("Coffee", 4.5, 3, 1250), "Keep item, price, qty and budget as they are in the starter code."`, peek: "item, price, qty and budget must keep their starter values." },
+      ],
+      hints: [
+        "Start the line with print(f\" and use {qty}, {item} and a total inside.",
+        "Work out total = price * qty first. Show it with {total:.2f}. The $ is just text before the brackets.",
+        "Budget left is budget - total. Format it with {left:,.2f} to get both the comma and 2 decimals.",
+      ],
+    },
+  },
+];

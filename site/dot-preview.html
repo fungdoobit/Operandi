@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><title>DOT preview</title>
+<style>
+body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: #12151c; color: #e7e9ef; --surface: #1b1f29; --ink: #e7e9ef; }
+h1 { font-size: 22px; margin: 0 0 4px; } p { margin: 0 0 18px; color: #9aa1b0; }
+main { padding: 24px; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.cell { background: #181c25; border: 1px solid #262b37; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.cell .dot-figure { width: 130px; }
+.cell span { font: 600 12px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: #8fd6f4; }
+.light { background: #eef0f3; color: #14161b; --surface: #fff; --ink: #14161b; border-radius: 12px; padding: 18px; margin-top: 18px; }
+</style></head><body><main>
+<h1>DOT · Digital Operandi Teammate</h1><p>Moods: idle, happy, celebrate, thinking, worried, sad, sleepy</p>
+<div class="grid" id="grid"></div>
+<div class="light"><div id="talk"></div></div>
+</main>
+<script type="module">
+import { Dot, DOT_CSS } from "./js/dot.js";
+const st = document.createElement("style"); st.textContent = DOT_CSS; document.head.append(st);
+for (const m of ["idle","happy","celebrate","thinking","worried","sad","sleepy"]) {
+  const c = document.createElement("div"); c.className = "cell"; const holder = document.createElement("div"); c.append(holder);
+  const l = document.createElement("span"); l.textContent = m; c.append(l); document.getElementById("grid").append(c);
+  const d = new Dot(holder); d.setMood(m);
+}
+const big = new Dot(document.getElementById("talk"), { size: 110 });
+big.say("You wrote nmae on line 2, but your variable is called name. Python is picky about spelling.", { title: "Looks like a typo", mood: "thinking", actions: [{ label: "Explain NameError", onClick(){} }, { label: "Use a hint (15 left)", onClick(){} }] });
+</script></body></html>
