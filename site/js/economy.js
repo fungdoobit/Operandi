@@ -21,12 +21,19 @@ export const SHOP = [
   { id: "peek", kind: "item", name: "Test peek", price: 15, desc: "See exactly what one failing test expected." },
   { id: "solution", kind: "item", name: "Full solution", price: 60, desc: "Shows the whole answer. That challenge then pays no Bits." },
   { id: "shield", kind: "item", name: "Streak shield", price: 30, desc: "Protects your streak if you miss one day. Used automatically." },
-  { id: "bow", kind: "dot", name: "Bow for DOT", price: 100, desc: "A little bow. DOT insists it's very professional." },
-  { id: "party", kind: "dot", name: "Party hat", price: 120, desc: "For celebrating every passed test." },
-  { id: "glasses", kind: "dot", name: "Reading glasses", price: 150, desc: "For reading tracebacks closely." },
-  { id: "crown", kind: "dot", name: "Crown", price: 400, desc: "For a true Program-level coder." },
-  { id: "theme-forest", kind: "theme", name: "Forest editor", price: 80, desc: "Deep green editor colours." },
-  { id: "theme-dusk", kind: "theme", name: "Dusk editor", price: 80, desc: "Warm purple editor colours." },
+  // Looks for your teammate. `slot` says what can be worn together:
+  // one head item, one face item, one mouth item and one prop.
+  { id: "moustache", kind: "dot", slot: "mouth", name: "Fake moustache", price: 100, desc: "Instantly distinguished. Probably." },
+  { id: "bow", kind: "dot", slot: "head", name: "Bow", price: 100, desc: "A little bow. Very professional, apparently." },
+  { id: "shades", kind: "dot", slot: "face", name: "Sunglasses", price: 120, desc: "Too cool for syntax errors." },
+  { id: "party", kind: "dot", slot: "head", name: "Party hat", price: 120, desc: "For celebrating every passed test." },
+  { id: "nerd", kind: "dot", slot: "face", name: "Big nerdy glasses", price: 150, desc: "Thick black frames for reading tracebacks closely." },
+  { id: "wizard", kind: "dot", slot: "head", name: "Wizard hat", price: 250, desc: "Python is basically magic anyway." },
+  { id: "laptop", kind: "dot", slot: "prop", name: "Laptop", price: 300, desc: "Your teammate types along whenever you type." },
+  { id: "crown", kind: "dot", slot: "head", name: "Crown", price: 400, desc: "For a true Program-level coder." },
+  { id: "pyro", kind: "teammate", slot: "teammate", name: "PYRO", price: 800, desc: "PYthon Runtime Operative. A fiery, energetic teammate made of flames. Swap between DOT and PYRO any time." },
+  { id: "theme-forest", kind: "theme", slot: "theme", name: "Forest editor", price: 80, desc: "Deep green editor colours." },
+  { id: "theme-dusk", kind: "theme", slot: "theme", name: "Dusk editor", price: 80, desc: "Warm purple editor colours." },
 ];
 
 export const LEVELS = [
@@ -69,3 +76,5 @@ export function markFor({ passedCount, total, lintIds, attempt, penalties }) {
   if (attempt >= 4) mark -= 1;
   return Math.max(6, mark);
 }
+
+export const WEAR_SLOTS = ["head", "face", "mouth", "prop"];

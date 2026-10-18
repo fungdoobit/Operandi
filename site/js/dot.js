@@ -213,10 +213,14 @@ function svg(id, skin) {
         </g>
         <path class="dot-mouth" d="${MOUTHS.idle}"/>
         <path class="dot-sweat" d="M150 66 Q157 77 150 84 Q143 77 150 66 Z"/>
-        <g class="acc acc-glasses"><rect x="15" y="85" width="42" height="36" rx="13"/><rect x="77" y="88" width="44" height="40" rx="14"/><path d="M57 101 Q67 96 77 102"/></g>
+        <g class="acc acc-shades"><rect x="15" y="89" width="42" height="29" rx="11"/><rect x="76" y="92" width="45" height="31" rx="12"/><path class="bridge" d="M57 101 Q66 96 76 102"/><path class="glint" d="M22 97 L30 94 M84 100 L93 96"/></g>
+        <g class="acc acc-nerd"><rect x="13" y="83" width="46" height="40" rx="6"/><rect x="74" y="86" width="49" height="44" rx="6"/><path d="M59 100 Q66 95 74 101"/></g>
+        <g class="acc acc-moustache" transform="translate(60 127) scale(.72) translate(-60 -120)"><path d="M60 121 C53 113 40 114 34 123 C40 121 46 126 52 126 C56 126 58 124 60 123 C62 124 64 126 68 126 C74 126 80 121 86 123 C80 114 67 113 60 121 Z"/></g>
         <g class="acc acc-bow"><path d="M52 32 L34 20 L36 46 Z"/><path d="M56 32 L74 20 L72 46 Z"/><circle cx="54" cy="33" r="6"/></g>
-        <g class="acc acc-party"><path d="M84 22 L104 -26 L126 18 Z"/><path class="stripe" d="M92 4 L117 0 M98 -10 L111 -12"/><circle cx="104" cy="-28" r="6"/></g>
-        <g class="acc acc-crown"><path d="M74 22 L80 -2 L92 14 L102 -8 L112 14 L124 -2 L128 22 Z"/><circle cx="102" cy="-8" r="3.5"/><circle cx="80" cy="-2" r="3"/><circle cx="124" cy="-2" r="3"/></g>
+        <g class="acc acc-party"><path d="M86 20 L106 -28 L128 16 Z"/><path class="stripe" d="M94 2 L119 -2 M100 -12 L113 -14"/><circle cx="106" cy="-30" r="6"/></g>
+        <g class="acc acc-crown"><path d="M76 20 L82 -4 L94 12 L104 -10 L114 12 L126 -4 L130 20 Z"/><circle cx="104" cy="-10" r="3.5"/><circle cx="82" cy="-4" r="3"/><circle cx="126" cy="-4" r="3"/></g>
+        <g class="acc acc-wizard"><path class="hat" d="M74 20 C86 -4 96 -34 126 -50 C114 -32 118 -6 138 20 Z"/><ellipse class="brim" cx="106" cy="20" rx="44" ry="8"/><path class="star" d="M100 -6 l2 5 5 1 -4 3 1 5 -4 -3 -4 3 1 -5 -4 -3 5 -1z"/><path class="star" d="M116 -24 l1.5 3.5 3.5 .7 -2.8 2 .7 3.5 -2.9 -2 -2.9 2 .7 -3.5 -2.8 -2 3.5 -.7z"/></g>
+        <g class="acc acc-laptop"><path class="lid" d="M68 124 L124 124 Q127 124 127 127 L127 156 L65 156 L65 127 Q65 124 68 124 Z"/><rect class="screen" x="70" y="129" width="52" height="23" rx="2"/><path class="code" d="M74 134 h18 M74 139 h28 M78 144 h14 M74 148 h22"/><path class="base" d="M58 156 L134 156 L140 164 Q140 166 137 166 L55 166 Q52 166 52 164 Z"/><circle class="logo" cx="96" cy="140" r="0"/></g>
       </g></g>
     </g>
   </g>
@@ -272,8 +276,26 @@ export const DOT_CSS = `
 .dot-figure[data-mood="held"] .dot-hop { animation: dot-dangle 1.6s ease-in-out infinite; transform-origin: 96px 20px; }
 .dot-figure.dragging { cursor: grabbing; }
 
-.dot-figure[data-acc="glasses"] .acc-glasses, .dot-figure[data-acc="bow"] .acc-bow,
-.dot-figure[data-acc="party"] .acc-party, .dot-figure[data-acc="crown"] .acc-crown { display: inline; }
+.dot-figure[data-acc~="shades"] .acc-shades, .dot-figure[data-acc~="nerd"] .acc-nerd, .dot-figure[data-acc~="moustache"] .acc-moustache,
+.dot-figure[data-acc~="bow"] .acc-bow, .dot-figure[data-acc~="party"] .acc-party, .dot-figure[data-acc~="crown"] .acc-crown,
+.dot-figure[data-acc~="wizard"] .acc-wizard, .dot-figure[data-acc~="laptop"] .acc-laptop { display: inline; }
+.acc-shades rect { fill: #161b24; stroke: #0b0e14; stroke-width: 3; }
+.acc-shades .bridge { fill: none; stroke: #0b0e14; stroke-width: 3.5; }
+.acc-shades .glint { fill: none; stroke: #ffffff; stroke-opacity: .55; stroke-width: 2.5; stroke-linecap: round; }
+.acc-nerd rect { fill: rgba(255,255,255,.1); stroke: #111; stroke-width: 6; }
+.acc-nerd path { fill: none; stroke: #111; stroke-width: 5; }
+.acc-moustache path { fill: #3b2516; stroke: #24150b; stroke-width: 1.5; }
+.acc-wizard .hat { fill: #5b3fd0; stroke: #2e1f73; stroke-width: 2.5; stroke-linejoin: round; }
+.acc-wizard .brim { fill: #4a31b3; stroke: #2e1f73; stroke-width: 2.5; }
+.acc-wizard .star { fill: #ffd54a; }
+.acc-laptop .lid, .acc-laptop .base { fill: #c9d1dc; stroke: #4d5868; stroke-width: 2; stroke-linejoin: round; }
+.acc-laptop .screen { fill: #1b2838; }
+.acc-laptop .code { fill: none; stroke: #7fe0a8; stroke-width: 2.2; stroke-linecap: round; opacity: .85; }
+.dot-figure.typing .acc-laptop .code { animation: dot-code .28s steps(2) infinite; }
+.dot-figure.typing .dot-eyes { transform: translateY(4px); }
+.dot-figure.typing .dot-hop { animation: dot-type-bob .3s ease-in-out infinite; }
+@keyframes dot-code { 0% { stroke-dasharray: 6 4; } 100% { stroke-dasharray: 10 3; } }
+@keyframes dot-type-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(1.5px); } }
 .acc-glasses rect { fill: rgba(255,255,255,.08); stroke: ${INK}; stroke-width: 3.5; }
 .acc-glasses path { fill: none; stroke: ${INK}; stroke-width: 3.5; }
 .acc-bow { fill: #ff8fbf; stroke: #c2477e; stroke-width: 2; stroke-linejoin: round; }
@@ -300,7 +322,9 @@ export const DOT_CSS = `
 
 .dot-bubble { position: relative; background: var(--surface, #fff); color: var(--ink, #14161b); border: 1.5px solid var(--dot-line, #9fdcf5); border-radius: 14px; padding: 10px 14px; font-size: 14px; line-height: 1.45; max-width: 46ch; box-shadow: 0 0 0 4px rgb(127 220 255 / .18); min-width: 0; }
 .dot-bubble::before { content: ""; position: absolute; left: -8px; bottom: 18px; width: 14px; height: 14px; background: inherit; border-left: 1.5px solid var(--dot-line, #9fdcf5); border-bottom: 1.5px solid var(--dot-line, #9fdcf5); transform: rotate(45deg); }
-.dot-bubble b.dot-title { display: block; margin-bottom: 2px; }
+.dot-bubble b.dot-title { display: block; margin-bottom: 2px; padding-right: 18px; }
+.dot-bubble .dot-close { position: absolute; top: 4px; right: 6px; border: 0; background: transparent; color: inherit; opacity: .55; font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 4px; }
+.dot-bubble .dot-close:hover { opacity: 1; }
 .dot-bubble .dot-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .dot-bubble .dot-actions button { font: inherit; font-size: 13px; border: 1px solid var(--dot-line, #9fdcf5); background: transparent; color: inherit; border-radius: 999px; padding: 3px 12px; cursor: pointer; }
 .dot-bubble .dot-actions button:hover { background: rgb(127 220 255 / .2); }
@@ -549,7 +573,18 @@ export class Dot {
     });
   }
 
-  setAccessory(id) { if (id) this.figure.dataset.acc = id; else delete this.figure.dataset.acc; }
+  // One id or a list of ids (head, face, mouth and prop items can be worn together).
+  setAccessory(ids) {
+    const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
+    if (list.length) this.figure.dataset.acc = list.join(" "); else delete this.figure.dataset.acc;
+  }
+
+  // Called while the learner types: with the laptop on, DOT types along.
+  typing() {
+    this.figure.classList.add("typing");
+    clearTimeout(this.typeTimer);
+    this.typeTimer = setTimeout(() => this.figure.classList.remove("typing"), 700);
+  }
 
   setMood(mood, { revertAfter } = {}) {
     clearTimeout(this.moodTimer);
@@ -581,9 +616,14 @@ export class Dot {
       }
       b.append(row);
     }
+    const close = document.createElement("button");
+    close.type = "button"; close.className = "dot-close"; close.setAttribute("aria-label", "Close message"); close.textContent = "×";
+    close.addEventListener("click", () => this.hush());
+    b.append(close);
     b.hidden = false;
+    this.onSay?.(!!actions?.length);
     this.nudge(0, 0.25);
   }
 
-  hush() { this.bubble.hidden = true; }
+  hush() { this.bubble.hidden = true; this.onHush?.(); }
 }

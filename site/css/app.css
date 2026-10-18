@@ -134,8 +134,6 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
 .shop-card .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .price { font-family: var(--font-mono); font-weight: 600; color: var(--gold); }
 .owned { font-size: 12px; color: var(--muted); }
-.shop-dot { display: flex; align-items: center; gap: 16px; margin: 10px 0 4px; }
-.shop-dot .dot-figure { width: 120px; }
 
 /* FAQ */
 .faq-search { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; margin: 8px 0 14px; }
@@ -170,8 +168,24 @@ textarea.code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
 .btn.item span { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-left: 2px; }
 .btn.ghost { border-color: transparent; color: var(--muted); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.dock { padding: 10px 14px; border-top: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--dot) 8%, var(--surface)), var(--surface)); }
-.dock .dot-figure { width: 78px; }
+/* The roaming teammate floats above everything. */
+.pet { position: fixed; left: 0; top: 0; z-index: 40; width: 92px; will-change: transform; }
+.pet .dot-wrap { display: block; position: relative; }
+.pet .dot-figure { width: 92px; cursor: grab; user-select: none; -webkit-user-select: none; }
+.pet .dot-figure.dragging { cursor: grabbing; }
+.pet .dot-bubble { position: absolute; left: calc(100% + 10px); bottom: 34px; width: max-content; max-width: min(340px, calc(100vw - 130px)); box-shadow: 0 0 0 4px rgb(127 220 255 / .18), 0 8px 24px rgb(0 0 0 / .18); }
+.pet.flip-x .dot-bubble { left: auto; right: calc(100% + 10px); }
+.pet.flip-x .dot-bubble::before { left: auto; right: -8px; transform: rotate(-135deg); }
+.pet.flip-y .dot-bubble { bottom: auto; top: 24px; }
+.pet.flip-y .dot-bubble::before { bottom: auto; top: 16px; }
+@media (max-width: 720px) { .pet, .pet .dot-figure { width: 72px; } }
+.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.team-card { display: flex; gap: 14px; align-items: center; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 14px; }
+.team-card.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.team-card h4 { margin: 0 0 4px; font-family: var(--font-display); font-size: 18px; }
+.team-card p { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.team-dot { width: 96px; flex: none; }
+.team-dot .dot-bubble { display: none !important; }
 .tabs { display: flex; gap: 2px; padding: 0 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .tab { border: 0; background: transparent; padding: 10px 12px; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }

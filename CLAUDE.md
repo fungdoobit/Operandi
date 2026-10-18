@@ -18,7 +18,17 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 - **Mascot: DOT (Digital Operandi Teammate).**
   - An original goopy light-blue glowing blob with two glowing white eyes, inspired by (not copied from) Isaac's reference image.
   - Moods: idle, happy, celebrate, thinking, worried, sad, sleepy.
-  - Accessories: bow, party, glasses, crown. Code: `site/js/dot.js`. Preview page: `site/dot-preview.html`.
+  - Code: `site/js/dot.js`. Preview page: `site/dot-preview.html` (add `?skin=pyro` for PYRO).
+  - Shapes:
+    - The outline is a Catmull-Rom curve through evenly spaced points, blended between BODY, HELD (picked up), MELT (sad) and SPLASH (crown splat) shapes.
+    - While blending, Taubin smoothing keeps in-between shapes round.
+  - Plop: crown splat, then a tall bounce-back with a hop, then the landing. Subtle droplets (DOT) or sparks (PYRO), plus a ground ring.
+  - Accessories are worn by slot, one each: head (bow, party, crown, wizard), face (shades, nerd), mouth (moustache), prop (laptop, which types along when Isaac types).
+- **Roaming (`site/js/pet.js`):**
+  - The teammate floats over the whole page and wanders until picked up. Dropping him plops him and parks him there; double-click sets him roaming again.
+  - Position is saved in `state.pet` as screen fractions.
+  - The bubble follows him and flips to stay on screen. Plain messages auto-hide after 14 s; he pauses while talking.
+- **PYRO (PYthon Runtime Operative):** a fire skin of the same body (flames are part of the outline), bought for 800 Bits. Isaac switches teammates in the Shop. Personality lines are in `site/content/voices.js`; help content is shared.
   - Status: **approved by Isaac 2026-10-18** after rounds of feedback (black lines for all closed eyes, smiling idle, rounder and chubbier shape, very smooth wobble). The outline is a Catmull-Rom curve through about 44 evenly spaced points, with springs scaled by elapsed time.
   - Roaming decision: DOT free-roams anywhere on screen until Isaac picks him up and plops him down; then he stays parked there.
   - Isaac's font: he likes Bricolage Grotesque (headings). v2 already uses it; the sandbox just can't load Google Fonts, so screenshots show a fallback.
@@ -30,7 +40,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - ×2 for a first try with no hint or peek; +1/2/3 for a mark of 8/9/10; +5 for the first pass each day; +50 per completed module.
     - Easy and Medium pay half after 5 solves at that difficulty.
     - A solution used means 0 Bits.
-    - Shop: hint 10, peek 15, solution 60, streak shield 30, cosmetics 80–400.
+    - Shop: hint 10, peek 15, solution 60, streak shield 30. Looks: moustache 100, bow 100, sunglasses 120, party hat 120, nerdy glasses 150, wizard hat 250, laptop 300, crown 400. Editor themes 80. PYRO 800.
 - **Levels** come from completed modules: Operand 0, Operator 1, Expression 2, Function 4, Module 6, Program 8.
 - **Marking (no AI):** tests decide pass/fail.
   - If any test fails, the mark is at most 5, scaled by the number of tests passed.
@@ -71,7 +81,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Its stdlib is renamed `python_stdlib.zip.wasm` because the artifact host won't serve .zip.
 
 ## Open threads
-- [ ] Addendum A in docs/PRD-v2.md (roaming, new shop items, PYRO = PYthon Runtime Operative): all details decided, waiting on Isaac's "go".
+- [x] Addendum A built 2026-10-18 after Isaac's "go": roaming, new shop items, PYRO.
 - [ ] Isaac sets up Vercel and Firebase (`docs/SETUP.md`), then pastes the Firebase config into `site/js/firebase-config.js`.
 - [ ] Firebase sign-in and sync are untested: the cloud sandbox couldn't reach Google. Test once Isaac has a config.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.

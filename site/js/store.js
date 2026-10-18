@@ -11,7 +11,8 @@ export function freshState() {
     bits: 0,
     items: { ...STARTER_ITEMS },
     owned: {},
-    equipped: { dot: null, theme: null },
+    equipped: { head: null, face: null, mouth: null, prop: null, theme: null, teammate: "dot" },
+    pet: { mode: "roam", x: 0.8, y: 0.75 }, // where your teammate is: roaming, or parked at a spot
     lessons: {},
     modulesDone: {},
     solves: {},          // "module:difficulty" -> count
@@ -21,6 +22,22 @@ export function freshState() {
     history: [],
     updatedAt: 0,
   };
+}
+
+// Bring older saves up to date: one accessory became slots, and the old
+// reading glasses became the big nerdy glasses.
+function upgrade(st) {
+  const fresh = freshState();
+  st.equipped = Object.assign({}, fresh.equipped, st.equipped);
+  st.pet = Object.assign({}, fresh.pet, st.pet);
+  if (st.owned.glasses) { st.owned.nerd = true; delete st.owned.glasses; }
+  const old = st.equipped.dot;
+  if (old) {
+    const slot = { glasses: "face", bow: "head", party: "head", crown: "head" }[old];
+    if (slot) st.equipped[slot] = old === "glasses" ? "nerd" : old;
+  }
+  delete st.equipped.dot;
+  return st;
 }
 
 const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -36,6 +53,7 @@ export class Store {
       const raw = localStorage.getItem(KEY);
       if (raw) this.state = Object.assign(freshState(), JSON.parse(raw));
     } catch { /* private mode or blocked storage: start fresh */ }
+    this.state = upgrade(this.state);
   }
 
   onChange(fn) { this.listeners.add(fn); }
@@ -55,7 +73,7 @@ export class Store {
     const local = this.state;
     const localHasProgress = Object.keys(local.lessons).length > 0 || local.bits > 0;
     if (remote && (remote.updatedAt > local.updatedAt || !localHasProgress)) {
-      this.state = Object.assign(freshState(), remote);
+      this.state = upgrade(Object.assign(freshState(), remote));
       try { localStorage.setItem(KEY, JSON.stringify(this.state)); } catch {}
       this.listeners.forEach((fn) => fn(this.state));
       return "cloud";
@@ -85,8 +103,10 @@ export class Store {
     return true;
   }
 
-  equip(kind, id) {
-    this.state.equipped[kind] = this.state.equipped[kind] === id ? null : id;
+  // Put an item on (or take it off if it's already on). Only one item per slot.
+  equip(slot, id) {
+    if (slot === "teammate") this.state.equipped.teammate = id;
+    else this.state.equipped[slot] = this.state.equipped[slot] === id ? null : id;
     this.save();
   }
 

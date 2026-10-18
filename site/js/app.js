@@ -1,10 +1,13 @@
-// Operandi: the page. Lessons, practice, shop and FAQ on the left, the editor,
-// DOT and results on the right. No AI: every message comes from content/.
+// Operandi: the page. Lessons, practice, shop and FAQ on the left, the editor
+// and results on the right, and your teammate (DOT or PYRO) roaming the
+// screen. No AI: every message comes from content/.
 
 import { Dot, DOT_CSS } from "./dot.js";
 import { Runner } from "./runner.js";
 import { Store } from "./store.js";
-import { SHOP, LEVELS, DIFFS, EARN, levelFor, rewardFor, markFor } from "./economy.js";
+import { SHOP, LEVELS, DIFFS, EARN, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
+import { Pet } from "./pet.js";
+import { VOICES } from "../content/voices.js";
 import { startCloud, cloudConfigured } from "./cloud.js";
 import { rng, newSeed } from "./rng.js";
 import { MODULES, ALL_LESSONS, ALL_TEMPLATES } from "../content/index.js";
@@ -19,15 +22,24 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const store = new Store();
 const S = () => store.state;
 
-/* ---------- DOT ---------- */
+/* ---------- Your teammate (DOT or PYRO) ---------- */
 
 const dotStyle = document.createElement("style");
 dotStyle.textContent = DOT_CSS;
 document.head.append(dotStyle);
-const dot = new Dot($("dock"));
+const V = () => VOICES[S().equipped.teammate] || VOICES.dot;
+const wearing = () => WEAR_SLOTS.map((slot) => S().equipped[slot]).filter(Boolean);
+const dot = new Pet({
+  skin: S().equipped.teammate || "dot",
+  accessories: wearing(),
+  place: S().pet,
+  voice: V,
+  onPlace: (p) => { S().pet = p; store.save(); },
+});
 
 function applyCosmetics() {
-  dot.setAccessory(S().equipped.dot);
+  dot.setSkin(S().equipped.teammate || "dot");
+  dot.setAccessory(wearing());
   const theme = S().equipped.theme;
   if (theme) document.documentElement.dataset.editor = theme;
   else delete document.documentElement.dataset.editor;
@@ -129,12 +141,14 @@ function armIdle() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => {
     if (!task || isSolved()) return;
-    dot.say("Still with me? If you're stuck, read the task again line by line, or press Run to see where you are.", { title: "Taking a break?", mood: "sleepy", actions: [{ label: "I'm stuck: what should I try?", onClick: () => openFaq("debugging") }] });
+    const v = V().idle();
+    dot.say(v.text, { title: v.title, mood: "sleepy", actions: [{ label: "I'm stuck: what should I try?", onClick: () => openFaq("debugging") }] });
   }, 150000);
 }
 ed.addEventListener("input", () => {
   updateGutter(); armIdle();
   if (dot.figure.dataset.mood === "sleepy") dot.setMood("idle");
+  if (S().equipped.prop === "laptop") dot.typing();
   clearTimeout(draftTimer);
   draftTimer = setTimeout(() => task && lsSet("operandi:draft:" + task.key, ed.value), 400);
 });
@@ -200,7 +214,7 @@ async function doRun() {
     const r = await runner.run(ed.value, { expected: task.expected });
     showOutput(r); showTab("output");
     if (r.diagnosis) sayHelp(r.diagnosis.id, r.diagnosis, { mood: "worried" });
-    else if (task.expected && r.lines.join("\n") === task.expected.join("\n")) dot.say("Your output matches the expected output. Press Submit to get it marked.", { title: "Looking good", mood: "happy" });
+    else if (task.expected && r.lines.join("\n") === task.expected.join("\n")) { const v = V().outputMatches(); dot.say(v.text, { title: v.title, mood: "happy" }); }
     else if (task.expected) {
       const d = compareOutput(r.lines, task.expected);
       if (d) sayHelp(d.id, d, { mood: "thinking" });
@@ -294,9 +308,10 @@ function nextAction() {
 
 function dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, already, attempts, results }) {
   if (passed) {
-    const praise = mark === 10 ? "Clean code, nothing to fix." : styleLint.length ? `It works. ${styleLint.length === 1 ? "One small style tip" : "A few style tips"} in Feedback.` : "It works.";
+    const v = V().passed(mark);
+    const praise = mark === 10 || !styleLint.length ? v.text : `${v.text} ${styleLint.length === 1 ? "One small style tip" : "A few style tips"} in Feedback.`;
     const paid = already ? "You'd already finished this one, so no Bits this time." : rec().solutionUsed ? "You used the solution, so no Bits for this one. Typing it out yourself still counts for learning." : `${rewardLine}.`;
-    dot.say(`${praise} ${paid}`, { title: `Passed! ${mark}/10`, mood: mark >= 9 ? "celebrate" : "happy", actions: [nextAction()] });
+    dot.say(`${praise} ${paid}`, { title: v.title, mood: mark >= 9 ? "celebrate" : "happy", actions: [nextAction()] });
     dot.setMood(mark >= 9 ? "celebrate" : "happy", { revertAfter: 3500 });
     return;
   }
@@ -308,7 +323,7 @@ function dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, a
   const failedCheck = results.find((x) => !x.passed && x.name !== "Output matches the expected output");
   if (failedCheck) {
     if (failedCheck.peek && S().items.peek > 0) extra.unshift({ label: `Peek (${S().items.peek} left)`, onClick: usePeek });
-    return dot.say(failedCheck.message, { title: "Not quite yet", mood: "thinking", actions: extra });
+    return dot.say(failedCheck.message, { title: V().notYet().title, mood: "thinking", actions: extra });
   }
   if (diff) return sayHelp(diff.id, diff, { mood: "thinking", extra });
 }
@@ -375,7 +390,7 @@ function useSolution() {
     title: "Show the solution?", mood: "worried",
     actions: [
       { label: "Show it", onClick: () => { if (!store.useItem("solution")) return; r.solutionUsed = true; store.save(); renderSolutionBlock(); renderTop(); dot.say("Read it line by line and work out why each line is there. Then type it yourself rather than pasting. That's how it sticks.", { title: "Here's the solution", mood: "idle" }); } },
-      { label: "Keep trying", onClick: () => dot.say("Good call. Read DOT's last tip again, and try one small change at a time.", { mood: "happy" }) },
+      { label: "Keep trying", onClick: () => dot.say(V().keepTrying().text, { mood: "happy" }) },
     ],
   });
 }
@@ -453,9 +468,10 @@ function openLesson(id) {
   armIdle();
   if (!S().seenIntro) {
     S().seenIntro = true; store.save();
-    dot.say(`Hi, I'm DOT, your Digital Operandi Teammate! I'll check your code, explain errors and cheer you on. You start with ${S().items.hint} hints, ${S().items.peek} peeks and ${S().items.solution} solutions. Read the lesson, then write your code on the right.`, { title: "Welcome to Operandi", mood: "happy" });
+    const v = V().welcome(S().items);
+    dot.say(`${v.text} I wander around the screen: drag me anywhere if I'm in the way.`, { title: v.title, mood: "happy" });
   } else if (!lessonDone(id)) {
-    dot.say(`Lesson ${i + 1}: ${l.title}. Read through, try the examples with Run example, then have a go at the task.`, { mood: "idle" });
+    dot.say(V().lessonIntro(i + 1, l.title).text, { mood: "idle" });
   }
 }
 
@@ -523,7 +539,7 @@ function renderPracticeHome() {
     <p class="empty" style="margin-top:14px">First try without hints or peeks doubles the Bits. A 8/10 or better adds a bonus. After ${EARN.repeatAfter} solves at Easy or Medium, that difficulty pays half, so it pays to move up.</p>`;
   wireDiff();
   $("startBtn").addEventListener("click", startChallenge);
-  dot.say(lessonsDoneCount() < ALL_LESSONS.length ? "Practice what you've learned so far. More challenge types open up as you finish lessons." : "Pick a difficulty. If Easy feels easy, try Medium: that's where the real learning is.", { mood: "happy" });
+  dot.say(V().practice(lessonsDoneCount() >= ALL_LESSONS.length).text, { mood: "happy" });
 }
 
 async function startChallenge() {
@@ -550,7 +566,7 @@ async function startChallenge() {
     loadEditor();
     prepareTask();
     renderRail();
-    dot.say(`${DIFFS[t.difficulty]} challenge: ${candidate.title}. Read the steps, then code it on the right.`, { mood: "idle" });
+    dot.say(V().challenge(DIFFS[t.difficulty], candidate.title).text, { mood: "idle" });
     return;
   }
   toast("Couldn't build a working challenge. Try again.");
@@ -581,32 +597,67 @@ function renderChallenge() {
 
 function renderShop() {
   const st = S();
-  const cards = SHOP.map((e) => {
-    const owned = e.kind === "item" ? `You have ${st.items[e.id] || 0}` : st.owned[e.id] ? (st.equipped[e.kind] === e.id ? "Equipped" : "Owned") : "";
-    const btn = e.kind !== "item" && st.owned[e.id]
-      ? `<button class="btn" data-equip="${e.id}" data-kind="${e.kind}">${st.equipped[e.kind] === e.id ? "Take off" : "Use"}</button>`
+  const team = st.equipped.teammate || "dot";
+  const card = (e) => {
+    const has = e.kind === "item" ? true : st.owned[e.id];
+    const on = e.slot && st.equipped[e.slot] === e.id;
+    const status = e.kind === "item" ? `You have ${st.items[e.id] || 0}` : on ? "Wearing" : st.owned[e.id] ? "Owned" : "";
+    const btn = e.kind !== "item" && has
+      ? `<button class="btn" data-equip="${e.id}" data-slot="${e.slot}">${on ? "Take off" : "Use"}</button>`
       : `<button class="btn primary" data-buy="${e.id}" ${st.bits < e.price ? "disabled" : ""}>Buy</button>`;
-    return `<div class="shop-card"><h4>${esc(e.name)}</h4><p>${esc(e.desc)}</p><div class="row"><span class="price">◆ ${e.price}</span>${btn}</div><span class="owned">${owned}</span></div>`;
-  }).join("");
+    return `<div class="shop-card"><h4>${esc(e.name)}</h4><p>${esc(e.desc)}</p><div class="row"><span class="price">◆ ${e.price}</span>${btn}</div><span class="owned">${status}</span></div>`;
+  };
+  const pyro = SHOP.find((e) => e.id === "pyro");
+  const teamCard = (id, name, desc) => {
+    const owned = id === "dot" || st.owned[id];
+    const btn = !owned
+      ? `<button class="btn primary" data-buy="${id}" ${st.bits < pyro.price ? "disabled" : ""}>Buy for ◆ ${pyro.price}</button>`
+      : team === id ? `<span class="owned">With you now</span>` : `<button class="btn" data-team="${id}">Switch to ${name}</button>`;
+    return `<div class="team-card ${team === id ? "active" : ""}"><div class="team-dot" id="team-${id}"></div><div><h4>${name}</h4><p>${desc}</p>${btn}</div></div>`;
+  };
   $("briefInner").innerHTML = `<p class="eyebrow">Shop</p><h1>Spend your Bits</h1>
-    <p>You have <b>◆ ${st.bits} Bits</b>. Error explanations, typo spotting and the FAQ are always free. Items here are for when you want an extra push, or want DOT to look sharp.</p>
-    <div class="shop-dot"><div id="shopDot"></div></div>
-    <h3>Items</h3><div class="shop-grid">${cards}</div>`;
-  const preview = new Dot($("shopDot"), { size: 120 });
-  preview.setAccessory(st.equipped.dot);
-  preview.setMood("happy");
+    <p>You have <b>◆ ${st.bits} Bits</b>. Error explanations, typo spotting and the FAQ are always free. Items here are for an extra push, or to make your teammate look sharp.</p>
+    <h3>Your teammate</h3>
+    <div class="team-grid">
+      ${teamCard("dot", "DOT", "Digital Operandi Teammate. Calm, patient, a little goopy.")}
+      ${teamCard("pyro", "PYRO", "PYthon Runtime Operative. Fiery, energetic, very competitive.")}
+    </div>
+    <h3>Help items</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "item").map(card).join("")}</div>
+    <h3>Looks</h3><p class="empty">Wear one hat, one pair of glasses, one moustache and one prop at the same time. Your teammate shows them off while roaming.</p>
+    <div class="shop-grid">${SHOP.filter((e) => e.kind === "dot").map(card).join("")}</div>
+    <h3>Editor themes</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "theme").map(card).join("")}</div>`;
+  for (const id of ["dot", "pyro"]) {
+    const d = new Dot($("team-" + id), { size: 96, skin: id });
+    d.setAccessory(wearing());
+    d.setMood(team === id ? "happy" : "idle");
+  }
   document.querySelectorAll("[data-buy]").forEach((b) => b.addEventListener("click", () => {
     const e = SHOP.find((x) => x.id === b.dataset.buy);
     if (store.buy(e)) {
       toast(`Bought: ${e.name}`);
-      dot.say(e.kind === "item" ? `${e.name} added to your items.` : `Ooh, ${e.name.toLowerCase()}! Press Use to put it on.`, { mood: "happy" });
-      dot.setMood("happy", { revertAfter: 2500 });
+      if (e.kind === "teammate") {
+        store.equip("teammate", e.id);
+        applyCosmetics();
+        const v = V().switchIn();
+        dot.say(v.text, { title: v.title, mood: "celebrate" });
+      } else if (e.kind === "item") {
+        dot.say(`${e.name} added to your items.`, { mood: "happy" });
+      } else {
+        dot.say(V().bought(e.name).text, { mood: "happy" });
+      }
     }
     renderShop(); renderTop();
   }));
   document.querySelectorAll("[data-equip]").forEach((b) => b.addEventListener("click", () => {
-    store.equip(b.dataset.kind, b.dataset.equip);
+    store.equip(b.dataset.slot, b.dataset.equip);
     applyCosmetics(); renderShop();
+  }));
+  document.querySelectorAll("[data-team]").forEach((b) => b.addEventListener("click", () => {
+    store.equip("teammate", b.dataset.team);
+    applyCosmetics();
+    const v = V().switchIn();
+    dot.say(v.text, { title: v.title, mood: "happy" });
+    renderShop();
   }));
 }
 

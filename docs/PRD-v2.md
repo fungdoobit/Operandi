@@ -99,7 +99,7 @@ OUT:
 - Isaac must create a Firebase project and connect the repo to Vercel. Claude walks him through both.
 - Reuse an existing open-source error explainer (friendly-traceback, or the Raspberry Pi Foundation's python-friendly-error-messages) or write our own rules? Licenses not checked yet.
 
-## Addendum A: roaming DOT, new shop items, PYRO (draft, awaiting "go")
+## Addendum A: roaming DOT, new shop items, PYRO (approved with "go", built 2026-10-18)
 
 Decided with Isaac on 2026-10-18:
 - **Roaming:**
