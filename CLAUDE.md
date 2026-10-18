@@ -19,7 +19,8 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - An original goopy light-blue glowing blob with two glowing white eyes, inspired by (not copied from) Isaac's reference image.
   - Moods: idle, happy, celebrate, thinking, worried, sad, sleepy.
   - Accessories: bow, party, glasses, crown. Code: `site/js/dot.js`. Preview page: `site/dot-preview.html`.
-  - Status: DOT v1 was sent to Isaac for approval; waiting on his reply.
+  - Status: Isaac's feedback on v1: closed eyes must be black lines; idle looked sad; shape should be closer to the reference (think Wade Ripple from Elemental); goopy and jiggly; pick-up and plop faces. DOT v2 does all of these (body drawn per frame by `frame()`, springs for squash and stretch, `pickUp()`/`drop()`/`nudge()`), sent 2026-10-18. Waiting on approval.
+  - Isaac's font: he likes Bricolage Grotesque (headings). v2 already uses it; the sandbox just can't load Google Fonts, so screenshots show a fallback.
 - **Currency: Bits.**
   - Starter items (free): 15 hints, 15 peeks, 5 solutions.
   - Always free: FAQ, glossary, error explanations, typo detection, output-difference help.
@@ -69,7 +70,8 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Its stdlib is renamed `python_stdlib.zip.wasm` because the artifact host won't serve .zip.
 
 ## Open threads
-- [ ] Isaac approves DOT's look (preview sent 2026-10-18), or asks for changes.
+- [ ] Isaac approves DOT v2 (sent 2026-10-18), or asks for changes.
+- [ ] Proposed, awaiting sign-off: DOT roams the screen and can be dragged and dropped; new shop items (sunglasses, big nerd glasses, moustache, wizard hat, laptop that types along with Isaac); a fire-element DOT skin (Ember Lumen vibe) with its own acronym name.
 - [ ] Isaac sets up Vercel and Firebase (`docs/SETUP.md`), then pastes the Firebase config into `site/js/firebase-config.js`.
 - [ ] Firebase sign-in and sync are untested: the cloud sandbox couldn't reach Google. Test once Isaac has a config.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
