@@ -16,11 +16,38 @@ const BODY = [
   [180, 76], [191, 88], [188, 98],
   [185, 108], [171, 106], [162, 109],
   [154, 112], [150, 121], [151, 132],
-  [152, 144], [152, 154], [146, 160],
-  [120, 167], [50, 168], [26, 164],
+  [152, 146], [155, 159], [140, 164],
+  [110, 168], [48, 168], [26, 164],
 ];
-const PHASE = BODY.map((_, i) => i * 1.7);
-const GROUND = 164, CX = 96;
+const GROUND = 164, CX = 96, CY = 100;
+
+// Sample the outline into evenly spread anchor points once. Each frame the
+// anchors move a little, and a smooth curve (Catmull-Rom) is drawn through
+// them, so the outline can wobble without ever forming a corner.
+function cubic(p0, p1, p2, p3, t) {
+  const u = 1 - t;
+  return [0, 1].map((k) => u * u * u * p0[k] + 3 * u * u * t * p1[k] + 3 * u * t * t * p2[k] + t * t * t * p3[k]);
+}
+const ANCHORS = [];
+for (let i = 0; i + 3 < BODY.length; i += 3) {
+  for (let j = 0; j < 4; j++) ANCHORS.push(cubic(BODY[i], BODY[i + 1], BODY[i + 2], BODY[i + 3], j / 4));
+}
+const ANGLE = ANCHORS.map(([x, y]) => Math.atan2(y - CY, x - CX));
+// How free each point is to wobble: 0 at the ground (DOT stays planted),
+// easing up to 1 by mid-body, so there's no crease where the two meet.
+const GRIP = ANCHORS.map(([, y]) => { const k = Math.min(1, Math.max(0, (GROUND + 4 - y) / 70)); return k * k * (3 - 2 * k); });
+
+function smoothPath(pts) {
+  const n = pts.length, f = (v) => v.toFixed(2);
+  let d = `M${f(pts[0][0])} ${f(pts[0][1])}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${f(c1[0])} ${f(c1[1])} ${f(c2[0])} ${f(c2[1])} ${f(p2[0])} ${f(p2[1])}`;
+  }
+  return d + " Z";
+}
 
 const MOUTHS = {
   idle: "M54 128 Q60 133 66 128",
@@ -204,15 +231,15 @@ export class Dot {
       k.s += k.v;
     }
     this.energy *= 0.95;
-    const amp = still ? 0 : 1.1 + this.energy * 5;
+    const amp = still ? 0 : 1.3 + this.energy * 4.5;
     const breathe = still ? 0 : Math.sin(t * 2.2) * 0.018;
-    const pts = BODY.map(([x, y], i) => {
-      const ground = Math.min(1, Math.max(0, (GROUND - y) / 40));
-      return [x + Math.sin(t * 2.6 + PHASE[i]) * amp * ground, y + Math.cos(t * 2.1 + PHASE[i] * 1.3) * amp * ground];
+    // Slow, broad waves around the body: neighbouring points move together.
+    const pts = ANCHORS.map(([x, y], i) => {
+      const a = ANGLE[i];
+      const w = amp * GRIP[i] * (0.6 * Math.sin(2 * a + t * 1.9) + 0.4 * Math.sin(3 * a - t * 1.4));
+      return [x + Math.cos(a) * w, y + Math.sin(a) * w];
     });
-    let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
-    for (let i = 1; i < pts.length; i += 3) d += ` C${pts[i].join(" ")} ${pts[i + 1].join(" ")} ${pts[i + 2].join(" ")}`;
-    d = d.replace(/(\d+\.\d)\d+/g, "$1") + " Z";
+    const d = smoothPath(pts);
     this.body.setAttribute("d", d);
     this.outline.setAttribute("d", d);
     this.clip.setAttribute("d", d);
