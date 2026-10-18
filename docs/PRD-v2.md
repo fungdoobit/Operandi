@@ -1,4 +1,4 @@
-# Operandi v2 — standalone site, no AI (draft, awaiting Isaac's sign-off)
+# Operandi v2 — standalone site, no AI (draft v2.1, awaiting Isaac's sign-off)
 
 ## 1. Problem
 The v1 app only works inside claude.ai, because its teacher is Claude. Isaac wants a standalone web app with its own URL, like his EMT hub (on Vercel). It must:
@@ -20,19 +20,23 @@ The claude.ai version stays as a separate "office hours" tool.
 IN:
 - **Site:** static site on Vercel (Hobby plan), with Python running in the browser (Pyodide).
 - **Sign-in and sync:** Google sign-in plus progress saved in Firebase (free Spark plan).
-- **Currency** (working name "Bits"; in-game only, never real money):
-  - start with 15 hints
-  - earn Bits from lessons and challenges, with more for first try and Hard
-  - spend Bits in a shop
+- **Currency: "Bits"** (in-game only, never real money).
+  - New users start with free items: **15 hints, 15 test peeks, 5 full solutions**.
+  - Earn Bits from lessons and challenges, with more for first try and Hard.
+  - Spend Bits in a shop to restock.
 - **Shop items:**
   - hint
   - test peek (shows what one failing test expects)
   - streak shield
   - full solution (gives no reward)
   - cosmetics: editor themes and mascot outfits
-- **Always free, never sold:** error explanations, typo detection, FAQ. Help that a stuck beginner needs is never locked behind currency.
+- **Always free, never sold:** error explanations, typo detection, FAQ, glossary. Only hints, peeks and full solutions cost Bits (decided with Isaac).
 - **Mascot companion:**
-  - an animated SVG character with moods (happy, thinking, worried, celebrating) and a speech bubble
+  - a cute goopy blob, based on Isaac's reference image
+    - glowing light-blue body with a soft dome and a droopy curl on one side
+    - two simple glowing white eyes, tiny mouth
+    - animation: idle wobble and squish, blinking, bouncing when happy, drooping when sad
+  - moods: happy, thinking, worried, celebrating, sleepy; plus a speech bubble
   - gives marks, feedback, explanations, error help and recommendations ("You've failed this 3 times. Want a hint?")
   - all rule-based, no AI
 - **Mistake detector:**
@@ -55,7 +59,8 @@ IN:
   8. Real-world mini projects (data cleaning, reports)
 - **Content per module:**
   - 5–7 lessons
-  - 12–15 challenge templates with random values, names and scenarios, so 100+ templates in total
+  - about 25–40 challenge templates, each genuinely different (not just renamed), with random values, names and scenarios. Target: about 250+ templates across the course; no cap, more where a module has more to practise
+  - templates for each module use only that module's ideas and earlier ones
   - FAQ entries
   - mistake rules
 - **Automatic content checks** on GitHub Actions (free), run on every change.
@@ -82,15 +87,14 @@ OUT:
   - mistake detector, FAQ
   - Google sign-in and sync
   - the content-check script
-  - Module 1 ported from v1, with about 15 templates
-- **Phase 2:** Module 2 (if/else), about 15 templates, plus mistake rules and FAQ for it. Tune the economy from Isaac's real numbers.
+  - the mascot design, shown to Isaac for approval first
+  - Module 1 ported from v1, with about 25 templates
+- **Phase 2:** Module 2 (if/else), about 30 templates, plus mistake rules and FAQ for it. Tune the economy from Isaac's real numbers.
 - **Phases 3–6:** two modules per phase, until 8 modules and 100+ templates.
 - **Each phase:** automatic checks pass, Isaac uses it, then we adjust.
 
 ## 6. Open questions
-- Currency name: "Bits"?
-- Mascot name and look. Suggestion: "Dot", from the dot in operandi.code.
-- Keep level names (Operand → Program) tied to modules completed?
-- Starting hints: 15?
+- Decided: currency "Bits"; levels Operand → Program, earned by finishing modules; starting items 15 hints, 15 peeks, 5 solutions; FAQ always free; templates "as many as possible, per module".
+- Mascot name: still open (suggestion: "Dot").
 - Isaac must create a Firebase project and connect the repo to Vercel. Claude walks him through both.
 - Reuse an existing open-source error explainer (friendly-traceback, or the Raspberry Pi Foundation's python-friendly-error-messages) or write our own rules? Licenses not checked yet.
