@@ -73,21 +73,44 @@ const MOUTHS = {
   plop: "M53 129 Q60 133 67 129",
 };
 
+// Looks for each teammate. DOT is water; PYRO (PYthon Runtime Operative) is
+// fire: same chubby body, warm glow, embers inside and soft flames on top.
+const SKINS = {
+  dot: {
+    label: "DOT, your Operandi teammate",
+    stops: ["#e9fbff", "#b3ebfc", "#7fd0f2", "#5bb7e4"],
+    glow: "#8ae2ff", outline: INK, shine: "#ffffff",
+    inner: `<circle class="ripple r1" cx="120" cy="80" r="26"/><circle class="ripple r2" cx="70" cy="70" r="18"/><circle class="ripple r3" cx="130" cy="135" r="20"/>`,
+  },
+  pyro: {
+    label: "PYRO, your Operandi teammate",
+    stops: ["#fff3c4", "#ffc25e", "#ff8a3d", "#e5482b"],
+    glow: "#ff9a3c", outline: "#5a1a0a", shine: "#fff7dc",
+    inner: [[60, 150, 0], [96, 158, 1.1], [132, 152, 2.3], [78, 140, 3.0], [116, 146, 0.6], [146, 138, 1.8]]
+      .map(([x, y, d]) => `<circle class="ember" cx="${x}" cy="${y}" r="2.6" style="animation-delay:${d}s"/>`).join(""),
+    flames: [{ x: 70, y: 40, w: 20, h: 26, p: 0 }, { x: 106, y: 32, w: 24, h: 36, p: 1.7 }, { x: 142, y: 42, w: 18, h: 24, p: 3.1 }],
+  },
+};
+
 let uid = 0;
 
-function svg(id) {
+function svg(id, skin) {
+  const k = SKINS[skin];
   return `
-<svg class="dot-svg" viewBox="-8 -30 208 205" role="img" aria-label="DOT, your Operandi teammate">
+<svg class="dot-svg" viewBox="-8 -30 208 205" role="img" aria-label="${k.label}">
   <defs>
     <radialGradient id="dotBody${id}" cx="40%" cy="40%" r="75%">
-      <stop offset="0%" stop-color="#e9fbff" stop-opacity="0.98"/>
-      <stop offset="40%" stop-color="#b3ebfc" stop-opacity="0.95"/>
-      <stop offset="80%" stop-color="#7fd0f2" stop-opacity="0.93"/>
-      <stop offset="100%" stop-color="#5bb7e4" stop-opacity="0.95"/>
+      <stop offset="0%" stop-color="${k.stops[0]}" stop-opacity="0.98"/>
+      <stop offset="40%" stop-color="${k.stops[1]}" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="${k.stops[2]}" stop-opacity="0.93"/>
+      <stop offset="100%" stop-color="${k.stops[3]}" stop-opacity="0.95"/>
     </radialGradient>
+    <linearGradient id="dotFlame${id}" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#ff7a2e"/><stop offset="55%" stop-color="#ffb347"/><stop offset="100%" stop-color="#ffe9a6"/>
+    </linearGradient>
     <filter id="dotGlow${id}" x="-40%" y="-40%" width="180%" height="180%">
       <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="b"/>
-      <feFlood flood-color="#8ae2ff" flood-opacity="0.7"/>
+      <feFlood flood-color="${k.glow}" flood-opacity="0.7"/>
       <feComposite in2="b" operator="in" result="g"/>
       <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
@@ -102,17 +125,16 @@ function svg(id) {
   <ellipse class="dot-shadow" cx="94" cy="169" rx="92" ry="8"/>
   <g class="dot-hop">
     <g class="dot-jelly">
+      ${k.flames ? `<g class="dot-flames" filter="url(#dotGlow${id})">${k.flames.map(() => `<path fill="url(#dotFlame${id})"/><path class="flame-core" fill="#ffe9a6" opacity=".85"/>`).join("")}</g>` : ""}
       <path class="dot-body" fill="url(#dotBody${id})" filter="url(#dotGlow${id})"/>
       <g clip-path="url(#dotClip${id})" class="dot-inner">
-        <circle class="ripple r1" cx="120" cy="80" r="26"/>
-        <circle class="ripple r2" cx="70" cy="70" r="18"/>
-        <circle class="ripple r3" cx="130" cy="135" r="20"/>
-        <ellipse cx="118" cy="36" rx="20" ry="7" fill="#fff" opacity=".55" transform="rotate(-8 118 36)"/>
-        <circle cx="90" cy="30" r="4" fill="#fff" opacity=".6"/>
-        <circle cx="146" cy="48" r="3" fill="#fff" opacity=".45"/>
-        <circle cx="104" cy="150" r="4" fill="#fff" opacity=".35"/>
+        ${k.inner}
+        <ellipse cx="118" cy="36" rx="20" ry="7" fill="${k.shine}" opacity=".55" transform="rotate(-8 118 36)"/>
+        <circle cx="90" cy="30" r="4" fill="${k.shine}" opacity=".6"/>
+        <circle cx="146" cy="48" r="3" fill="${k.shine}" opacity=".45"/>
+        <circle cx="104" cy="150" r="4" fill="${k.shine}" opacity=".35"/>
       </g>
-      <path class="dot-outline"/>
+      <path class="dot-outline" style="stroke:${k.outline}"/>
       <g class="dot-face">
         <g class="dot-eyes" filter="url(#eyeGlow${id})">
           <g class="dot-eye"><circle class="eye-white" cx="36" cy="103" r="16.5"/><path class="eye-line eye-arc" d="M22 106 Q36 92 50 106"/><path class="eye-line eye-shut" d="M22 103 Q36 112 50 103"/><path class="eye-line eye-squeeze" d="M25 96 L44 103 L25 110"/></g>
@@ -145,6 +167,7 @@ export const DOT_CSS = `
 .dot-outline { fill: none; stroke: ${INK}; stroke-opacity: .55; stroke-width: 2.2; }
 .ripple { fill: none; stroke: #ffffff; stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; animation: dot-ripple 5.5s ease-out infinite; }
 .ripple.r2 { animation-delay: 1.8s; } .ripple.r3 { animation-delay: 3.6s; }
+.ember { fill: #ffe7a0; opacity: 0; animation: dot-ember 3.4s ease-out infinite; }
 .eye-white { fill: #fbfeff; stroke: ${INK}; stroke-width: 3.5; transform-box: fill-box; transform-origin: center; transition: transform .2s; }
 .eye-line { fill: none; stroke: ${INK}; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; display: none; }
 .dot-eyes { transform-origin: 66px 105px; animation: dot-blink 4.6s infinite; }
@@ -200,6 +223,7 @@ export const DOT_CSS = `
 @keyframes dot-ripple { 0% { opacity: .5; transform: scale(.2); } 70% { opacity: 0; transform: scale(1.4); } 100% { opacity: 0; } }
 @keyframes dot-drip { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(14px); opacity: 0; } }
 @keyframes dot-float { 0% { transform: translateY(0); opacity: .3; } 50% { opacity: 1; } 100% { transform: translateY(-10px); opacity: .2; } }
+@keyframes dot-ember { 0% { opacity: 0; transform: translateY(0); } 15% { opacity: .9; } 100% { opacity: 0; transform: translateY(-70px); } }
 @keyframes dot-twinkle { from { opacity: .3; } to { opacity: 1; } }
 
 .dot-bubble { position: relative; background: var(--surface, #fff); color: var(--ink, #14161b); border: 1.5px solid var(--dot-line, #9fdcf5); border-radius: 14px; padding: 10px 14px; font-size: 14px; line-height: 1.45; max-width: 46ch; box-shadow: 0 0 0 4px rgb(127 220 255 / .18); min-width: 0; }
@@ -216,9 +240,12 @@ export const DOT_CSS = `
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export class Dot {
-  constructor(container, { size } = {}) {
+  constructor(container, { size, skin = "dot" } = {}) {
     const id = ++uid;
-    container.innerHTML = `<div class="dot-wrap"><div class="dot-figure" data-mood="idle">${svg(id)}</div><div class="dot-bubble" hidden aria-live="polite"></div></div>`;
+    if (!SKINS[skin]) skin = "dot";
+    this.skin = skin;
+    container.innerHTML = `<div class="dot-wrap"><div class="dot-figure" data-mood="idle" data-skin="${skin}">${svg(id, skin)}</div><div class="dot-bubble" hidden aria-live="polite"></div></div>`;
+    this.flamePaths = [...container.querySelectorAll(".dot-flames path")]; // outer, core, outer, core...
     this.figure = container.querySelector(".dot-figure");
     this.bubble = container.querySelector(".dot-bubble");
     this.mouth = container.querySelector(".dot-mouth");
@@ -267,10 +294,30 @@ export class Dot {
     this.body.setAttribute("d", d);
     this.outline.setAttribute("d", d);
     this.clip.setAttribute("d", d);
+    if (this.flamePaths.length) this.drawFlames(t, still);
     const sx = this.sx.s + breathe, sy = this.sy.s - breathe, lean = this.lean.s;
     // Squash/stretch around the bottom centre, plus a lean (shear) when moving.
     this.jelly.setAttribute("transform", `matrix(${sx.toFixed(4)} 0 ${(-lean).toFixed(4)} ${sy.toFixed(4)} ${(CX - sx * CX + lean * GROUND).toFixed(2)} ${(GROUND - sy * GROUND).toFixed(2)})`);
     requestAnimationFrame(this.frame);
+  }
+
+  // Soft, rounded flame tongues that flicker smoothly. Their bases sit behind
+  // the body, so they look like they grow out of PYRO's head.
+  drawFlames(t, still) {
+    const mood = this.figure.dataset.mood;
+    const size = { sad: 0.55, sleepy: 0.6, worried: 0.85, held: 0.8, happy: 1.2, celebrate: 1.35 }[mood] || 1;
+    this.flameSize = (this.flameSize ?? size) + (size - (this.flameSize ?? size)) * 0.06;
+    const r = (v) => v.toFixed(2);
+    // A puffy, round-topped flame tuft: flat tangent at the top, so no point.
+    const tuft = (x, y, w, H, sway) =>
+      `M${r(x - w)} ${r(y)} C${r(x - w)} ${r(y - H * 0.6)} ${r(x - w * 0.55 + sway)} ${r(y - H)} ${r(x + sway)} ${r(y - H)} ` +
+      `C${r(x + w * 0.55 + sway)} ${r(y - H)} ${r(x + w)} ${r(y - H * 0.6)} ${r(x + w)} ${r(y)} Z`;
+    SKINS[this.skin].flames.forEach(({ x, y, w, h, p }, i) => {
+      const f = still ? 1 : 1 + 0.1 * Math.sin(t * 3.6 + p) + 0.05 * Math.sin(t * 5.9 + p * 2);
+      const H = h * f * this.flameSize, sway = still ? 0 : 3 * Math.sin(t * 2.6 + p) - this.lean.s * 25;
+      this.flamePaths[i * 2].setAttribute("d", tuft(x, y, w, H, sway));
+      this.flamePaths[i * 2 + 1].setAttribute("d", tuft(x + sway * 0.2, y, w * 0.5, H * 0.62, sway * 0.7));
+    });
   }
 
   // Give DOT a jiggle, e.g. while being moved. vx = horizontal speed in px/frame.

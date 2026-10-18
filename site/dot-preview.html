@@ -13,24 +13,30 @@ main { padding: 24px; }
 .roamer { position: absolute; left: 40px; top: 200px; width: 110px; cursor: grab; user-select: none; }
 .roamer .dot-bubble { display: none; }
 </style></head><body><main>
-<h1>DOT · Digital Operandi Teammate</h1><p>Each mood below wobbles live. In the playground, DOT wanders around: grab him with your mouse (or finger) and drop him anywhere.</p>
+<h1 id="heading">DOT · Digital Operandi Teammate</h1><p id="intro">Each mood below wobbles live. In the playground, DOT wanders around: grab him with your mouse (or finger) and drop him anywhere.</p>
 <div class="grid" id="grid"></div>
-<div class="play" id="play"><span class="label">Playground: drag DOT</span><div class="roamer" id="roamer"></div></div>
+<div class="play" id="play"><span class="label" id="playLabel">Playground: drag DOT</span><div class="roamer" id="roamer"></div></div>
 </main>
 <script type="module">
 import { Dot, DOT_CSS } from "./js/dot.js";
 const st = document.createElement("style"); st.textContent = DOT_CSS; document.head.append(st);
+const skin = new URLSearchParams(location.search).get("skin") || "dot";
+if (skin === "pyro") {
+  document.getElementById("heading").textContent = "PYRO · PYthon Runtime Operative";
+  document.getElementById("intro").textContent = document.getElementById("intro").textContent.replace("DOT", "PYRO");
+  document.getElementById("playLabel").textContent = "Playground: drag PYRO";
+}
 const loops = { happy: 2600, celebrate: 3200 };
 for (const m of ["idle","happy","celebrate","thinking","worried","sad","sleepy","held","plop"]) {
   const c = document.createElement("div"); c.className = "cell"; const h = document.createElement("div"); c.append(h);
   const l = document.createElement("span"); l.textContent = m === "held" ? "picked up" : m === "plop" ? "plopped down" : m; c.append(l); document.getElementById("grid").append(c);
-  const d = new Dot(h);
+  const d = new Dot(h, { skin });
   if (m === "held") d.pickUp(); else if (m === "plop") { const again = () => { d.drop(); setTimeout(() => d.setMood("plop"), 600); }; again(); setInterval(again, 2400); } else d.setMood(m);
   if (loops[m]) setInterval(() => d.setMood(m), loops[m]);
 }
 // Playground: roam + drag.
 const play = document.getElementById("play"), el = document.getElementById("roamer");
-const dot = new Dot(el);
+const dot = new Dot(el, { skin });
 let x = 40, y = 200, tx = 300, drag = null, last = 0;
 function place() { el.style.left = x + "px"; el.style.top = y + "px"; }
 function tick(now) {
