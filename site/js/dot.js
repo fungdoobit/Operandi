@@ -47,17 +47,15 @@ const MELT = [
   [196, 163], [176, 170], [140, 170],
   [122, 170], [108, 170], [96, 169],
 ];
-// Splat: like a drop hitting water, a flat puddle with its edges flicked up (a "crown").
+// Splat: like a drop that has just landed, a soft flat dome with round ends (no corners).
 const SPLASH = [
   [96, 168],
-  [60, 169], [10, 169], [-4, 166],
-  [-16, 160], [-14, 132], [0, 130],
-  [12, 128], [16, 142], [24, 148],
-  [36, 140], [62, 110], [96, 110],
-  [130, 110], [156, 140], [172, 150],
-  [176, 142], [180, 128], [192, 130],
-  [206, 132], [208, 160], [196, 166],
-  [182, 169], [132, 169], [96, 168],
+  [56, 169], [14, 169], [6, 160],
+  [-2, 152], [6, 138], [22, 132],
+  [44, 122], [72, 112], [96, 112],
+  [120, 112], [150, 122], [170, 132],
+  [186, 138], [196, 152], [188, 160],
+  [180, 169], [136, 169], [96, 168],
 ];
 const GROUND = 166, CX = 96, CY = 100;
 
@@ -500,7 +498,7 @@ export class Dot {
     this.clearTimers();
     this.lean.t = 0;
     this.setMood("plop");
-    // 1. Splat: like a drop hitting water, a flat crown with the edges flicked up.
+    // 1. Splat: flatten into a soft round dome, like a drop that has just landed.
     this.form.held.s = 0; this.form.melt.s = 0;
     this.form.crown.s = 1; this.form.crown.t = 1;
     this.spring.k = 0.25; this.spring.damp = 0.7;
