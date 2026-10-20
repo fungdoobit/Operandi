@@ -104,6 +104,9 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - HP decided: longer fights. GOLEM 300 HP with damage unchanged, so the teammate gets 300 HP too (about 13–15 challenges). Save fights in progress.
     - Waiting on: Isaac's final OK on the look before step 2.
   - Then: battle screen, rewards and aura slot, streak rewards. Ideas parked for later: the Super move, and bosses mixing topics from earlier modules.
+- [ ] Addendum E (concept): a Hollow Knight-inspired restyle of battles and characters, at `site/hk-preview.html` (`site/hk/`). It's a separate trial, and the approved DOT, PYRO and GOLEM files are untouched.
+  - Waiting on Isaac: bug knight or redrawn GOLEM? Keep the restyled DOT and PYRO or revert?
+  - GOLEM's cannon now aims at the teammate, and the Typo Swarm mobs the teammate (no damage).
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).

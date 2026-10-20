@@ -187,3 +187,20 @@ Decided with Isaac on 2026-10-20:
 - **Bits:** 10 per section, replacing 20 per lesson.
 - **Checks:** every section is covered by the content checker.
 - **Old progress:** a lesson finished before sections existed still counts as done.
+
+## Addendum E: Hollow Knight-inspired battle style (concept, waiting on Isaac's pick)
+
+Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everything, art style, animations, attacks".
+- **Scope (Isaac):** battles and characters. Lessons and the home page stay as they are.
+- **Trial only:** DOT and PYRO are restyled as a trial. If Isaac doesn't like them, they go back to the approved designs.
+  - Isaac wants to see the style because future teammates won't all be goo.
+- **Two boss options to choose from:** a corrupted bug knight, or GOLEM redrawn in the new style.
+- **Built as a separate concept:**
+  - Preview page: `site/hk-preview.html`. Code: `site/hk/engine.js` (stage, clock with hit-stop, puppet parts, effects) and `site/hk/chars.js`.
+  - The approved `dot.js`, `boss.js` and `pet.js` are untouched, so reverting costs nothing.
+- **Style:**
+  - Look: a dark misty cavern with depth layers, inky bodies, pale masks with hollow eyes, and soft glows.
+  - Motion: anticipation holds, then very fast strikes, hit-stop on impact, camera shake, white flashes.
+  - Effects: ink bursts when the teammate is hit, orange blobs when the boss is hit, soul wisps, crescent slashes, and shockwaves rolling along the floor.
+  - All original art (no Hollow Knight assets or characters).
+- **Next:** Isaac picks the boss and approves or rejects the restyle. Only then does it replace the current art, which would need the restyle rebuilt for roaming on lesson pages too.
