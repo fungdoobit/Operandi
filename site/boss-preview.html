@@ -130,6 +130,7 @@ const show = () => {
 const S = () => stage.getBoundingClientRect();
 function at(el) { const r = el.getBoundingClientRect(), s = S(); return { x: r.left - s.left + r.width / 2, y: r.top - s.top + r.height / 2 }; }
 const dotAt = () => at(document.querySelector("#mate .dot-figure"));
+const pageDot = () => { const r = document.querySelector("#mate .dot-figure").getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.55 }; };
 const coreAt = () => at(document.querySelector("#foe .boss-core"));
 function pop(text, { x, y }, color) {
   const p = document.createElement("div"); p.className = "pop"; p.textContent = text; p.style.color = color; p.style.left = x + "px"; p.style.top = y + "px";
@@ -166,12 +167,12 @@ const act = {
       { duration: 420, easing: "ease-in", fill: "forwards" });
     setTimeout(() => { w.remove(); hurtDot(25, false); }, 420);
   } }),
-  cannon: () => boss.attack({ kind: "cannon", onRelease: (p) => {
+  cannon: () => boss.attack({ kind: "cannon", target: pageDot(), onRelease: (p) => {
     const s = S();
-    fly("shell", { x: p.x - s.left, y: p.y - s.top }, dotAt(), { ms: 700, arc: 140 }, () => hurtDot(20, false));
+    fly("shell", { x: p.x - s.left, y: p.y - s.top }, dotAt(), { ms: 380, arc: 12 }, () => hurtDot(20, false));
   } }),
   firewall: () => special("firewall", () => { boss.special("firewall"); dome = true; }),
-  typos: () => special("typos", () => { boss.special("typos"); setTimeout(() => dot.setMood("worried", { revertAfter: 1600 }), 900); }),
+  typos: () => special("typos", () => boss.special("typos", { target: pageDot(), onArrive: () => dot.swarmed(1700) })),
   glitch: () => special("glitch", () => { boss.special("glitch"); setTimeout(() => dot.setMood("worried", { revertAfter: 1400 }), 500); }),
   win: () => { foe = 0; dome = false; show(); boss.defeat(); setTimeout(() => dot.win(), 1400); },
   lose: () => { me = 0; show(); dot.ko(); setTimeout(() => boss.win(), 500); },

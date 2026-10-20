@@ -658,6 +658,16 @@ export class Dot {
     this.timers.push(setTimeout(() => { this.lean.t = 0; }, 300));
   }
 
+  // Mobbed by the Typo Swarm: flinching side to side with a worried face. No damage.
+  swarmed(ms = 1500) {
+    this.clearTimers();
+    this.setMood("worried");
+    for (let t = 0, side = 1; t < ms; t += 130, side = -side) {
+      this.timers.push(setTimeout(() => { this.dx.v += side * 3; this.nudge(side * 6, 0.35); }, t));
+    }
+    this.timers.push(setTimeout(() => this.setMood("idle"), ms + 200));
+  }
+
   ko() { this.clearTimers(); this.setMood("ko"); this.splash(0.6); this.energy = 1; }
 
   win() { this.clearTimers(); this.setMood("celebrate"); }

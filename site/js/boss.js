@@ -256,19 +256,22 @@ export class Boss {
 
   // Two attacks: a claw slam that sends a shockwave along the ground, or a cannon shot.
   // onRelease(point) fires when the shockwave or shot leaves him.
-  attack({ kind = "slam", onRelease } = {}) {
+  // target: the teammate's position on the page, so the cannon really aims at it.
+  attack({ kind = "slam", onRelease, target } = {}) {
     if (this.dead) return;
     const [L, R] = this.arms;
     const idle = () => this.eye(this.charging ? "charge" : "idle");
     if (kind === "cannon") {
-      // 1. Aim: rise up, lean back, swing the cannon skyward while it charges and trembles.
-      R.a.t = -130; R.e.t = -30; L.a.t = -20; L.e.t = 20;
-      this.rot.t = 5; this.y.t = -18; this.x.t = 10; this.eye("charge");
+      // 1. Aim: swing the cannon round in front of him until it points straight at
+      // the teammate, brace, and let it charge and tremble.
+      this.rot.t = -3; this.y.t = -14; this.x.t = 10;
+      R.a.t = target ? this.aimAt(target, this.rot.t) : 100; R.e.t = 0; L.a.t = -20; L.e.t = 20;
+      this.eye("charge");
       this.later(60, () => { this.muzzleGlow = 1; this.aiming = true; });
       // 2. Fire: big recoil that shoves his whole body back, muzzle flash, smoke.
       this.later(620, () => {
         this.aiming = false;
-        R.a.v += 16; R.e.v -= 10; this.x.v += 11; this.rot.v += 2.6; this.y.v += 3;
+        R.a.v += 14; this.x.v += 11; this.rot.v += 2.6; this.y.v -= 2;
         this.shake = 9; this.muzzleGlow = 2.6; this.flash = 0.3;
         const [mx, my] = this.local(this.muzzle);
         this.blast(mx, my); this.puff(mx, my, 6, 1.1);
@@ -276,7 +279,7 @@ export class Boss {
         onRelease?.(this.point("muzzle"));
       });
       // 3. Settle back down, cannon still smoking.
-      this.later(900, () => { R.a.t = -40; R.e.t = 0; this.rot.t = -2; this.y.t = 0; this.x.t = 0; L.a.t = 0; L.e.t = 0; idle(); });
+      this.later(900, () => { R.a.t = 60; this.rot.t = 2; this.y.t = 0; this.x.t = 0; L.a.t = 0; L.e.t = 0; idle(); });
       this.later(1050, () => { const [mx, my] = this.local(this.muzzle); this.puff(mx, my, 2, 0.6); });
       this.later(1300, () => { R.a.t = 0; this.rot.t = 0; });
       return;
@@ -306,6 +309,22 @@ export class Boss {
     this.later(1250, () => { L.a.t = 0; L.e.t = 0; R.e.t = 0; this.rot.t = 0; this.x.t = 0; this.y.t = 0; this.sx.t = 1; this.sy.t = 1; });
   }
 
+  // The shoulder angle that points the cannon arm at a spot on the page.
+  // The arm hangs straight down at 0; it sits in a group turned -16 degrees.
+  aimAt(target, bodyTilt = 0) {
+    const r = this.arms[1].el.querySelector("circle").getBoundingClientRect();
+    const sx = r.left + r.width / 2, sy = r.top + r.height / 2;
+    const deg = Math.atan2(-(target.x - sx), target.y - sy) * 180 / Math.PI;
+    return deg + 16 - bodyTilt;
+  }
+
+  // A point on the page in the boss's own drawing coordinates.
+  toLocal({ x, y }) {
+    const pt = this.svgEl.createSVGPoint(); pt.x = x; pt.y = y;
+    const r = pt.matrixTransform(this.svgEl.getScreenCTM().inverse());
+    return [r.x, r.y];
+  }
+
   // Hit by the teammate's code. A Firewall dome blocks normal hits; a crit smashes it.
   hit({ crit = false, blocked = false } = {}) {
     if (this.dead) return;
@@ -331,12 +350,14 @@ export class Boss {
     this.arms.forEach((A) => { A.a.t = -10 * A.side; A.e.t = 12; });
   }
 
-  special(move) {
+  // opts.target (page point) and opts.onArrive: the Typo Swarm flies at the
+  // teammate and calls onArrive when it reaches them.
+  special(move, opts = {}) {
     this.charging = false;
     this.eye("idle");
     this.arms.forEach((A) => { A.a.t = 0; A.e.t = 0; });
     if (move === "firewall") this.buildDome();
-    if (move === "typos") this.typoSwarm();
+    if (move === "typos") this.typoSwarm(opts);
     if (move === "glitch") this.glitchText();
   }
 
@@ -414,9 +435,11 @@ export class Boss {
     this.later(850, () => all.forEach((p) => p.remove()));
   }
 
-  // Typo Swarm: a cloud of little letter-bugs buzzes out of his deck vents
-  // and flies at the teammate in a wobbly swarm.
-  typoSwarm() {
+  // Typo Swarm: a cloud of little letter-bugs buzzes out of his deck vents,
+  // flies at the teammate, mobs them for a moment, then pops. No damage: it's
+  // the warning that typos are coming in the next challenge.
+  typoSwarm({ target, onArrive } = {}) {
+    const swarm = { target: target ? this.toLocal(target) : null, onArrive, arrived: false };
     this.glitch(220);
     this.flare(900);
     const letters = ["p", "r", "i", "n", "t", "(", '"', ":", ")", "'", ";", "#"];
@@ -424,11 +447,11 @@ export class Boss {
     letters.forEach((ch, i) => this.later(i * 70, () => {
       const [hx, hy] = holes[i % holes.length];
       this.puff(hx, hy - 24, 1, 0.5);
-      this.spawnBug(ch, hx, hy - 24);
+      this.spawnBug(ch, hx, hy - 24, swarm);
     }));
   }
 
-  spawnBug(ch, x, y) {
+  spawnBug(ch, x, y, swarm) {
     const g = document.createElementNS(NS, "g");
     g.innerHTML = `<g class="wings" fill="#e8f7ff" fill-opacity=".75" stroke="${INK}" stroke-width="1.6">
         <ellipse cx="-7" cy="-13" rx="7" ry="4" transform="rotate(-25 -7 -13)"/><ellipse cx="7" cy="-13" rx="7" ry="4" transform="rotate(25 7 -13)"/></g>
@@ -437,7 +460,7 @@ export class Boss {
       <text x="0" y="5" text-anchor="middle" fill="#fff">${ch}</text>`;
     this.fx.append(g);
     this.parts.push({ el: g, wings: g.querySelector(".wings"), kind: "bug", x: x + this.x.s, y, vx: rand(-5.2, -3.6), vy: rand(0.7, 1.5), g: 0,
-      life: 0, max: 230, phase: rand(0, 6), freq: rand(5, 8), amp: rand(6, 14) });
+      life: 0, max: swarm?.target ? 420 : 230, phase: rand(0, 6), freq: rand(5, 8), amp: rand(6, 14), swarm, dir: Math.random() < 0.5 ? 1 : -1 });
   }
 
   glitchText() {
@@ -689,7 +712,22 @@ export class Boss {
         }
         case "bug": {
           // Flying letter-bugs: each weaves on its own wobbly path, wings buzzing.
-          if (p.y > 250) p.vy -= 0.08 * step;
+          const tgt = p.swarm?.target;
+          if (tgt && p.mode !== "mob") {
+            // Home in on the teammate.
+            const dx = tgt[0] - p.x, dy = tgt[1] - p.y, d = Math.hypot(dx, dy) || 1;
+            p.vx += ((dx / d) * 7 - p.vx) * 0.07 * step; p.vy += ((dy / d) * 7 - p.vy) * 0.07 * step;
+            if (d < 70) {
+              p.mode = "mob"; p.ang = Math.atan2(p.y - tgt[1], p.x - tgt[0]); p.mobT = 0;
+              if (!p.swarm.arrived) { p.swarm.arrived = true; p.swarm.onArrive?.(); }
+            }
+          } else if (tgt) {
+            // Mob them: buzz round in tight, jittery loops, then pop.
+            p.mobT += step; p.ang += 0.13 * step * p.dir; p.vx = 0; p.vy = 0;
+            const rad = 38 + Math.sin(t * 11 + p.phase) * 12;
+            p.x = tgt[0] + Math.cos(p.ang) * rad * 1.35; p.y = tgt[1] + Math.sin(p.ang) * rad * 0.75 - 8;
+            if (p.mobT > 75 + p.phase * 6) { this.pixels(p.x - this.x.s, p.y, 4); p.life = p.max; }
+          } else if (p.y > 250) p.vy -= 0.08 * step;
           const wy = p.y + Math.sin(t * p.freq + p.phase) * p.amp;
           const wx = p.x + Math.cos(t * p.freq * 0.7 + p.phase) * p.amp * 0.5;
           const tilt = Math.cos(t * p.freq + p.phase) * 14;
