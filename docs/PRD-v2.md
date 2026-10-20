@@ -136,4 +136,4 @@ Decided with Isaac on 2026-10-20:
   - Pricing: scrolls to the pricing section.
 - **Planned pricing**, small and low-key at the bottom: RM80 one-time or RM20/month, labelled "Planned pricing — not available yet". No payments.
   - If real payments are ever added: Vercel Hobby doesn't allow commercial use (Pro is needed), plus payment setup and terms.
-- Open: what the second (coloured blocks) tile represents.
+- Tiles, in order: Python (clickable), VBA (the coloured blocks), C++, HTML, SQL. All but Python are "Coming soon".
