@@ -151,6 +151,11 @@ Decided with Isaac on 2026-10-20:
   - Boss challenges test only that module's topics (see "Boss topics" below).
   - Later bosses get harder through challenge difficulty, special-move frequency and fewer misses you can afford. Not just bigger HP numbers, which would only make fights longer.
   - The validator checks that every boss challenge and special move uses only topics already taught.
+- **Boss 1 is GOLEM** (Glitched Overclocked Logic-Eating Machine), a floating corrupted mech. The design went through 3 rounds of Isaac's feedback (2026-10-20). The Firewall is a smooth dome with hexes inside.
+- **Longer fights** (Isaac, 2026-10-20): GOLEM has 300 HP and damage stays as below.
+  - So the teammate also needs 300 HP, which means about 13–15 challenges per fight (roughly 45–60 minutes).
+  - A fight in progress is saved, so Isaac can stop and carry on later.
+  - The exact numbers live in `economy.js` and get tuned after real fights.
 - **Fight rules (proposed):**
   - Both sides have 100 HP.
   - A pass deals 15–25 depending on the mark. A flawless pass (10/10, first submission, no hint or peek) is a crit for 40. A fail is a miss.
@@ -170,3 +175,15 @@ Decided with Isaac on 2026-10-20:
   - Earlier basics (print, variables) may appear as glue but are never what's tested.
   - Review mixing modules later, once we've seen the balance.
 - **Super move: parked** (Isaac, 2026-10-20). It would be double damage after 2 crits in a row. Left out until the balance has been seen in real fights, so the companion isn't made too strong.
+
+## Addendum D: lesson sections (approved with "sure", built 2026-10-20)
+
+- **Problem:** lessons taught several things but practised only one. For example, Lesson 1 taught text, numbers and comments, but its task only used text.
+- **Change:** each lesson is split into sections. Each section has its own explanation, its own task and 3 hints, and is submitted on its own.
+  - Section tabs sit under the lesson title. A section opens once the one before it is done.
+  - The lesson completes after its last section, marked as the average of its sections.
+- **Lesson 1:** printing text, numbers and sums, comments.
+- **Lessons 2–5** are split the same way: 12 sections in total.
+- **Bits:** 10 per section, replacing 20 per lesson.
+- **Checks:** every section is covered by the content checker.
+- **Old progress:** a lesson finished before sections existed still counts as done.

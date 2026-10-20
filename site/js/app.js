@@ -73,6 +73,13 @@ const MODULE_LESSONS = (m) => ALL_LESSONS.filter((l) => l.module === m);
 const lessonIndex = (id) => ALL_LESSONS.findIndex((l) => l.id === id);
 const lessonDone = (id) => !!S().lessons[id]?.done;
 const lessonUnlocked = (i) => i === 0 || lessonDone(ALL_LESSONS[i - 1].id);
+// A lesson is split into sections, each with its own explanation and task.
+// Each section is saved under "<lesson id>.<n>"; the lesson's own record is
+// written once its last section passes. (A lesson without sections is one section.)
+const sectionsOf = (l) => l.sections || [{ title: l.title, html: l.html, task: l.task }];
+const sectionKey = (l, i) => (l.sections ? `${l.id}.${i + 1}` : l.id);
+const sectionDone = (l, i) => lessonDone(l.id) || !!S().lessons[sectionKey(l, i)]?.done;
+const firstOpenSection = (l) => { const n = sectionsOf(l).findIndex((_, i) => !sectionDone(l, i)); return n < 0 ? 0 : n; };
 const lessonsDoneCount = () => ALL_LESSONS.filter((l) => lessonDone(l.id)).length;
 const modulesDone = () => Object.keys(S().modulesDone).length;
 
@@ -96,8 +103,9 @@ let view = { kind: "lesson", id: ALL_LESSONS[0].id };
 let task = null;       // the lesson task or challenge on screen
 let lastRun = null;    // last submit's results, used by Peek
 
-function lessonTask(l) {
-  return { key: l.id, kind: "lesson", title: l.title, ...l.task, expected: null };
+function lessonTask(l, i) {
+  const sec = sectionsOf(l)[i];
+  return { key: sectionKey(l, i), kind: "lesson", lessonId: l.id, section: i, title: l.sections ? `${l.title}: ${sec.title}` : l.title, ...sec.task, expected: null };
 }
 
 function challengeTask(cur) {
@@ -227,7 +235,7 @@ async function doRun() {
 
 function isSolved() {
   if (!task) return false;
-  return task.kind === "lesson" ? lessonDone(task.key) : !!S().current?.solved;
+  return task.kind === "lesson" ? sectionDone(ALL_LESSONS[lessonIndex(task.lessonId)], task.section) : !!S().current?.solved;
 }
 
 async function doSubmit() {
@@ -263,8 +271,14 @@ async function doSubmit() {
       rewardLine = `+${rw.total + daily} Bits`;
       if (task.kind === "lesson") {
         Object.assign(r, { done: true, mark, at: new Date().toISOString() });
-        const moduleId = ALL_LESSONS[lessonIndex(task.key)].module;
-        if (MODULE_LESSONS(moduleId).every((l) => lessonDone(l.id)) && !S().modulesDone[moduleId]) {
+        const l = ALL_LESSONS[lessonIndex(task.lessonId)], secs = sectionsOf(l);
+        // Last section done: the whole lesson is complete, marked as the average of its sections.
+        if (l.sections && secs.every((_, i) => S().lessons[sectionKey(l, i)]?.done)) {
+          const avg = Math.round(secs.reduce((a, _, i) => a + (S().lessons[sectionKey(l, i)].mark || 0), 0) / secs.length);
+          S().lessons[l.id] = { done: true, mark: avg, at: new Date().toISOString() };
+        }
+        const moduleId = l.module;
+        if (lessonDone(l.id) && MODULE_LESSONS(moduleId).every((l) => lessonDone(l.id)) && !S().modulesDone[moduleId]) {
           const before = levelFor(modulesDone());
           S().modulesDone[moduleId] = new Date().toISOString();
           store.earn(EARN.moduleComplete);
@@ -298,7 +312,9 @@ async function doSubmit() {
 
 function nextAction() {
   if (task.kind === "lesson") {
-    const i = lessonIndex(task.key);
+    const i = lessonIndex(task.lessonId), l = ALL_LESSONS[i];
+    const nextSec = sectionsOf(l)[task.section + 1];
+    if (nextSec) return { label: `Next: ${nextSec.title} →`, onClick: () => openLesson(l.id, task.section + 1) };
     const next = ALL_LESSONS[i + 1];
     if (next) return { label: `Next: ${next.title} →`, onClick: () => openLesson(next.id) };
     return { label: "Practice challenges →", onClick: () => openView("practice") };
@@ -440,23 +456,34 @@ function wireExamples() {
   });
 }
 
-function openLesson(id) {
-  view = { kind: "lesson", id };
+function openLesson(id, section) {
   const l = ALL_LESSONS.find((x) => x.id === id);
-  task = lessonTask(l);
+  const secs = sectionsOf(l);
+  if (section == null) section = firstOpenSection(l);
+  view = { kind: "lesson", id, section };
+  task = lessonTask(l, section);
   setWorkVisible(true);
+  const sec = secs[section];
   const i = lessonIndex(id), mod = MODULES.find((m) => m.id === l.module);
+  // Section tabs: done ones are ticked, a section opens once the one before it is done.
+  const steps = l.sections ? `<div class="sections" role="tablist" aria-label="Sections">${secs.map((x, n) => {
+    const open = n === 0 || sectionDone(l, n - 1);
+    return `<button class="sec ${sectionDone(l, n) ? "done" : ""}" data-sec="${n}" role="tab" aria-selected="${n === section}" ${open ? "" : "disabled"}><span class="n">${sectionDone(l, n) ? "✓" : n + 1}</span>${esc(x.title)}</button>`;
+  }).join("")}</div>` : "";
   $("briefInner").innerHTML = `
-    <p class="eyebrow">Module ${mod.id} · Lesson ${MODULE_LESSONS(l.module).indexOf(l) + 1} of ${MODULE_LESSONS(l.module).length}${lessonDone(id) ? " · completed" : ""}</p>
+    <p class="eyebrow">Module ${mod.id} · Lesson ${MODULE_LESSONS(l.module).indexOf(l) + 1} of ${MODULE_LESSONS(l.module).length}${l.sections ? ` · Section ${section + 1} of ${secs.length}` : ""}${sectionDone(l, section) ? " · completed" : ""}</p>
     <h1>${esc(l.title)}</h1>
-    ${l.html}
-    <div class="task"><h3>Your turn</h3>${l.task.text}
+    ${steps}
+    ${l.sections ? `<h2 class="sec-title">${esc(sec.title)}</h2>` : ""}
+    ${sec.html}
+    <div class="task"><h3>Your turn</h3>${sec.task.text}
       <div class="expected"><span>Expected output</span><pre id="expectedBox">…</pre></div>
       <div class="chips"><span class="chip gold">◆ ${EARN.lesson} Bits · ×2 first try without help</span></div>
       <div class="hints" id="hintBox"></div>
       <div id="solutionBox"></div>
     </div>
     <div id="lessonFooter"></div>`;
+  $("briefInner").querySelectorAll("[data-sec]").forEach((b) => b.addEventListener("click", () => { if (!busy && !b.disabled) openLesson(id, +b.dataset.sec); }));
   wireExamples();
   renderHints();
   if (rec().solutionUsed) renderSolutionBlock();
@@ -470,7 +497,7 @@ function openLesson(id) {
     S().seenIntro = true; store.save();
     const v = V().welcome(S().items);
     dot.say(`${v.text} I wander around the screen: drag me anywhere if I'm in the way.`, { title: v.title, mood: "happy" });
-  } else if (!lessonDone(id)) {
+  } else if (!sectionDone(l, section) && section === 0) {
     dot.say(V().lessonIntro(i + 1, l.title).text, { mood: "idle" });
   }
 }
@@ -478,8 +505,15 @@ function openLesson(id) {
 function renderLessonFooter() {
   const f = $("lessonFooter");
   if (!f || task?.kind !== "lesson") return;
-  const l = ALL_LESSONS[lessonIndex(task.key)];
+  const l = ALL_LESSONS[lessonIndex(task.lessonId)];
   const mod = MODULE_LESSONS(l.module);
+  // Tick off sections as soon as they pass, and open the next one.
+  document.querySelectorAll(".sections .sec").forEach((b) => {
+    const n = +b.dataset.sec, done = sectionDone(l, n);
+    b.classList.toggle("done", done);
+    b.querySelector(".n").textContent = done ? "✓" : n + 1;
+    b.disabled = !(n === 0 || sectionDone(l, n - 1));
+  });
   if (lessonDone(l.id) && mod[mod.length - 1].id === l.id) f.innerHTML = `<div class="note"><b>Module ${l.module} complete</b>Keep sharpening your skills in Practice. Module ${l.module + 1} is on its way.</div>`;
   else f.innerHTML = "";
 }
@@ -716,7 +750,7 @@ function renderRail() {
     return `<div class="rail-group"><h4>Module ${m.id} · ${esc(m.title)}</h4><ol>${lessons.map((l) => {
       const i = lessonIndex(l.id), done = lessonDone(l.id), open = lessonUnlocked(i);
       const cur = view.kind === "lesson" && view.id === l.id;
-      return `<li><button class="rail-item ${done ? "done" : ""}" data-lesson="${l.id}" ${open ? "" : "disabled"} aria-current="${cur}"><span class="n">${done ? "✓" : String(lessons.indexOf(l) + 1).padStart(2, "0")}</span><span class="t">${esc(l.title)}<span class="sub">${done ? `Marked ${S().lessons[l.id].mark}/10` : open ? esc(l.sub) : "Locked"}</span></span></button></li>`;
+      return `<li><button class="rail-item ${done ? "done" : ""}" data-lesson="${l.id}" ${open ? "" : "disabled"} aria-current="${cur}"><span class="n">${done ? "✓" : String(lessons.indexOf(l) + 1).padStart(2, "0")}</span><span class="t">${esc(l.title)}<span class="sub">${done ? `Marked ${S().lessons[l.id].mark}/10` : !open ? "Locked" : l.sections && sectionDone(l, 0) ? `Section ${firstOpenSection(l) + 1} of ${l.sections.length}` : esc(l.sub)}</span></span></button></li>`;
     }).join("")}</ol></div>`;
   });
   $("moduleList").innerHTML = mods[0] + `<div class="rail-group" style="margin-top:14px"><h4>Coming next</h4>${mods.slice(1).join("")}</div>`;
@@ -762,7 +796,7 @@ async function initCloud() {
           store.cloud = api;
           const remote = await api.pull().catch(() => null);
           const used = store.adoptCloud(remote);
-          if (used === "cloud") { applyCosmetics(); renderTop(); renderRail(); if (view.kind === "lesson") openLesson(view.id); toast("Progress synced from your account."); }
+          if (used === "cloud") { applyCosmetics(); renderTop(); renderRail(); if (view.kind === "lesson") openLesson(view.id, view.section); toast("Progress synced from your account."); }
         } else {
           store.cloud = null;
         }

@@ -43,7 +43,10 @@ async function checkTask(where, task) {
 }
 
 let count = 0;
-for (const l of ALL_LESSONS) { await checkTask(`lesson ${l.id}`, l.task); count++; }
+for (const l of ALL_LESSONS) {
+  const secs = l.sections || [{ title: l.title, task: l.task }];
+  for (const [i, sec] of secs.entries()) { await checkTask(`lesson ${l.id} section ${i + 1} (${sec.title})`, sec.task); count++; }
+}
 for (const t of ALL_TEMPLATES) {
   for (let seed = 1; seed <= SEEDS; seed++) {
     const c = t.make(rng(seed * 7919 + 13));
@@ -57,7 +60,7 @@ const ids = ALL_TEMPLATES.map((t) => t.id);
 const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
 if (dupes.length) fail("templates", `duplicate ids: ${dupes.join(", ")}`);
 
-console.log(`Checked ${ALL_LESSONS.length} lessons and ${ALL_TEMPLATES.length} templates (${count} runs).`);
+console.log(`Checked ${ALL_LESSONS.length} lessons (${ALL_LESSONS.reduce((n, l) => n + (l.sections?.length || 1), 0)} sections) and ${ALL_TEMPLATES.length} templates (${count} runs).`);
 const byDiff = [1, 2, 3].map((d) => ALL_TEMPLATES.filter((t) => t.difficulty === d).length);
 console.log(`Templates by difficulty: Easy ${byDiff[0]}, Medium ${byDiff[1]}, Hard ${byDiff[2]}.`);
 if (failures.length) {

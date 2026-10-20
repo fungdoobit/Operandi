@@ -4,7 +4,7 @@
 export const STARTER_ITEMS = { hint: 15, peek: 15, solution: 5, shield: 0 };
 
 export const EARN = {
-  lesson: 20,
+  lesson: 10,             // per lesson section
   challenge: { 1: 5, 2: 12, 3: 25 },
   firstTryMultiplier: 2,      // only when no hint, peek or solution was used
   markBonus: (mark) => Math.max(0, mark - 7), // 8 -> +1, 9 -> +2, 10 -> +3

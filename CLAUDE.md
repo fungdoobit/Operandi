@@ -36,7 +36,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Starter items (free): 15 hints, 15 peeks, 5 solutions.
   - Always free: FAQ, glossary, error explanations, typo detection, output-difference help.
   - All economy numbers live in `site/js/economy.js`.
-    - Earn: lesson 20; challenge Easy 5, Medium 12, Hard 25.
+    - Earn: lesson section 10; challenge Easy 5, Medium 12, Hard 25.
     - ×2 for a first try with no hint or peek; +1/2/3 for a mark of 8/9/10; +5 for the first pass each day; +50 per completed module.
     - Easy and Medium pay half after 5 solves at that difficulty.
     - A solution used means 0 Bits.
@@ -62,6 +62,8 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 
 ## How content works
 - **Lessons:** `site/content/m1-lessons.js`.
+  - Each lesson has `sections: [{ title, html, task }]`. Each section gets its own task and explanation. A lesson without `sections` (`html` + `task`) still works as a single section.
+  - Progress: each section is saved under `lessons["<id>.<n>"]`. The lesson's own record (`lessons[id]`, done plus the average mark) is written when its last section passes, so lesson completion, levels and challenge gating are unchanged.
   - Each `task` has: `text`, `starter`, `solution`, `checks` (Python asserts with `fail`/`peek`), `hints` (exactly 3) and `noHardcode`.
   - Checks can use `LINES`, `OUTPUT`, `SOURCE`, `print_has_literal(text)` and the learner's variables via `globals().get(...)`.
 - **Templates:** `site/content/m1-templates.js`.
@@ -94,12 +96,15 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 - [ ] Isaac sets up Vercel and Firebase (`docs/SETUP.md`), then pastes the Firebase config into `site/js/firebase-config.js`.
 - [ ] Firebase sign-in and sync are untested: the cloud sandbox couldn't reach Google. Test once Isaac has a config.
 - [ ] Addendum C (boss fights and streak rewards): "go" given 2026-10-20.
-  - Step 1 (design) is in its second round, after Isaac's feedback on 2026-10-20. The boss is now a big floating mech: wires dangling instead of legs, an orange core eye, a claw arm and a cannon arm, and cyan glitch crystals. Isaac removed the brow and the fanged jaw in round 3.
+  - Step 1 (design): boss 1 is **GOLEM**, after 3 rounds of Isaac's feedback on 2026-10-20. The boss is now a big floating mech: wires dangling instead of legs, an orange core eye, a claw arm and a cannon arm, and cyan glitch crystals. Isaac removed the brow and the fanged jaw in round 3.
     - Firewall: a smooth glowing dome with a hex pattern inside, planted on the ground (it doesn't move with him) and big enough to cover all his moves. A crit scatters the hexes.
     - DOT faces the boss in battle (mirrored) and has attack / hurt / KO / win moves (`dot.js`).
     - Companions now face the way they roam (`pet.js` calls `dot.face()`).
-    - Preview: `site/boss-preview.html`. Still waiting on: Isaac's approval, a name pick (working name GLITCH), and a decision on the HP scale (Isaac asked for 300 boss HP).
+    - Preview: `site/boss-preview.html`. Isaac liked the original flying Typo Swarm (letter-bugs with wings). Attacks have big wind-up, lunge and recoil movement.
+    - HP decided: longer fights. GOLEM 300 HP with damage unchanged, so the teammate gets 300 HP too (about 13–15 challenges). Save fights in progress.
+    - Waiting on: Isaac's final OK on the look before step 2.
   - Then: battle screen, rewards and aura slot, streak rewards. Ideas parked for later: the Super move, and bosses mixing topics from earlier modules.
+- [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).
 - [ ] v1: Isaac's first real use inside claude.ai is still unconfirmed.

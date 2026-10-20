@@ -233,3 +233,12 @@ textarea.code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
   .brief h1 { font-size: 28px; }
   .stats { gap: 12px; }
 }
+
+/* Lesson sections: tabs under the lesson title. */
+.sections { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 18px; }
+.sections .sec { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 13px; font-weight: 500; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px 5px 6px; cursor: pointer; }
+.sections .sec .n { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--line); color: var(--ink); font-size: 11px; font-weight: 600; }
+.sections .sec.done .n { background: #2fae66; color: #fff; }
+.sections .sec[aria-selected="true"] { color: var(--ink); border-color: var(--ink); }
+.sections .sec:disabled { opacity: .45; cursor: not-allowed; }
+.sec-title { margin-top: 0; }
