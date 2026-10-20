@@ -154,7 +154,7 @@ const MOVES = {
     const startX = c0.x - 40, endX = target.x - 60;
     // The wave carries DOT: each frame he's placed on its crest.
     const ride = (x, y) => { fx.place(mateEl, { x: home.x + (x - c0.x) - 10, y: home.y + Math.min(0, y - c0.y - 30), r: -12 }); };
-    await new Promise((done) => fx.wave(startX, endX, theme, { ms: 700, height: 210, rideOn: ride, onArrive: () => {
+    await new Promise((done) => fx.wave(startX, endX, theme, { ms: 1050, height: 210, rideOn: ride, onArrive: () => {
       if (!hitOnce) { hitOnce = true; impact(fx, theme, target, onHit?.(1), false); }
       fx.splashCrown(target.x - 20, theme, { power: 1.2 });
       impact(fx, theme, target, onHit?.(2), true);
@@ -258,7 +258,12 @@ export async function bossSpecial(ctx, move, moveName) {
   fx.title(boss.b.name, moveName);
   await fx.wait(1450);
   fx.letterbox(false); fx.focus(1, null, 400);
-  if (move === "typos") boss.special("typos", { target: page(dot.figure), onArrive: () => dot.swarmed(1700) });
+  if (move === "typos") {
+    // The bugs fly in the effects layer, in front of DOT, and follow him.
+    let mobbed = false;
+    const onArrive = () => { if (!mobbed) { mobbed = true; dot.swarmed(1900); } };
+    boss.special("typos", { spawn: (ch, p) => fx.bug(ch, fx.fromPage(p), () => fx.at(dot.figure, { fy: 0.5 }), { onArrive }) });
+  }
   else boss.special(move);
   if (move === "glitch") { fx.flash(0.18, "#5fe3ff"); fx.shake(8); }
   if (move === "firewall") fx.shake(6);

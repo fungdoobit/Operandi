@@ -23,6 +23,9 @@ export const EASE = {
 export const THEMES = {
   water: { deep: "#0b63a8", mid: "#21b6e8", light: "#93f0ff", foam: "#ffffff", glow: "#8ae2ff" },
   fire: { deep: "#c8321b", mid: "#ff7a2f", light: "#ffd28a", foam: "#fff3c4", glow: "#ff9a3c" },
+  // White water: the foam on a wave's crest and a splash's edges (and fire's hot core).
+  foam: { deep: "#6cc9ef", mid: "#f4fdff", light: "#ffffff", foam: "#ffffff", glow: "#ffffff" },
+  fireFoam: { deep: "#ff9a3c", mid: "#fff1c9", light: "#ffffff", foam: "#ffffff", glow: "#fff3c4" },
 };
 
 // A smooth curve through points (Catmull-Rom turned into cubic Beziers), so
@@ -59,6 +62,20 @@ export class BattleFX {
     this.svg.innerHTML = `<defs>
       <filter id="fxGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
       <filter id="fxSoft" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="8"/></filter>
+      ${Object.entries(THEMES).map(([k, c]) => `<filter id="fxGoo-${k}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="blur"/>
+        <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 24 -9" result="m"/>
+        <feMorphology in="m" operator="dilate" radius="2.6" result="mo"/>
+        <feFlood flood-color="${c.deep}"/><feComposite in2="mo" operator="in" result="outline"/>
+        <feFlood flood-color="${c.mid}"/><feComposite in2="m" operator="in" result="body"/>
+        <feOffset in="m" dx="-5" dy="-6" result="mb"/><feComposite in="m" in2="mb" operator="out" result="shadeM"/>
+        <feFlood flood-color="${c.deep}" flood-opacity=".55"/><feComposite in2="shadeM" operator="in" result="shade"/>
+        <feOffset in="m" dx="6" dy="8" result="ms"/><feComposite in="m" in2="ms" operator="out" result="rimM"/>
+        <feFlood flood-color="${c.light}"/><feComposite in2="rimM" operator="in" result="rim"/>
+        <feOffset in="m" dx="3" dy="4" result="ms2"/><feComposite in="m" in2="ms2" operator="out" result="specM"/>
+        <feFlood flood-color="#ffffff" flood-opacity="1"/><feComposite in2="specM" operator="in" result="spec"/>
+        <feMerge><feMergeNode in="outline"/><feMergeNode in="body"/><feMergeNode in="shade"/><feMergeNode in="rim"/><feMergeNode in="spec"/></feMerge>
+      </filter>`).join("")}
       ${Object.entries(THEMES).map(([k, c]) => `<linearGradient id="fxBlade-${k}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${c.deep}" stop-opacity=".0"/><stop offset=".45" stop-color="${c.deep}" stop-opacity=".85"/><stop offset=".8" stop-color="${c.mid}"/><stop offset="1" stop-color="${c.foam}"/></linearGradient>`).join("")}
     </defs><g class="fx"></g>`;
     this.g = this.svg.querySelector(".fx");
@@ -287,110 +304,141 @@ export class BattleFX {
     this.glowBurst(c, theme, 50 * power, 300);
   }
 
-  // ---- Water shapes ------------------------------------------------------------
-  // Cartoon water reads as water through round, blobby shapes: a cup-shaped
-  // crown with round beads on its fingers that break off as drops, a jet with
-  // a round head, white foam on the rims, and a highlight on everything.
+  // ---- Liquid ------------------------------------------------------------------
+  // Splashes and waves are made of many small round blobs with real physics
+  // (thrown up, pulled down by gravity). They're drawn into a "liquid" layer
+  // whose filter melts touching blobs together, so they flow into one sheet of
+  // water and pinch off into drops as they separate. The same filter adds a
+  // dark outline, a light rim and a white glint, for a glossy cartoon look.
+  liquidLayer(theme) {
+    this.liquids ||= {};
+    if (!this.liquids[theme] || !this.liquids[theme].isConnected) this.liquids[theme] = el("g", { filter: `url(#fxGoo-${theme})` }, this.g);
+    return this.liquids[theme];
+  }
 
-  // A splash crown on the floor at x: the cup rises, its fingers reach up, the
-  // beads on their tips break away as drops, a jet shoots up the middle and
-  // throws off a big drop, then it all sinks back into ripples.
-  splashCrown(x, theme, { power = 1, y } = {}) {
-    const T = THEMES[theme], floor = y ?? this.floorY, fire = theme === "fire";
-    const g = el("g", { filter: fire ? "url(#fxGlow)" : "" }, this.g);
-    const back = el("path", { fill: T.deep }, g);            // inside of the far wall
-    const jet = el("path", { fill: T.mid, stroke: T.deep, "stroke-width": 2 }, g);
-    const jetHi = el("path", { fill: "none", stroke: T.foam, "stroke-width": 3, "stroke-linecap": "round", opacity: ".85" }, g);
-    const head = el("circle", { fill: T.light, stroke: T.deep, "stroke-width": 2 }, g);
-    const headHi = el("ellipse", { fill: T.foam, opacity: ".9" }, g);
-    const front = el("path", { fill: T.mid, stroke: T.deep, "stroke-width": 2, "stroke-linejoin": "round" }, g);
-    const band = el("path", { fill: T.light, opacity: ".75" }, g);
-    const foam = el("path", { fill: "none", stroke: T.foam, "stroke-width": 3.5, "stroke-linecap": "round" }, g);
-    const N = 6;
-    const fingers = Array.from({ length: N }, (_, i) => {
-      const u = i / (N - 1);                                   // 0..1 along the front rim
-      return { u, len: rand(0.6, 1) * (0.7 + Math.abs(u - 0.5) * 0.6), lean: (u - 0.5) * 2.6 + rand(-0.2, 0.2),
-        body: el("path", { fill: T.mid, stroke: T.deep, "stroke-width": 1.6 }, g),
-        bead: el("circle", { fill: T.light, stroke: T.deep, "stroke-width": 1.6 }, g),
-        shine: el("circle", { fill: T.foam }, g), gone: false };
-    });
-    const R0 = 34 * power, H0 = 70 * power, ms = 1150;
-    let jetGone = false;
-    this.particle({ el: g, max: ms, update: (p, k, f) => {
-      const rise = EASE.expo(Math.min(1, f / 0.22)), sink = f > 0.42 ? EASE.inOut((f - 0.42) / 0.58) : 0;
-      const R = R0 * (0.55 + 0.45 * rise + 0.5 * sink), H = H0 * rise * (1 - sink), rimY = floor - H, rx = R * (1.6 + 1.1 * rise), ry = R * 0.42;
-      // Far wall: the top of the back rim and the dark inside of the cup.
-      back.setAttribute("d", `M${x - rx} ${rimY} A${rx} ${ry} 0 0 1 ${x + rx} ${rimY} L${x + R} ${floor} L${x - R} ${floor} Z`);
-      // Front wall: flares out from the base to the rim, with a wavy front edge.
-      // The front rim: a smooth wavy curve along the near half of the ellipse.
-      const rimPts = [];
-      for (let i = 0; i <= 12; i++) {
-        const u = i / 12, ang = Math.PI * u;
-        rimPts.push([x - Math.cos(ang) * rx, rimY + Math.sin(ang) * ry + Math.sin(u * 19 + p.life / 60) * 3 * rise]);
-      }
-      const rim = curve(rimPts, false);
-      // Walls curve out like a flared bowl: steep near the floor, flat near the rim.
-      const wall = `M${x - R} ${floor} C${x - R * 1.1} ${floor - H * 0.6} ${x - rx * 0.7} ${rimY + ry * 0.9} ${x - rx} ${rimY} ` + rim.replace(/^M[^C]*/, "") + ` C${x + rx * 0.7} ${rimY + ry * 0.9} ${x + R * 1.1} ${floor - H * 0.6} ${x + R} ${floor} Z`;
-      front.setAttribute("d", wall);
-      band.setAttribute("d", `M${x - R * 0.8} ${floor} C${x - R * 0.85} ${floor - H * 0.4} ${x - rx * 0.6} ${rimY + ry} ${x - rx * 0.45} ${rimY + ry * 0.95} L${x - rx * 0.25} ${rimY + ry} C${x - R * 0.4} ${floor - H * 0.35} ${x - R * 0.45} ${floor - H * 0.1} ${x - R * 0.35} ${floor} Z`);
-      foam.setAttribute("d", rim);
-      // Fingers: rounded columns that reach up from the rim, each with a bead.
-      for (const fg of fingers) {
-        const ang = Math.PI * fg.u, bx = x - Math.cos(ang) * rx, by = rimY + Math.sin(ang) * ry;
-        const L = H * 1.1 * fg.len * (1 - sink * 0.8), tx = bx + fg.lean * L * 0.55, ty = by - L, w = 9 * power * (1 - sink * 0.5);
-        fg.body.setAttribute("d", `M${bx - w} ${by} Q${bx - w * 0.6 + fg.lean * L * 0.2} ${by - L * 0.6} ${tx - w * 0.45} ${ty} L${tx + w * 0.45} ${ty} Q${bx + w * 0.6 + fg.lean * L * 0.2} ${by - L * 0.6} ${bx + w} ${by} Z`);
-        // At the peak the bead breaks away and flies off as a real drop.
-        if (!fg.gone && f > 0.3 && k) { fg.gone = true; this.drops({ x: tx, y: ty }, theme, 1, { power: 0.5, dir: fg.lean > 0 ? 1 : -1, up: 5, size: 1.6 }); }
-        const br = fg.gone ? 0 : w * 1.25;
-        fg.bead.setAttribute("cx", tx.toFixed(1)); fg.bead.setAttribute("cy", (ty - br * 0.5).toFixed(1)); fg.bead.setAttribute("r", br.toFixed(1));
-        fg.shine.setAttribute("cx", (tx - br * 0.35).toFixed(1)); fg.shine.setAttribute("cy", (ty - br * 0.8).toFixed(1)); fg.shine.setAttribute("r", (br * 0.3).toFixed(1));
-      }
-      // The jet: a column with a round head that shoots up the middle.
-      const jr = EASE.expo(Math.min(1, Math.max(0, f - 0.04) / 0.26)), jsink = f > 0.38 ? EASE.in((f - 0.38) / 0.5) : 0;
-      const JH = H0 * 2.6 * jr * (1 - Math.min(1, jsink)), jw = (20 + Math.sin(p.life / 45) * 2.5) * power;
-      jet.setAttribute("d", `M${x - jw} ${floor - H * 0.3} C${x - jw * 0.8} ${floor - JH * 0.5} ${x - jw * 0.45} ${floor - JH * 0.85} ${x - jw * 0.6} ${floor - JH} L${x + jw * 0.6} ${floor - JH} C${x + jw * 0.45} ${floor - JH * 0.85} ${x + jw * 0.8} ${floor - JH * 0.5} ${x + jw} ${floor - H * 0.3} Z`);
-      jetHi.setAttribute("d", `M${x - jw * 0.3} ${floor - JH * 0.3} C${x - jw * 0.25} ${floor - JH * 0.55} ${x - jw * 0.2} ${floor - JH * 0.75} ${x - jw * 0.25} ${floor - JH * 0.9}`);
-      if (!jetGone && f > 0.32 && k) { jetGone = true; this.drops({ x, y: floor - JH - jw }, theme, 1, { power: 0.3, up: 6, size: 3 }); this.drops({ x, y: floor - JH }, theme, 5, { power: 0.6, up: 3 }); }
-      const hr = jetGone ? 0 : jw * 1.35 * jr;
-      head.setAttribute("cx", x); head.setAttribute("cy", (floor - JH - hr * 0.6).toFixed(1)); head.setAttribute("r", hr.toFixed(1));
-      headHi.setAttribute("cx", (x - hr * 0.35).toFixed(1)); headHi.setAttribute("cy", (floor - JH - hr).toFixed(1)); headHi.setAttribute("rx", (hr * 0.32).toFixed(1)); headHi.setAttribute("ry", (hr * 0.22).toFixed(1));
-      g.setAttribute("opacity", (f > 0.8 ? 1 - (f - 0.8) / 0.2 : 1).toFixed(2));
+  // One blob: a circle with velocity. It falls, and when it reaches the floor it
+  // slows and flattens into a puddle that shrinks away.
+  blob(theme, { x, y, vx = 0, vy = 0, r = 10, max = 1000, g = 0.4, drag = 0.995 }) {
+    const c = el("circle", { r, cx: x, cy: y, fill: "#000" }, this.liquidLayer(theme));
+    const floor = this.floorY;
+    return this.particle({ el: c, max, x, y, vx, vy, r, landed: false, update(p, k, f) {
+      if (!p.landed) {
+        p.vy += g * k; p.vx *= Math.pow(drag, k); p.x += p.vx * k; p.y += p.vy * k;
+        if (p.y >= floor - p.r * 0.3) { p.y = floor - p.r * 0.3; p.landed = true; p.vx *= 0.4; }
+      } else { p.x += p.vx * k; p.vx *= Math.pow(0.9, k); }
+      // Shrink near the end so the liquid drains away instead of popping out.
+      const rr = p.r * (f > 0.7 ? 1 - (f - 0.7) / 0.3 : 1) * (p.landed ? 0.8 : 1);
+      c.setAttribute("cx", p.x.toFixed(1)); c.setAttribute("cy", p.y.toFixed(1)); c.setAttribute("r", Math.max(0, rr).toFixed(1));
     } });
-    this.drops({ x, y: floor - 16 }, theme, 14, { power: 1.1 * power, up: 5 });
-    this.ripple({ x, y: floor }, theme, 150 * power, 900);
+  }
+
+  // A splash at x on the floor: a crown of water sheets flung up and out, a jet
+  // up the middle, a mound that spreads into a puddle, spray and ripples.
+  splashCrown(x, theme, { power = 1, y } = {}) {
+    const floor = y ?? this.floorY;
+    // The crown: blobs fanned out from the impact, launched a few at a time so the
+    // sheet visibly rises. Neighbours merge into curtains that tear into drops.
+    for (let i = 0; i < 48; i++) {
+      const side = rand(-1, 1), lift = 1 - Math.abs(side) * 0.25;
+      this.wait(rand(0, 60)).then(() => this.blob(theme, {
+        x: x + side * 32 * power, y: floor - 6,
+        vx: side * rand(1.3, 3.4) * power, vy: -rand(9, 13.5) * lift * Math.sqrt(power),
+        r: rand(7, 12) * power, max: rand(950, 1250),
+      }));
+    }
+    // Foam on the leading edges of the crown, flung highest.
+    for (let i = 0; i < 12; i++) {
+      const side = rand(-1, 1);
+      this.wait(rand(10, 70)).then(() => this.blob(theme === "fire" ? "fireFoam" : "foam", {
+        x: x + side * 34 * power, y: floor - 10, vx: side * rand(1.8, 3.8) * power, vy: -rand(12, 14.5) * Math.sqrt(power),
+        r: rand(4, 7) * power, max: rand(800, 1000),
+      }));
+    }
+    // The jet: a column of blobs one after another, the first (fastest) becomes
+    // the round head that breaks away at the top.
+    for (let i = 0; i < 11; i++) {
+      this.wait(30 + i * 16).then(() => this.blob(theme, {
+        x: x + rand(-4, 4), y: floor - 10,
+        vx: rand(-0.4, 0.4), vy: -(16.5 - i * 0.8) * Math.sqrt(power),
+        r: (i === 0 ? 15 : rand(8, 12)) * power, max: rand(1000, 1250),
+      }));
+    }
+    // The mound at the base that spreads out into a puddle.
+    for (let i = 0; i < 8; i++) {
+      this.blob(theme, { x: x + rand(-20, 20), y: floor - 4, vx: rand(-3, 3) * power, vy: -rand(1, 3), r: rand(12, 18) * power, max: rand(800, 1100) });
+    }
+    this.drops({ x, y: floor - 20 }, theme, 12, { power: 1.2 * power, up: 6 });
+    this.ripple({ x, y: floor }, theme, 160 * power, 900);
     this.wait(260).then(() => this.ripple({ x, y: floor }, theme, 110 * power, 800));
   }
   geyser(x, theme, opts) { this.splashCrown(x, theme, opts); }
 
-  // A breaking wave that rolls from `from` to `to` and crashes into a splash crown.
-  // Drawn as a rounded hump whose lip curls over a darker barrel, with a foam
-  // crest and spray. rideOn(x, y) gets the crest each frame, so DOT can surf it.
+  // A breaking wave (tsunami) that rolls from `from` to `to`. A front moves
+  // across the floor, throwing blobs forward and up; they arc over and fall
+  // ahead of it, so the liquid forms a curling, breaking wave by itself. On
+  // arrival it crashes. rideOn(x, y) gets the crest each frame, so DOT can surf it.
   wave(from, to, theme, { ms = 700, height = 200, onArrive, rideOn } = {}) {
-    const T = THEMES[theme], floor = this.floorY, dir = Math.sign(to - from) || 1;
-    const g = el("g", { filter: theme === "fire" ? "url(#fxGlow)" : "" }, this.g);
-    const s = height / 150;
-    g.innerHTML = `<g class="w">
-      <path d="M-170 0 C-120 -30 -70 -122 6 -142 C60 -154 104 -128 112 -94 C118 -72 104 -58 88 -60 C72 -62 70 -78 82 -86 C58 -88 38 -62 44 -30 C47 -14 56 -4 64 0 Z" fill="${T.mid}" stroke="${T.deep}" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M82 -86 C58 -88 38 -62 44 -30 C47 -14 56 -4 64 0 L26 0 C20 -36 40 -76 82 -86 Z" fill="${T.deep}"/>
-      <path d="M-150 0 C-110 -24 -76 -96 -20 -122 C-56 -96 -84 -40 -96 0 Z" fill="${T.light}" opacity=".7"/>
-      <path d="M-60 -60 C-44 -84 -22 -104 6 -116 M-100 -24 C-90 -40 -78 -56 -64 -66" fill="none" stroke="${T.foam}" stroke-width="4" stroke-linecap="round" opacity=".85"/>
-      <path d="M-34 -124 C-6 -146 44 -152 84 -134 C104 -124 114 -108 110 -92" fill="none" stroke="${T.foam}" stroke-width="7" stroke-linecap="round"/>
-      <circle cx="96" cy="-70" r="7" fill="${T.foam}"/><circle cx="114" cy="-84" r="4.5" fill="${T.foam}"/><circle cx="-10" cy="-138" r="5" fill="${T.foam}"/>
-    </g>`;
-    const w = g.querySelector(".w");
-    let arrived = false;
-    this.particle({ el: g, max: ms + 260, update: (p, k, f) => {
-      const tt = Math.min(1, p.life / ms), rise = EASE.back(Math.min(1, tt / 0.4));
-      const x = from + (to - from) * EASE.inOut(tt);
-      const crash = p.life > ms ? (p.life - ms) / 260 : 0;
-      // It leans forward more as it travels, and the lip drops as it crashes.
-      const skew = -10 - tt * 14 - crash * 20, sy = s * rise * (1 - crash * 0.85), sx = s * (0.8 + 0.2 * rise) * (1 + crash * 0.3);
-      w.setAttribute("transform", `translate(${x.toFixed(1)} ${floor}) scale(${(dir * sx).toFixed(3)} ${sy.toFixed(3)}) skewX(${(skew * 0.4).toFixed(1)})`);
-      g.setAttribute("opacity", (1 - crash).toFixed(2));
-      if (k && Math.random() < 0.6 * k) this.drops({ x: x + dir * 100 * sx, y: floor - 110 * sy }, theme, 1, { power: 0.7, dir, up: 4 });
-      rideOn?.(x + dir * 10 * sx, floor - 140 * sy);
+    const dir = Math.sign(to - from) || 1, floor = this.floorY, span = to - from;
+    const k0 = Math.sqrt(height / 200);
+    let arrived = false, emitAcc = 0;
+    const g = el("g", {}, this.g);
+    this.particle({ el: g, max: ms + 50, update: (p, k, f) => {
+      const tt = Math.min(1, p.life / ms), grow = EASE.out(Math.min(1, tt / 0.3));
+      const front = from + span * EASE.inOut(tt), speed = Math.abs(span) / ms * 16.67 * 1.4;
+      // Throw blobs from the front: the lip (high, fast, forward) and the body.
+      // The lip is a dense stream thrown up and ahead of the front: it arches over
+      // and comes down in front, which is the curl of a breaking wave.
+      emitAcc += k * 9;
+      while (emitAcc >= 1 && !arrived) {
+        emitAcc -= 1;
+        const lip = Math.random() < 0.7;
+        // White foam rides the top of the lip: the whitecap of the wave.
+        if (lip && Math.random() < 0.45) this.blob(theme === "fire" ? "fireFoam" : "foam", { x: front - dir * rand(0, 20), y: floor - 14, vx: dir * (speed + rand(4.5, 6.5)), vy: -rand(12, 14) * k0 * grow, r: rand(5, 8), max: rand(600, 800), g: 0.42, drag: 1 });
+        this.blob(theme, lip
+          ? { x: front - dir * rand(0, 30), y: floor - 10, vx: dir * (speed + rand(3, 5.5)), vy: -rand(10, 13.5) * k0 * grow, r: rand(8, 12), max: rand(700, 900), g: 0.42, drag: 1 }
+          : { x: front - dir * rand(20, 110), y: floor - 6, vx: dir * (speed * 0.9 + rand(0, 1)), vy: -rand(3, 7) * k0 * grow, r: rand(13, 19), max: rand(600, 800), g: 0.4 });
+      }
+      if (k && Math.random() < 0.5 * k) this.drops({ x: front + dir * 30, y: floor - height * 0.8 * grow }, theme, 1, { power: 0.7, dir, up: 3 });
+      rideOn?.(front + dir * 10, floor - height * 0.85 * grow);
       if (tt >= 1 && !arrived) { arrived = true; onArrive?.(); }
     } });
+  }
+
+  // Typo Swarm, drawn in front of everyone: letter-bugs with buzzing wings home in
+  // on the target, then mob it, circling all the way round (dimmer and smaller
+  // when they pass behind), and pop. target() is read every frame so they follow.
+  bug(ch, from, target, { onArrive } = {}) {
+    const g = el("g", {}, this.g);
+    g.innerHTML = `<g class="w" fill="#dff3ff" fill-opacity=".75" stroke="#0e0a18" stroke-width="1.5"><ellipse cx="-7" cy="-13" rx="7.5" ry="3.8" transform="rotate(-25 -7 -13)"/><ellipse cx="7" cy="-13" rx="7.5" ry="3.8" transform="rotate(25 7 -13)"/></g>
+      <path d="M-7 7 L-11 12 M0 8 L0 13 M7 7 L11 12" stroke="#0e0a18" stroke-width="2.2" stroke-linecap="round"/>
+      <rect x="-12" y="-11" width="24" height="20" rx="7" fill="#ff4d7e" stroke="#0e0a18" stroke-width="2.6"/>
+      <text x="0" y="5" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-weight="700" font-size="14" fill="#fff"></text>`;
+    g.querySelector("text").textContent = ch;
+    const wings = g.querySelector(".w");
+    this.particle({ el: g, max: 3200, x: from.x, y: from.y, vx: rand(-7, -4), vy: rand(-5, -1), ph: rand(0, 6), mode: "fly", dir: Math.random() < 0.5 ? 1 : -1, ang: 0, mobT: 0,
+      update: (p, k, f) => {
+        const t = this.time / 1000, c = target();
+        let depth = 1;
+        if (p.mode === "fly") {
+          const dx = c.x - p.x, dy = c.y - p.y, d = Math.hypot(dx, dy) || 1;
+          p.vx += ((dx / d) * 9 - p.vx) * 0.08 * k; p.vy += ((dy / d) * 9 - p.vy) * 0.08 * k;
+          p.x += p.vx * k; p.y += p.vy * k;
+          if (d < 70) { p.mode = "mob"; p.ang = Math.atan2(p.y - c.y, p.x - c.x); onArrive?.(); }
+        } else {
+          p.mobT += k; p.ang += 0.15 * k * p.dir;
+          const rx = 62 + Math.sin(t * 9 + p.ph) * 10, ry = 30 + Math.sin(t * 7 + p.ph) * 8;
+          p.x = c.x + Math.cos(p.ang) * rx + rand(-1.5, 1.5); p.y = c.y + Math.sin(p.ang) * ry - 6 + rand(-1.5, 1.5);
+          depth = Math.sin(p.ang) > 0 ? 1 : 0.72;                 // the far side of the loop
+          if (p.mobT > 90 + p.ph * 7) {
+            for (let i = 0; i < 5; i++) { const sq = el("rect", { x: p.x, y: p.y, width: 5, height: 5, fill: pick(["#ff4d7e", "#ffffff", "#ffb3c8"]) }, this.g); const a = rand(0, 6.28), sp = rand(2, 5); this.particle({ el: sq, max: 380, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, px: p.x, py: p.y, update(q, kk, ff) { q.px += q.vx * kk; q.py += q.vy * kk; q.vy += 0.2 * kk; sq.setAttribute("x", q.px.toFixed(1)); sq.setAttribute("y", q.py.toFixed(1)); sq.setAttribute("opacity", (1 - ff).toFixed(2)); } }); }
+            p.life = p.max;
+          }
+        }
+        const bob = Math.sin(t * 10 + p.ph) * 4;
+        g.setAttribute("transform", `translate(${p.x.toFixed(1)} ${(p.y + bob).toFixed(1)}) rotate(${(Math.cos(t * 9 + p.ph) * 16).toFixed(1)}) scale(${depth.toFixed(2)})`);
+        g.setAttribute("opacity", (depth < 1 ? 0.6 : 1) * Math.min(1, p.life / 80));
+        wings.setAttribute("transform", `translate(0 -13) scale(1 ${(0.25 + Math.abs(Math.sin(t * 55 + p.ph)) * 0.75).toFixed(2)}) translate(0 13)`);
+      } });
   }
 
   // A ball of water (or fire) fired at a target, trailing droplets; splashes on arrival.

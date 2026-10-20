@@ -319,6 +319,13 @@ export class Boss {
     return deg + 16 - bodyTilt;
   }
 
+  // A point in the boss's drawing coordinates, on the page.
+  toPage(x, y) {
+    const pt = this.svgEl.createSVGPoint(); pt.x = x; pt.y = y;
+    const r = pt.matrixTransform(this.svgEl.getScreenCTM());
+    return { x: r.x, y: r.y };
+  }
+
   // A point on the page in the boss's own drawing coordinates.
   toLocal({ x, y }) {
     const pt = this.svgEl.createSVGPoint(); pt.x = x; pt.y = y;
@@ -439,7 +446,9 @@ export class Boss {
   // Typo Swarm: a cloud of little letter-bugs buzzes out of his deck vents,
   // flies at the teammate, mobs them for a moment, then pops. No damage: it's
   // the warning that typos are coming in the next challenge.
-  typoSwarm({ target, onArrive } = {}) {
+  // spawn(ch, pagePoint): hand each bug to the battle's effects layer instead, so
+  // it's drawn in front of the teammate.
+  typoSwarm({ target, onArrive, spawn } = {}) {
     const swarm = { target: target ? this.toLocal(target) : null, onArrive, arrived: false };
     this.glitch(220);
     this.flare(900);
@@ -448,7 +457,8 @@ export class Boss {
     letters.forEach((ch, i) => this.later(i * 70, () => {
       const [hx, hy] = holes[i % holes.length];
       this.puff(hx, hy - 24, 1, 0.5);
-      this.spawnBug(ch, hx, hy - 24, swarm);
+      if (spawn) spawn(ch, this.toPage(hx + this.x.s, hy - 24));
+      else this.spawnBug(ch, hx, hy - 24, swarm);
     }));
   }
 
