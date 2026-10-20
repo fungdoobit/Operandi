@@ -120,3 +120,20 @@ Decided with Isaac on 2026-10-18:
   - Personality: energetic and fired-up, where DOT is calm and patient. Same help content, own voice for greetings and reactions.
   - Isaac chooses which teammate is active and can switch any time.
 - **Prices:** confirmed by Isaac.
+
+## Addendum B: home page (draft, awaiting "go")
+
+Decided with Isaac on 2026-10-20:
+- **Home page at `/`.** The course moves to `/python`, unchanged.
+- **Wordmark:** a big "Operandi" in Bricolage Grotesque, on a warm off-white background, with a dark version for night mode.
+- **Language tiles:** they slowly cycle around in a circle on a loop.
+  - Drag or scroll to spin them, on touch too.
+  - Hovering gives a macOS-Dock-style magnify effect: the tile under the cursor grows most and its neighbours a little. Subtle, smooth.
+  - Only Python is clickable and opens the course; the others show "Coming soon".
+  - Icons are simple originals drawn in the same rounded-tile style (no official logos).
+- **Buttons:**
+  - Sign in: a button only, no function yet.
+  - Pricing: scrolls to the pricing section.
+- **Planned pricing**, small and low-key at the bottom: RM80 one-time or RM20/month, labelled "Planned pricing — not available yet". No payments.
+  - If real payments are ever added: Vercel Hobby doesn't allow commercial use (Pro is needed), plus payment setup and terms.
+- Open: what the second (coloured blocks) tile represents.
