@@ -140,7 +140,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - IP note told to Isaac: fine for a personal project; change him enough to be our own before Operandi ever charges money.
   - Code: `golem-px.js` (`PixelGolem`: model, poses, `toCanvas`/`pagePoint` find points on him), `golem-moves.js` (attacks: claw slam, cannon barrage, core laser; `golemIntro`), `golem-boss.js` (`PixelBoss`: the old Boss interface so `battle-moves.js` works unchanged, plus the specials).
   - Isaac dropped the rocket ram ("DOT is so tiny"). Specials kept: Firewall (same look, sized to him, drawn on a pixel canvas), Typo Swarm (bugs fly out of the pod holes), Glitch Text.
-  - Effects and DOT go through the `#hibit` SVG filter (2-px grid, posterised). DOT himself is still the old one; his hi-bit round comes after GOLEM is approved.
+  - Effects and DOT go through the `#hibit` SVG filter (2-px grid, posterised). DOT himself is still the old one; his hi-bit round comes after GOLEM is approved. **Keep DOT's size as is** (Isaac 2026-10-20: don't make him bigger next to GOLEM).
   - Battle transition: the lesson pixelates through an SVG filter into big blocks, cuts to the arena, GOLEM resolves from 48-px blocks, then roars (title card).
   - Preview: `site/pixel-preview.html`. Videos (not in git): `previews/`.
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
