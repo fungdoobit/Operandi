@@ -19,13 +19,16 @@ export async function teammateAttack(ctx, { crit = false, onHit } = {}) {
   // 1. Gather: crouch low while droplets (or embers) stream into the core.
   dot.sx.t = 1.26; dot.sy.t = 0.76; dot.lean.t = -0.14; dot.energy = 1.3;
   if (crit) { fx.focus(1.07, c0, 520); fx.slowmo(0.55, 620); }
-  fx.gather(c0, theme, crit ? 32 : 18, crit ? 620 : 380);
+  const gathered = fx.gather(c0, theme, crit ? 32 : 18, crit ? 620 : 380);
   await fx.wait(crit ? 620 : 380);
+  fx.clear(gathered);
   // 2. Dash: stretch out and shoot across, leaving a trail.
   const dist = target.x - c0.x - 150;
   dot.sx.s = 1.32; dot.sy.s = 0.78; dot.sx.t = 1.25; dot.sy.t = 0.82; dot.lean.t = 0.22;
   fx.dashTrail(c0, { x: c0.x + dist, y: c0.y }, theme);
   fx.dust(c0.x, 5, 1);
+  fx.drops({ x: c0.x, y: c0.y + 10 }, theme, 10, { power: 0.9, dir: -1 });
+  fx.ripple({ x: c0.x, y: fx.floorY }, theme, 80, 500);
   if (crit) fx.focus(1, null, 260);
   await fx.move(mateEl, { x: home.x + dist }, 130, "expo");
   // 3. Strike: snap upright as the blade sweeps through.

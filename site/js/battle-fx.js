@@ -144,32 +144,36 @@ export class BattleFX {
     requestAnimationFrame(this.loop);
   }
 
-  particle(p) { p.life = 0; this.parts.push(p); return p; }
+  // Place it right away, so nothing is ever drawn at 0,0 (a hit-stop would hold that frame).
+  particle(p) { p.life = 0; p.update(p, 0, 0); this.parts.push(p); return p; }
+  // Remove particles early (e.g. the gathering glow when DOT launches).
+  clear(list) { for (const p of list || []) p.life = p.max; }
 
   // ---- Element effects (water or fire) ---------------------------------------
 
   // Droplets (or embers) streaming in to gather at a point before an attack.
   gather(c, theme, n = 18, ms = 380) {
-    const T = THEMES[theme];
+    const T = THEMES[theme], made = [];
     for (let i = 0; i < n; i++) {
       const a = rand(0, Math.PI * 2), r = rand(60, 110);
       const e = el("ellipse", { rx: 2.6, ry: 4.5, fill: pick([T.mid, T.light, T.foam]), filter: "url(#fxGlow)" }, this.g);
       const sx = c.x + Math.cos(a) * r, sy = c.y + Math.sin(a) * r, delay = rand(0, ms * 0.4);
-      this.particle({ el: e, max: ms, update(p, k, f) {
+      made.push(this.particle({ el: e, max: ms, update(p, k, f) {
         const g = Math.max(0, (p.life - delay) / (ms - delay)), q = EASE.in(g);
         const x = sx + (c.x - sx) * q, y = sy + (c.y - sy) * q;
         e.setAttribute("cx", x.toFixed(1)); e.setAttribute("cy", y.toFixed(1));
         e.setAttribute("transform", `rotate(${(Math.atan2(c.y - sy, c.x - sx) * 180 / Math.PI + 90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})`);
         e.setAttribute("opacity", (g <= 0 ? 0 : Math.min(1, g * 3) * (1 - Math.max(0, g - 0.85) / 0.15)).toFixed(2));
-      } });
+      } }));
     }
-    this.glowBurst(c, theme, 40, ms);
+    made.push(this.glowBurst(c, theme, 40, ms));
+    return made;
   }
 
   glowBurst(c, theme, size, ms) {
     const T = THEMES[theme];
     const e = el("circle", { cx: c.x, cy: c.y, r: size, fill: T.glow, filter: "url(#fxSoft)" }, this.g);
-    this.particle({ el: e, max: ms, update(p, k, f) { e.setAttribute("opacity", (Math.sin(f * Math.PI) * 0.55).toFixed(2)); e.setAttribute("r", (size * (0.6 + f * 0.6)).toFixed(1)); } });
+    return this.particle({ el: e, max: ms, update(p, k, f) { e.setAttribute("opacity", (Math.sin(f * Math.PI) * 0.55).toFixed(2)); e.setAttribute("r", (size * (0.6 + f * 0.6)).toFixed(1)); } });
   }
 
   // The trail left by a dash: a smear of droplets and speed streaks.
