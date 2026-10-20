@@ -144,7 +144,7 @@ Decided with Isaac on 2026-10-20:
 - **The boss is the last step of each module.** The lessons unlock the boss. Winning completes the module, which gives the +50 module Bits and the level-up.
 - **Rewards:**
   - First-try win: the boss's exclusive accessory (with its own animation or effect) plus 100 Bits.
-  - Win on a retry: small Bits only. The exclusive is then unlocked in the Shop at a high price.
+  - Win on a retry: 50 Bits. The exclusive is then unlocked in the Shop for 1,500 Bits (Isaac, 2026-10-20).
 - **Build order:** the battle system, the Module 1 boss and streak rewards first. Each later module ships with its own boss.
 - **Special moves:** each boss has its own, tied to that module's topic. They are telegraphed one turn ahead and must be beatable with that module's skills only.
 - **Difficulty scales by module, based on what that module taught** (Isaac, 2026-10-20).
@@ -162,7 +162,10 @@ Decided with Isaac on 2026-10-20:
   - 15 days: 80 Bits + 1 shield
   - 30 days: 150 Bits + a one-time badge cosmetic
   - Every 30 days after that: 150 Bits
+- **Module 1 special moves (Isaac's pick):**
+  - Firewall: blocks part of your next hit; only a crit breaks through.
+  - Typo Swarm: planted typos in the starter.
+  - Glitch Text: the given text arrives messed up and must be cleaned first.
 - **Open questions:**
-  - Shop price for missed exclusives
-  - Bits for a retry win
-  - Which Module 1 special moves to use
+  - Super move after 2 crits in a row: yes or no?
+  - Boss topics: only that module, or that module plus earlier ones (mainly its own)?
