@@ -134,12 +134,17 @@ export class BattleFX {
     // Particles move in game time, so they freeze during hit-stop too.
     if (d > 0) {
       const k = d / 16.67;
-      this.parts = this.parts.filter((p) => {
+      // Particles can spawn new ones while updating (a shot's trail, a droplet's
+      // ripple). Those land in the fresh list, so none get lost.
+      const current = this.parts;
+      this.parts = [];
+      const alive = current.filter((p) => {
         p.life += d;
         if (p.life >= p.max) { p.el.remove(); return false; }
         p.update(p, k, p.life / p.max);
         return true;
       });
+      this.parts = alive.concat(this.parts);
     }
     requestAnimationFrame(this.loop);
   }

@@ -682,7 +682,10 @@ export class Boss {
   }
 
   stepParticles(step, t) {
-    this.parts = this.parts.filter((p) => {
+    // New particles made during the update (e.g. a popped bug's pixels) go in a fresh list.
+    const current = this.parts;
+    this.parts = [];
+    const alive = current.filter((p) => {
       p.life += step;
       if (p.life > p.max) { p.el.remove(); return false; }
       p.vy += p.g * step; p.x += p.vx * step; p.y += p.vy * step;
@@ -752,5 +755,6 @@ export class Boss {
       }
       return true;
     });
+    this.parts = alive.concat(this.parts);
   }
 }
