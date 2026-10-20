@@ -94,7 +94,11 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 - [ ] Isaac sets up Vercel and Firebase (`docs/SETUP.md`), then pastes the Firebase config into `site/js/firebase-config.js`.
 - [ ] Firebase sign-in and sync are untested: the cloud sandbox couldn't reach Google. Test once Isaac has a config.
 - [ ] Addendum C (boss fights and streak rewards): "go" given 2026-10-20.
-  - Step 1 is done: the Module 1 boss design is in `site/js/boss.js`, previewed at `site/boss-preview.html`, and waits on Isaac's approval and a name pick. It has a working name, GLITCH, and a mock battle.
+  - Step 1 (design) is in its second round, after Isaac's feedback on 2026-10-20. The boss is now a big floating mech: wires dangling instead of legs, an angry brow over an orange core eye, a fanged jaw, a claw arm and a cannon arm, and cyan glitch crystals.
+    - Firewall is a geodesic dome of orange triangles around him.
+    - DOT faces the boss in battle (mirrored) and has attack / hurt / KO / win moves (`dot.js`).
+    - Companions now face the way they roam (`pet.js` calls `dot.face()`).
+    - Preview: `site/boss-preview.html`. Still waiting on: Isaac's approval, a name pick (working name GLITCH), and a decision on the HP scale (Isaac asked for 300 boss HP).
   - Then: battle screen, rewards and aura slot, streak rewards. Ideas parked for later: the Super move, and bosses mixing topics from earlier modules.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).

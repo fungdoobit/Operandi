@@ -105,6 +105,8 @@ export class Pet {
           this.phase += dt * 7;
           bob = -Math.abs(Math.sin(this.phase)) * 5;
           this.dot.nudge((dx / dist) * 1.5, 0.012);
+          // Face the way he's going (only when it's mostly sideways, so he doesn't flicker).
+          if (Math.abs(dx / dist) > 0.25) this.dot.face(dx > 0 ? "right" : "left");
         }
       }
     }
@@ -142,6 +144,7 @@ export class Pet {
     this.x = clamp(e.clientX - this.grabbed.dx, MARGIN, innerWidth - w - MARGIN);
     this.y = clamp(e.clientY - this.grabbed.dy, MARGIN, innerHeight - h - MARGIN);
     this.dot.nudge(e.clientX - this.grabbed.px, 0.06);
+    if (Math.abs(e.clientX - this.grabbed.px) > 3) this.dot.face(e.clientX > this.grabbed.px ? "right" : "left");
     this.grabbed.px = e.clientX;
     this.place(0);
   }

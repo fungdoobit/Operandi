@@ -139,6 +139,8 @@ const MOUTHS = {
   sleepy: "M56 130 Q60 132 64 130",
   held: "M57 130 a3.5 4.5 0 1 0 7 0 a3.5 4.5 0 1 0 -7 0",
   plop: "M53 129 Q60 133 67 129",
+  fierce: "M53 130 L67 127",
+  ko: "M52 132 Q56 128 60 132 Q64 136 68 132",
 };
 
 // Looks for each teammate. DOT is water; PYRO (PYthon Runtime Operative) is
@@ -206,8 +208,8 @@ function svg(id, skin) {
       <path class="dot-outline" style="stroke:${k.outline}"/>
       <g class="face-shift"><g class="dot-face">
         <g class="dot-eyes" filter="url(#eyeGlow${id})">
-          <g class="dot-eye"><circle class="eye-white" cx="36" cy="103" r="16.5"/><path class="eye-line eye-arc" d="M22 106 Q36 92 50 106"/><path class="eye-line eye-shut" d="M22 103 Q36 112 50 103"/><path class="eye-line eye-squeeze" d="M25 96 L44 103 L25 110"/></g>
-          <g class="dot-eye"><circle class="eye-white" cx="98" cy="108" r="19"/><path class="eye-line eye-arc" d="M82 111 Q98 95 114 111"/><path class="eye-line eye-shut" d="M82 108 Q98 118 114 108"/><path class="eye-line eye-squeeze" d="M109 100 L88 108 L109 116"/></g>
+          <g class="dot-eye"><circle class="eye-white" cx="36" cy="103" r="16.5"/><path class="eye-line eye-arc" d="M22 106 Q36 92 50 106"/><path class="eye-line eye-shut" d="M22 103 Q36 112 50 103"/><path class="eye-line eye-squeeze" d="M25 96 L44 103 L25 110"/><path class="eye-line eye-x" d="M28 95 L44 111 M44 95 L28 111"/></g>
+          <g class="dot-eye"><circle class="eye-white" cx="98" cy="108" r="19"/><path class="eye-line eye-arc" d="M82 111 Q98 95 114 111"/><path class="eye-line eye-shut" d="M82 108 Q98 118 114 108"/><path class="eye-line eye-squeeze" d="M109 100 L88 108 L109 116"/><path class="eye-line eye-x" d="M89 99 L107 117 M107 99 L89 117"/></g>
         </g>
         <path class="dot-mouth" d="${MOUTHS.idle}"/>
         <path class="dot-sweat" d="M150 66 Q157 77 150 84 Q143 77 150 66 Z"/>
@@ -274,6 +276,18 @@ export const DOT_CSS = `
 .dot-figure[data-mood="held"] .dot-hop { animation: dot-dangle 1.6s ease-in-out infinite; transform-origin: 96px 20px; }
 .dot-figure.dragging { cursor: grabbing; }
 
+/* Battle: facing the boss, attacking, getting hit, knocked out. */
+.dot-figure.face-right .dot-svg { transform: scaleX(-1); }
+.dot-figure[data-mood="fierce"] .eye-white, .dot-figure[data-mood="ko"] .eye-white { display: none; }
+.dot-figure[data-mood="fierce"] .eye-squeeze { display: inline; }
+.dot-figure[data-mood="ko"] .eye-x { display: inline; }
+.dot-figure:is([data-mood="fierce"],[data-mood="ko"]) .dot-eyes { animation: none; }
+.dot-figure[data-mood="ko"] .dot-face { transform: translateY(8px); }
+.dot-svg { transition: filter .25s ease-out, transform .32s cubic-bezier(.4, 0, .3, 1); }
+.dot-figure.hurt .dot-svg { filter: brightness(1.9) saturate(.5); transition: none; }
+.dot-figure.battle[data-mood="idle"] .dot-hop { animation: dot-ready 1.3s ease-in-out infinite; }
+@keyframes dot-ready { 0%,100% { transform: translateY(0) scale(1, 1); } 50% { transform: translateY(-3px) scale(.98, 1.02); } }
+
 .dot-figure[data-acc~="shades"] .acc-shades, .dot-figure[data-acc~="nerd"] .acc-nerd, .dot-figure[data-acc~="moustache"] .acc-moustache,
 .dot-figure[data-acc~="bow"] .acc-bow, .dot-figure[data-acc~="party"] .acc-party, .dot-figure[data-acc~="crown"] .acc-crown,
 .dot-figure[data-acc~="wizard"] .acc-wizard, .dot-figure[data-acc~="laptop"] .acc-laptop { display: inline; }
@@ -334,7 +348,7 @@ export const DOT_CSS = `
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export class Dot {
-  constructor(container, { size, skin = "dot" } = {}) {
+  constructor(container, { size, skin = "dot", facing = "left", battle = false } = {}) {
     const id = ++uid;
     if (!SKINS[skin]) skin = "dot";
     this.skin = skin;
@@ -349,11 +363,15 @@ export class Dot {
     this.clip = container.querySelector(".dot-clip");
     this.jelly = container.querySelector(".dot-jelly");
     if (size) this.figure.style.width = size + "px";
+    // DOT is drawn looking left. In a battle he's mirrored to face the boss.
+    this.figure.classList.toggle("face-right", facing === "right");
+    this.figure.classList.toggle("battle", battle);
     this.moodTimer = null;
     // Squash and stretch springs: s = current, v = velocity, target set by mood.
     this.sx = { s: 1, v: 0, t: 1 };
     this.sy = { s: 1, v: 0, t: 1 };
     this.lean = { s: 0, v: 0, t: 0 };
+    this.dx = { s: 0, v: 0, t: 0 };   // step forward (negative = the way he faces) for attacks and knockback
     // How far the body has morphed into the picked-up and melting shapes (0 to 1).
     this.form = { held: { s: 0, t: 0 }, melt: { s: 0, t: 0 }, crown: { s: 0, t: 0 } };
     this.fx = container.querySelector(".dot-fx");
@@ -377,7 +395,7 @@ export class Dot {
     const step = Math.min(3, (now - (this.last ?? now)) / (1000 / 60)) || 1;
     this.last = now;
     const still = reduceMotion();
-    for (const k of [this.sx, this.sy, this.lean]) {
+    for (const k of [this.sx, this.sy, this.lean, this.dx]) {
       k.v += (k.t - k.s) * this.spring.k * step;
       k.v *= Math.pow(this.spring.damp, step);
       k.s += k.v * step;
@@ -437,12 +455,12 @@ export class Dot {
     if (flames) this.drawCores(flames);
     const sx = this.sx.s + breathe, sy = this.sy.s - breathe, lean = this.lean.s;
     // Squash/stretch around the bottom centre, plus a lean (shear) when moving.
-    this.jelly.setAttribute("transform", `matrix(${sx.toFixed(4)} 0 ${(-lean).toFixed(4)} ${sy.toFixed(4)} ${(CX - sx * CX + lean * GROUND).toFixed(2)} ${(GROUND - sy * GROUND + this.jump.s).toFixed(2)})`);
+    this.jelly.setAttribute("transform", `matrix(${sx.toFixed(4)} 0 ${(-lean).toFixed(4)} ${sy.toFixed(4)} ${(CX - sx * CX + lean * GROUND + this.dx.s).toFixed(2)} ${(GROUND - sy * GROUND + this.jump.s).toFixed(2)})`);
     // Keep the face inside the body when it splats down into the crown shape.
     this.faceShift.setAttribute("transform", `translate(${(c * 10).toFixed(2)} ${(c * 26).toFixed(2)})`);
     this.stepParticles(step);
     const sh = 1 + this.jump.s / 70;
-    this.shadow.setAttribute("transform", `translate(94 169) scale(${(sh * sx).toFixed(3)} ${sh.toFixed(3)}) translate(-94 -169)`);
+    this.shadow.setAttribute("transform", `translate(${(94 + this.dx.s).toFixed(2)} 169) scale(${(sh * sx).toFixed(3)} ${sh.toFixed(3)}) translate(-94 -169)`);
     requestAnimationFrame(this.frame);
   }
 
@@ -590,13 +608,55 @@ export class Dot {
     this.mouth.setAttribute("d", MOUTHS[mood] || MOUTHS.idle);
     // Body shape for the mood: stretched when held, melting a little when sad.
     this.form.held.t = mood === "held" ? 1 : 0;
-    this.form.melt.t = mood === "sad" ? 0.75 : 0;
+    this.form.melt.t = mood === "sad" ? 0.75 : mood === "ko" ? 1 : 0;
     if (mood === "held") { this.sx.t = 0.9; this.sy.t = 1.12; }
     else if (mood === "sad") { this.sx.t = 1.06; this.sy.t = 0.86; }
+    else if (mood === "ko") { this.sx.t = 1.1; this.sy.t = 0.8; }
     else { this.sx.t = 1; this.sy.t = 1; }
     if (mood === "happy" || mood === "celebrate") this.nudge(0, 0.5);
     if (revertAfter) this.moodTimer = setTimeout(() => this.setMood("idle"), revertAfter);
   }
+
+  // Turn to face left or right (he's drawn facing left). The flip passes
+  // through a thin squash, so it reads as turning round.
+  face(dir) {
+    const right = dir === "right";
+    if (this.figure.classList.contains("face-right") === right) return;
+    this.figure.classList.toggle("face-right", right);
+    this.nudge(0, 0.3);
+  }
+
+  // Battle moves. "Forward" is the way DOT faces, so they work mirrored too.
+  // attack: wind up, then lunge and throw; onRelease fires as the code leaves him.
+  attack(onRelease) {
+    this.clearTimers();
+    const later = (ms, fn) => this.timers.push(setTimeout(fn, ms));
+    this.setMood("fierce");
+    this.dx.t = 12; this.sx.t = 1.14; this.sy.t = 0.86; this.lean.t = -0.12;
+    later(200, () => {
+      this.dx.t = -34; this.dx.v = -6; this.sx.t = 0.88; this.sy.t = 1.14; this.lean.t = 0.18;
+      this.jump.v = -3.2; this.nudge(0, 0.5);
+      onRelease?.();
+    });
+    later(430, () => { this.dx.t = 0; this.sx.t = 1; this.sy.t = 1; this.lean.t = 0; });
+    later(800, () => this.setMood("idle"));
+  }
+
+  hurt({ crit = false } = {}) {
+    this.clearTimers();
+    this.figure.classList.add("hurt");
+    this.timers.push(setTimeout(() => this.figure.classList.remove("hurt"), 110));
+    this.dx.v += crit ? 13 : 8; this.dx.t = 0;
+    this.sx.s = 1.22; this.sy.s = 0.8; this.lean.t = -0.15;
+    this.energy = 1.4;
+    this.splash(crit ? 0.8 : 0.5);
+    this.setMood("worried", { revertAfter: 1200 });
+    this.timers.push(setTimeout(() => { this.lean.t = 0; }, 300));
+  }
+
+  ko() { this.clearTimers(); this.setMood("ko"); this.splash(0.6); this.energy = 1; }
+
+  win() { this.clearTimers(); this.setMood("celebrate"); }
 
   // text: plain string. title: optional bold first line. actions: [{label, onClick}]
   say(text, { title, mood, actions } = {}) {
