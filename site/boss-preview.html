@@ -1,0 +1,146 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Boss preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: #100d18; color: #ece9f4; --surface: #1b1f29; --ink: #e7e9ef; }
+h1 { font: 800 28px "Bricolage Grotesque", system-ui, sans-serif; margin: 0 0 4px; letter-spacing: -.01em; }
+h2 { font: 700 18px "Bricolage Grotesque", system-ui, sans-serif; margin: 28px 0 10px; }
+p { margin: 0 0 16px; color: #a49db6; max-width: 70ch; }
+main { padding: 24px max(16px, 3vw); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.cell { background: #18141f; border: 1px solid #2a2436; border-radius: 12px; padding: 14px 10px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; overflow: hidden; }
+.cell .boss-figure { width: 160px; }
+.cell span { font: 600 12px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: #ff7aa2; }
+
+/* Mock battle stage: visuals only, no rules yet. */
+.stage { position: relative; height: 330px; border-radius: 16px; overflow: hidden; border: 1px solid #2a2436;
+  background: linear-gradient(#17121f, #1d1428 74%, #120e19 74%); }
+.stage::after { content: ""; position: absolute; left: 0; right: 0; top: 74%; height: 1px; background: #3a2f4d; }
+.hp { position: absolute; top: 14px; width: 40%; font: 600 13px "IBM Plex Sans", sans-serif; }
+.hp.me { left: 16px; } .hp.foe { right: 16px; text-align: right; }
+.hp .bar { height: 12px; border-radius: 99px; background: #2b2438; overflow: hidden; margin-top: 5px; }
+.hp .fill { height: 100%; width: 100%; border-radius: 99px; transition: width .5s cubic-bezier(.3,1.2,.5,1); }
+.hp.me .fill { background: linear-gradient(90deg, #5bb7e4, #b3ebfc); }
+.hp.foe .fill { background: linear-gradient(90deg, #ff3d8b, #ff9ab9); margin-left: auto; }
+.mate { position: absolute; left: 10%; bottom: calc(26% - 10px); width: 130px; }
+.mate .dot-bubble { display: none; }
+.foe-spot { position: absolute; right: 7%; bottom: calc(26% - 22px); }
+.foe-spot .boss-figure { width: 230px; }
+.tell { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); background: #2b1b33; border: 1px solid #ff3d8b; color: #ffd0de; padding: 6px 14px; border-radius: 99px; font-size: 13px; font-weight: 600; white-space: nowrap; opacity: 0; transition: opacity .25s; }
+.tell.on { opacity: 1; }
+.pop { position: absolute; font: 800 22px "Bricolage Grotesque", sans-serif; pointer-events: none; }
+.bolt { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(#fff, #8ae2ff 55%, transparent 70%); box-shadow: 0 0 18px #8ae2ff; pointer-events: none; }
+.bolt.crit { width: 30px; height: 30px; box-shadow: 0 0 30px #8ae2ff, 0 0 60px #b3ebfc; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.controls button { font: 600 13px "IBM Plex Sans", sans-serif; background: #221c2e; color: #ece9f4; border: 1px solid #3a3150; border-radius: 99px; padding: 8px 14px; cursor: pointer; }
+.controls button:hover { border-color: #ff7aa2; }
+.names { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.names div { background: #18141f; border: 1px solid #2a2436; border-radius: 10px; padding: 10px 12px; }
+.names b { font: 800 18px "Bricolage Grotesque", sans-serif; color: #ff7aa2; display: block; }
+.names span { font-size: 13px; color: #a49db6; }
+@media (max-width: 600px) { .mate { width: 86px; left: 4%; } .foe-spot .boss-figure { width: 160px; } .stage { height: 290px; } }
+</style></head><body><main>
+<h1>Module 1 boss (working name: GLITCH)</h1>
+<p>A glitchy bug with a little screen for a face. Every state below loops live. He's the opposite of DOT on purpose: angular, dark and glitchy where DOT is round and soft, but still cartoony, not scary.</p>
+<div class="grid" id="grid"></div>
+
+<h2>Mock battle: DOT vs the boss</h2>
+<p>This is only to judge looks and feel. The rules, the HP numbers and the real challenges come in step 2, after you approve the design.</p>
+<div class="stage" id="stage">
+  <div class="hp me">DOT<div class="bar"><div class="fill" id="hpMe"></div></div></div>
+  <div class="hp foe"><span id="foeName">GLITCH</span><div class="bar"><div class="fill" id="hpFoe"></div></div></div>
+  <div class="tell" id="tell"></div>
+  <div class="mate" id="mate"></div>
+  <div class="foe-spot" id="foe"></div>
+</div>
+<div class="controls">
+  <button data-a="hit">DOT attacks</button><button data-a="crit">Flawless crit</button><button data-a="miss">Miss</button>
+  <button data-a="bossHit">Boss attacks</button>
+  <button data-a="firewall">Firewall</button><button data-a="typos">Typo Swarm</button><button data-a="glitch">Glitch Text</button>
+  <button data-a="win">Boss defeated</button><button data-a="lose">DOT knocked out</button><button data-a="reset">Reset</button>
+</div>
+
+<h2>Name ideas (acronyms, like DOT and PYRO)</h2>
+<div class="names">
+  <div><b>SNAG</b><span>Syntax Nibbling Agent of Glitches</span></div>
+  <div><b>BUG</b><span>Big Ugly Glitch</span></div>
+  <div><b>NULL</b><span>Nasty Unhandled Logic Leech</span></div>
+  <div><b>ERR</b><span>Evil Runtime Rascal</span></div>
+  <div><b>GLITCH</b><span>Gremlin Lurking In The Code Hub</span></div>
+</div>
+</main>
+<script type="module">
+import { Boss, BOSS_CSS } from "./js/boss.js";
+import { Dot, DOT_CSS } from "./js/dot.js";
+const st = document.createElement("style"); st.textContent = DOT_CSS + BOSS_CSS; document.head.append(st);
+
+// Gallery: each state on a loop.
+const demos = {
+  idle: () => {},
+  charging: (b) => b.charge("firewall"),
+  attack: (b) => { b.attack(); setInterval(() => b.attack(), 2200); },
+  hit: (b) => { setInterval(() => b.hit(), 1800); },
+  "crit hit": (b) => { setInterval(() => b.hit({ crit: true }), 2200); },
+  firewall: (b) => { const go = () => { b.special("firewall"); setTimeout(() => b.hit({ blocked: true }), 1400); setTimeout(() => b.hit({ crit: true }), 2600); }; go(); setInterval(go, 4200); },
+  "typo swarm": (b) => { b.special("typos"); setInterval(() => b.special("typos"), 2800); },
+  "glitch text": (b) => { b.special("glitch"); setInterval(() => b.special("glitch"), 2800); },
+  defeated: (b) => { const go = () => { b.reset(); setTimeout(() => b.defeat(), 700); }; go(); setInterval(go, 4200); },
+  taunt: (b) => { b.taunt(); setInterval(() => b.taunt(), 2400); },
+};
+for (const [label, run] of Object.entries(demos)) {
+  const c = document.createElement("div"); c.className = "cell";
+  const h = document.createElement("div"); c.append(h);
+  const l = document.createElement("span"); l.textContent = label; c.append(l);
+  document.getElementById("grid").append(c);
+  run(new Boss(h));
+}
+
+// Mock battle.
+const stage = document.getElementById("stage");
+const dot = new Dot(document.getElementById("mate"));
+const boss = new Boss(document.getElementById("foe"));
+let me = 100, foe = 100, wall = false;
+const hpMe = document.getElementById("hpMe"), hpFoe = document.getElementById("hpFoe"), tell = document.getElementById("tell");
+const show = () => { hpMe.style.width = me + "%"; hpFoe.style.width = foe + "%"; };
+function centre(el) { const r = el.getBoundingClientRect(), s = stage.getBoundingClientRect(); return [r.left - s.left + r.width / 2, r.top - s.top + r.height / 2]; }
+function pop(text, [x, y], color) {
+  const p = document.createElement("div"); p.className = "pop"; p.textContent = text; p.style.color = color; p.style.left = x + "px"; p.style.top = y + "px";
+  stage.append(p);
+  p.animate([{ transform: "translate(-50%, 0) scale(.6)", opacity: 0 }, { transform: "translate(-50%, -30px) scale(1.1)", opacity: 1, offset: .25 }, { transform: "translate(-50%, -60px) scale(1)", opacity: 0 }], { duration: 1100, easing: "ease-out" }).onfinish = () => p.remove();
+}
+function shoot(crit, then) {
+  const from = centre(document.querySelector("#mate .dot-figure")), to = centre(document.querySelector("#foe .boss-figure"));
+  const b = document.createElement("div"); b.className = "bolt" + (crit ? " crit" : ""); stage.append(b);
+  dot.nudge(6, 0.6);
+  b.animate([{ left: from[0] + "px", top: from[1] + "px" }, { left: (from[0] + to[0]) / 2 + "px", top: Math.min(from[1], to[1]) - 50 + "px", offset: .5 }, { left: to[0] - 60 + "px", top: to[1] + "px" }],
+    { duration: crit ? 420 : 520, easing: "ease-in" }).onfinish = () => { b.remove(); then(to); };
+}
+const act = {
+  hit: () => shoot(false, (to) => {
+    if (wall) { boss.hit({ blocked: true }); pop("Blocked 10", to, "#ffb35c"); foe = Math.max(0, foe - 10); }
+    else { boss.hit(); pop("-22", to, "#ff9ab9"); foe = Math.max(0, foe - 22); }
+    dot.setMood("happy", { revertAfter: 1400 }); show();
+  }),
+  crit: () => shoot(true, (to) => {
+    boss.hit({ crit: true }); wall = false; pop("CRIT -40", to, "#fff3c4");
+    foe = Math.max(0, foe - 40); dot.setMood("celebrate", { revertAfter: 1800 }); show();
+  }),
+  miss: () => { dot.setMood("worried", { revertAfter: 1400 }); pop("Miss", centre(document.querySelector("#foe .boss-figure")), "#a49db6"); boss.taunt(); },
+  bossHit: () => boss.attack(() => {
+    me = Math.max(0, me - 20); show(); dot.nudge(-8, 0.9); dot.setMood("worried", { revertAfter: 1400 });
+    pop("-20", centre(document.querySelector("#mate .dot-figure")), "#8ae2ff");
+  }),
+  firewall: () => special("firewall", () => { boss.special("firewall"); wall = true; }),
+  typos: () => special("typos", () => { boss.special("typos"); setTimeout(() => { dot.setMood("thinking", { revertAfter: 1600 }); }, 700); }),
+  glitch: () => special("glitch", () => { boss.special("glitch"); setTimeout(() => { dot.setMood("worried", { revertAfter: 1400 }); }, 500); }),
+  win: () => { boss.defeat(); foe = 0; show(); setTimeout(() => dot.setMood("celebrate"), 1200); },
+  lose: () => { me = 0; show(); dot.setMood("sad"); setTimeout(() => boss.taunt(), 600); },
+  reset: () => { boss.reset(); me = 100; foe = 100; wall = false; dot.setMood("idle"); show(); },
+};
+function special(move, run) {
+  boss.charge(move);
+  tell.textContent = `GLITCH ${boss.b.moves[move].tell}!`; tell.classList.add("on");
+  setTimeout(() => { tell.classList.remove("on"); run(); }, 1500);
+}
+document.querySelectorAll(".controls button").forEach((b) => b.addEventListener("click", () => act[b.dataset.a]()));
+show();
+</script></body></html>

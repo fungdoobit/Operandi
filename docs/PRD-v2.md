@@ -138,7 +138,7 @@ Decided with Isaac on 2026-10-20:
   - If real payments are ever added: Vercel Hobby doesn't allow commercial use (Pro is needed), plus payment setup and terms.
 - Tiles, in order: Python (clickable), VBA (the coloured blocks), C++, HTML, SQL. All but Python are "Coming soon".
 
-## Addendum C: boss fights and streak rewards (draft, awaiting "go")
+## Addendum C: boss fights and streak rewards (approved with "go" 2026-10-20, in progress)
 
 Decided with Isaac on 2026-10-20:
 - **The boss is the last step of each module.** The lessons unlock the boss. Winning completes the module, which gives the +50 module Bits and the level-up.
