@@ -210,7 +210,7 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 - He wants high-quality, high-impact, cinematic animation.
 - Built as `battle-time.js`, `battle-fx.js` and `battle-moves.js` (see CLAUDE.md).
 
-## Addendum F: hi-bit pixel art for battles (draft, awaiting "go")
+## Addendum F: hi-bit pixel art for battles ("go" 2026-10-20, prototype in progress)
 
 **Problem.** Isaac: the battle art looks like "simple shapes glued together".
 - He wants detailed, high-density pixel art like his two references: a heavy armoured mech with an orange core, and a mechanical spider-bot.
@@ -251,3 +251,5 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 **Open questions:**
 - Pixel size (2 or 3 screen pixels): decide on the prototype.
 - Whether the boss's glitch effects stay as they are or become pixel glitches.
+
+- **Battle transition (Isaac, 2026-10-20):** entering a battle should pixelate into this style. The pixel grid starts very coarse and resolves down to the fine, high-density pixels. Build it with the battle screen.
