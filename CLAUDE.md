@@ -124,6 +124,14 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - White flow streaks ride along with the water.
     - The water is animated "on twos": each drawing is held for two frames, for the hand-drawn snap.
     - Ripples are thick, flat rings.
+  - GOLEM's attacks (Isaac asked for more impact and action), picked at random without repeats (`bossAttack` in `battle-moves.js`):
+    - claw slam: charge-up, floor cracks, debris, double shockwave
+    - cannon barrage: three aimed shots with recoil and explosions
+    - core laser: the screen darkens, energy pours into his eye, then a beam
+    - rocket ram: cables flare like thrusters, he blasts across and smashes into DOT. His whole frame moves by an exact tween so he stops right in front of DOT.
+  - New effects in `battle-fx.js`: explosion (cel-shaded fire made with the liquid layer), smoke, electric arcs, armour debris, floor cracks, converge (charge-up), beam, darken.
+  - Boss hit reactions: arcs, debris and sparks; a crit adds an explosion.
+  - Defeat: chained explosions in slow motion, then a huge final blast. Win: a roar with shock rings and arcs.
   - Swarmed DOT (no damage): worried, jittering and squashing about, wincing (>_<), shaking off droplets.
   - The Typo Swarm is drawn in the effects layer, in front of DOT, and circles all the way round him. Bugs passing behind are dimmer and smaller. Boss `typoSwarm({ spawn })` hands the bugs to `fx.bug()`.
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.

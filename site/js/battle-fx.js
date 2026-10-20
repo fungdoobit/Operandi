@@ -476,6 +476,141 @@ export class BattleFX {
     this.wait(ms).then(() => onArrive?.());
   }
 
+  // ---- Heavy impact effects (mostly for the boss) ----------------------------
+
+  // An explosion: a burst of cel-shaded fire (the liquid layer with the fire
+  // palette, so flames merge and tear like the water does), a white-hot core,
+  // sparks, a shock ring and smoke that rolls up afterwards.
+  explosion(c, { size = 1 } = {}) {
+    for (let i = 0; i < Math.round(16 * size); i++) {
+      const a = rand(0, Math.PI * 2), sp = rand(2, 6.5) * size;
+      this.blob("fire", { x: c.x + rand(-6, 6), y: c.y + rand(-6, 6), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.5, r: rand(9, 18) * size, max: rand(380, 560), g: -0.06, drag: 0.9, streak: false });
+    }
+    for (let i = 0; i < Math.round(6 * size); i++) {
+      const a = rand(0, Math.PI * 2), sp = rand(1, 3) * size;
+      this.blob("fireFoam", { x: c.x, y: c.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1, r: rand(7, 12) * size, max: rand(220, 320), g: -0.04, drag: 0.88, streak: false });
+    }
+    this.sparks(c, Math.round(18 * size), { power: 1.3 * size });
+    this.ring(c, { color: "#fff1d0", size: 110 * size, ms: 340, width: 7 });
+    this.glowBurst(c, "fire", 70 * size, 320);
+    this.wait(180).then(() => this.smoke(c, Math.round(6 * size), size));
+  }
+
+  // Dark smoke puffs that swell and drift up.
+  smoke(c, n = 6, size = 1) {
+    for (let i = 0; i < n; i++) {
+      const e = el("circle", { fill: pick(["#2b2f37", "#3a3f48", "#22262d"]) }, this.g);
+      this.particle({ el: e, max: rand(700, 1100), x: c.x + rand(-20, 20) * size, y: c.y + rand(-14, 14) * size, vx: rand(-0.8, 0.8), vy: rand(-1.6, -0.6), s: rand(14, 26) * size, update(p, k, f) {
+        p.x += p.vx * k; p.y += p.vy * k;
+        e.setAttribute("cx", p.x.toFixed(1)); e.setAttribute("cy", p.y.toFixed(1));
+        e.setAttribute("r", (p.s * (0.5 + f * 0.9)).toFixed(1)); e.setAttribute("opacity", (0.75 * (1 - f)).toFixed(2));
+      } });
+    }
+  }
+
+  // Electric arcs crackling around a point: jagged lines redrawn every couple of frames.
+  arcs(c, n = 4, { radius = 70, color = "#7fe8ff", ms = 260 } = {}) {
+    for (let i = 0; i < n; i++) {
+      const g = el("g", { filter: "url(#fxGlow)" }, this.g);
+      const outer = el("polyline", { fill: "none", stroke: color, "stroke-width": 3, "stroke-linejoin": "round" }, g);
+      const inner = el("polyline", { fill: "none", stroke: "#ffffff", "stroke-width": 1.2 }, g);
+      const a0 = rand(0, Math.PI * 2), len = rand(0.6, 1.2) * radius;
+      let next = 0;
+      this.particle({ el: g, max: rand(ms * 0.6, ms), update: (p, k, f) => {
+        if (k && this.time < next) return;
+        next = this.time + 40;
+        const pts = [];
+        for (let j = 0; j <= 7; j++) {
+          const t = j / 7, a = a0 + rand(-0.5, 0.5) * t;
+          pts.push(`${(c.x + Math.cos(a) * len * t + rand(-8, 8)).toFixed(1)},${(c.y + Math.sin(a) * len * t + rand(-8, 8)).toFixed(1)}`);
+        }
+        outer.setAttribute("points", pts.join(" ")); inner.setAttribute("points", pts.join(" "));
+        g.setAttribute("opacity", Math.random() < 0.2 ? 0.3 : 1 - f * 0.5);
+      } });
+    }
+  }
+
+  // Chunks of armour plate flying off, spinning, bouncing once on the floor.
+  debris(c, n = 8, { power = 1, dir = 0 } = {}) {
+    const floor = this.floorY;
+    for (let i = 0; i < n; i++) {
+      const s = rand(5, 12);
+      const e = el("polygon", { points: `0,0 ${s},${s * 0.25} ${s * 0.8},${s} ${-s * 0.2},${s * 0.7}`, fill: pick(["#4b596b", "#748499", "#313a47"]), stroke: "#0b0e13", "stroke-width": 1.5 }, this.g);
+      const a = dir ? (dir > 0 ? 0 : Math.PI) + rand(-1.2, 1.2) - 0.5 : rand(0, Math.PI * 2);
+      const sp = rand(4, 10) * power;
+      this.particle({ el: e, max: rand(800, 1200), x: c.x, y: c.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 5, r: 0, spin: rand(-14, 14), bounced: false, update(p, k, f) {
+        p.vy += 0.45 * k; p.x += p.vx * k; p.y += p.vy * k; p.r += p.spin * k;
+        if (p.y > floor - 4) { p.y = floor - 4; if (!p.bounced) { p.bounced = true; p.vy *= -0.35; p.vx *= 0.5; p.spin *= 0.4; } else { p.vy = 0; p.vx *= 0.8; p.spin *= 0.8; } }
+        e.setAttribute("transform", `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${p.r.toFixed(0)})`);
+        e.setAttribute("opacity", f > 0.75 ? ((1 - f) / 0.25).toFixed(2) : 1);
+      } });
+    }
+  }
+
+  // Cracks splitting across the floor from an impact, glowing hot, then fading.
+  crack(x, { width = 220, color = "#ffb35c" } = {}) {
+    const floor = this.floorY, g = el("g", {}, this.g);
+    const lines = [-1, 1].flatMap((dir) => [0, 1].map(() => {
+      let px = x, py = floor, d = `M${px} ${py}`;
+      const steps = 6, w = width * rand(0.6, 1);
+      for (let i = 0; i < steps; i++) { px += dir * w / steps; py = floor + rand(-2, 7); d += ` L${px.toFixed(1)} ${py.toFixed(1)}`; }
+      return el("path", { d, fill: "none", stroke: color, "stroke-width": 3, "stroke-linejoin": "round", "stroke-dasharray": "400", "stroke-dashoffset": "400", filter: "url(#fxGlow)" }, g);
+    }));
+    this.particle({ el: g, max: 1500, update(p, k, f) {
+      const grow = EASE.expo(Math.min(1, f * 8));
+      for (const l of lines) l.setAttribute("stroke-dashoffset", (400 * (1 - grow)).toFixed(0));
+      g.setAttribute("opacity", f < 0.4 ? 1 : (1 - (f - 0.4) / 0.6).toFixed(2));
+      if (f > 0.2) for (const l of lines) l.setAttribute("stroke", "#3a2a1f");
+    } });
+  }
+
+  // Energy streaking IN to a point: the charge-up before a big attack.
+  converge(c, { color = "#ff9a3c", n = 22, ms = 700, radius = 170 } = {}) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, Math.PI * 2), r0 = rand(radius * 0.6, radius), delay = rand(0, ms * 0.6);
+      const ln = el("line", { stroke: pick([color, "#fff1d0"]), "stroke-width": rand(1.5, 3), "stroke-linecap": "round", opacity: 0 }, this.g);
+      this.particle({ el: ln, max: ms, update(p, k, f) {
+        const g = Math.max(0, (p.life - delay) / (ms - delay)), q = EASE.in(g), r = r0 * (1 - q);
+        const x1 = c.x + Math.cos(a) * r, y1 = c.y + Math.sin(a) * r, tail = 18 + 30 * q;
+        ln.setAttribute("x1", x1.toFixed(1)); ln.setAttribute("y1", y1.toFixed(1));
+        ln.setAttribute("x2", (x1 + Math.cos(a) * tail).toFixed(1)); ln.setAttribute("y2", (y1 + Math.sin(a) * tail).toFixed(1));
+        ln.setAttribute("opacity", g <= 0 ? 0 : Math.min(1, g * 4).toFixed(2));
+      } });
+    }
+    return this.glowBurst(c, "fire", 50, ms);
+  }
+
+  // A beam from `from` through `to`: it snaps open, crackles at full width with a
+  // white-hot core, hammers the target with sparks, then thins out.
+  beam(from, to, { ms = 700, color = "#ff7a2f", width = 34, onHit } = {}) {
+    const ang = Math.atan2(to.y - from.y, to.x - from.x), len = Math.hypot(to.x - from.x, to.y - from.y) + 260;
+    const g = el("g", { filter: "url(#fxGlow)", transform: `translate(${from.x} ${from.y}) rotate(${(ang * 180 / Math.PI).toFixed(1)})` }, this.g);
+    const glow = el("rect", { x: 0, height: 1, width: len, fill: color, opacity: ".35", rx: 20 }, g);
+    const body = el("rect", { x: 0, height: 1, width: len, fill: color, rx: 14 }, g);
+    const core = el("rect", { x: 0, height: 1, width: len, fill: "#fff6e0", rx: 8 }, g);
+    const muzzle = el("circle", { cx: 0, cy: 0, r: 1, fill: "#fff6e0" }, g);
+    let hit = false;
+    this.particle({ el: g, max: ms, update: (p, k, f) => {
+      const open = EASE.expo(Math.min(1, f * 8)), close = f > 0.8 ? EASE.in((f - 0.8) / 0.2) : 0;
+      const w = width * open * (1 - close) * (0.85 + Math.random() * 0.3);
+      for (const [r, m] of [[glow, 2.2], [body, 1], [core, 0.38]]) { r.setAttribute("height", (w * m).toFixed(1)); r.setAttribute("y", (-w * m / 2).toFixed(1)); }
+      muzzle.setAttribute("r", (w * 0.9).toFixed(1));
+      if (k && f > 0.08 && Math.random() < 0.7 * k) this.sparks(to, 3, { power: 1.4, dir: Math.cos(ang) > 0 ? 1 : -1 });
+      if (!hit && f > 0.1) { hit = true; onHit?.(); }
+    } });
+  }
+
+  // A dark wash over the stage to put the spotlight on a big move.
+  darken(alpha, ms = 400) {
+    if (!this.darkEl) {
+      this.darkEl = document.createElement("div");
+      Object.assign(this.darkEl.style, { position: "absolute", inset: 0, background: "radial-gradient(ellipse at 70% 55%, transparent 20%, #000 85%)", opacity: 0, zIndex: 4, pointerEvents: "none", transition: "opacity .4s" });
+      this.world.append(this.darkEl);
+    }
+    this.darkEl.style.transition = `opacity ${ms}ms`;
+    this.darkEl.style.opacity = alpha;
+  }
+
   // ---- Impact effects --------------------------------------------------------
 
   ring(c, { color = "#fff", size = 120, flat = 1, ms = 380, width = 6 } = {}) {
