@@ -137,3 +137,28 @@ Decided with Isaac on 2026-10-20:
 - **Planned pricing**, small and low-key at the bottom: RM80 one-time or RM20/month, labelled "Planned pricing — not available yet". No payments.
   - If real payments are ever added: Vercel Hobby doesn't allow commercial use (Pro is needed), plus payment setup and terms.
 - Tiles, in order: Python (clickable), VBA (the coloured blocks), C++, HTML, SQL. All but Python are "Coming soon".
+
+## Addendum C: boss fights and streak rewards (draft, awaiting "go")
+
+Decided with Isaac on 2026-10-20:
+- **The boss is the last step of each module.** The lessons unlock the boss. Winning completes the module, which gives the +50 module Bits and the level-up.
+- **Rewards:**
+  - First-try win: the boss's exclusive accessory (with its own animation or effect) plus 100 Bits.
+  - Win on a retry: small Bits only. The exclusive is then unlocked in the Shop at a high price.
+- **Build order:** the battle system, the Module 1 boss and streak rewards first. Each later module ships with its own boss.
+- **Special moves:** each boss has its own, tied to that module's topic. They are telegraphed one turn ahead and must be beatable with that module's skills only.
+- **Fight rules (proposed):**
+  - Both sides have 100 HP.
+  - A pass deals 15–25 depending on the mark. A flawless pass (10/10, first submission, no hint or peek) is a crit for 40. A fail is a miss.
+  - The boss hits for 20.
+  - Hints and peeks cancel the crit. Solutions are off.
+  - Losing costs nothing, and you can retry straight away.
+- **Streak rewards (proposed):**
+  - 7 days: 40 Bits + 1 hint
+  - 15 days: 80 Bits + 1 shield
+  - 30 days: 150 Bits + a one-time badge cosmetic
+  - Every 30 days after that: 150 Bits
+- **Open questions:**
+  - Shop price for missed exclusives
+  - Bits for a retry win
+  - Which Module 1 special moves to use
