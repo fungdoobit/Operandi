@@ -662,12 +662,23 @@ export class Dot {
     this.timers.push(setTimeout(() => { this.lean.t = 0; }, 300));
   }
 
-  // Mobbed by the Typo Swarm: flinching side to side with a worried face. No damage.
+  // Mobbed by the Typo Swarm (no damage): worried and thrown about. He jitters,
+  // squashes this way and that, keeps wincing (>_< face) and shakes off droplets.
   swarmed(ms = 1500) {
     this.clearTimers();
     this.setMood("worried");
-    for (let t = 0, side = 1; t < ms; t += 130, side = -side) {
-      this.timers.push(setTimeout(() => { this.dx.v += side * 3; this.nudge(side * 6, 0.35); }, t));
+    const r = (a, b) => a + Math.random() * (b - a);
+    for (let t = 0; t < ms; t += 70) {
+      this.timers.push(setTimeout(() => {
+        const s = Math.random() < 0.5 ? -1 : 1;
+        this.dx.s += s * r(2, 5); this.dx.v += s * 2;
+        this.sx.s = 1 + r(-0.14, 0.14); this.sy.s = 1 + r(-0.14, 0.14);
+        this.lean.s = r(-0.14, 0.14); this.energy = 1.5;
+      }, t));
+    }
+    for (let t = 200; t < ms; t += 320) {
+      this.timers.push(setTimeout(() => { this.figure.dataset.mood = "plop"; this.splash(0.3); }, t));
+      this.timers.push(setTimeout(() => { this.figure.dataset.mood = "worried"; }, t + 140));
     }
     this.timers.push(setTimeout(() => this.setMood("idle"), ms + 200));
   }

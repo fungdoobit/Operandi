@@ -21,10 +21,12 @@ export const EASE = {
 
 // Colours per teammate element.
 export const THEMES = {
-  water: { deep: "#0b63a8", mid: "#21b6e8", light: "#93f0ff", foam: "#ffffff", glow: "#8ae2ff" },
+  // Water: pale blue-grey body, steel-blue shadow, white highlights (cel-shaded,
+  // like classic 2D anime water effects).
+  water: { deep: "#3a76a2", mid: "#9ccbdc", light: "#e3f4fa", foam: "#ffffff", glow: "#a9dcef" },
   fire: { deep: "#c8321b", mid: "#ff7a2f", light: "#ffd28a", foam: "#fff3c4", glow: "#ff9a3c" },
   // White water: the foam on a wave's crest and a splash's edges (and fire's hot core).
-  foam: { deep: "#6cc9ef", mid: "#f4fdff", light: "#ffffff", foam: "#ffffff", glow: "#ffffff" },
+  foam: { deep: "#9ccbdc", mid: "#f6fcfe", light: "#ffffff", foam: "#ffffff", glow: "#ffffff" },
   fireFoam: { deep: "#ff9a3c", mid: "#fff1c9", light: "#ffffff", foam: "#ffffff", glow: "#fff3c4" },
 };
 
@@ -65,16 +67,12 @@ export class BattleFX {
       ${Object.entries(THEMES).map(([k, c]) => `<filter id="fxGoo-${k}" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
         <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="blur"/>
         <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 24 -9" result="m"/>
-        <feMorphology in="m" operator="dilate" radius="2.6" result="mo"/>
-        <feFlood flood-color="${c.deep}"/><feComposite in2="mo" operator="in" result="outline"/>
         <feFlood flood-color="${c.mid}"/><feComposite in2="m" operator="in" result="body"/>
-        <feOffset in="m" dx="-5" dy="-6" result="mb"/><feComposite in="m" in2="mb" operator="out" result="shadeM"/>
-        <feFlood flood-color="${c.deep}" flood-opacity=".55"/><feComposite in2="shadeM" operator="in" result="shade"/>
-        <feOffset in="m" dx="6" dy="8" result="ms"/><feComposite in="m" in2="ms" operator="out" result="rimM"/>
-        <feFlood flood-color="${c.light}"/><feComposite in2="rimM" operator="in" result="rim"/>
-        <feOffset in="m" dx="3" dy="4" result="ms2"/><feComposite in="m" in2="ms2" operator="out" result="specM"/>
-        <feFlood flood-color="#ffffff" flood-opacity="1"/><feComposite in2="specM" operator="in" result="spec"/>
-        <feMerge><feMergeNode in="outline"/><feMergeNode in="body"/><feMergeNode in="shade"/><feMergeNode in="rim"/><feMergeNode in="spec"/></feMerge>
+        <feOffset in="m" dx="5" dy="-15" result="mb"/><feComposite in="m" in2="mb" operator="out" result="shadeM"/>
+        <feFlood flood-color="${c.deep}"/><feComposite in2="shadeM" operator="in" result="shade"/>
+        <feOffset in="m" dx="-2" dy="6" result="ms"/><feComposite in="m" in2="ms" operator="out" result="rimM"/>
+        <feFlood flood-color="${c.foam}"/><feComposite in2="rimM" operator="in" result="rim"/>
+        <feMerge><feMergeNode in="body"/><feMergeNode in="shade"/><feMergeNode in="rim"/></feMerge>
       </filter>`).join("")}
       ${Object.entries(THEMES).map(([k, c]) => `<linearGradient id="fxBlade-${k}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${c.deep}" stop-opacity=".0"/><stop offset=".45" stop-color="${c.deep}" stop-opacity=".85"/><stop offset=".8" stop-color="${c.mid}"/><stop offset="1" stop-color="${c.foam}"/></linearGradient>`).join("")}
     </defs><g class="fx"></g>`;
@@ -289,11 +287,11 @@ export class BattleFX {
   // A flat ring spreading on the floor, like a ripple on water (or a heat ring).
   ripple(c, theme, size = 60, ms = 600) {
     const T = THEMES[theme] || THEMES.water;
-    const e = el("ellipse", { cx: c.x, cy: c.y, fill: "none", stroke: T.light }, this.g);
+    const e = el("ellipse", { cx: c.x, cy: c.y, fill: "none", stroke: T.mid }, this.g);
     this.particle({ el: e, max: ms, update(p, k, f) {
       const q = EASE.out(f);
-      e.setAttribute("rx", (size * q).toFixed(1)); e.setAttribute("ry", (size * q * 0.18).toFixed(1));
-      e.setAttribute("stroke-width", (3 * (1 - f)).toFixed(2)); e.setAttribute("opacity", (0.8 * (1 - f)).toFixed(2));
+      e.setAttribute("rx", (size * q).toFixed(1)); e.setAttribute("ry", (size * q * 0.2).toFixed(1));
+      e.setAttribute("stroke-width", (Math.max(1, size / 14) * (1 - f) + 0.5).toFixed(2)); e.setAttribute("opacity", (0.9 * (1 - f * f)).toFixed(2));
     } });
   }
 
@@ -312,23 +310,44 @@ export class BattleFX {
   // dark outline, a light rim and a white glint, for a glossy cartoon look.
   liquidLayer(theme) {
     this.liquids ||= {};
-    if (!this.liquids[theme] || !this.liquids[theme].isConnected) this.liquids[theme] = el("g", { filter: `url(#fxGoo-${theme})` }, this.g);
+    if (!this.liquids[theme] || !this.liquids[theme].isConnected) {
+      this.liquids[theme] = el("g", { filter: `url(#fxGoo-${theme})` }, this.g);
+      if (this.streaks?.isConnected) this.g.append(this.streaks);
+    }
     return this.liquids[theme];
   }
 
   // One blob: a circle with velocity. It falls, and when it reaches the floor it
   // slows and flattens into a puddle that shrinks away.
-  blob(theme, { x, y, vx = 0, vy = 0, r = 10, max = 1000, g = 0.4, drag = 0.995 }) {
+  // Drawn "on twos": the physics runs every frame, but the shape only updates
+  // every other frame, the held-frame snap of hand-drawn anime effects.
+  // Some blobs carry a white flow streak along their direction of travel.
+  blob(theme, { x, y, vx = 0, vy = 0, r = 10, max = 1000, g = 0.4, drag = 0.995, streak = Math.random() < 0.35 }) {
     const c = el("circle", { r, cx: x, cy: y, fill: "#000" }, this.liquidLayer(theme));
     const floor = this.floorY;
-    return this.particle({ el: c, max, x, y, vx, vy, r, landed: false, update(p, k, f) {
+    let line = null;
+    if (streak && r > 7 && !theme.startsWith("fire")) {
+      if (!this.streaks?.isConnected) this.streaks = el("g", {}, this.g);
+      line = el("ellipse", { rx: 1.6, ry: 6, fill: "#ffffff" }, this.streaks);
+    }
+    // Removing the blob removes its streak too.
+    const both = { remove: () => { c.remove(); line?.remove(); } };
+    return this.particle({ el: both, max, x, y, vx, vy, r, landed: false, next: 0, update: (p, k, f) => {
       if (!p.landed) {
         p.vy += g * k; p.vx *= Math.pow(drag, k); p.x += p.vx * k; p.y += p.vy * k;
         if (p.y >= floor - p.r * 0.3) { p.y = floor - p.r * 0.3; p.landed = true; p.vx *= 0.4; }
       } else { p.x += p.vx * k; p.vx *= Math.pow(0.9, k); }
+      if (k && this.time < p.next) return;
+      p.next = this.time + 33;
       // Shrink near the end so the liquid drains away instead of popping out.
-      const rr = p.r * (f > 0.7 ? 1 - (f - 0.7) / 0.3 : 1) * (p.landed ? 0.8 : 1);
-      c.setAttribute("cx", p.x.toFixed(1)); c.setAttribute("cy", p.y.toFixed(1)); c.setAttribute("r", Math.max(0, rr).toFixed(1));
+      const rr = Math.max(0, p.r * (f > 0.7 ? 1 - (f - 0.7) / 0.3 : 1) * (p.landed ? 0.8 : 1));
+      c.setAttribute("cx", p.x.toFixed(1)); c.setAttribute("cy", p.y.toFixed(1)); c.setAttribute("r", rr.toFixed(1));
+      if (line) {
+        const sp = Math.hypot(p.vx, p.vy), ang = Math.atan2(p.vy, p.vx) * 180 / Math.PI - 90;
+        line.setAttribute("transform", `translate(${p.x.toFixed(1)} ${(p.y - p.r * 0.25).toFixed(1)}) rotate(${ang.toFixed(0)})`);
+        line.setAttribute("ry", Math.min(p.r * 1.1, 3 + sp * 1.2).toFixed(1));
+        line.setAttribute("opacity", p.landed || f > 0.75 ? 0 : 0.95);
+      }
     } });
   }
 

@@ -119,6 +119,12 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - The same filter adds a dark outline, a shaded underside, a light rim and a white glint (`fxGoo-<theme>` in `battle-fx.js`).
     - Splash crown: a ring of blobs flung up, a jet, and a mound that spreads into a puddle. White foam blobs ride the edges.
     - Tsunami: a moving front throws a dense stream ahead of itself that arches over (the curl), with white foam on the crest. It's slower (1050 ms) so the curl has time to form.
+  - Water look, round 5: matched to Isaac's reference video of classic 2D anime water effects.
+    - Pale blue-grey body, a steel-blue underside and white top edges, cel-shaded with no outline.
+    - White flow streaks ride along with the water.
+    - The water is animated "on twos": each drawing is held for two frames, for the hand-drawn snap.
+    - Ripples are thick, flat rings.
+  - Swarmed DOT (no damage): worried, jittering and squashing about, wincing (>_<), shaking off droplets.
   - The Typo Swarm is drawn in the effects layer, in front of DOT, and circles all the way round him. Bugs passing behind are dimmer and smaller. Boss `typoSwarm({ spawn })` hands the bugs to `fx.bug()`.
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.

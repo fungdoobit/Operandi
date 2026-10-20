@@ -251,7 +251,7 @@ export async function bossAttack(ctx, kind, { onHit } = {}) {
 
 // A special move gets a cinematic telegraph: bars, a slow push-in, its name.
 export async function bossSpecial(ctx, move, moveName) {
-  const { fx, dot, boss } = ctx;
+  const { fx, dot, boss, theme } = ctx;
   const bossC = fx.at(boss.figure.querySelector(".boss-core"));
   fx.letterbox(true); fx.focus(1.08, bossC, 900);
   boss.charge(move);
@@ -261,7 +261,13 @@ export async function bossSpecial(ctx, move, moveName) {
   if (move === "typos") {
     // The bugs fly in the effects layer, in front of DOT, and follow him.
     let mobbed = false;
-    const onArrive = () => { if (!mobbed) { mobbed = true; dot.swarmed(1900); } };
+    const onArrive = () => {
+      if (mobbed) return;
+      mobbed = true;
+      dot.swarmed(1900);
+      // Bits of him get knocked off while they nibble.
+      for (let i = 0; i < 6; i++) fx.wait(i * 300).then(() => { fx.drops(fx.at(dot.figure, { fy: 0.45 }), theme, 4, { power: 0.7 }); fx.shake(3); });
+    };
     boss.special("typos", { spawn: (ch, p) => fx.bug(ch, fx.fromPage(p), () => fx.at(dot.figure, { fy: 0.5 }), { onArrive }) });
   }
   else boss.special(move);
