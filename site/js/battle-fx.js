@@ -21,9 +21,23 @@ export const EASE = {
 
 // Colours per teammate element.
 export const THEMES = {
-  water: { deep: "#1677c4", mid: "#4fc0f5", light: "#bdeeff", foam: "#ffffff", glow: "#8ae2ff" },
+  water: { deep: "#0b63a8", mid: "#21b6e8", light: "#93f0ff", foam: "#ffffff", glow: "#8ae2ff" },
   fire: { deep: "#c8321b", mid: "#ff7a2f", light: "#ffd28a", foam: "#fff3c4", glow: "#ff9a3c" },
 };
+
+// A smooth curve through points (Catmull-Rom turned into cubic Beziers), so
+// water outlines never show corners. closed = loop back to the start.
+function curve(pts, closed) {
+  const n = pts.length;
+  if (n < 2) return "";
+  const P = (i) => (closed ? pts[(i + n) % n] : pts[Math.max(0, Math.min(n - 1, i))]);
+  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+    d += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return closed ? d + " Z" : d;
+}
 
 function el(tag, attrs = {}, parent) {
   const e = document.createElementNS(NS, tag);
@@ -97,10 +111,10 @@ export class BattleFX {
 
   // Move an element (by CSS transform) over game time, so it freezes in hit-stop.
   move(elm, to, ms, ease = "out") {
-    const cur = elm._pos || { x: 0, y: 0 };
-    return new Promise((res) => this.tweens.push({ elm, from: { ...cur }, to: { x: to.x ?? cur.x, y: to.y ?? cur.y }, start: this.time, ms: Math.max(1, ms), ease: EASE[ease], res }));
+    const cur = { x: 0, y: 0, r: 0, ...elm._pos };
+    return new Promise((res) => this.tweens.push({ elm, from: cur, to: { x: to.x ?? cur.x, y: to.y ?? cur.y, r: to.r ?? cur.r }, start: this.time, ms: Math.max(1, ms), ease: EASE[ease], res }));
   }
-  place(elm, p) { elm._pos = p; elm.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`; }
+  place(elm, p) { elm._pos = { r: 0, ...p }; elm.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) rotate(${(p.r || 0).toFixed(1)}deg)`; }
 
   loop(now) {
     const real = Math.min(50, now - this.last);
@@ -110,7 +124,7 @@ export class BattleFX {
     this.waits = this.waits.filter((w) => (w.at <= this.time ? (w.res(), false) : true));
     this.tweens = this.tweens.filter((tw) => {
       const f = Math.min(1, (this.time - tw.start) / tw.ms), e = tw.ease(f);
-      this.place(tw.elm, { x: tw.from.x + (tw.to.x - tw.from.x) * e, y: tw.from.y + (tw.to.y - tw.from.y) * e });
+      this.place(tw.elm, { x: tw.from.x + (tw.to.x - tw.from.x) * e, y: tw.from.y + (tw.to.y - tw.from.y) * e, r: tw.from.r + (tw.to.r - tw.from.r) * e });
       if (f >= 1) { tw.res(); return false; }
       return true;
     });
@@ -253,22 +267,137 @@ export class BattleFX {
     this.glowBurst(c, theme, 50 * power, 300);
   }
 
-  // Crit finisher: a column of water (or a pillar of flame) bursts up under the target.
-  geyser(x, theme, { height = 260 } = {}) {
-    const T = THEMES[theme], floor = this.floorY;
-    const g = el("g", { filter: "url(#fxGlow)" }, this.g);
-    const body = el("path", { fill: T.mid, opacity: ".85" }, g);
-    const core = el("path", { fill: T.light }, g);
-    this.particle({ el: g, max: 700, update(p, k, f) {
-      const rise = EASE.expo(Math.min(1, f * 3)), fall = f > 0.45 ? EASE.in((f - 0.45) / 0.55) : 0;
-      const h = height * rise * (1 - fall * 0.9), w = 46 * (1 - fall * 0.5);
-      const wob = Math.sin(p.life / 40) * 6;
-      body.setAttribute("d", `M${x - w} ${floor} C${x - w * 0.6} ${floor - h * 0.5} ${x - w * 0.9 + wob} ${floor - h * 0.85} ${x + wob} ${floor - h} C${x + w * 0.9 + wob} ${floor - h * 0.85} ${x + w * 0.6} ${floor - h * 0.5} ${x + w} ${floor} Z`);
-      core.setAttribute("d", `M${x - w * 0.4} ${floor} C${x - w * 0.2} ${floor - h * 0.5} ${x - w * 0.3 + wob} ${floor - h * 0.8} ${x + wob} ${floor - h * 0.92} C${x + w * 0.3 + wob} ${floor - h * 0.8} ${x + w * 0.2} ${floor - h * 0.5} ${x + w * 0.4} ${floor} Z`);
-      g.setAttribute("opacity", (1 - fall).toFixed(2));
+  // ---- Water shapes ------------------------------------------------------------
+  // A "tongue" is a ribbon of water (or flame) that grows from a base point,
+  // tapers to a tip and curls over. Its centre line bends a bit more at each
+  // step (angle = start + curl * s^2), and the outline is a smooth curve
+  // through points either side of it. Three layers give it depth: a dark body,
+  // a lighter inner band and a white highlight streak, like cartoon water.
+  makeTongue(theme, parent = this.g) {
+    const T = THEMES[theme];
+    const g = el("g", {}, parent);
+    return {
+      g,
+      body: el("path", { fill: T.deep }, g),
+      inner: el("path", { fill: T.mid }, g),
+      core: el("path", { fill: T.light, opacity: ".9" }, g),
+      shine: el("path", { fill: "none", stroke: T.foam, "stroke-width": 2.6, "stroke-linecap": "round", opacity: ".85" }, g),
+      cap: el("circle", { fill: T.foam }, g),
+    };
+  }
+
+  // Draw a tongue: base (x, y), start angle a (radians, -PI/2 = straight up),
+  // length len, curl (radians added by the tip), width w.
+  drawTongue(t, { x, y, a, len, curl, w, wob = 0 }) {
+    const N = 16, pts = [];
+    let px = x, py = y;
+    for (let i = 0; i <= N; i++) {
+      const s = i / N, ang = a + curl * s * s + Math.sin(s * 5 + wob) * 0.06;
+      pts.push({ x: px, y: py, ang, s });
+      px += Math.cos(ang) * (len / N); py += Math.sin(ang) * (len / N);
+    }
+    const ribbon = (scale, shift = 0) => {
+      const left = [], right = [];
+      for (const p of pts) {
+        // Wide near the base, swelling a little, then tapering to a round tip.
+        const ww = w * scale * Math.pow(1 - p.s, 0.55) * (0.8 + 0.45 * Math.sin(p.s * Math.PI));
+        const nx = -Math.sin(p.ang), ny = Math.cos(p.ang);
+        left.push([p.x + nx * (ww + shift * ww), p.y + ny * (ww + shift * ww)]);
+        right.push([p.x - nx * (ww - shift * ww), p.y - ny * (ww - shift * ww)]);
+      }
+      return curve([...left, ...right.reverse()], true);
+    };
+    t.body.setAttribute("d", ribbon(1));
+    t.inner.setAttribute("d", ribbon(0.66, 0.25));
+    t.core.setAttribute("d", ribbon(0.3, 0.9));
+    const hi = pts.filter((p) => p.s > 0.15 && p.s < 0.75).map((p) => { const ww = w * 0.45 * (1 - p.s); return [p.x - Math.sin(p.ang) * ww, p.y + Math.cos(p.ang) * ww]; });
+    t.shine.setAttribute("d", curve(hi, false));
+    const tip = pts[N];
+    t.cap.setAttribute("cx", tip.x.toFixed(1)); t.cap.setAttribute("cy", tip.y.toFixed(1));
+    t.cap.setAttribute("r", Math.max(0, w * 0.08).toFixed(1));
+    return tip;
+  }
+
+  // Crit finisher: a splash crown. Tongues of water erupt from under the target,
+  // fan out and curl over at the tips, then droop and fall apart into droplets.
+  splashCrown(x, theme, { power = 1, y } = {}) {
+    const floor = y ?? this.floorY, n = 6;
+    const g = el("g", { filter: theme === "fire" ? "url(#fxGlow)" : "" }, this.g);
+    const tongues = Array.from({ length: n }, (_, i) => {
+      const side = (i / (n - 1)) * 2 - 1;                       // -1 (left) .. 1 (right)
+      return {
+        t: this.makeTongue(theme, g),
+        a: -Math.PI / 2 + side * 0.8 + rand(-0.12, 0.12),
+        len: (120 + (1 - Math.abs(side)) * 120 + rand(-20, 20)) * power,
+        curl: side * rand(1.6, 2.3) + (Math.abs(side) < 0.3 ? rand(-0.9, 0.9) : 0),
+        w: (26 + (1 - Math.abs(side)) * 16) * power,
+        delay: Math.abs(side) * 60 + rand(0, 40),
+        wob: rand(0, 6),
+      };
+    });
+    // Tallest in front, so the middle column reads over the side ones.
+    tongues.sort((p, q) => q.w - p.w).reverse().forEach((tg) => g.append(tg.t.g));
+    const ms = 1100, shed = new Set();
+    this.particle({ el: g, max: ms, update: (p, k, f) => {
+      for (const tg of tongues) {
+        const life = Math.max(0, p.life - tg.delay) / (ms - tg.delay);
+        const rise = EASE.expo(Math.min(1, life / 0.28));       // erupt fast
+        const fall = life > 0.4 ? EASE.in((life - 0.4) / 0.6) : 0; // then droop and collapse
+        const tip = this.drawTongue(tg.t, {
+          x: x + Math.cos(tg.a) * 10, y: floor,
+          a: tg.a + fall * Math.sign(tg.curl || 1) * 0.5,
+          len: tg.len * rise * (1 - fall * 0.65),
+          curl: tg.curl * (0.35 + rise * 0.65) + fall * Math.sign(tg.curl || 1) * 1.3,
+          w: tg.w * (1 - fall * 0.6), wob: tg.wob + p.life / 120,
+        });
+        tg.t.g.setAttribute("opacity", (1 - fall * fall).toFixed(2));
+        // As each tongue tips over, it throws off a spray from its tip.
+        if (fall > 0.05 && !shed.has(tg)) { shed.add(tg); this.drops({ x: tip.x, y: tip.y }, theme, 6, { power: 0.8, up: 2 }); }
+      }
     } });
-    this.wait(120).then(() => this.drops({ x, y: floor - height }, theme, 26, { power: 1.4, up: 3 }));
-    this.ripple({ x, y: floor }, theme, 160, 800);
+    // A low jagged splash ring at the base, droplets, and ripples on the floor.
+    this.drops({ x, y: floor - 20 }, theme, 22, { power: 1.3 * power, up: 6 });
+    this.ripple({ x, y: floor }, theme, 170 * power, 900);
+    this.wait(200).then(() => this.ripple({ x, y: floor }, theme, 120 * power, 700));
+  }
+  geyser(x, theme, opts) { this.splashCrown(x, theme, opts); }
+
+  // A wave that rolls in from `from` to `to` and crashes. It rises, curls
+  // forward, travels, and on arrival crashes into a splash crown.
+  // rideOn(x, y) is called every frame with the crest, so DOT can surf it.
+  wave(from, to, theme, { ms = 700, height = 200, onArrive, rideOn } = {}) {
+    const floor = this.floorY, dir = Math.sign(to - from) || 1;
+    const back = this.makeTongue(theme), front = this.makeTongue(theme);
+    let arrived = false;
+    this.particle({ el: back.g, max: ms + 200, update: (p, k, f) => {
+      const tt = Math.min(1, p.life / ms), rise = EASE.out(Math.min(1, tt / 0.35));
+      const x = from + (to - from) * EASE.inOut(tt);
+      const crash = p.life > ms ? (p.life - ms) / 200 : 0;
+      const h = height * rise * (1 - crash);
+      const tip = this.drawTongue(front, { x: x - dir * 50, y: floor, a: -Math.PI / 2 + dir * 0.25, len: h, curl: dir * (1.2 + tt * 1.2 + crash * 1.5), w: 46 * (1 - crash * 0.5), wob: p.life / 90 });
+      this.drawTongue(back, { x: x - dir * 120, y: floor, a: -Math.PI / 2 + dir * 0.55, len: h * 0.7, curl: dir * (1.0 + tt), w: 40 * (1 - crash * 0.5), wob: p.life / 70 + 2 });
+      back.g.setAttribute("opacity", (1 - crash).toFixed(2)); front.g.setAttribute("opacity", (1 - crash).toFixed(2));
+      if (Math.random() < 0.5 * k) this.drops({ x: tip.x, y: tip.y }, theme, 1, { power: 0.6, dir: -dir, up: 3 });
+      rideOn?.(tip.x - dir * 30, tip.y);
+      if (tt >= 1 && !arrived) { arrived = true; onArrive?.(); }
+    } });
+    this.parts.at(-1).el = { remove: () => { back.g.remove(); front.g.remove(); } };
+  }
+
+  // A ball of water (or fire) fired at a target, trailing droplets; splashes on arrival.
+  orb(from, to, theme, { ms = 260, size = 13, arc = 30, onArrive } = {}) {
+    const T = THEMES[theme];
+    const g = el("g", { filter: "url(#fxGlow)" }, this.g);
+    el("circle", { r: size, fill: T.mid }, g);
+    el("circle", { r: size * 0.6, fill: T.light }, g);
+    el("circle", { cx: -size * 0.3, cy: -size * 0.35, r: size * 0.22, fill: T.foam }, g);
+    this.particle({ el: g, max: ms, update: (p, k, f) => {
+      const x = from.x + (to.x - from.x) * f, y = from.y + (to.y - from.y) * f - Math.sin(f * Math.PI) * arc;
+      const stretch = 1 + Math.min(0.5, k * 0.15);
+      g.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI).toFixed(0)}) scale(${stretch.toFixed(2)} ${(1 / stretch).toFixed(2)})`);
+      if (k && Math.random() < 0.7) this.drops({ x, y }, theme, 1, { power: 0.3, up: 1 });
+    } });
+    this.wait(ms).then(() => onArrive?.());
   }
 
   // ---- Impact effects --------------------------------------------------------

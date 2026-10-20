@@ -10,47 +10,163 @@ const page = (elm, fy = 0.55) => { const r = elm.getBoundingClientRect(); return
 
 // ---- The teammate ------------------------------------------------------------
 
-export async function teammateAttack(ctx, { crit = false, onHit } = {}) {
-  const { fx, dot, boss, mateEl, theme } = ctx;
-  const home = mateEl._pos || { x: 0, y: 0 };
-  const c0 = fx.at(dot.figure, { fy: 0.6 });
-  const target = fx.at(boss.figure.querySelector(".boss-core"));
+// The teammate has several attacks so fights don't repeat: three normal ones
+// and two finishers for a flawless crit, picked at random but never the same
+// one twice in a row.
+const ATTACKS = ["blade", "dive", "volley"], FINISHERS = ["crossBlades", "tidalWave"];
+let lastMove = null;
+function choose(list) {
+  const options = list.filter((m) => m !== lastMove);
+  lastMove = options[Math.floor(Math.random() * options.length)];
+  return lastMove;
+}
+
+export async function teammateAttack(ctx, { crit = false, onHit, move } = {}) {
+  const { fx, dot, boss } = ctx;
+  const s = {
+    ...ctx,
+    home: ctx.mateEl._pos || { x: 0, y: 0, r: 0 },
+    c0: fx.at(dot.figure, { fy: 0.6 }),
+    target: fx.at(boss.figure.querySelector(".boss-core")),
+    onHit,
+  };
   dot.clearTimers(); dot.setMood("fierce");
-  // 1. Gather: crouch low while droplets (or embers) stream into the core.
+  const kind = move || choose(crit ? FINISHERS : ATTACKS);
+  await MOVES[kind](s);
+  dot.lean.t = 0; dot.setMood("idle");
+}
+
+// 1. Gather: crouch low while droplets (or embers) stream into the core.
+async function gather(s, { crit = false, ms } = {}) {
+  const { fx, dot, c0, theme } = s;
+  ms ??= crit ? 620 : 380;
   dot.sx.t = 1.26; dot.sy.t = 0.76; dot.lean.t = -0.14; dot.energy = 1.3;
-  if (crit) { fx.focus(1.07, c0, 520); fx.slowmo(0.55, 620); }
-  const gathered = fx.gather(c0, theme, crit ? 32 : 18, crit ? 620 : 380);
-  await fx.wait(crit ? 620 : 380);
+  if (crit) { fx.focus(1.07, c0, 520); fx.slowmo(0.55, ms); }
+  const gathered = fx.gather(c0, theme, crit ? 32 : 18, ms);
+  await fx.wait(ms);
   fx.clear(gathered);
-  // 2. Dash: stretch out and shoot across, leaving a trail.
-  const dist = target.x - c0.x - 150;
-  dot.sx.s = 1.32; dot.sy.s = 0.78; dot.sx.t = 1.25; dot.sy.t = 0.82; dot.lean.t = 0.22;
-  fx.dashTrail(c0, { x: c0.x + dist, y: c0.y }, theme);
+}
+
+// Push off: a splash and a ripple where he launches from.
+function launch(s, dir = -1) {
+  const { fx, c0, theme } = s;
   fx.dust(c0.x, 5, 1);
-  fx.drops({ x: c0.x, y: c0.y + 10 }, theme, 10, { power: 0.9, dir: -1 });
+  fx.drops({ x: c0.x, y: c0.y + 10 }, theme, 10, { power: 0.9, dir });
   fx.ripple({ x: c0.x, y: fx.floorY }, theme, 80, 500);
-  if (crit) fx.focus(1, null, 260);
-  await fx.move(mateEl, { x: home.x + dist }, 130, "expo");
-  // 3. Strike: snap upright as the blade sweeps through.
-  dot.sx.s = 0.82; dot.sy.s = 1.22; dot.sx.t = 1; dot.sy.t = 1; dot.lean.t = 0.1;
-  fx.slash({ x: target.x - 40, y: target.y }, theme, { angle: -20 });
-  impact(fx, theme, target, onHit?.(1), false);
-  if (crit) {
+}
+
+// Hop back home and land with a splash.
+async function hopHome(s, from) {
+  const { fx, dot, mateEl, home, c0, theme } = s;
+  if (from !== undefined) await fx.move(mateEl, { x: from }, 150, "out");
+  dot.jump.v = -6;
+  await fx.move(mateEl, { x: home.x, y: home.y, r: 0 }, 420, "inOut");
+  await fx.wait(80);
+  fx.ripple({ x: c0.x, y: fx.floorY }, theme, 70, 600);
+}
+
+const MOVES = {
+  // Water blade: dash in, slash, recoil.
+  async blade(s) {
+    const { fx, dot, mateEl, home, c0, target, theme, onHit } = s;
+    await gather(s);
+    const dist = target.x - c0.x - 150;
+    dot.sx.s = 1.32; dot.sy.s = 0.78; dot.sx.t = 1.25; dot.sy.t = 0.82; dot.lean.t = 0.22;
+    launch(s);
+    fx.dashTrail(c0, { x: c0.x + dist, y: c0.y }, theme);
+    await fx.move(mateEl, { x: home.x + dist }, 130, "expo");
+    dot.sx.s = 0.82; dot.sy.s = 1.22; dot.sx.t = 1; dot.sy.t = 1; dot.lean.t = 0.1;
+    const up = Math.random() < 0.5;
+    fx.slash({ x: target.x - 40, y: target.y }, theme, { angle: up ? -20 : 20, flip: up ? 1 : -1 });
+    impact(fx, theme, target, onHit?.(1), false);
+    await fx.wait(120);
+    await hopHome(s, home.x + dist - 80);
+  },
+
+  // Tidal dive: leap high, spin, and crash down on the boss with a splash crown.
+  async dive(s) {
+    const { fx, dot, mateEl, home, c0, target, theme, onHit } = s;
+    await gather(s, { ms: 300 });
+    const dist = target.x - c0.x - 110;
+    dot.sx.s = 0.8; dot.sy.s = 1.3; dot.sx.t = 1; dot.sy.t = 1;
+    launch(s, 0);
+    fx.slowmo(0.7, 380);
+    await fx.move(mateEl, { x: home.x + dist * 0.6, y: home.y - 190, r: 200 }, 340, "out");
+    fx.drops(fx.at(dot.figure), theme, 8, { power: 0.6 });
+    await fx.move(mateEl, { x: home.x + dist, y: home.y - 40, r: 360 }, 170, "in");
+    dot.sx.s = 1.3; dot.sy.s = 0.75;
+    fx.splashCrown(target.x - 40, theme, { power: 0.75 });
+    impact(fx, theme, target, onHit?.(1), false);
+    fx.punch(0.04, target);
+    await fx.move(mateEl, { x: home.x + dist - 30, y: home.y, r: 360 }, 120, "out");
+    await fx.wait(160);
+    mateEl._pos.r = 0;
+    await hopHome(s, home.x + dist - 90);
+  },
+
+  // Hydro volley: stay back and fire three water orbs in quick succession.
+  async volley(s) {
+    const { fx, dot, c0, target, theme, onHit } = s;
+    await gather(s, { ms: 320 });
+    for (let i = 0; i < 3; i++) {
+      const last = i === 2;
+      dot.sx.s = 1.18; dot.sy.s = 0.86; dot.dx.v += 5;     // recoil each shot
+      fx.drops({ x: c0.x + 30, y: c0.y }, theme, 4, { power: 0.6, dir: 1 });
+      const aim = { x: target.x - 30 + (i - 1) * 6, y: target.y + (i - 1) * 26 };
+      fx.orb({ x: c0.x + 40, y: c0.y - 6 }, aim, theme, { ms: 240, arc: 20 + i * 18, onArrive: () => {
+        if (last) impact(fx, theme, aim, onHit?.(1), false);
+        else { fx.splash(aim, theme, { n: 10, power: 0.8, dir: 1 }); fx.hitstop(35); fx.shake(4); s.boss.hit({ blocked: !!s.boss.dome?.childElementCount }); }
+      } });
+      await fx.wait(last ? 320 : 150);
+    }
+  },
+
+  // Finisher: two crossing blades, then a splash crown erupts under the boss.
+  async crossBlades(s) {
+    const { fx, dot, mateEl, home, c0, target, theme, onHit } = s;
+    await gather(s, { crit: true });
+    const dist = target.x - c0.x - 150;
+    dot.sx.s = 1.32; dot.sy.s = 0.78; dot.lean.t = 0.22;
+    launch(s);
+    fx.dashTrail(c0, { x: c0.x + dist, y: c0.y }, theme);
+    fx.focus(1, null, 260);
+    await fx.move(mateEl, { x: home.x + dist }, 130, "expo");
+    dot.sx.s = 0.82; dot.sy.s = 1.22;
+    fx.slash({ x: target.x - 40, y: target.y }, theme, { angle: -20 });
+    impact(fx, theme, target, onHit?.(1), false);
     await fx.wait(150);
     dot.jump.v = -4; dot.sx.s = 1.2; dot.sy.s = 0.84;
     fx.slash({ x: target.x - 30, y: target.y - 10 }, theme, { angle: 200, flip: -1, size: 135 });
-    fx.geyser(target.x, theme);
+    fx.splashCrown(target.x, theme, { power: 1.1 });
     impact(fx, theme, target, onHit?.(2), true);
-  }
-  await fx.wait(crit ? 280 : 120);
-  // 4. Recoil off the hit, then a hop back home and a splash landing.
-  await fx.move(mateEl, { x: home.x + dist - 80 }, 150, "out");
-  dot.jump.v = -6;
-  await fx.move(mateEl, { x: home.x }, 420, "inOut");
-  await fx.wait(80);
-  fx.ripple({ x: c0.x, y: fx.floorY }, theme, 70, 600);
-  dot.lean.t = 0; dot.setMood("idle");
-}
+    await fx.wait(280);
+    await hopHome(s, home.x + dist - 80);
+  },
+
+  // Finisher: summon a wave, ride its crest into the boss, and let it crash over him.
+  async tidalWave(s) {
+    const { fx, dot, mateEl, home, c0, target, theme, onHit } = s;
+    await gather(s, { crit: true });
+    fx.focus(1.04, { x: (c0.x + target.x) / 2, y: c0.y }, 600);
+    dot.sx.s = 0.8; dot.sy.s = 1.3; dot.jump.v = -3;
+    launch(s, 0);
+    let hitOnce = false;
+    const startX = c0.x - 40, endX = target.x - 60;
+    // The wave carries DOT: each frame he's placed on its crest.
+    const ride = (x, y) => { fx.place(mateEl, { x: home.x + (x - c0.x) - 10, y: home.y + Math.min(0, y - c0.y - 30), r: -12 }); };
+    await new Promise((done) => fx.wave(startX, endX, theme, { ms: 700, height: 210, rideOn: ride, onArrive: () => {
+      if (!hitOnce) { hitOnce = true; impact(fx, theme, target, onHit?.(1), false); }
+      fx.splashCrown(target.x - 20, theme, { power: 1.2 });
+      impact(fx, theme, target, onHit?.(2), true);
+      done();
+    } }));
+    fx.focus(1, null, 400);
+    await fx.wait(320);
+    const p = mateEl._pos;
+    await fx.move(mateEl, { x: p.x - 40, y: home.y, r: 0 }, 180, "in");
+    await hopHome(s, p.x - 100);
+  },
+};
 
 // What a strike looks like when it lands, depending on the result.
 function impact(fx, theme, at, result, crit) {

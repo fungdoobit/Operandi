@@ -70,7 +70,13 @@ main { padding: 24px max(16px, 3vw); }
   <button data-skin="dot" aria-pressed="true">DOT (water)</button><button data-skin="pyro">PYRO (fire)</button><button id="auto">▶ Autoplay</button>
 </div>
 <div class="controls">
-  <button data-a="hit">Attack</button><button data-a="crit">Flawless crit</button><button data-a="miss">Miss</button>
+  <button data-a="hit">Attack (random)</button><button data-a="crit">Flawless crit (random)</button><button data-a="miss">Miss</button>
+</div>
+<div class="controls">
+  <button data-m="blade">Water blade</button><button data-m="dive">Tidal dive</button><button data-m="volley">Hydro volley</button>
+  <button data-m="crossBlades" data-crit="1">Crit: crossing blades</button><button data-m="tidalWave" data-crit="1">Crit: tidal wave</button>
+</div>
+<div class="controls">
   <button data-a="slam">Boss: claw slam</button><button data-a="cannon">Boss: cannon</button>
   <button data-a="firewall">Firewall</button><button data-a="typos">Typo Swarm</button><button data-a="glitch">Glitch Text</button>
   <button data-a="win">Boss defeated</button><button data-a="lose">Knocked out</button><button data-a="reset">Reset</button>
@@ -156,8 +162,8 @@ function strike(n, crit) {
   return isCrit ? "crit" : "hit";
 }
 const act = {
-  hit: () => M.teammateAttack(ctx, { onHit: (n) => strike(n, false) }),
-  crit: () => M.teammateAttack(ctx, { crit: true, onHit: (n) => strike(n, true) }),
+  hit: (move) => M.teammateAttack(ctx, { move, onHit: (n) => strike(n, false) }),
+  crit: (move) => M.teammateAttack(ctx, { move, crit: true, onHit: (n) => strike(n, true) }),
   miss: async () => { dot.setMood("worried", { revertAfter: 1400 }); fx.drops(fx.at(dot.figure), ctx.theme, 6, { power: 0.4 }); boss.taunt(); },
   slam: () => M.bossAttack(ctx, "slam", { onHit: () => { me = Math.max(0, me - 20); show(); } }),
   cannon: () => M.bossAttack(ctx, "cannon", { onHit: () => { me = Math.max(0, me - 20); show(); } }),
@@ -169,20 +175,21 @@ const act = {
   reset: () => build(),
 };
 document.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => act[b.dataset.a]()));
+document.querySelectorAll("[data-m]").forEach((b) => b.addEventListener("click", () => act[b.dataset.crit ? "crit" : "hit"](b.dataset.m)));
 document.querySelectorAll("[data-skin]").forEach((b) => b.addEventListener("click", () => { skin = b.dataset.skin; build(); }));
 async function autoplay() {
   build();
   await fx.wait(600);
-  await act.hit(); await fx.wait(300);
+  await act.hit("blade"); await fx.wait(300);
   await act.slam(); await fx.wait(300);
-  await act.crit(); await fx.wait(400);
+  await act.crit("crossBlades"); await fx.wait(400);
   await act.cannon(); await fx.wait(300);
+  await act.hit("dive"); await fx.wait(300);
   await act.firewall(); await fx.wait(300);
-  await act.hit(); await fx.wait(300);
-  await act.crit(); await fx.wait(500);
+  await act.hit("volley"); await fx.wait(300);
+  await act.crit("tidalWave"); await fx.wait(500);
   await act.typos(); await fx.wait(300);
   await act.glitch(); await fx.wait(300);
-  await act.hit(); await fx.wait(400);
   await act.win(); await fx.wait(1000);
 }
 window.autoplay = autoplay;

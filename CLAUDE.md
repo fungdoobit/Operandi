@@ -111,6 +111,10 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - `js/battle-fx.js`: camera (shake, zoom punch, focus, letterbox), flashes, and themed particles (gather, dash trail, blade slash, droplets or embers, ripples, geyser, ground shockwave, shot, title card).
     - `js/battle-moves.js`: the choreography for each move (anticipation, then a fast strike, hit-stop, follow-through), shared by the preview and the future battle screen.
   - GOLEM's cannon aims at the teammate, and the Typo Swarm mobs the teammate (no damage).
+  - The teammate's moves are picked at random, never the same twice in a row (`battle-moves.js`):
+    - attacks: water blade (dash and slash), tidal dive (leap, spin, crash), hydro volley (three orbs)
+    - crit finishers: crossing blades plus a splash crown, or a tidal wave DOT rides into the boss
+  - The splash crown replaced the stiff water pillar after Isaac's feedback. It's built from curling "water tongues" (`makeTongue` / `drawTongue` in `battle-fx.js`), styled after Isaac's cartoon-water reference.
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).
