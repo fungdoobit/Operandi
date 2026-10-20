@@ -188,7 +188,7 @@ Decided with Isaac on 2026-10-20:
 - **Checks:** every section is covered by the content checker.
 - **Old progress:** a lesson finished before sections existed still counts as done.
 
-## Addendum E: Hollow Knight-inspired battle style (concept, waiting on Isaac's pick)
+## Addendum E: Hollow Knight-inspired battle style (concept rejected for looks; motion kept)
 
 Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everything, art style, animations, attacks".
 - **Scope (Isaac):** battles and characters. Lessons and the home page stay as they are.
@@ -204,3 +204,8 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
   - Effects: ink bursts when the teammate is hit, orange blobs when the boss is hit, soul wisps, crescent slashes, and shockwaves rolling along the floor.
   - All original art (no Hollow Knight assets or characters).
 - **Next:** Isaac picks the boss and approves or rejects the restyle. Only then does it replace the current art, which would need the restyle rebuilt for roaming on lesson pages too.
+
+**Outcome (2026-10-20):** Isaac hated the character designs.
+- Decision: drop the look and bring the animation over to the approved characters, themed to each one: DOT water, PYRO fire.
+- He wants high-quality, high-impact, cinematic animation.
+- Built as `battle-time.js`, `battle-fx.js` and `battle-moves.js` (see CLAUDE.md).

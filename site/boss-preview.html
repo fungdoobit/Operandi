@@ -17,6 +17,8 @@ main { padding: 24px max(16px, 3vw); }
 /* Mock battle stage: visuals only, no rules yet. */
 .stage { position: relative; height: 470px; border-radius: 16px; overflow: hidden; border: 1px solid #262c38;
   background: radial-gradient(ellipse at 70% 40%, #1d2330, #12151c 70%); }
+.stage .world { position: absolute; inset: 0; will-change: transform; }
+.controls button[aria-pressed="true"] { background: #e9ecf2; color: #0f1116; }
 .stage .floor { position: absolute; left: 0; right: 0; top: 78%; bottom: 0; background: linear-gradient(#171b24, #0e1015); border-top: 1px solid #2c3442; }
 .hp { position: absolute; top: 14px; width: 40%; font: 600 13px "IBM Plex Sans", sans-serif; display: flex; flex-direction: column; gap: 5px; }
 .hp.me { left: 16px; } .hp.foe { right: 16px; text-align: right; }
@@ -54,20 +56,24 @@ main { padding: 24px max(16px, 3vw); }
 <div class="grid" id="mateGrid"></div>
 
 <h2>Mock battle</h2>
-<p>This is only for judging looks and feel. The damage numbers here are placeholders, and the rules and real challenges come in step 2.</p>
+<p>Cinematic version: hit-freeze, camera shake and zoom, slow motion and letterbox bars on the big moments. DOT fights with water, PYRO with fire. Damage numbers are placeholders.</p>
 <div class="stage" id="stage">
-  <div class="floor"></div>
-  <div class="hp me"><div class="row"><span>DOT</span><small id="meNum">100 / 100</small></div><div class="bar"><div class="fill" id="hpMe"></div></div></div>
+  <div class="world" id="world">
+    <div class="floor"></div>
+    <div class="foe-spot" id="foe"></div>
+    <div class="mate-spot" id="mate"></div>
+  </div>
+  <div class="hp me"><div class="row"><span id="meName">DOT</span><small id="meNum">300 / 300</small></div><div class="bar"><div class="fill" id="hpMe"></div></div></div>
   <div class="hp foe"><div class="row"><span>GOLEM</span><small id="foeNum">300 / 300</small></div><div class="bar"><div class="fill" id="hpFoe"></div></div></div>
-  <div class="tell" id="tell"></div>
-  <div class="foe-spot" id="foe"></div>
-  <div class="mate-spot" id="mate"></div>
 </div>
 <div class="controls">
-  <button data-a="hit">DOT attacks</button><button data-a="crit">Flawless crit</button><button data-a="miss">Miss</button>
+  <button data-skin="dot" aria-pressed="true">DOT (water)</button><button data-skin="pyro">PYRO (fire)</button><button id="auto">▶ Autoplay</button>
+</div>
+<div class="controls">
+  <button data-a="hit">Attack</button><button data-a="crit">Flawless crit</button><button data-a="miss">Miss</button>
   <button data-a="slam">Boss: claw slam</button><button data-a="cannon">Boss: cannon</button>
   <button data-a="firewall">Firewall</button><button data-a="typos">Typo Swarm</button><button data-a="glitch">Glitch Text</button>
-  <button data-a="win">Boss defeated</button><button data-a="lose">DOT knocked out</button><button data-a="reset">Reset</button>
+  <button data-a="win">Boss defeated</button><button data-a="lose">Knocked out</button><button data-a="reset">Reset</button>
 </div>
 
 <h2>Name ideas (acronyms, like DOT and PYRO)</h2>
@@ -82,6 +88,8 @@ main { padding: 24px max(16px, 3vw); }
 <script type="module">
 import { Boss, BOSS_CSS } from "./js/boss.js";
 import { Dot, DOT_CSS } from "./js/dot.js";
+import { BattleFX } from "./js/battle-fx.js";
+import * as M from "./js/battle-moves.js";
 const st = document.createElement("style"); st.textContent = DOT_CSS + BOSS_CSS; document.head.append(st);
 
 function cell(grid, label, cls = "") {
@@ -116,73 +124,68 @@ const mateDemos = {
 };
 for (const [label, run] of Object.entries(mateDemos)) run(new Dot(cell("mateGrid", label, "mate"), { facing: "right", battle: true }));
 
-// Mock battle.
+// Mock battle, with the cinematic effects and choreography the real battle screen will use.
 const stage = document.getElementById("stage");
-const dot = new Dot(document.getElementById("mate"), { facing: "right", battle: true });
+const fx = new BattleFX(stage, document.getElementById("world"));
 const boss = new Boss(document.getElementById("foe"));
-const MAX_ME = 100, MAX_FOE = 300;
-let me = MAX_ME, foe = MAX_FOE, dome = false, busy = false;
+let skin = new URLSearchParams(location.search).get("skin") || "dot";
+let dot, ctx;
+const MAX = 300;
+let me, foe;
 const $ = (id) => document.getElementById(id);
-const show = () => {
-  $("hpMe").style.width = (me / MAX_ME * 100) + "%"; $("hpFoe").style.width = (foe / MAX_FOE * 100) + "%";
-  $("meNum").textContent = `${me} / ${MAX_ME}`; $("foeNum").textContent = `${foe} / ${MAX_FOE}`;
-};
-const S = () => stage.getBoundingClientRect();
-function at(el) { const r = el.getBoundingClientRect(), s = S(); return { x: r.left - s.left + r.width / 2, y: r.top - s.top + r.height / 2 }; }
-const dotAt = () => at(document.querySelector("#mate .dot-figure"));
-const pageDot = () => { const r = document.querySelector("#mate .dot-figure").getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.55 }; };
-const coreAt = () => at(document.querySelector("#foe .boss-core"));
-function pop(text, { x, y }, color) {
-  const p = document.createElement("div"); p.className = "pop"; p.textContent = text; p.style.color = color; p.style.left = x + "px"; p.style.top = y + "px";
-  stage.append(p);
-  p.animate([{ transform: "translate(-50%, 0) scale(.6)", opacity: 0 }, { transform: "translate(-50%, -34px) scale(1.15)", opacity: 1, offset: .25 }, { transform: "translate(-50%, -70px) scale(1)", opacity: 0 }], { duration: 1200, easing: "ease-out", fill: "forwards" });
-  setTimeout(() => p.remove(), 1200);
+function show() {
+  $("hpMe").style.width = (me / MAX * 100) + "%"; $("hpFoe").style.width = (foe / MAX * 100) + "%";
+  $("meNum").textContent = `${me} / ${MAX}`; $("foeNum").textContent = `${foe} / ${MAX}`;
 }
-function fly(cls, from, to, { ms, arc }, then) {
-  const b = document.createElement("div"); b.className = cls; stage.append(b);
-  const mid = { x: (from.x + to.x) / 2, y: Math.min(from.y, to.y) - arc };
-  b.animate([{ left: from.x + "px", top: from.y + "px" }, { left: mid.x + "px", top: mid.y + "px", offset: .5 }, { left: to.x + "px", top: to.y + "px" }],
-    { duration: ms, easing: "ease-in", fill: "forwards" });
-  setTimeout(() => { b.remove(); then(); }, ms);
+function build() {
+  dot = new Dot(document.getElementById("mate"), { facing: "right", battle: true, skin });
+  ctx = { fx, dot, boss, mateEl: document.getElementById("mate"), theme: skin === "pyro" ? "fire" : "water" };
+  fx.place(ctx.mateEl, { x: 0, y: 0 });
+  boss.reset();
+  me = MAX; foe = MAX; show();
+  $("meName").textContent = skin.toUpperCase();
+  document.querySelectorAll("[data-skin]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.skin === skin));
 }
-function dotShoots(crit, then) {
-  dot.attack(() => fly("bolt" + (crit ? " crit" : ""), dotAt(), dome ? { x: coreAt().x - 230, y: coreAt().y } : coreAt(), { ms: crit ? 380 : 480, arc: 40 }, then));
+// What a strike does: blocked by the Firewall, a normal hit, or a crit that breaks it.
+function strike(n, crit) {
+  const blocked = !!boss.dome?.childElementCount && !(crit && n === 2);
+  if (blocked) { boss.hit({ blocked: true }); return "blocked"; }
+  const isCrit = crit && n === 2;
+  boss.hit({ crit: isCrit });
+  foe = Math.max(0, foe - (isCrit ? 40 : crit ? 15 : 20)); show();
+  return isCrit ? "crit" : "hit";
 }
-function hurtDot(n, crit) { me = Math.max(0, me - n); show(); dot.hurt({ crit }); pop("-" + n, dotAt(), "#8ae2ff"); if (!me) setTimeout(() => act.lose(), 500); }
 const act = {
-  hit: () => dotShoots(false, () => {
-    if (dome) { boss.hit({ blocked: true }); pop("Blocked", { x: coreAt().x - 230, y: coreAt().y }, "#ffb35c"); return; }
-    boss.hit(); foe = Math.max(0, foe - 45); show(); pop("-45", coreAt(), "#ffd28a");
-  }),
-  crit: () => dotShoots(true, () => {
-    boss.hit({ crit: true }); dome = false; foe = Math.max(0, foe - 90); show();
-    pop("CRIT -90", coreAt(), "#fff3c4"); dot.setMood("happy", { revertAfter: 1400 });
-    if (!foe) setTimeout(() => act.win(), 400);
-  }),
-  miss: () => { dot.attack(() => { dot.setMood("worried", { revertAfter: 1400 }); pop("Miss", dotAt(), "#9ea6b5"); }); },
-  slam: () => boss.attack({ kind: "slam", onRelease: (p) => {
-    const s = S(), from = { x: p.x - s.left, y: S().height * 0.78 }, to = { x: dotAt().x, y: S().height * 0.78 };
-    const w = document.createElement("div"); w.className = "wave"; stage.append(w);
-    w.animate([{ left: from.x - 35 + "px", top: from.y + "px", opacity: 1, transform: "scaleX(.6)" }, { left: to.x - 35 + "px", top: to.y + "px", opacity: .9, transform: "scaleX(1.3)" }],
-      { duration: 420, easing: "ease-in", fill: "forwards" });
-    setTimeout(() => { w.remove(); hurtDot(25, false); }, 420);
-  } }),
-  cannon: () => boss.attack({ kind: "cannon", target: pageDot(), onRelease: (p) => {
-    const s = S();
-    fly("shell", { x: p.x - s.left, y: p.y - s.top }, dotAt(), { ms: 380, arc: 12 }, () => hurtDot(20, false));
-  } }),
-  firewall: () => special("firewall", () => { boss.special("firewall"); dome = true; }),
-  typos: () => special("typos", () => boss.special("typos", { target: pageDot(), onArrive: () => dot.swarmed(1700) })),
-  glitch: () => special("glitch", () => { boss.special("glitch"); setTimeout(() => dot.setMood("worried", { revertAfter: 1400 }), 500); }),
-  win: () => { foe = 0; dome = false; show(); boss.defeat(); setTimeout(() => dot.win(), 1400); },
-  lose: () => { me = 0; show(); dot.ko(); setTimeout(() => boss.win(), 500); },
-  reset: () => { boss.reset(); me = MAX_ME; foe = MAX_FOE; dome = false; dot.setMood("idle"); show(); },
+  hit: () => M.teammateAttack(ctx, { onHit: (n) => strike(n, false) }),
+  crit: () => M.teammateAttack(ctx, { crit: true, onHit: (n) => strike(n, true) }),
+  miss: async () => { dot.setMood("worried", { revertAfter: 1400 }); fx.drops(fx.at(dot.figure), ctx.theme, 6, { power: 0.4 }); boss.taunt(); },
+  slam: () => M.bossAttack(ctx, "slam", { onHit: () => { me = Math.max(0, me - 20); show(); } }),
+  cannon: () => M.bossAttack(ctx, "cannon", { onHit: () => { me = Math.max(0, me - 20); show(); } }),
+  firewall: () => M.bossSpecial(ctx, "firewall", "Firewall"),
+  typos: () => M.bossSpecial(ctx, "typos", "Typo Swarm"),
+  glitch: () => M.bossSpecial(ctx, "glitch", "Glitch Text"),
+  win: async () => { foe = 0; show(); await M.bossDefeat(ctx); },
+  lose: async () => { me = 0; show(); await M.bossWin(ctx); },
+  reset: () => build(),
 };
-function special(move, run) {
-  boss.charge(move);
-  $("tell").textContent = `${boss.b.name} ${boss.b.moves[move].tell}!`; $("tell").classList.add("on");
-  setTimeout(() => { $("tell").classList.remove("on"); run(); }, 1600);
+document.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => act[b.dataset.a]()));
+document.querySelectorAll("[data-skin]").forEach((b) => b.addEventListener("click", () => { skin = b.dataset.skin; build(); }));
+async function autoplay() {
+  build();
+  await fx.wait(600);
+  await act.hit(); await fx.wait(300);
+  await act.slam(); await fx.wait(300);
+  await act.crit(); await fx.wait(400);
+  await act.cannon(); await fx.wait(300);
+  await act.firewall(); await fx.wait(300);
+  await act.hit(); await fx.wait(300);
+  await act.crit(); await fx.wait(500);
+  await act.typos(); await fx.wait(300);
+  await act.glitch(); await fx.wait(300);
+  await act.hit(); await fx.wait(400);
+  await act.win(); await fx.wait(1000);
 }
-document.querySelectorAll(".controls button").forEach((b) => b.addEventListener("click", () => act[b.dataset.a]()));
-show();
+window.autoplay = autoplay;
+$("auto").addEventListener("click", autoplay);
+build();
 </script></body></html>

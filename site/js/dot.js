@@ -3,6 +3,7 @@
 // looks a little liquid, and jiggles harder when moved (nudge, pick up, plop).
 // Moods change the face; say() shows a speech bubble.
 
+import { battleTime } from "./battle-time.js";
 const INK = "#16304a";
 
 // Body outline as cubic segments: [start, c1, c2, end, c1, c2, end, ...].
@@ -390,10 +391,13 @@ export class Dot {
   // One animation frame: wobble the outline and settle the springs.
   frame(now) {
     if (!this.figure.isConnected) return; // removed from the page: stop
-    const t = (now - this.start) / 1000;
     // Scale every step by real elapsed time, so motion is the same speed at 60 or 120 fps.
-    const step = Math.min(3, (now - (this.last ?? now)) / (1000 / 60)) || 1;
+    const raw = Math.min(3, (now - (this.last ?? now)) / (1000 / 60)) || 1;
     this.last = now;
+    // In a battle, hit-stop freezes him and slow motion slows him (battle-time.js).
+    const step = battleTime.step(now, raw);
+    this.at = (this.at ?? 0) + step / 60;
+    const t = this.at;
     const still = reduceMotion();
     for (const k of [this.sx, this.sy, this.lean, this.dx]) {
       k.v += (k.t - k.s) * this.spring.k * step;

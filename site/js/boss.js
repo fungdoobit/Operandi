@@ -8,6 +8,7 @@
 //   attack({ kind: "slam" | "cannon", onRelease(point) }), hit({ crit, blocked }),
 //   charge(move), special(move), defeat(), win(), reset(), point(name).
 
+import { battleTime } from "./battle-time.js";
 const INK = "#0b0e13";
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -576,16 +577,19 @@ export class Boss {
     }
   }
   blast(cx, cy) {
-    this.add("circle", { r: 2, fill: "#ffd04a" }, { kind: "blast", x: cx, y: cy, size: rand(22, 34), max: 18 });
+    this.add("circle", { r: 2, fill: "#ffd04a" }, { kind: "blast", x: cx, y: cy, vx: 0, vy: 0, size: rand(22, 34), max: 18 });
     this.sparks(cx, cy, 6, 1);
     this.puff(cx, cy, 2, 1);
   }
 
   frame(now) {
     if (!this.figure.isConnected) return;
-    const t = (now - this.start) / 1000;
-    const step = Math.min(3, (now - (this.last ?? now)) / (1000 / 60)) || 1;
+    const raw = Math.min(3, (now - (this.last ?? now)) / (1000 / 60)) || 1;
     this.last = now;
+    // In a battle, hit-stop freezes him and slow motion slows him (battle-time.js).
+    const step = battleTime.step(now, raw);
+    this.at = (this.at ?? 0) + step / 60;
+    const t = this.at;
     const still = reduceMotion();
     const spring = (k, stiff = 0.12, damp = 0.8) => { k.v += (k.t - k.s) * stiff * step; k.v *= Math.pow(damp, step); k.s += k.v * step; };
     [this.x, this.y, this.rot, this.sx, this.sy].forEach((k) => spring(k));
