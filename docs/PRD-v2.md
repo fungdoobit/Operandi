@@ -147,6 +147,10 @@ Decided with Isaac on 2026-10-20:
   - Win on a retry: small Bits only. The exclusive is then unlocked in the Shop at a high price.
 - **Build order:** the battle system, the Module 1 boss and streak rewards first. Each later module ships with its own boss.
 - **Special moves:** each boss has its own, tied to that module's topic. They are telegraphed one turn ahead and must be beatable with that module's skills only.
+- **Difficulty scales by module, based on what that module taught** (Isaac, 2026-10-20).
+  - Boss challenges are built only from the topics of that module and earlier ones, and mostly from that module's own topics.
+  - Later bosses get harder through challenge difficulty, special-move frequency and fewer misses you can afford. Not just bigger HP numbers, which would only make fights longer.
+  - The validator checks that every boss challenge and special move uses only topics already taught.
 - **Fight rules (proposed):**
   - Both sides have 100 HP.
   - A pass deals 15–25 depending on the mark. A flawless pass (10/10, first submission, no hint or peek) is a crit for 40. A fail is a miss.
