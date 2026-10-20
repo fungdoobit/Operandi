@@ -193,6 +193,7 @@ async function autoplay() {
   await act.win(); await fx.wait(1000);
 }
 window.autoplay = autoplay;
+window.__battle = () => ({ fx, ctx, M });
 $("auto").addEventListener("click", autoplay);
 build();
 </script></body></html>

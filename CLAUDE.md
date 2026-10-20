@@ -114,7 +114,11 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - The teammate's moves are picked at random, never the same twice in a row (`battle-moves.js`):
     - attacks: water blade (dash and slash), tidal dive (leap, spin, crash), hydro volley (three orbs)
     - crit finishers: crossing blades plus a splash crown, or a tidal wave DOT rides into the boss
-  - The splash crown replaced the stiff water pillar after Isaac's feedback. It's built from curling "water tongues" (`makeTongue` / `drawTongue` in `battle-fx.js`), styled after Isaac's cartoon-water reference.
+  - Water look, round 3 (Isaac said the pointed "tongues" didn't look like water):
+    - Cartoon water reads through round, blobby shapes.
+    - The splash crown is a flared bowl with a foam rim, fingers tipped with round beads that break off as drops, and a central jet whose round head breaks away.
+    - The wave is a rounded hump whose lip curls over a darker barrel, with a foam crest.
+    - Droplets are teardrops with a highlight, and they make a tiny splash where they land.
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).

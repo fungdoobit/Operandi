@@ -39,6 +39,9 @@ function curve(pts, closed) {
   return closed ? d + " Z" : d;
 }
 
+// A teardrop one unit wide: round end at the bottom, point at the top.
+const DROP = "M0 -1.7 C0.35 -1 1 -0.35 1 0.3 C1 0.95 0.55 1.3 0 1.3 C-0.55 1.3 -1 0.95 -1 0.3 C-1 -0.35 -0.35 -1 0 -1.7 Z";
+
 function el(tag, attrs = {}, parent) {
   const e = document.createElementNS(NS, tag);
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
@@ -227,26 +230,43 @@ export class BattleFX {
     }
   }
 
-  // Droplets (water) or embers (fire) flung out from a point; droplets fall and
-  // splash on the floor, embers float up and fade.
-  drops(c, theme, n, { power = 1, dir = 0, up = 4 } = {}) {
+  // Droplets (water) or embers (fire) flung out from a point. Water drops are
+  // round teardrops with a highlight: they stretch a little with speed, fall,
+  // and leave a tiny splash and ripple where they land. Embers float up and fade.
+  drops(c, theme, n, { power = 1, dir = 0, up = 4, size: big = 1 } = {}) {
     const T = THEMES[theme], fire = theme === "fire", floor = this.floorY;
     for (let i = 0; i < n; i++) {
       const a = dir ? (dir > 0 ? 0 : Math.PI) + rand(-1.1, 1.1) : rand(0, Math.PI * 2), sp = rand(3, 9) * power;
-      const size = rand(2.2, 4.8);
-      const e = el("ellipse", { rx: size * 0.75, ry: size, fill: pick([T.mid, T.light, T.light, T.foam]), filter: fire ? "url(#fxGlow)" : "" }, this.g);
-      this.particle({ el: e, max: fire ? rand(500, 900) : rand(700, 1100), x: c.x, y: c.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - up,
+      const r = rand(2.6, 5.5) * big;
+      const g = el("g", { filter: fire ? "url(#fxGlow)" : "" }, this.g);
+      el("path", { d: DROP, fill: pick([T.mid, T.mid, T.light]), stroke: fire ? "none" : T.deep, "stroke-width": 0.12 }, g);
+      if (!fire) el("ellipse", { cx: -0.32, cy: 0.35, rx: 0.26, ry: 0.34, fill: T.foam, opacity: ".9" }, g);
+      this.particle({ el: g, max: fire ? rand(500, 900) : rand(700, 1100), x: c.x, y: c.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - up,
         update: (p, k, f) => {
           if (fire) { p.vy -= 0.06 * k; p.vx *= 0.97; } else p.vy += 0.42 * k;
           p.x += p.vx * k; p.y += p.vy * k;
-          if (!fire && p.y >= floor) { this.ripple({ x: p.x, y: floor }, theme, 14, 300); p.life = p.max; return; }
-          const ang = Math.atan2(p.vy, p.vx) * 180 / Math.PI - 90;
-          e.setAttribute("cx", p.x.toFixed(1)); e.setAttribute("cy", p.y.toFixed(1));
-          e.setAttribute("ry", (size * (1 + Math.min(2, Math.hypot(p.vx, p.vy) / 6))).toFixed(1));
-          e.setAttribute("transform", `rotate(${ang.toFixed(0)} ${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
-          e.setAttribute("opacity", (1 - f * f).toFixed(2));
+          if (!fire && p.y >= floor && k) {
+            if (r > 3.4) { this.ripple({ x: p.x, y: floor }, theme, 16, 300); this.foamPop({ x: p.x, y: floor }, theme, r); }
+            p.life = p.max; return;
+          }
+          // The round end leads; the point trails behind, longer the faster it goes.
+          const speed = Math.hypot(p.vx, p.vy), ang = Math.atan2(p.vy, p.vx) * 180 / Math.PI - 90;
+          const stretch = 1 + Math.min(0.9, speed / 14);
+          g.setAttribute("transform", `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${ang.toFixed(0)}) scale(${(r / stretch ** 0.3).toFixed(2)} ${(r * stretch).toFixed(2)})`);
+          g.setAttribute("opacity", (1 - f * f).toFixed(2));
         } });
     }
+  }
+
+  // A drop landing: a tiny crown of three beads that pops up and vanishes.
+  foamPop(c, theme, r) {
+    const T = THEMES[theme];
+    const g = el("g", {}, this.g);
+    [-1, 0, 1].forEach((s) => el("circle", { cx: s * r * 0.9, cy: 0, r: r * 0.45, fill: s ? T.light : T.foam }, g));
+    this.particle({ el: g, max: 220, update(p, k, f) {
+      g.setAttribute("transform", `translate(${c.x.toFixed(1)} ${(c.y - Math.sin(f * Math.PI) * r * 1.4).toFixed(1)}) scale(${(0.5 + f).toFixed(2)} ${(1 - f * 0.6).toFixed(2)})`);
+      g.setAttribute("opacity", (1 - f).toFixed(2));
+    } });
   }
 
   // A flat ring spreading on the floor, like a ripple on water (or a heat ring).
@@ -268,120 +288,109 @@ export class BattleFX {
   }
 
   // ---- Water shapes ------------------------------------------------------------
-  // A "tongue" is a ribbon of water (or flame) that grows from a base point,
-  // tapers to a tip and curls over. Its centre line bends a bit more at each
-  // step (angle = start + curl * s^2), and the outline is a smooth curve
-  // through points either side of it. Three layers give it depth: a dark body,
-  // a lighter inner band and a white highlight streak, like cartoon water.
-  makeTongue(theme, parent = this.g) {
-    const T = THEMES[theme];
-    const g = el("g", {}, parent);
-    return {
-      g,
-      body: el("path", { fill: T.deep }, g),
-      inner: el("path", { fill: T.mid }, g),
-      core: el("path", { fill: T.light, opacity: ".9" }, g),
-      shine: el("path", { fill: "none", stroke: T.foam, "stroke-width": 2.6, "stroke-linecap": "round", opacity: ".85" }, g),
-      cap: el("circle", { fill: T.foam }, g),
-    };
-  }
+  // Cartoon water reads as water through round, blobby shapes: a cup-shaped
+  // crown with round beads on its fingers that break off as drops, a jet with
+  // a round head, white foam on the rims, and a highlight on everything.
 
-  // Draw a tongue: base (x, y), start angle a (radians, -PI/2 = straight up),
-  // length len, curl (radians added by the tip), width w.
-  drawTongue(t, { x, y, a, len, curl, w, wob = 0 }) {
-    const N = 16, pts = [];
-    let px = x, py = y;
-    for (let i = 0; i <= N; i++) {
-      const s = i / N, ang = a + curl * s * s + Math.sin(s * 5 + wob) * 0.06;
-      pts.push({ x: px, y: py, ang, s });
-      px += Math.cos(ang) * (len / N); py += Math.sin(ang) * (len / N);
-    }
-    const ribbon = (scale, shift = 0) => {
-      const left = [], right = [];
-      for (const p of pts) {
-        // Wide near the base, swelling a little, then tapering to a round tip.
-        const ww = w * scale * Math.pow(1 - p.s, 0.55) * (0.8 + 0.45 * Math.sin(p.s * Math.PI));
-        const nx = -Math.sin(p.ang), ny = Math.cos(p.ang);
-        left.push([p.x + nx * (ww + shift * ww), p.y + ny * (ww + shift * ww)]);
-        right.push([p.x - nx * (ww - shift * ww), p.y - ny * (ww - shift * ww)]);
-      }
-      return curve([...left, ...right.reverse()], true);
-    };
-    t.body.setAttribute("d", ribbon(1));
-    t.inner.setAttribute("d", ribbon(0.66, 0.25));
-    t.core.setAttribute("d", ribbon(0.3, 0.9));
-    const hi = pts.filter((p) => p.s > 0.15 && p.s < 0.75).map((p) => { const ww = w * 0.45 * (1 - p.s); return [p.x - Math.sin(p.ang) * ww, p.y + Math.cos(p.ang) * ww]; });
-    t.shine.setAttribute("d", curve(hi, false));
-    const tip = pts[N];
-    t.cap.setAttribute("cx", tip.x.toFixed(1)); t.cap.setAttribute("cy", tip.y.toFixed(1));
-    t.cap.setAttribute("r", Math.max(0, w * 0.08).toFixed(1));
-    return tip;
-  }
-
-  // Crit finisher: a splash crown. Tongues of water erupt from under the target,
-  // fan out and curl over at the tips, then droop and fall apart into droplets.
+  // A splash crown on the floor at x: the cup rises, its fingers reach up, the
+  // beads on their tips break away as drops, a jet shoots up the middle and
+  // throws off a big drop, then it all sinks back into ripples.
   splashCrown(x, theme, { power = 1, y } = {}) {
-    const floor = y ?? this.floorY, n = 6;
-    const g = el("g", { filter: theme === "fire" ? "url(#fxGlow)" : "" }, this.g);
-    const tongues = Array.from({ length: n }, (_, i) => {
-      const side = (i / (n - 1)) * 2 - 1;                       // -1 (left) .. 1 (right)
-      return {
-        t: this.makeTongue(theme, g),
-        a: -Math.PI / 2 + side * 0.8 + rand(-0.12, 0.12),
-        len: (120 + (1 - Math.abs(side)) * 120 + rand(-20, 20)) * power,
-        curl: side * rand(1.6, 2.3) + (Math.abs(side) < 0.3 ? rand(-0.9, 0.9) : 0),
-        w: (26 + (1 - Math.abs(side)) * 16) * power,
-        delay: Math.abs(side) * 60 + rand(0, 40),
-        wob: rand(0, 6),
-      };
+    const T = THEMES[theme], floor = y ?? this.floorY, fire = theme === "fire";
+    const g = el("g", { filter: fire ? "url(#fxGlow)" : "" }, this.g);
+    const back = el("path", { fill: T.deep }, g);            // inside of the far wall
+    const jet = el("path", { fill: T.mid, stroke: T.deep, "stroke-width": 2 }, g);
+    const jetHi = el("path", { fill: "none", stroke: T.foam, "stroke-width": 3, "stroke-linecap": "round", opacity: ".85" }, g);
+    const head = el("circle", { fill: T.light, stroke: T.deep, "stroke-width": 2 }, g);
+    const headHi = el("ellipse", { fill: T.foam, opacity: ".9" }, g);
+    const front = el("path", { fill: T.mid, stroke: T.deep, "stroke-width": 2, "stroke-linejoin": "round" }, g);
+    const band = el("path", { fill: T.light, opacity: ".75" }, g);
+    const foam = el("path", { fill: "none", stroke: T.foam, "stroke-width": 3.5, "stroke-linecap": "round" }, g);
+    const N = 6;
+    const fingers = Array.from({ length: N }, (_, i) => {
+      const u = i / (N - 1);                                   // 0..1 along the front rim
+      return { u, len: rand(0.6, 1) * (0.7 + Math.abs(u - 0.5) * 0.6), lean: (u - 0.5) * 2.6 + rand(-0.2, 0.2),
+        body: el("path", { fill: T.mid, stroke: T.deep, "stroke-width": 1.6 }, g),
+        bead: el("circle", { fill: T.light, stroke: T.deep, "stroke-width": 1.6 }, g),
+        shine: el("circle", { fill: T.foam }, g), gone: false };
     });
-    // Tallest in front, so the middle column reads over the side ones.
-    tongues.sort((p, q) => q.w - p.w).reverse().forEach((tg) => g.append(tg.t.g));
-    const ms = 1100, shed = new Set();
+    const R0 = 34 * power, H0 = 70 * power, ms = 1150;
+    let jetGone = false;
     this.particle({ el: g, max: ms, update: (p, k, f) => {
-      for (const tg of tongues) {
-        const life = Math.max(0, p.life - tg.delay) / (ms - tg.delay);
-        const rise = EASE.expo(Math.min(1, life / 0.28));       // erupt fast
-        const fall = life > 0.4 ? EASE.in((life - 0.4) / 0.6) : 0; // then droop and collapse
-        const tip = this.drawTongue(tg.t, {
-          x: x + Math.cos(tg.a) * 10, y: floor,
-          a: tg.a + fall * Math.sign(tg.curl || 1) * 0.5,
-          len: tg.len * rise * (1 - fall * 0.65),
-          curl: tg.curl * (0.35 + rise * 0.65) + fall * Math.sign(tg.curl || 1) * 1.3,
-          w: tg.w * (1 - fall * 0.6), wob: tg.wob + p.life / 120,
-        });
-        tg.t.g.setAttribute("opacity", (1 - fall * fall).toFixed(2));
-        // As each tongue tips over, it throws off a spray from its tip.
-        if (fall > 0.05 && !shed.has(tg)) { shed.add(tg); this.drops({ x: tip.x, y: tip.y }, theme, 6, { power: 0.8, up: 2 }); }
+      const rise = EASE.expo(Math.min(1, f / 0.22)), sink = f > 0.42 ? EASE.inOut((f - 0.42) / 0.58) : 0;
+      const R = R0 * (0.55 + 0.45 * rise + 0.5 * sink), H = H0 * rise * (1 - sink), rimY = floor - H, rx = R * (1.6 + 1.1 * rise), ry = R * 0.42;
+      // Far wall: the top of the back rim and the dark inside of the cup.
+      back.setAttribute("d", `M${x - rx} ${rimY} A${rx} ${ry} 0 0 1 ${x + rx} ${rimY} L${x + R} ${floor} L${x - R} ${floor} Z`);
+      // Front wall: flares out from the base to the rim, with a wavy front edge.
+      // The front rim: a smooth wavy curve along the near half of the ellipse.
+      const rimPts = [];
+      for (let i = 0; i <= 12; i++) {
+        const u = i / 12, ang = Math.PI * u;
+        rimPts.push([x - Math.cos(ang) * rx, rimY + Math.sin(ang) * ry + Math.sin(u * 19 + p.life / 60) * 3 * rise]);
       }
+      const rim = curve(rimPts, false);
+      // Walls curve out like a flared bowl: steep near the floor, flat near the rim.
+      const wall = `M${x - R} ${floor} C${x - R * 1.1} ${floor - H * 0.6} ${x - rx * 0.7} ${rimY + ry * 0.9} ${x - rx} ${rimY} ` + rim.replace(/^M[^C]*/, "") + ` C${x + rx * 0.7} ${rimY + ry * 0.9} ${x + R * 1.1} ${floor - H * 0.6} ${x + R} ${floor} Z`;
+      front.setAttribute("d", wall);
+      band.setAttribute("d", `M${x - R * 0.8} ${floor} C${x - R * 0.85} ${floor - H * 0.4} ${x - rx * 0.6} ${rimY + ry} ${x - rx * 0.45} ${rimY + ry * 0.95} L${x - rx * 0.25} ${rimY + ry} C${x - R * 0.4} ${floor - H * 0.35} ${x - R * 0.45} ${floor - H * 0.1} ${x - R * 0.35} ${floor} Z`);
+      foam.setAttribute("d", rim);
+      // Fingers: rounded columns that reach up from the rim, each with a bead.
+      for (const fg of fingers) {
+        const ang = Math.PI * fg.u, bx = x - Math.cos(ang) * rx, by = rimY + Math.sin(ang) * ry;
+        const L = H * 1.1 * fg.len * (1 - sink * 0.8), tx = bx + fg.lean * L * 0.55, ty = by - L, w = 9 * power * (1 - sink * 0.5);
+        fg.body.setAttribute("d", `M${bx - w} ${by} Q${bx - w * 0.6 + fg.lean * L * 0.2} ${by - L * 0.6} ${tx - w * 0.45} ${ty} L${tx + w * 0.45} ${ty} Q${bx + w * 0.6 + fg.lean * L * 0.2} ${by - L * 0.6} ${bx + w} ${by} Z`);
+        // At the peak the bead breaks away and flies off as a real drop.
+        if (!fg.gone && f > 0.3 && k) { fg.gone = true; this.drops({ x: tx, y: ty }, theme, 1, { power: 0.5, dir: fg.lean > 0 ? 1 : -1, up: 5, size: 1.6 }); }
+        const br = fg.gone ? 0 : w * 1.25;
+        fg.bead.setAttribute("cx", tx.toFixed(1)); fg.bead.setAttribute("cy", (ty - br * 0.5).toFixed(1)); fg.bead.setAttribute("r", br.toFixed(1));
+        fg.shine.setAttribute("cx", (tx - br * 0.35).toFixed(1)); fg.shine.setAttribute("cy", (ty - br * 0.8).toFixed(1)); fg.shine.setAttribute("r", (br * 0.3).toFixed(1));
+      }
+      // The jet: a column with a round head that shoots up the middle.
+      const jr = EASE.expo(Math.min(1, Math.max(0, f - 0.04) / 0.26)), jsink = f > 0.38 ? EASE.in((f - 0.38) / 0.5) : 0;
+      const JH = H0 * 2.6 * jr * (1 - Math.min(1, jsink)), jw = (20 + Math.sin(p.life / 45) * 2.5) * power;
+      jet.setAttribute("d", `M${x - jw} ${floor - H * 0.3} C${x - jw * 0.8} ${floor - JH * 0.5} ${x - jw * 0.45} ${floor - JH * 0.85} ${x - jw * 0.6} ${floor - JH} L${x + jw * 0.6} ${floor - JH} C${x + jw * 0.45} ${floor - JH * 0.85} ${x + jw * 0.8} ${floor - JH * 0.5} ${x + jw} ${floor - H * 0.3} Z`);
+      jetHi.setAttribute("d", `M${x - jw * 0.3} ${floor - JH * 0.3} C${x - jw * 0.25} ${floor - JH * 0.55} ${x - jw * 0.2} ${floor - JH * 0.75} ${x - jw * 0.25} ${floor - JH * 0.9}`);
+      if (!jetGone && f > 0.32 && k) { jetGone = true; this.drops({ x, y: floor - JH - jw }, theme, 1, { power: 0.3, up: 6, size: 3 }); this.drops({ x, y: floor - JH }, theme, 5, { power: 0.6, up: 3 }); }
+      const hr = jetGone ? 0 : jw * 1.35 * jr;
+      head.setAttribute("cx", x); head.setAttribute("cy", (floor - JH - hr * 0.6).toFixed(1)); head.setAttribute("r", hr.toFixed(1));
+      headHi.setAttribute("cx", (x - hr * 0.35).toFixed(1)); headHi.setAttribute("cy", (floor - JH - hr).toFixed(1)); headHi.setAttribute("rx", (hr * 0.32).toFixed(1)); headHi.setAttribute("ry", (hr * 0.22).toFixed(1));
+      g.setAttribute("opacity", (f > 0.8 ? 1 - (f - 0.8) / 0.2 : 1).toFixed(2));
     } });
-    // A low jagged splash ring at the base, droplets, and ripples on the floor.
-    this.drops({ x, y: floor - 20 }, theme, 22, { power: 1.3 * power, up: 6 });
-    this.ripple({ x, y: floor }, theme, 170 * power, 900);
-    this.wait(200).then(() => this.ripple({ x, y: floor }, theme, 120 * power, 700));
+    this.drops({ x, y: floor - 16 }, theme, 14, { power: 1.1 * power, up: 5 });
+    this.ripple({ x, y: floor }, theme, 150 * power, 900);
+    this.wait(260).then(() => this.ripple({ x, y: floor }, theme, 110 * power, 800));
   }
   geyser(x, theme, opts) { this.splashCrown(x, theme, opts); }
 
-  // A wave that rolls in from `from` to `to` and crashes. It rises, curls
-  // forward, travels, and on arrival crashes into a splash crown.
-  // rideOn(x, y) is called every frame with the crest, so DOT can surf it.
+  // A breaking wave that rolls from `from` to `to` and crashes into a splash crown.
+  // Drawn as a rounded hump whose lip curls over a darker barrel, with a foam
+  // crest and spray. rideOn(x, y) gets the crest each frame, so DOT can surf it.
   wave(from, to, theme, { ms = 700, height = 200, onArrive, rideOn } = {}) {
-    const floor = this.floorY, dir = Math.sign(to - from) || 1;
-    const back = this.makeTongue(theme), front = this.makeTongue(theme);
+    const T = THEMES[theme], floor = this.floorY, dir = Math.sign(to - from) || 1;
+    const g = el("g", { filter: theme === "fire" ? "url(#fxGlow)" : "" }, this.g);
+    const s = height / 150;
+    g.innerHTML = `<g class="w">
+      <path d="M-170 0 C-120 -30 -70 -122 6 -142 C60 -154 104 -128 112 -94 C118 -72 104 -58 88 -60 C72 -62 70 -78 82 -86 C58 -88 38 -62 44 -30 C47 -14 56 -4 64 0 Z" fill="${T.mid}" stroke="${T.deep}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M82 -86 C58 -88 38 -62 44 -30 C47 -14 56 -4 64 0 L26 0 C20 -36 40 -76 82 -86 Z" fill="${T.deep}"/>
+      <path d="M-150 0 C-110 -24 -76 -96 -20 -122 C-56 -96 -84 -40 -96 0 Z" fill="${T.light}" opacity=".7"/>
+      <path d="M-60 -60 C-44 -84 -22 -104 6 -116 M-100 -24 C-90 -40 -78 -56 -64 -66" fill="none" stroke="${T.foam}" stroke-width="4" stroke-linecap="round" opacity=".85"/>
+      <path d="M-34 -124 C-6 -146 44 -152 84 -134 C104 -124 114 -108 110 -92" fill="none" stroke="${T.foam}" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="96" cy="-70" r="7" fill="${T.foam}"/><circle cx="114" cy="-84" r="4.5" fill="${T.foam}"/><circle cx="-10" cy="-138" r="5" fill="${T.foam}"/>
+    </g>`;
+    const w = g.querySelector(".w");
     let arrived = false;
-    this.particle({ el: back.g, max: ms + 200, update: (p, k, f) => {
-      const tt = Math.min(1, p.life / ms), rise = EASE.out(Math.min(1, tt / 0.35));
+    this.particle({ el: g, max: ms + 260, update: (p, k, f) => {
+      const tt = Math.min(1, p.life / ms), rise = EASE.back(Math.min(1, tt / 0.4));
       const x = from + (to - from) * EASE.inOut(tt);
-      const crash = p.life > ms ? (p.life - ms) / 200 : 0;
-      const h = height * rise * (1 - crash);
-      const tip = this.drawTongue(front, { x: x - dir * 50, y: floor, a: -Math.PI / 2 + dir * 0.25, len: h, curl: dir * (1.2 + tt * 1.2 + crash * 1.5), w: 46 * (1 - crash * 0.5), wob: p.life / 90 });
-      this.drawTongue(back, { x: x - dir * 120, y: floor, a: -Math.PI / 2 + dir * 0.55, len: h * 0.7, curl: dir * (1.0 + tt), w: 40 * (1 - crash * 0.5), wob: p.life / 70 + 2 });
-      back.g.setAttribute("opacity", (1 - crash).toFixed(2)); front.g.setAttribute("opacity", (1 - crash).toFixed(2));
-      if (Math.random() < 0.5 * k) this.drops({ x: tip.x, y: tip.y }, theme, 1, { power: 0.6, dir: -dir, up: 3 });
-      rideOn?.(tip.x - dir * 30, tip.y);
+      const crash = p.life > ms ? (p.life - ms) / 260 : 0;
+      // It leans forward more as it travels, and the lip drops as it crashes.
+      const skew = -10 - tt * 14 - crash * 20, sy = s * rise * (1 - crash * 0.85), sx = s * (0.8 + 0.2 * rise) * (1 + crash * 0.3);
+      w.setAttribute("transform", `translate(${x.toFixed(1)} ${floor}) scale(${(dir * sx).toFixed(3)} ${sy.toFixed(3)}) skewX(${(skew * 0.4).toFixed(1)})`);
+      g.setAttribute("opacity", (1 - crash).toFixed(2));
+      if (k && Math.random() < 0.6 * k) this.drops({ x: x + dir * 100 * sx, y: floor - 110 * sy }, theme, 1, { power: 0.7, dir, up: 4 });
+      rideOn?.(x + dir * 10 * sx, floor - 140 * sy);
       if (tt >= 1 && !arrived) { arrived = true; onArrive?.(); }
     } });
-    this.parts.at(-1).el = { remove: () => { back.g.remove(); front.g.remove(); } };
   }
 
   // A ball of water (or fire) fired at a target, trailing droplets; splashes on arrival.

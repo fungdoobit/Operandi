@@ -531,6 +531,7 @@ export class Boss {
   // The centre of an element in the boss's own drawing coordinates.
   local(el) {
     const r = el.getBoundingClientRect(), s = this.svgEl.getBoundingClientRect();
+    if (!s.width) return [200, 150];   // hidden: no size to measure against
     const k = 540 / s.width;
     return [(r.left + r.width / 2 - s.left) * k - 70, (r.top + r.height / 2 - s.top) * k - 50];
   }
