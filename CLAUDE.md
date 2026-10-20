@@ -57,7 +57,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Standalone page with its own inline CSS and JS (doesn't load `app.css`).
   - A looping strip of language tiles: Python (opens `python.html`), VBA, C++, HTML, SQL ("Coming soon"). Icons are original inline SVGs.
   - It drifts slowly, and can be dragged, wheeled or swiped with momentum. Hover gives a Dock-style magnify (max ×1.28, eased every frame).
-  - Sign in is a button only. Pricing scrolls to a small "Planned pricing" section (RM80 one-time, RM20/month, not available yet).
+  - Sign in currently links straight to the course (temporary, Isaac 2026-10-20). Pricing scrolls to a small "Planned pricing" section (RM80 one-time, RM20/month, not available yet).
 - **The course is `site/python.html`** (was `index.html`). Its logo links home. `site/vercel.json` sets `cleanUrls`, so it's served at `/python`.
 
 ## How content works
@@ -90,7 +90,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 ## Open threads
 - [x] Addendum A built 2026-10-18 after Isaac's "go": roaming, new shop items, PYRO.
 - [x] Addendum B built 2026-10-20 after Isaac's "go": home page with looping language tiles, Sign in (no function yet), planned pricing.
-- [ ] Sign in on the home page does nothing yet. Later it can reuse the Firebase sign-in from `cloud.js`.
+- [ ] Sign in on the home page just opens the course for now. Later it can reuse the Firebase sign-in from `cloud.js`.
 - [ ] Isaac sets up Vercel and Firebase (`docs/SETUP.md`), then pastes the Firebase config into `site/js/firebase-config.js`.
 - [ ] Firebase sign-in and sync are untested: the cloud sandbox couldn't reach Google. Test once Isaac has a config.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.

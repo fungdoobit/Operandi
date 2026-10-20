@@ -72,7 +72,8 @@ footer { text-align: center; font-size: 12px; color: var(--muted); padding-botto
   <div class="ring" id="ring" aria-label="Languages. Drag or scroll to spin."></div>
   <h1 class="word">Operandi</h1>
   <div class="buttons">
-    <button class="pill" id="signIn" type="button">Sign in</button>
+    <!-- For now Sign in goes straight to the course. Real sign-in comes later. -->
+    <a class="pill" href="python.html">Sign in</a>
     <a class="pill" href="#pricing">Pricing</a>
   </div>
   <p class="note" id="note" aria-live="polite"></p>
@@ -123,7 +124,6 @@ const tiles = LANGS.map((l) => {
 
 let noteTimer;
 function say(text) { note.textContent = text; clearTimeout(noteTimer); noteTimer = setTimeout(() => (note.textContent = ""), 3000); }
-document.getElementById("signIn").addEventListener("click", () => say("Sign in is coming soon."));
 
 // State: offset slides the row; the row loops forever.
 let offset = 0, velocity = 0, mouseX = null, hovering = false, dragging = false, lastX = 0, moved = 0, last = performance.now();
