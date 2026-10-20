@@ -10,36 +10,44 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
 h1 { font-size: 22px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 16px; font-size: 14px; }
 .stage { position: relative; height: 860px; border-radius: 16px; overflow: hidden; border: 1px solid #262c38;
   background: radial-gradient(ellipse at 70% 35%, #1d2330, #12151c 70%); }
-.stage .floor { position: absolute; left: 0; right: 0; top: 88%; bottom: 0; background: linear-gradient(#171b24, #0e1015); border-top: 1px solid #2c3442; }
-.foe { position: absolute; right: 4%; bottom: 3%; }
+.stage .world { position: absolute; inset: 0; will-change: transform; }
+.stage .floor { position: absolute; left: 0; right: 0; top: 80%; bottom: 0; background: linear-gradient(#171b24, #0e1015); border-top: 1px solid #2c3442; }
+.foe { position: absolute; right: 0; bottom: calc(20% - 34px); }
+.mate { position: absolute; left: 6%; bottom: calc(20% - 12px); }
+.mate .dot-figure { width: 130px; } .mate .dot-bubble { display: none; }
+/* DOT and the effects drawn through the same dense pixel grid as GOLEM */
+.hibit { filter: url(#hibit); }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
 .controls button { font: 600 13px "IBM Plex Sans", sans-serif; background: #1c212b; color: #e9ecf2; border: 1px solid #343c4b; border-radius: 99px; padding: 8px 14px; cursor: pointer; }
-.controls button[aria-pressed="true"] { background: #e9ecf2; color: #0f1116; }
 /* mock lesson for the transition demo */
-.lesson { position: absolute; inset: 0; display: grid; place-items: center; background: #f6f4ee; color: #1b1f29; }
+.lesson { position: absolute; inset: 0; display: grid; place-items: center; background: #f6f4ee; color: #1b1f29; z-index: 30; }
 .lesson .card { width: min(560px, 86%); background: #fff; border: 1px solid #e3e0d6; border-radius: 14px; padding: 22px; box-shadow: 0 8px 30px #0001; }
 .lesson pre { background: #1b1f29; color: #e7e9ef; border-radius: 10px; padding: 14px; font-size: 14px; }
 .lesson .go { display: inline-block; background: #ff6a3d; color: #fff; font-weight: 700; border-radius: 99px; padding: 8px 16px; }
 .hidden { display: none; }
-@media (max-width: 700px) { .stage { height: 520px; } }
+@media (max-width: 700px) { .stage { height: 560px; } .foe canvas { width: 416px !important; height: 384px !important; } .mate .dot-figure { width: 80px; } }
 </style>
 </head>
 <body>
 <main>
   <h1>GOLEM, hi-bit prototype</h1>
-  <p>Rendered from a 3D model into dense pixel art: about 2 screen pixels per art pixel, fixed colour ramps, dithering and outlines.</p>
+  <p>Modelled on Isaac's reference and rendered as dense pixel art. DOT is a stand-in here (put through the same pixel grid) until his own hi-bit design round.</p>
   <div class="controls">
-    <button data-a="slam">Claw slam</button>
-    <button data-a="hurt">Hurt</button>
     <button data-a="enter">Enter battle (transition)</button>
+    <button data-a="slam">Claw slam</button>
+    <button data-a="barrage">Cannon barrage</button>
+    <button data-a="laser">Core laser</button>
+    <button data-a="ram">Rocket ram</button>
+    <button data-a="hit">DOT hits him</button>
+    <button data-a="crit">DOT crits him</button>
     <button data-a="all">Play all</button>
-    <span style="width:12px"></span>
-    <button data-px="2" aria-pressed="true">Pixel ×2</button>
-    <button data-px="3">Pixel ×3</button>
   </div>
   <div class="stage" id="stage">
-    <div class="floor"></div>
-    <div class="foe" id="foe"></div>
+    <div class="world" id="world">
+      <div class="floor"></div>
+      <div class="foe" id="foe"></div>
+      <div class="mate hibit" id="mate"></div>
+    </div>
     <div class="lesson hidden" id="lesson">
       <div class="card">
         <b>Challenge: Shop receipt</b>
@@ -53,7 +61,7 @@ print(f"Total: {price * qty:.2f}")</pre>
   </div>
 </main>
 <svg width="0" height="0" style="position:absolute">
-  <!-- Pixelates any HTML: sample one dot per block, then grow it to fill the block. -->
+  <!-- Pixelates any HTML: average each block (blur), sample one dot per block, grow it to fill the block. -->
   <filter id="pixelate" x="0" y="0" width="100%" height="100%">
     <feGaussianBlur id="pxBlur" in="SourceGraphic" stdDeviation="0" result="soft" />
     <feFlood id="pxFlood" x="0" y="0" width="2" height="2" />
@@ -62,20 +70,40 @@ print(f"Total: {price * qty:.2f}")</pre>
     <feComposite in="soft" in2="dots" operator="in" />
     <feMorphology id="pxMorph" operator="dilate" radius="2" />
   </filter>
+  <!-- The same at a fixed 2 px grid, with colours and edges snapped: makes vector effects hi-bit. -->
+  <filter id="hibit" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+    <feFlood x="1" y="1" width="1" height="1" />
+    <feComposite width="2" height="2" />
+    <feTile result="dots" />
+    <feComposite in="SourceGraphic" in2="dots" operator="in" />
+    <feMorphology operator="dilate" radius="1" />
+    <feComponentTransfer>
+      <feFuncR type="discrete" tableValues="0 .15 .3 .45 .6 .75 .9 1" />
+      <feFuncG type="discrete" tableValues="0 .15 .3 .45 .6 .75 .9 1" />
+      <feFuncB type="discrete" tableValues="0 .15 .3 .45 .6 .75 .9 1" />
+      <feFuncA type="discrete" tableValues="0 .5 1 1" />
+    </feComponentTransfer>
+  </filter>
 </svg>
 <script type="module">
 import { PixelGolem } from "./js/pixel/golem-px.js";
-import { battleTime } from "./js/battle-time.js";
+import { golemAttack, golemHit, golemIntro } from "./js/pixel/golem-moves.js";
+import { Dot, DOT_CSS } from "./js/dot.js";
+import { BattleFX } from "./js/battle-fx.js";
 
+const st = document.createElement("style"); st.textContent = DOT_CSS; document.head.append(st);
 const stage = document.getElementById("stage");
+const fx = new BattleFX(stage, document.getElementById("world"), { floor: 0.8 });
+fx.svg.classList.add("hibit");
 const golem = new PixelGolem(document.getElementById("foe"));
+const mateEl = document.getElementById("mate");
+const dot = new Dot(mateEl, { facing: "right", battle: true });
+const ctx = { fx, dot, mateEl, theme: "water", golem, foeEl: document.getElementById("foe") };
+fx.place(ctx.mateEl, { x: 0, y: 0 });
+fx.place(ctx.foeEl, { x: 0, y: 0 });
 window.__golem = golem;
 
-function shake(px, ms) {
-  stage.animate([0, 1, 2, 3, 4, 5].map((i) => ({ transform: `translate(${(Math.random() - .5) * px * (1 - i / 5)}px, ${(Math.random() - .5) * px * (1 - i / 5)}px)` })), { duration: ms });
-}
-
-// Block size for the HTML pixelate filter.
+// Block size for the lesson's pixelate filter.
 function setBlock(b) {
   b = Math.max(1, Math.round(b));
   const flood = document.getElementById("pxFlood"), comp = document.getElementById("pxComp"), morph = document.getElementById("pxMorph");
@@ -84,47 +112,39 @@ function setBlock(b) {
   morph.setAttribute("radius", b / 2);
   document.getElementById("pxBlur").setAttribute("stdDeviation", b / 3);
 }
-function tween(ms, f, ease = (t) => t) {
-  return new Promise((done) => {
-    const t0 = performance.now();
-    const step = (now) => { const k = Math.min(1, (now - t0) / ms); f(ease(k)); k < 1 ? requestAnimationFrame(step) : done(); };
-    requestAnimationFrame(step);
-  });
-}
 
 // Lesson pixelates up into big blocks, cuts to the arena in big blocks, which
-// then resolve down to the fine hi-bit pixels.
+// then resolve down to the fine hi-bit pixels, and GOLEM powers up.
 async function enter() {
-  const lesson = document.getElementById("lesson"), foe = document.getElementById("foe");
-  lesson.classList.remove("hidden"); foe.style.visibility = "hidden";
-  await tween(500, () => {});
+  const lesson = document.getElementById("lesson");
+  lesson.classList.remove("hidden"); lesson.style.filter = "";
+  await fx.wait(500);
   lesson.style.filter = "url(#pixelate)";
-  await tween(650, (k) => setBlock(1 + k * 47), (t) => t * t);
-  lesson.classList.add("hidden"); lesson.style.filter = "";
-  stage.animate([{ filter: "brightness(2.2)" }, { filter: "brightness(1)" }], { duration: 260 });
-  foe.style.visibility = "";
-  await golem.resolve(950, 48);
+  const t0 = fx.time;
+  await new Promise((done) => {
+    const step = () => { const k = Math.min(1, (fx.time - t0) / 650); setBlock(1 + k * k * 47); k < 1 ? fx.wait(16).then(step) : done(); };
+    step();
+  });
+  lesson.classList.add("hidden");
+  fx.flash(0.6);
+  await golemIntro(ctx);
 }
 
 const actions = {
-  slam: () => golem.slam({ onHit: () => shake(26, 420) }),
-  hurt: () => golem.hurt(),
   enter,
+  slam: () => golemAttack(ctx, "slam"),
+  barrage: () => golemAttack(ctx, "barrage"),
+  laser: () => golemAttack(ctx, "laser"),
+  ram: () => golemAttack(ctx, "ram"),
+  hit: () => { dot.attack?.(); return fx.wait(250).then(() => golemHit(ctx)); },
+  crit: () => { dot.attack?.(); return fx.wait(250).then(() => golemHit(ctx, { crit: true })); },
   all: async () => {
     await enter();
-    await golem.wait(700);
-    await actions.slam();
-    await golem.wait(500);
-    await actions.hurt();
-    await golem.wait(400);
-    await actions.slam();
+    for (const k of ["slam", "barrage", "laser", "ram"]) { await fx.wait(500); await actions[k](); }
+    await fx.wait(400); await actions.crit();
   },
 };
 document.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => actions[b.dataset.a]()));
-document.querySelectorAll("[data-px]").forEach((b) => b.addEventListener("click", () => {
-  document.querySelectorAll("[data-px]").forEach((x) => x.setAttribute("aria-pressed", x === b));
-  golem.setPx(+b.dataset.px);
-}));
 window.__actions = actions;
 </script>
 </body>

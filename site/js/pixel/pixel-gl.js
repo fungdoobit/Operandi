@@ -22,6 +22,17 @@ float sdOct(vec3 p, float s){ p=abs(p); return (p.x+p.y+p.z-s)*0.57735; }
 float sdTorZ(vec3 p, float r, float t){ vec2 q=vec2(length(p.xy)-r, p.z); return length(q)-t; }
 float smin(float a, float b, float k){ float h=clamp(.5+.5*(b-a)/k,0.,1.); return mix(b,a,h)-k*h*(1.-h); }
 float hash1(float n){ return fract(sin(n)*43758.5453); }
+float vnoise(vec3 p){ vec3 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); float n=i.x+i.y*57.+i.z*113.;
+  return mix(mix(mix(hash1(n),hash1(n+1.),f.x), mix(hash1(n+57.),hash1(n+58.),f.x), f.y),
+             mix(mix(hash1(n+113.),hash1(n+114.),f.x), mix(hash1(n+170.),hash1(n+171.),f.x), f.y), f.z); }
+// 2D trapezoid (bottom half-width r1, top half-width r2, half-height he), then extruded along z.
+float sdTrap(vec2 p, float r1, float r2, float he){
+  vec2 k1=vec2(r2,he), k2=vec2(r2-r1,2.*he); p.x=abs(p.x);
+  vec2 ca=vec2(p.x-min(p.x,(p.y<0.)?r1:r2), abs(p.y)-he);
+  vec2 cb=p-k1+k2*clamp(dot(k1-p,k2)/dot(k2,k2),0.,1.);
+  float s=(cb.x<0. && ca.y<0.) ? -1. : 1.;
+  return s*sqrt(min(dot(ca,ca),dot(cb,cb))); }
+float extrude(float d2, float z, float h){ vec2 w=vec2(d2, abs(z)-h); return min(max(w.x,w.y),0.)+length(max(w,0.)); }
 `;
 
 // Pass 2, shared by every character. Model output per pixel:
@@ -30,7 +41,7 @@ const PIXEL = `#version 300 es
 precision highp float;
 uniform sampler2D uTex; uniform vec2 uRes; uniform vec3 uPal[64]; uniform vec3 uGlowCol[6];
 uniform float uFlash, uBlock, uGlitch, uTime, uShadow, uShadowX;
-uniform vec3 uImpact; // x, y (0..1 of canvas), progress 0..1 (0 = none)
+uniform vec4 uPlume; // thruster exhaust: x, y (0..1 of canvas), half-width, strength
 out vec4 o;
 const float B4[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
 float bayer(ivec2 p){ return (B4[(p.y&3)*4+(p.x&3)]+.5)/16.; }
@@ -58,16 +69,20 @@ void main(){
       if (lv > .5) { o = vec4(uGlowCol[k*3], .28); return; }
     }
     vec2 uv = gl_FragCoord.xy/uRes;
-    // Impact dust ring on the ground.
-    if (uImpact.z > 0.) {
-      vec2 q = (uv-uImpact.xy)*vec2(1., 5.5)*vec2(uRes.x/uRes.y, 1.);
-      // a thick dust band that spreads and thins out, dithered as it fades
-      float r = length(q), rad = .04 + uImpact.z*.3, w = .09*(1.-uImpact.z) + .015;
-      float k = (1. - abs(r-rad)/w) * (1. - uImpact.z*.85);
-      if (k + (d-.5)*.7 > .3) { o = vec4(mix(uPal[61]*.75, uPal[62], step(.75, k)), .9); return; }
+    // Thruster exhaust: a flickering white plume that widens and thins out downward.
+    if (uPlume.w > 0.) {
+      float dy = uPlume.y - uv.y;
+      if (dy > 0.) {
+        float len = .16*uPlume.w*(.85 + .15*h2(vec2(floor(uTime*30.), 1.)));
+        float wdt = uPlume.z*(1. + dy*4.);
+        float k = max(1. - abs(uv.x - uPlume.x)/wdt, 0.)*max(1. - dy/len, 0.);
+        k = k > 0. ? k + (h2(vec2(gl_FragCoord.xy) + floor(uTime*30.)) - .5)*.35 : -1.;
+        if (k + (d-.5)*.6 > .55) { o = vec4(uPal[62], 1.); return; }
+        if (k + (d-.5)*.6 > .25) { o = vec4(uPal[61], .75); return; }
+      }
     }
     // Ground shadow under the floating body, dithered at the edge.
-    vec2 s = (uv - vec2(uShadowX, .045)) / vec2(.30, .03);
+    vec2 s = (uv - vec2(uShadowX, .045)) / vec2(.26, .028);
     float sh = 1. - length(s);
     if (sh*uShadow + (d-.5)*.5 > .15) { o = vec4(0.,0.,0.,.45); return; }
     o = vec4(0.); return;

@@ -1,243 +1,226 @@
-// GOLEM in hi-bit pixel art. The model is built in GLSL from boxes, capsules,
-// cylinders and crystals, with grooves, vents and bolts cut in. Poses are a
-// handful of numbers (lean, arm angles, claw grip...) tweened in JS.
+// GOLEM in hi-bit pixel art, modelled on Isaac's reference (2026-10-20): a wide
+// armoured crab-hull with a stepped dome on its deck, missile-pod holes and
+// back horns, an amber grid-patterned core eye, a dark ribbed jaw, a thruster
+// underneath, spiky segmented arms ending in a huge claw (left) and a cannon
+// (right), and blue ice crystals growing over the armour.
+// The model is GLSL distance functions; poses are a handful of numbers tweened in JS.
 import { PixelGL } from "./pixel-gl.js";
 import { battleTime } from "../battle-time.js";
 
-// Materials: 1 armour, 2 dark frame, 3 core (glows), 4 crystal (glows), 5 wire, 6 hazard paint.
+// Materials: 1 armour, 2 dark frame, 3 core (glows), 4 ice crystal, 5 crystal node (glows), 6 orange lights.
 const PALETTES = [
-  ["#121722", "#1f2735", "#323d50", "#4c5b73", "#74869f", "#b3c2d3"],
-  ["#0a0c11", "#141821", "#20252f", "#2f3542", "#465063", "#6b7588"],
-  ["#5a1a06", "#a8350b", "#e85f10", "#ff9b2b", "#ffd36b", "#fff7d6"],
-  ["#0a3546", "#0f6e88", "#18b0c8", "#50e2ee", "#b4fbff", "#ffffff"],
-  ["#08090d", "#12141b", "#1d2029", "#2b303c", "#414859", "#626c80"],
-  ["#3a2008", "#6b3c0d", "#a86419", "#d9902b", "#f2c25a", "#fff0b0"],
+  ["#141b20", "#24313a", "#3a4c56", "#57707a", "#7f99a1", "#b8ccd0"],
+  ["#0e0b10", "#1a1519", "#2a2229", "#3b3139", "#53464f", "#6f6169"],
+  ["#4a2205", "#8a4708", "#c97810", "#f0a82a", "#ffd662", "#fff4c4"],
+  ["#0f2552", "#1d4794", "#3274d0", "#5fa5ef", "#9fd2ff", "#e6f6ff"],
+  ["#1b3f8f", "#2f66c8", "#4f93ec", "#83c3ff", "#c4e7ff", "#ffffff"],
+  ["#3a1804", "#743007", "#b8540c", "#ec8a1c", "#ffc04a", "#fff0b8"],
 ];
-const GLOW = ["#ff7a1a", "#ffb347", "#fff0c0", "#18b0c8", "#50e2ee", "#d8fdff"];
+const GLOW = ["#e07a10", "#ffb040", "#fff0c0", "#2f66c8", "#6fb0f2", "#d6efff"];
+const EXTRA = ["#c9d3dc", "#ffffff", "#0b0910"]; // exhaust grey, exhaust white, outline
+
+// Shared with the JS that finds points on him (keep in step with the GLSL).
+const SH = [1.12, -0.1, 0.05]; // shoulder, in body space (x mirrored per arm)
+const EL = [0.66, 0, 0];        // elbow, in shoulder space
+const OFF = [-0.45, -0.2];     // camera offset (GOLEM sits right of centre: room to reach left)
 
 const MODEL = `
-uniform vec2 uRes; uniform float uTime, uYaw, uPitch, uView, uLift;
+uniform vec2 uRes; uniform float uTime, uYaw, uPitch, uView, uLift, uTilt;
 uniform vec4 uBody;  // lean, bob, lunge, core flare
-uniform vec4 uClaw;  // shoulder, elbow, grip open, wrist
-uniform vec4 uCan;   // shoulder, elbow, charge, recoil
-uniform vec4 uWire;  // sway amount, lag x, lag y, crystal spin
-float gm; float gCore; float gCrys; vec3 gCp;
-void U(inout float d, float nd, float m){ if (nd < d) { d = nd; gm = m; } }
+uniform vec4 uClaw;  // shoulder, elbow, forearm pitch, thumb open
+uniform vec4 uCan;   // shoulder, elbow, forearm pitch, charge
+float gm; float gCore; float gNode; vec3 gLp; vec3 gCp;
+void U(inout float d, float nd, float m, vec3 lp){ if (nd < d) { d = nd; gm = m; gLp = lp; } }
+const vec3 SH = vec3(${SH.join(",")});
+const vec3 EL = vec3(${EL.join(",")});
 
-float wires(vec3 p, inout float d){
-  float best = 1e5;
-  for (int i = 0; i < 7; i++) {
-    float fi = float(i);
-    vec3 a = vec3(-.33 + fi*.11, -.72, -.04 + .1*sin(fi*2.1));
-    float L = .85 + .45*hash1(fi*7.13);
-    vec3 prev = a;
-    for (int k = 1; k <= 4; k++) {
-      float s = float(k)/4.;
-      vec3 b = a + vec3(
-        (sin(uTime*1.3 + fi*1.7 + s*2.)*.09*uWire.x + uWire.y + .05*sin(fi*3.))*s*s,
-        -L*s + uWire.z*s*s,
-        .06*sin(uTime*.9 + fi)*s);
-      best = min(best, sdCapT(p, prev, b, .038 - .006*float(k-1), .032 - .006*float(k-1)));
-      prev = b;
-    }
-    // plug on the end, some with a spark of glitch light
-    U(d, sdCylY(p - prev + vec3(0., .03, 0.), .042, .05), 2.);
-    U(d, sdCylY(p - prev + vec3(0., .01, 0.), .046, .012), 6.);
-    float tip = length(p - prev + vec3(0., .09, 0.)) - .018;
-    if (mod(fi, 3.) < 1.) { U(d, tip, 4.); gCrys = min(gCrys, tip); }
-  }
-  return best;
-}
+void node(inout float d, vec3 p, vec3 c){ float n = length(p - c) - .045; U(d, n, 5., p); gNode = min(gNode, n); }
 
-float clawArm(vec3 p, inout float d){
-  vec3 q = p - vec3(-.8, .32, 0.);
-  U(d, length(q) - .17, 2.);
-  q.xy = R(uClaw.x) * q.xy;
-  U(d, sdCap(q, vec3(0.), vec3(0., -.5, 0.), .09), 2.);
-  U(d, sdRBox(q - vec3(0., -.22, 0.), vec3(.15, .19, .15), .06), 1.);
-  vec3 e = q - vec3(0., -.52, 0.);
-  U(d, length(e) - .12, 2.);
-  e.xy = R(uClaw.y) * e.xy;
-  U(d, sdRBox(e - vec3(0., -.3, 0.), vec3(.165, .29, .175), .07), 1.);
-  U(d, sdRBox(e - vec3(0., -.1, 0.), vec3(.178, .035, .186), .03), 6.);
-  U(d, sdCap(e, vec3(.19, -.05, 0.), vec3(.19, -.45, 0.), .035), 2.); // piston
-  vec3 h = e - vec3(0., -.64, 0.);
-  h.xy = R(uClaw.w) * h.xy;
-  U(d, sdRBox(h, vec3(.15, .09, .16), .04), 2.);
-  U(d, sdRBox(h - vec3(0., .05, 0.), vec3(.17, .035, .18), .03), 1.);
+// Upper arm: shoulder ball, three spiky dark segments, an armour plate on top.
+void arm(vec3 q, inout float d){
+  U(d, length(q) - .22, 2., q);
   for (int k = 0; k < 3; k++) {
-    float th = float(k)*2.094 + .4;
-    vec3 dir = vec3(cos(th), 0., sin(th));
-    vec3 b = dir*.11 + vec3(0., -.05, 0.);
-    vec3 m = b + normalize(dir*uClaw.z + vec3(0., -1., 0.))*.3;
-    vec3 t = m + normalize(-dir*.75 + vec3(0., -1., 0.))*.26;
-    U(d, sdCapT(h, b, m, .065, .05), 1.);
-    U(d, sdCapT(h, m, t, .048, .01), 1.);
-    U(d, sdCapT(h, m + (t-m)*.55, t, .03, .008), 6.);
-    U(d, length(h - m) - .058, 2.);
+    float fk = float(k);
+    vec3 s = q - vec3(.15 + fk*.18, 0., 0.);
+    U(d, sdRBox(s, vec3(.085, .18 - .015*fk, .18 - .015*fk), .06), 2., s);
+    U(d, sdCapT(s, vec3(0., .1, .03), vec3(.06, .27 - .03*fk, .12), .05, .0), 2., s);
   }
-  return d;
+  U(d, sdRBox(q - vec3(.33, .13, -.03), vec3(.28, .06, .18), .045), 1., q);
+  node(d, q, vec3(.36, .16, -.12));
+  U(d, length(q - EL) - .18, 2., q);
 }
 
-float cannonArm(vec3 p, inout float d){
-  vec3 q = p - vec3(.8, .32, 0.);
-  U(d, length(q) - .17, 2.);
-  q.xy = R(-uCan.x) * q.xy;
-  U(d, sdCap(q, vec3(0.), vec3(0., -.5, 0.), .09), 2.);
-  U(d, sdRBox(q - vec3(0., -.22, 0.), vec3(.15, .19, .15), .06), 1.);
-  vec3 e = q - vec3(0., -.52, 0.);
-  U(d, length(e) - .12, 2.);
-  e.xy = R(-uCan.y) * e.xy;
-  e.y -= uCan.w;
-  U(d, sdCylY(e - vec3(0., -.36, 0.), .19, .34), 1.);
-  for (int k = 0; k < 3; k++) U(d, sdCylY(e - vec3(0., -.16 - float(k)*.15, 0.), .225, .022), 2.);
-  U(d, sdCylY(e - vec3(0., -.36, 0.) - vec3(0., 0., 0.), .2, .012) , 6.);
-  float muzzle = sdCylY(e - vec3(0., -.78, 0.), .13, .09);
-  muzzle = max(muzzle, -sdCylY(e - vec3(0., -.84, 0.), .075, .12));
-  U(d, muzzle, 2.);
-  float shot = length(e - vec3(0., -.8, 0.)) - .07*uCan.z;
-  U(d, shot, 3.);
-  gCore = min(gCore, length(e - vec3(0., -.86, 0.)) - .05 - .12*uCan.z);
-  return d;
+// Left forearm: a huge armoured gauntlet tapering to a pointed claw, with a thumb hook.
+void claw(vec3 e, inout float d){
+  U(d, sdRBox(e - vec3(0., -.24, 0.), vec3(.34, .26, .33), .12), 1., e);
+  U(d, sdCylY(e - vec3(0., -.53, 0.), .32, .05), 2., e);
+  vec3 b = e - vec3(0., -.58, 0.);
+  b.z *= 1.15;
+  float blade = sdCapT(b, vec3(0.), vec3(-.06, -.9, -.06), .32, .02);
+  blade = max(blade, -sdBox(b - vec3(-.02, -.5, -.3), vec3(.4, .014, .07)));   // plate seams
+  blade = max(blade, -sdBox(b - vec3(-.03, -.25, -.3), vec3(.4, .014, .07)));
+  U(d, blade, 1., b);
+  vec3 t = b - vec3(.24, .06, 0.); t.xy = R(-uClaw.w) * t.xy;
+  U(d, sdCapT(t, vec3(0.), vec3(.22, -.38, -.04), .12, .045), 1., t);
+  U(d, sdCapT(t, vec3(.22, -.38, -.04), vec3(.08, -.66, -.06), .045, .005), 1., t);
+  node(d, b, vec3(-.15, -.12, -.3)); node(d, e, vec3(.12, -.3, -.36)); node(d, e, vec3(-.2, -.12, -.36));
+}
+
+// Right forearm: a big cannon (bore at the end) with a hook blade underneath.
+void cannon(vec3 e, inout float d){
+  U(d, sdCylY(e - vec3(0., -.42, 0.), .33, .42), 1., e);
+  for (int k = 0; k < 2; k++) U(d, sdCylY(e - vec3(0., -.18 - float(k)*.36, 0.), .37, .035), 2., e);
+  float muzzle = sdCylY(e - vec3(0., -.92, 0.), .34, .09);
+  muzzle = max(muzzle, -sdCylY(e - vec3(0., -1.02, 0.), .22, .5));
+  U(d, muzzle, 2., e);
+  U(d, sdCylY(e - vec3(0., -.82, 0.), .26, .02), 2., e);
+  U(d, sdCapT(e, vec3(.26, -.6, -.05), vec3(.5, -1.08, -.14), .1, .04), 1., e);
+  U(d, sdCapT(e, vec3(.5, -1.08, -.14), vec3(.3, -1.3, -.16), .04, .005), 1., e);
+  float shot = length(e - vec3(0., -.98, 0.)) - .17*uCan.w;
+  U(d, shot, 3., e);
+  gCore = min(gCore, length(e - vec3(0., -1.02, 0.)) - .05 - .18*uCan.w);
+  node(d, e, vec3(-.2, -.36, -.28)); node(d, e, vec3(.22, -.66, -.26));
 }
 
 float map(vec3 p){
-  gm = 0.; gCore = 1e5; gCrys = 1e5;
+  gm = 0.; gCore = 1e5; gNode = 1e5;
   float d = 1e5;
-  // camera turn (GOLEM faces a little to the left, towards the teammate)
   p.xz = R(uYaw) * p.xz; p.yz = R(uPitch) * p.yz;
-  // floating crystals (outside the body, they don't lean with him)
-  for (int i = 0; i < 3; i++) {
-    float fi = float(i);
-    vec3 c = vec3(i == 0 ? -1.2 : i == 1 ? 1.25 : 1.3, i == 0 ? .8 : i == 1 ? 1.02 : -.75, i == 2 ? .5 : .2);
-    c.y += .06*sin(uTime*1.7 + fi*2.) + uBody.y*.6;
-    vec3 q = p - c;
-    q.xz = R(uTime*.8*uWire.w + fi) * q.xz;
-    q.y /= 1.9;
-    float k = sdOct(q, .11 + .03*fi) * 1.;
-    U(d, k, 4.); gCrys = min(gCrys, k);
-  }
-  // body space: bob, lunge, lean
   p.y -= uBody.y + uLift; p.x -= uBody.z;
-  p.xy = R(uBody.x) * p.xy;
-  // quick bounding box so empty pixels stay cheap
-  if (sdBox(p - vec3(0., -.55, 0.), vec3(2.3, 2.3, 1.4)) > .3) return min(d, 1.);
-  // torso frame (dark) and armour plates
-  vec3 t = p; t.x *= 1. - .12*t.y;
-  U(d, sdRBox(t, vec3(.58, .5, .4), .14), 2.);
-  vec3 c = p - vec3(0., .05, -.12);
-  float plate = sdRBox(c, vec3(.5, .42, .34), .08);
-  plate = max(plate, -(length(c.xy - vec2(0., .03)) - .27));                      // hole for the core
-  plate = max(plate, -sdBox(c - vec3(0., -.24, -.34), vec3(.6, .013, .04)));       // panel groove
-  plate = max(plate, -sdBox(vec3(abs(c.x) - .33, c.y + .05, c.z + .34), vec3(.013, .35, .04)));
-  U(d, plate, 1.);
+  p.xy = R(uBody.x) * p.xy; p.yz = R(uTilt) * p.yz;
+  if (sdBox(p - vec3(0., -.4, 0.), vec3(2.6, 2.3, 1.6)) > .3) return 1.;
+  vec3 P = p;      // arms use the unstretched space
+  p.x /= 1.22;     // the hull is built narrow and stretched wide
+  vec3 a = vec3(abs(p.x), p.yz);
+
+  // hull: a wide trapezoid, chamfered at the corners; upper armour slab overhangs a darker lower half
+  float hull = extrude(sdTrap(p.xy, .62, 1., .32), p.z, .55);
+  hull = max(hull, (a.x - p.z - 1.28)*.7071);
+  hull = max(hull, (a.x + p.z - 1.4)*.7071);
+  float upper = max(hull, .06 - p.y);
+  upper = max(upper, -sdBox(vec3(a.x - .42, p.y - .32, p.z), vec3(.012, .03, .6)));     // deck seams
+  upper = max(upper, -sdBox(vec3(p.x, p.y - .17, p.z + .55), vec3(1., .012, .03)));      // front band seam
+  vec3 c = p - vec3(0., -.1, -.53);
+  float lower = max(extrude(sdTrap(p.xy, .58, .95, .32), p.z + .03, .5), p.y - .06);
+  lower = max(lower, -(length(vec3(c.x/1.3, c.y, c.z)) - .21));                        // core socket
+  // missile pods: three holes through each wing
+  vec3 w = vec3(a.x - .72, p.y - .37, p.z - .03);
+  float wing = sdRBox(w, vec3(.27, .05, .44), .03);
+  for (int k = 0; k < 3; k++) {
+    vec3 h = w - vec3(k == 2 ? .01 : (k == 0 ? -.09 : .11), 0., k == 2 ? -.02 : .2);
+    float hole = sdCylY(h - vec3(0., -.05, 0.), .07, .16);
+    wing = max(wing, -hole); upper = max(upper, -hole);
+  }
+  U(d, upper, 1., p); U(d, lower, 2., p); U(d, wing, 1., p);
+  // centre plate and the stepped, pointed dome
+  U(d, sdRBox(p - vec3(0., .36, .02), vec3(.38, .06, .5), .04), 1., p);
   for (int k = 0; k < 4; k++) {
-    vec2 b = vec2(k < 2 ? -.42 : .42, mod(float(k), 2.) < 1. ? .36 : -.33);
-    U(d, length(c - vec3(b, -.42)) - .032, 2.);
+    float fk = float(k), rx = .34 - fk*.07, rz = .42 - fk*.085;
+    vec3 q = p - vec3(0., .43 + fk*.045, .02 + fk*.03);
+    q.z += abs(q.x)*.55;
+    float dk = sdCylY(vec3(q.x/rx, q.y, q.z/rz)*.36, .36, .022)*min(rx, rz)/.36;
+    U(d, dk, 1., p);
   }
-  // hazard stripes along the chest plate's lower edge
-  vec3 hz = c - vec3(0., -.37, -.34);
-  float stripes = sdBox(hz, vec3(.32, .035, .03));
-  stripes = max(stripes, -(abs(mod(hz.x + hz.y + 1., .1) - .05) - .022));
-  U(d, stripes, 6.);
-  // shoulders (pauldrons) with a paint band
-  vec3 s = p; s.x = abs(s.x); s -= vec3(.66, .44, .0); s.xy = R(-.38) * s.xy;
-  U(d, sdRBox(s, vec3(.31, .2, .36), .1), 1.);
-  U(d, sdRBox(s - vec3(0., .15, 0.), vec3(.325, .04, .375), .04), 6.);
-  U(d, sdRBox(s - vec3(.12, .02, -.36), vec3(.12, .1, .02), .02), 2.);
-  U(d, sdRBox(s - vec3(.1, -.2, 0.), vec3(.27, .07, .33), .05), 1.);          // lower layer
-  U(d, length(vec3(s.x - .24, s.y - .06, abs(s.z) - .3)) - .03, 2.);           // bolts
-  // abdomen: ribbed plates between chest and hips
-  vec3 ab = p - vec3(0., -.5, -.3);
-  ab.y = mod(ab.y + .05, .1) - .05;
-  if (p.y < -.4 && p.y > -.62) U(d, sdRBox(ab, vec3(.34 + .04*(p.y + .5), .036, .06), .02), 1.);
-  // side vents on the torso
-  vec3 sv = p; sv.x = abs(sv.x); sv -= vec3(.6, -.1, -.1);
-  float vents = sdRBox(sv, vec3(.06, .2, .2), .03);
-  vec3 sl = sv; sl.y = mod(sl.y + .03, .06) - .03;
-  vents = max(vents, -sdBox(sl - vec3(.06, 0., 0.), vec3(.03, .012, .16)));
-  U(d, vents, 2.);
-  // collar plate over the top of the chest
-  vec3 cl = p - vec3(0., .44, -.3); cl.yz = R(.5) * cl.yz;
-  U(d, sdRBox(cl, vec3(.36, .05, .12), .04), 1.);
-  // top dome with vent slots
-  vec3 h = p - vec3(0., .48, .06);
-  float dome = max(length(h) - .33, -h.y - .02);
-  vec3 v = h; v.x = mod(v.x + .05, .1) - .05;
-  if (abs(h.x) < .2) dome = max(dome, -sdBox(v - vec3(0., .25, -.15), vec3(.018, .1, .25)));
-  U(d, dome, 1.);
-  // back exhaust stacks
-  vec3 x = p; x.x = abs(x.x); x -= vec3(.3, .55, .36);
-  U(d, sdCylY(x, .08, .3), 2.);
-  U(d, sdCylY(x - vec3(0., .3, 0.), .1, .04), 1.);
-  // core housing ring and the faceted core
-  vec3 cp = p - vec3(0., .08, -.5);
-  U(d, sdTorZ(cp, .215, .055), 2.);
-  float gem = length(cp) - .17;
-  U(d, gem, 3.); gCore = min(gCore, gem); gCp = cp;
-  // glitch crystals growing out of the right shoulder
-  for (int i = 0; i < 3; i++) {
-    float fi = float(i);
-    vec3 q = p - vec3(.72 + fi*.09, .7 + .04*fi - fi*fi*.02, -.1 + fi*.08);
-    q.xy = R(.5 - fi*.45) * q.xy;
-    q.y /= 2.2 - fi*.4;
-    float k = sdOct(q, .06 - fi*.012);
-    U(d, k, 4.); gCrys = min(gCrys, k);
+  // horns along the back and at the outer corners
+  for (int k = 0; k < 2; k++) {
+    float x = .6 + float(k)*.32;
+    vec3 m = vec3(x + .05, .55, .5);
+    U(d, sdCapT(a, vec3(x, .36, .38), m, .08, .04), 2., a);
+    U(d, sdCapT(a, m, m + vec3(.1, .2, -.06), .04, .0), 2., a);
   }
-  // hip block and front skirt
-  U(d, sdRBox(p - vec3(0., -.62, .02), vec3(.42, .14, .32), .08), 2.);
-  vec3 sk = p - vec3(0., -.66, -.22); sk.yz = R(-.25) * sk.yz;
-  U(d, sdRBox(sk, vec3(.3, .14, .05), .04), 1.);
-  // arms and wires
-  clawArm(p, d);
-  cannonArm(p, d);
-  if (p.y < -.6) U(d, wires(p, d), 5.);
+  U(d, sdCapT(a, vec3(.98, .3, -.05), vec3(1.26, .48, .02), .07, .0), 2., a);
+  U(d, sdCapT(a, vec3(1., .34, -.3), vec3(1.18, .56, -.42), .05, .0), 2., a);
+  // core: ellipse socket ring and the amber orb
+  U(d, sdTorZ(vec3(c.x/1.3, c.y, c.z + .01), .205, .04), 2., c);
+  float orb = (length(vec3(c.x/1.3, c.y, c.z + .03)) - .185)*.8;
+  U(d, orb, 3., c); gCore = min(gCore, orb); gCp = c;
+  // orange lights: slot above the core, two side lamps, vent slits
+  U(d, sdBox(p - vec3(0., .14, -.555), vec3(.022, .05, .02)), 6., p);
+  U(d, length(vec3(a.x - .44, p.y + .02, p.z + .53)) - .045, 6., a);
+  vec3 vs = vec3(a.x - .66, p.y - .1, p.z + .565);
+  U(d, sdBox(vs, vec3(.07, .014, .02)), 6., vs);
+  U(d, sdBox(vs - vec3(.0, -.05, 0.), vec3(.07, .014, .02)), 6., vs);
+  // crystal nodes on the hull
+  node(d, a, vec3(.56, .43, -.3)); node(d, a, vec3(.88, .3, -.15)); node(d, a, vec3(.3, -.04, -.55));
+  node(d, a, vec3(.72, -.12, -.33)); node(d, a, vec3(.2, .39, .3)); node(d, a, vec3(.62, .17, -.56));
+  // jaw: dark block with grille slits, mandible plates either side
+  vec3 j = p - vec3(0., -.42, -.33);
+  float jaw = sdRBox(j, vec3(.34, .09, .16), .04);
+  vec3 jj = j; jj.y = mod(jj.y + .025, .05) - .025;
+  if (abs(j.y) < .07) jaw = max(jaw, -sdBox(jj - vec3(0., 0., -.16), vec3(.26, .01, .03)));
+  U(d, jaw, 2., j);
+  vec3 mn = vec3(a.x - .42, p.y + .36, p.z + .36); mn.xy = R(.5) * mn.xy;
+  U(d, sdRBox(mn, vec3(.14, .06, .12), .04), 2., mn);
+  // hip block with two pods, thruster nozzle underneath
+  vec3 h = p - vec3(0., -.62, -.02);
+  U(d, sdRBox(h, vec3(.3, .13, .24), .05), 2., h);
+  vec3 pd = vec3(a.x - .36, p.y + .66, p.z + .05);
+  U(d, sdRBox(pd, vec3(.08, .13, .13), .04), 1., pd);
+  U(d, sdRBox(pd - vec3(.02, -.14, -.02), vec3(.1, .04, .16), .03), 2., pd);
+  U(d, max(sdCylY(p - vec3(0., -.79, -.02), .16, .05), -sdCylY(p - vec3(0., -.85, -.02), .1, .05)), 2., p);
+  // arms (both built outward along +x, the left one mirrored)
+  p = P;
+  vec3 q = vec3(-p.x, p.yz) - SH;
+  q.xy = R(-uClaw.x) * q.xy;
+  arm(q, d);
+  vec3 e = q - EL; e.xy = R(-uClaw.y) * e.xy; e.yz = R(-uClaw.z) * e.yz;
+  claw(e, d);
+  q = p - SH;
+  q.xy = R(-uCan.x) * q.xy;
+  arm(q, d);
+  e = q - EL; e.xy = R(-uCan.y) * e.xy; e.yz = R(-uCan.z) * e.yz;
+  cannon(e, d);
   return d;
 }
 
 vec3 nrm(vec3 p){
-  const vec2 k = vec2(1., -1.)*.0015;
+  const vec2 k = vec2(1., -1.)*.002;
   return normalize(k.xyy*map(p + k.xyy) + k.yyx*map(p + k.yyx) + k.yxy*map(p + k.yxy) + k.xxx*map(p + k.xxx));
 }
 
 out vec4 o;
 void main(){
   vec2 uv = (gl_FragCoord.xy - .5*uRes) / uRes.y * uView;
-  vec3 ro = vec3(uv.x - .12, uv.y - .45, -5.), rd = vec3(0., 0., 1.);
-  float t = 0., minCore = 1e5, minCrys = 1e5, m = 0.;
-  for (int i = 0; i < 110; i++) {
+  vec3 ro = vec3(uv.x + ${OFF[0].toFixed(2)}, uv.y + ${OFF[1].toFixed(2)}, -6.), rd = vec3(0., 0., 1.);
+  float t = 0., minCore = 1e5, minNode = 1e5, m = 0.;
+  for (int i = 0; i < 120; i++) {
     float d = map(ro + rd*t);
-    minCore = min(minCore, gCore); minCrys = min(minCrys, gCrys);
+    minCore = min(minCore, gCore); minNode = min(minNode, gNode);
     if (d < .0025) { m = gm; break; }
-    t += d*.85;
-    if (t > 10.) break;
+    t += d*.8;
+    if (t > 12.) break;
   }
-  float glow = clamp(exp(-max(minCore, 0.)*13.)*(.5 + .6*uBody.w), 0., 1.);
-  float cglow = exp(-max(minCrys, 0.)*24.)*.55;
-  if (m == 0.) { o = vec4(cglow, 0., 1., glow); return; }
+  float glow = clamp(exp(-max(minCore, 0.)*12.)*(.45 + .6*uBody.w), 0., 1.);
+  float nglow = exp(-max(minNode, 0.)*30.)*.5;
+  if (m == 0.) { o = vec4(nglow, 0., 1., glow); return; }
   vec3 p = ro + rd*t;
-  map(p); m = gm;
+  map(p); m = gm; vec3 lp = gLp, cp = gCp;
   vec3 n = nrm(p);
-  vec3 L = normalize(vec3(-.6, .75, -.55)), Rm = normalize(vec3(.95, .25, .4));
+  vec3 L = normalize(vec3(-.55, .8, -.5)), Rm = normalize(vec3(.9, .3, .3));
   float key = max(dot(n, L), 0.);
   float ao = clamp(map(p + n*.06)/.06, 0., 1.)*.5 + clamp(map(p + n*.16)/.16, 0., 1.)*.5;
   float spec = pow(max(dot(reflect(-L, n), -rd), 0.), 14.);
   float sh;
   if (m == 3.) {
-    // glowing eye: hot centre, rings out to a deep orange edge, a small glint
-    float r = length(gCp.xy)/.17;
-    sh = 1.02 - .75*r*r + .15*uBody.w;
-    if (length(gCp.xy - vec2(-.06, .07)) < .035) sh = 1.;
+    // amber eye: hot centre fading to a deep edge, a honeycomb grid, a glint
+    vec2 e2 = vec2(cp.x/1.3, cp.y)/.185;
+    sh = 1.05 - .6*dot(e2, e2) + .15*uBody.w;
+    vec2 g = e2*3.6; g.x += .5*mod(floor(g.y), 2.);
+    vec2 f = fract(g);
+    if (min(f.x, f.y) < .13) sh -= .28;
+    if (length(e2 - vec2(-.35, .4)) < .16) sh = 1.;
   }
-  else if (m == 4.) sh = .35 + .65*(.5 + .5*dot(n, normalize(vec3(-.5, .8, -.6))));
-  else sh = .08 + .62*key*mix(.55, 1., ao) + .32*spec + .1*ao;
-  sh += .12*max(dot(n, Rm), 0.)*(m == 3. || m == 4. ? 0. : 1.);   // cool fill from the crystals' side
-  // the core lights up the metal around it in orange
-  if (m == 1. || m == 2.) {
-    float spill = clamp(1. - gCore/.16, 0., 1.)*(.6 + .4*uBody.w);
-    if (spill > .45) { m = 6.; sh = .25 + .55*spill; }
+  else if (m == 5.) { float f = max(dot(n, normalize(vec3(-.4, .5, -1.))), 0.); sh = .3 + .45*f + (f > .93 ? .3 : 0.); }
+  else if (m == 6.) sh = .7 + .2*uBody.w + .1*max(dot(n, -rd), 0.);
+  else {
+    sh = .07 + .62*key*mix(.55, 1., ao) + .3*spec + .1*ao + .1*max(dot(n, Rm), 0.);
+    // ice crystals growing over the armour in patches
+    float ice = vnoise(lp*4. + 7.)*.7 + vnoise(lp*12. + 3.)*.3;
+    if (ice > .71) { m = 4.; sh = .3 + .4*key + .25*vnoise(floor(lp*18.)) + .35*spec + (ice > .76 ? .12 : 0.); }
+    // the core lights the metal right around it
+    else if (gCore < .07) { m = 6.; sh = .3 + .5*(1. - gCore/.07); }
   }
-  o = vec4(clamp(sh, 0., 1.), m/16., t/10., glow);
+  o = vec4(clamp(sh, 0., 1.), m/16., t/12., glow);
 }`;
 
 const EASE = {
@@ -248,23 +231,27 @@ const EASE = {
   back: (t) => 1 + 2.7 * (t - 1) ** 3 + 1.7 * (t - 1) ** 2,
 };
 
-const REST = { lean: 0, bob: 0, lunge: 0, flare: 0, cs: 0.32, ce: -0.5, cg: 0.55, cw: 0, ns: 0.25, ne: 0.95, charge: 0, recoil: 0, yaw: -0.42 };
+// ca/ce/cp: claw shoulder, elbow, forearm pitch; cg thumb open. na/ne/np, charge: cannon.
+export const REST = { lean: 0, bob: 0, lunge: 0, tilt: 0, flare: 0, ca: -0.85, ce: 0.95, cp: 0.25, cg: 0, na: -0.85, ne: 0.95, np: 0.85, charge: 0, thrust: 0.55, yaw: 0.22 };
+
+const rot = (a, b, t) => { const c = Math.cos(t), s = Math.sin(t); return [c * a - s * b, s * a + c * b]; };
 
 export class PixelGolem {
   // host: element the canvas goes in. w,h: art pixels. px: screen px per art pixel.
-  constructor(host, { w = 340, h = 400, px = 2, view = 4.5 } = {}) {
+  constructor(host, { w = 416, h = 384, px = 2, view = 4.8 } = {}) {
     this.canvas = document.createElement("canvas");
     this.canvas.className = "px-golem";
     Object.assign(this.canvas.style, { width: w * px + "px", height: h * px + "px", imageRendering: "pixelated", display: "block" });
     host.appendChild(this.canvas);
     this.canvas.width = w; this.canvas.height = h;
-    this.gl = new PixelGL(this.canvas, { model: MODEL, palettes: PALETTES, glow: GLOW });
+    this.gl = new PixelGL(this.canvas, { model: MODEL, palettes: PALETTES, glow: GLOW, extra: EXTRA });
     this.view = view;
     this.pose = { ...REST };
-    this.fxv = { flash: 0, block: 1, glitch: 0, impact: [0.2, 0.06, 0] };
+    this.fxv = { flash: 0, block: 1, glitch: 0 };
     this.tweens = [];
     this.at = 0; this.last = performance.now();
     this.loop = this.loop.bind(this);
+    this.render();
     requestAnimationFrame(this.loop);
   }
   setPx(px) { this.canvas.style.width = this.canvas.width * px + "px"; this.canvas.style.height = this.canvas.height * px + "px"; }
@@ -276,6 +263,7 @@ export class PixelGolem {
     });
   }
   wait(ms) { return this.to({}, ms); }
+  rest(ms = 600) { return this.to({ ...REST }, ms, "io"); }
   loop(now) {
     const raw = Math.min(now - this.last, 50); this.last = now;
     const dt = battleTime.step(now, raw);
@@ -283,10 +271,7 @@ export class PixelGolem {
     this.tweens = this.tweens.filter((tw) => {
       tw.t = Math.min(tw.t + dt, tw.ms);
       const k = tw.ms ? tw.ease(tw.t / tw.ms) : 1;
-      for (const n in tw.to) {
-        const a = tw.from[n], b = tw.to[n];
-        tw.obj[n] = Array.isArray(b) ? b.map((v, i) => a[i] + (v - a[i]) * k) : a + (b - a) * k;
-      }
+      for (const n in tw.to) tw.obj[n] = tw.from[n] + (tw.to[n] - tw.from[n]) * k;
       if (tw.t >= tw.ms) { tw.done(); return false; }
       return true;
     });
@@ -295,42 +280,54 @@ export class PixelGolem {
   }
   render() {
     const s = this.at / 1000, P = this.pose;
-    // idle breathing on top of the pose
-    const bob = Math.sin(s * 1.6) * 0.045 + P.bob, sway = Math.sin(s * 1.6 - 0.8);
-    this.gl.draw({
-      uTime: s, uYaw: P.yaw, uPitch: -0.16, uView: this.view, uLift: 0.06,
-      uBody: [P.lean + Math.sin(s * 0.8) * 0.015, bob, P.lunge, P.flare + 0.15 * Math.sin(s * 3.1)],
-      uClaw: [P.cs + sway * 0.04, P.ce - sway * 0.05, P.cg, P.cw],
-      uCan: [P.ns - sway * 0.04, P.ne + sway * 0.04, P.charge, P.recoil],
-      uWire: [1, -P.lunge * 0.35 - P.lean * 0.4, -bob * 0.4 + Math.abs(P.lunge) * 0.15, 1],
-    }, {
+    // idle hover on top of the pose
+    const bob = Math.sin(s * 1.6) * 0.04 + P.bob, sway = Math.sin(s * 1.6 - 0.8);
+    this.u = {
+      uTime: s, uYaw: P.yaw, uPitch: 0.38, uView: this.view, uLift: 0.12, uTilt: P.tilt,
+      uBody: [P.lean + Math.sin(s * 0.8) * 0.012, bob, P.lunge, P.flare + 0.15 * Math.sin(s * 3.1)],
+      uClaw: [P.ca + sway * 0.03, P.ce - sway * 0.04, P.cp, P.cg],
+      uCan: [P.na - sway * 0.03, P.ne + sway * 0.04, P.np, P.charge],
+    };
+    const noz = this.toCanvas([0, -0.84, -0.02]), mid = this.toCanvas([0, -0.84, 0]);
+    const flick = 0.85 + 0.15 * Math.sin(s * 40);
+    this.gl.draw(this.u, {
       uTime: s, uFlash: this.fxv.flash, uBlock: this.fxv.block, uGlitch: this.fxv.glitch,
-      uShadow: 1 - bob * 1.5, uShadowX: 0.5 + P.lunge * 0.12, uImpact: this.fxv.impact,
+      uShadow: 1 - bob * 1.5, uShadowX: mid[0] / this.canvas.width,
+      uPlume: [noz[0] / this.canvas.width, noz[1] / this.canvas.height, 0.028 + 0.012 * P.thrust, P.thrust * flick],
     });
   }
 
-  // ---- moves ----
-  async hurt() {
-    this.fxv.flash = 1; this.to({ flash: 0 }, 260, "lin", this.fxv);
-    this.fxv.glitch = 1; this.to({ glitch: 0 }, 420, "lin", this.fxv);
-    await this.to({ lean: 0.16, lunge: 0.12, flare: -0.4 }, 90, "out");
-    await this.to({ lean: 0, lunge: 0, flare: 0 }, 520, "back");
+  // ---- finding points on him (mirrors the GLSL transforms, run backwards) ----
+  // L: a point in body space, or in a forearm's space when part is "claw"/"cannon".
+  toCanvas(L, part) {
+    const u = this.u; let [x, y, z] = L;
+    if (part) {
+      const A = part === "claw" ? u.uClaw : u.uCan, sg = part === "claw" ? -1 : 1;
+      [y, z] = rot(y, z, A[2]); [x, y] = rot(x, y, A[1]);
+      x += EL[0]; y += EL[1]; z += EL[2];
+      [x, y] = rot(x, y, A[0]);
+      x = sg * (x + SH[0]); y += SH[1]; z += SH[2];
+    }
+    [y, z] = rot(y, z, -u.uTilt); [x, y] = rot(x, y, -u.uBody[0]);
+    x += u.uBody[2]; y += u.uBody[1] + u.uLift;
+    [y, z] = rot(y, z, -u.uPitch); [x, z] = rot(x, z, -u.uYaw);
+    const H = this.canvas.height, W = this.canvas.width;
+    return [(x - OFF[0]) * H / this.view + W / 2, (y - OFF[1]) * H / this.view + H / 2];
   }
-  // Claw slam: rear up and cock the claw behind the head, hang, then smash down
-  // towards the teammate. onHit fires on contact (hit-stop, shake, etc.).
-  async slam({ onHit } = {}) {
-    const P = this.pose;
-    await this.to({ lean: 0.22, bob: 0.1, lunge: 0.12, cs: 2.5, ce: 0.9, cg: 1.25, cw: 0.5, ns: 0.6, ne: 1.3, flare: 0.9 }, 520, "out");
-    await this.to({ lean: 0.27, bob: 0.13, cs: 2.75, ce: 1.25 }, 260, "lin");      // the hang before the strike
-    await this.to({ lean: -0.3, bob: -0.32, lunge: -0.42, cs: 0.75, ce: -0.15, cg: 0.2, cw: -0.25, ns: 0.15, ne: 0.6 }, 120, "in");
-    this.fxv.impact = [0.2, 0.11, 0.001];
-    this.to({ impact: [0.2, 0.11, 1] }, 520, "out", this.fxv);
-    battleTime.hitstop(110);
-    onHit && onHit();
-    await this.to({ bob: -0.36, lunge: -0.45 }, 140, "out");
-    await this.wait(240);
-    await this.to({ ...REST, yaw: P.yaw }, 700, "io");
-    this.fxv.impact = [0.2, 0.11, 0];
+  // Named points in page coordinates: core, claw (tip), muzzle, thruster.
+  point(name) {
+    const at = { core: [[0, -0.1, -0.6]], claw: [[-0.06, -1.5, -0.05], "claw"], muzzle: [[0, -1.05, 0], "cannon"], thruster: [[0, -0.84, -0.02]] }[name];
+    const [fx, fy] = this.toCanvas(...at);
+    const r = this.canvas.getBoundingClientRect();
+    return { x: r.left + fx * r.width / this.canvas.width, y: r.top + (this.canvas.height - fy) * r.height / this.canvas.height };
+  }
+
+  // ---- reactions ----
+  async hurt({ crit = false } = {}) {
+    this.fxv.flash = 1; this.to({ flash: 0 }, crit ? 340 : 240, "lin", this.fxv);
+    this.fxv.glitch = 1; this.to({ glitch: 0 }, crit ? 600 : 400, "lin", this.fxv);
+    await this.to({ lean: crit ? 0.24 : 0.14, lunge: crit ? 0.22 : 0.12, flare: -0.4, bob: 0.06 }, 90, "out");
+    await this.to({ lean: 0, lunge: 0, flare: 0, bob: 0 }, 560, "back");
   }
   // Transition in: big blocks resolve down to the full-density pixels.
   async resolve(ms = 900, from = 48) {
