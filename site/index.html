@@ -4,81 +4,174 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Operandi</title>
-<meta name="description" content="Learn Python from zero with DOT, your Digital Operandi Teammate.">
+<meta name="description" content="Learn to code from zero with DOT, your Digital Operandi Teammate. Start with Python.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M14 80C2 80 3 52 14 36C25 16 49 7 68 11C88 16 98 36 99 56C99 64 96 67 91 66C85 64 81 67 81 72C81 78 79 82 73 82L26 83C19 83 15 82 14 80Z' fill='%2389dbf7'/%3E%3Ccircle cx='33' cy='56' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3Ccircle cx='61' cy='57' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a calm, centred hero. A looping row of language tiles sits above a
+   huge wordmark, two pill buttons below. Planned pricing waits quietly at the
+   bottom of the page. */
+:root {
+  --bg: #fbfaf6;
+  --ink: #2a2c2e;
+  --muted: #7a776f;
+  --tile: #e4e2dc;
+  --tile-shadow: rgb(60 50 30 / .14);
+  --pill: #c8bea9;
+  --card: #ffffff;
+  --line: #e6e2d8;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #141518; --ink: #ecebe6; --muted: #9b988f; --tile: #24262c; --tile-shadow: rgb(0 0 0 / .45); --pill: #5b5548; --card: #1b1d22; --line: #2c2e35; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid #3043f0; outline-offset: 3px; }
+
+.hero { min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, 2vw, 18px); padding: 48px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left)); }
+
+/* The looping tile row. Tiles are positioned by script. */
+.ring { position: relative; width: min(640px, 100%); height: 196px; overflow: hidden; touch-action: pan-y; cursor: grab;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.ring.dragging { cursor: grabbing; }
+.tile { position: absolute; left: 0; bottom: 36px; width: 112px; height: 112px; border: 0; border-radius: 26px; background: var(--tile);
+  box-shadow: 0 6px 14px var(--tile-shadow); display: grid; place-items: center; padding: 0; cursor: pointer;
+  transform-origin: 50% 100%; will-change: transform; }
+.tile svg { width: 64%; height: 64%; pointer-events: none; }
+.tile[aria-disabled="true"] { cursor: default; }
+.tile .label { position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; opacity: 0; transition: opacity .2s; }
+.tile:hover .label, .tile:focus-visible .label { opacity: 1; }
+
+.word { font-family: var(--font-display); font-weight: 800; font-size: clamp(64px, 15vw, 190px); line-height: .9; letter-spacing: -0.045em; margin: 6px 0 18px; }
+.buttons { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+.pill { background: transparent; border: 2.5px solid var(--pill); border-radius: 999px; padding: 12px 40px; font-size: 18px; font-weight: 600; cursor: pointer; transition: border-color .2s, transform .2s; text-decoration: none; color: var(--ink); }
+.pill:hover { border-color: var(--ink); transform: translateY(-1px); }
+.note { min-height: 22px; font-size: 14px; color: var(--muted); margin: 6px 0 0; text-align: center; }
+
+.pricing { padding: 40px max(16px, env(safe-area-inset-right)) 56px max(16px, env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: center; gap: 14px; border-top: 1px solid var(--line); }
+.pricing h2 { margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.plans { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.plan { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 22px; min-width: 190px; text-align: center; }
+.plan b { display: block; font-family: var(--font-display); font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.plan span { font-size: 13px; color: var(--muted); }
+.fine { font-size: 12px; color: var(--muted); margin: 0; text-align: center; }
+footer { text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 28px; }
+</style>
 </head>
 <body>
-<div class="app">
-  <header class="top">
-    <div class="mark">operandi<span class="dot">.</span>code</div>
-    <div class="track" aria-label="Level">
-      <div class="track-steps" id="trackSteps"></div>
-      <div class="track-bar" id="trackBar"></div>
-    </div>
-    <div class="stats">
-      <div class="stat bits" title="Bits: Operandi's in-game currency"><b id="bitsVal">0</b><span>Bits</span></div>
-      <div class="stat" title="Hints / peeks / solutions you own"><b class="inv" id="invVal">15·15·5</b><span>Hint · Peek · Sol</span></div>
-      <div class="stat"><b id="streakVal">0</b><span>Day streak</span></div>
-      <div class="account" id="account"></div>
-    </div>
-  </header>
-
-  <div class="body">
-    <nav class="rail" aria-label="Course">
-      <div id="moduleList"></div>
-      <div class="rail-group">
-        <h4>More</h4>
-        <ol>
-          <li><button class="rail-item" id="practiceBtn" data-view="practice"><span class="n">∞</span><span class="t">Practice<span class="sub" id="practiceSub">Finish lesson 1 to unlock</span></span></button></li>
-          <li><button class="rail-item" data-view="shop"><span class="n">◆</span><span class="t">Shop<span class="sub">Spend your Bits</span></span></button></li>
-          <li><button class="rail-item" data-view="faq"><span class="n">?</span><span class="t">FAQ &amp; glossary<span class="sub">Always free</span></span></button></li>
-        </ol>
-      </div>
-      <p class="save-state" id="saveState"></p>
-    </nav>
-
-    <section class="brief" id="brief"><div class="brief-inner" id="briefInner"></div></section>
-
-    <section class="work" aria-label="Code editor" id="work">
-      <div class="editor-head">
-        <span class="file">main.py</span>
-        <span class="engine" id="engine"><i></i><span>Loading Python…</span></span>
-      </div>
-      <div class="editor">
-        <div class="gutter" id="gutter" aria-hidden="true">1</div>
-        <textarea class="code" id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Your Python code"></textarea>
-      </div>
-      <div class="actions">
-        <button class="btn" id="runBtn" disabled>Run</button>
-        <button class="btn primary" id="submitBtn" disabled>Submit</button>
-        <span class="sep"></span>
-        <button class="btn item" id="hintBtn">Hint <span id="hintCount">15</span></button>
-        <button class="btn item" id="peekBtn">Peek <span id="peekCount">15</span></button>
-        <button class="btn item" id="solBtn">Solution <span id="solCount">5</span></button>
-        <button class="btn ghost" id="resetBtn">Reset</button>
-      </div>
-      <div class="tabs" role="tablist">
-        <button class="tab" role="tab" id="tab-output" aria-selected="true" data-tab="output">Output</button>
-        <button class="tab" role="tab" id="tab-tests" aria-selected="false" data-tab="tests">Tests<span class="count" id="testCount"></span></button>
-        <button class="tab" role="tab" id="tab-feedback" aria-selected="false" data-tab="feedback">Feedback</button>
-      </div>
-      <div class="panel" id="panel-output" role="tabpanel"></div>
-      <div class="panel" id="panel-tests" role="tabpanel" hidden></div>
-      <div class="panel" id="panel-feedback" role="tabpanel" hidden></div>
-    </section>
+<main class="hero">
+  <div class="ring" id="ring" aria-label="Languages. Drag or scroll to spin."></div>
+  <h1 class="word">Operandi</h1>
+  <div class="buttons">
+    <button class="pill" id="signIn" type="button">Sign in</button>
+    <a class="pill" href="#pricing">Pricing</a>
   </div>
-</div>
+  <p class="note" id="note" aria-live="polite"></p>
+</main>
 
-<dialog id="faqDialog" class="faq-dialog">
-  <form method="dialog" class="faq-head"><b>FAQ &amp; glossary</b><button class="btn ghost" aria-label="Close">Close</button></form>
-  <div id="faqDialogBody"></div>
-</dialog>
-<div class="toast" id="toast" hidden></div>
+<section class="pricing" id="pricing">
+  <h2>Planned pricing</h2>
+  <div class="plans">
+    <div class="plan"><b>RM80</b><span>one-time payment</span></div>
+    <div class="plan"><b>RM20</b><span>per month</span></div>
+  </div>
+  <p class="fine">Not available yet. Pricing may change. Operandi is free while it's being built.</p>
+</section>
+<footer>operandi.code</footer>
 
-<script type="module" src="js/app.js"></script>
+<script>
+// Language tiles. Only Python opens a course for now.
+const LANGS = [
+  { name: "Python", href: "python.html", svg: `<svg viewBox="0 0 64 64"><path d="M31 6c-9 0-13 4-13 10v6h14v3H13C7 25 4 30 4 37s3 13 9 13h5v-8c0-6 5-11 11-11h13c5 0 8-3 8-8v-7c0-6-6-10-14-10h-5z" fill="#3b77b9"/><circle cx="24" cy="13" r="2.6" fill="#fff"/><path d="M33 58c9 0 13-4 13-10v-6H32v-3h19c6 0 9-5 9-12s-3-13-9-13h-5v8c0 6-5 11-11 11H22c-5 0-8 3-8 8v7c0 6 6 10 14 10h5z" fill="#f6c94a"/><circle cx="40" cy="51" r="2.6" fill="#fff"/></svg>` },
+  { name: "VBA", svg: `<svg viewBox="0 0 64 64"><g stroke="#2b2b2b" stroke-width="1.6" stroke-linejoin="round"><path d="M32 8l10 5-10 5-10-5z" fill="#8fa8ec"/><path d="M22 13v10l10 5V18z" fill="#6f87d6"/><path d="M42 13v10l-10 5V18z" fill="#5a70bf"/><path d="M16 24l10 5-10 5-10-5z" fill="#f3a35c"/><path d="M6 29v10l10 5V34z" fill="#e58a3f"/><path d="M26 29v10l-10 5V34z" fill="#cf7429"/><path d="M32 30l10 5-10 5-10-5z" fill="#f5e46a"/><path d="M22 35v10l10 5V40z" fill="#e8d44f"/><path d="M42 35v10l-10 5V40z" fill="#d4c03a"/><path d="M48 24l10 5-10 5-10-5z" fill="#b86fc9"/><path d="M38 29v10l10 5V34z" fill="#9f55b1"/><path d="M58 29v10l-10 5V34z" fill="#864299"/></g></svg>` },
+  { name: "C++", svg: `<svg viewBox="0 0 64 64"><path d="M32 4l24 14v28L32 60 8 46V18z" fill="#4a7ec4"/><path d="M32 4l24 14L32 32z" fill="#6b9ad6"/><path d="M8 46l24-14 24 14L32 60z" fill="#2f5d9c"/><circle cx="30" cy="32" r="13" fill="none" stroke="#fff" stroke-width="7" stroke-dasharray="64 18" stroke-dashoffset="-9"/><path d="M43 29v6M40 32h6M51 29v6M48 32h6" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>` },
+  { name: "HTML", svg: `<svg viewBox="0 0 64 64"><path d="M10 6h44l-4 46-18 6-18-6z" fill="#e8642f"/><path d="M32 10h18l-3 39-15 5z" fill="#f2814c"/><path d="M25 24l-7 8 7 8M39 24l7 8-7 8M35 21l-6 22" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
+  { name: "SQL", svg: `<svg viewBox="0 0 64 64"><g stroke="#1f6b6a" stroke-width="2"><path d="M12 14v34c0 5 9 9 20 9s20-4 20-9V14" fill="#3fb3a8"/><ellipse cx="32" cy="14" rx="20" ry="8" fill="#7fd6cc"/><path d="M12 26c0 5 9 9 20 9s20-4 20-9M12 37c0 5 9 9 20 9s20-4 20-9" fill="none"/></g><text x="32" y="53" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="9" fill="#fff">SQL</text></svg>` },
+];
+
+const ring = document.getElementById("ring");
+const note = document.getElementById("note");
+const GAP = 146;                         // distance between tile centres
+const TOTAL = LANGS.length * GAP;         // one full loop
+const SIZE = 112;
+const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const tiles = LANGS.map((l) => {
+  const b = document.createElement(l.href ? "a" : "button");
+  b.className = "tile";
+  if (l.href) b.href = l.href; else { b.type = "button"; b.setAttribute("aria-disabled", "true"); }
+  b.setAttribute("aria-label", l.href ? `${l.name}: start learning` : `${l.name}: coming soon`);
+  b.innerHTML = l.svg + `<span class="label">${l.href ? l.name : l.name + " · soon"}</span>`;
+  b.addEventListener("click", (e) => {
+    const wasDrag = moved > 6;
+    moved = 0;
+    if (wasDrag) { e.preventDefault(); return; }          // it was a drag, not a click
+    if (!l.href) { e.preventDefault(); say(`${l.name} is coming soon. Python is ready now!`); }
+  });
+  ring.append(b);
+  return { el: b, scale: 1 };
+});
+
+let noteTimer;
+function say(text) { note.textContent = text; clearTimeout(noteTimer); noteTimer = setTimeout(() => (note.textContent = ""), 3000); }
+document.getElementById("signIn").addEventListener("click", () => say("Sign in is coming soon."));
+
+// State: offset slides the row; the row loops forever.
+let offset = 0, velocity = 0, mouseX = null, hovering = false, dragging = false, lastX = 0, moved = 0, last = performance.now();
+
+ring.addEventListener("pointerenter", () => (hovering = true));
+ring.addEventListener("pointerleave", () => { hovering = false; mouseX = null; });
+ring.addEventListener("pointermove", (e) => {
+  const r = ring.getBoundingClientRect();
+  mouseX = e.clientX - r.left;
+  if (dragging) { const dx = e.clientX - lastX; offset += dx; velocity = dx; moved += Math.abs(dx); lastX = e.clientX; }
+});
+ring.addEventListener("pointerdown", (e) => { dragging = true; moved = 0; lastX = e.clientX; ring.classList.add("dragging"); });
+addEventListener("pointerup", () => { dragging = false; ring.classList.remove("dragging"); });
+ring.addEventListener("wheel", (e) => { e.preventDefault(); velocity -= (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * 0.15; }, { passive: false });
+ring.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft") velocity += 6;
+  if (e.key === "ArrowRight") velocity -= 6;
+});
+
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (!dragging) {
+    offset += velocity;
+    velocity *= Math.pow(0.9, dt * 60);              // fling slows down smoothly
+    if (!hovering && !still && Math.abs(velocity) < 0.3) offset -= 22 * dt;   // gentle drift
+  }
+  const W = ring.clientWidth;
+  tiles.forEach((t, i) => {
+    // Position on the loop, wrapped so tiles leaving one side come back on the other.
+    let x = ((i * GAP + offset) % TOTAL + TOTAL) % TOTAL - GAP + (W - (Math.ceil(W / GAP) * GAP)) / 2;
+    if (x > W) x -= TOTAL;
+    const centre = x + SIZE / 2;
+    // Dock effect: tiles near the cursor grow, smoothly falling off with distance.
+    let want = 1;
+    if (mouseX !== null && !dragging) {
+      const d = Math.abs(mouseX - centre);
+      const k = Math.max(0, 1 - d / 190);
+      want = 1 + 0.28 * k * k * (3 - 2 * k);
+    }
+    t.scale += (want - t.scale) * Math.min(1, dt * 14);  // ease toward it, never snap
+    const lift = (t.scale - 1) * 34;
+    t.el.style.transform = `translate3d(${x.toFixed(1)}px, ${(-lift).toFixed(1)}px, 0) scale(${t.scale.toFixed(3)})`;
+    t.el.style.zIndex = Math.round(t.scale * 100);
+  });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
 </body>
 </html>

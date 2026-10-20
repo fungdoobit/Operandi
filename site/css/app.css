@@ -57,7 +57,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
 
 /* Top bar */
 .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); background: var(--surface); border-bottom: 1px solid var(--line); }
-.mark { font-family: var(--font-mono); font-weight: 600; font-size: 18px; letter-spacing: -0.02em; white-space: nowrap; }
+.mark { font-family: var(--font-mono); font-weight: 600; font-size: 18px; letter-spacing: -0.02em; white-space: nowrap; color: inherit; text-decoration: none; }
 .mark .dot { color: var(--dot); text-shadow: 0 0 8px #7fdcff; }
 .track { flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .track-steps, .track-bar { display: flex; gap: 4px; }

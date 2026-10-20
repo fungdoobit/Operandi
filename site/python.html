@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Operandi</title>
+<meta name="description" content="Learn Python from zero with DOT, your Digital Operandi Teammate.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M14 80C2 80 3 52 14 36C25 16 49 7 68 11C88 16 98 36 99 56C99 64 96 67 91 66C85 64 81 67 81 72C81 78 79 82 73 82L26 83C19 83 15 82 14 80Z' fill='%2389dbf7'/%3E%3Ccircle cx='33' cy='56' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3Ccircle cx='61' cy='57' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="mark" href="./" title="Home">operandi<span class="dot">.</span>code</a>
+    <div class="track" aria-label="Level">
+      <div class="track-steps" id="trackSteps"></div>
+      <div class="track-bar" id="trackBar"></div>
+    </div>
+    <div class="stats">
+      <div class="stat bits" title="Bits: Operandi's in-game currency"><b id="bitsVal">0</b><span>Bits</span></div>
+      <div class="stat" title="Hints / peeks / solutions you own"><b class="inv" id="invVal">15·15·5</b><span>Hint · Peek · Sol</span></div>
+      <div class="stat"><b id="streakVal">0</b><span>Day streak</span></div>
+      <div class="account" id="account"></div>
+    </div>
+  </header>
+
+  <div class="body">
+    <nav class="rail" aria-label="Course">
+      <div id="moduleList"></div>
+      <div class="rail-group">
+        <h4>More</h4>
+        <ol>
+          <li><button class="rail-item" id="practiceBtn" data-view="practice"><span class="n">∞</span><span class="t">Practice<span class="sub" id="practiceSub">Finish lesson 1 to unlock</span></span></button></li>
+          <li><button class="rail-item" data-view="shop"><span class="n">◆</span><span class="t">Shop<span class="sub">Spend your Bits</span></span></button></li>
+          <li><button class="rail-item" data-view="faq"><span class="n">?</span><span class="t">FAQ &amp; glossary<span class="sub">Always free</span></span></button></li>
+        </ol>
+      </div>
+      <p class="save-state" id="saveState"></p>
+    </nav>
+
+    <section class="brief" id="brief"><div class="brief-inner" id="briefInner"></div></section>
+
+    <section class="work" aria-label="Code editor" id="work">
+      <div class="editor-head">
+        <span class="file">main.py</span>
+        <span class="engine" id="engine"><i></i><span>Loading Python…</span></span>
+      </div>
+      <div class="editor">
+        <div class="gutter" id="gutter" aria-hidden="true">1</div>
+        <textarea class="code" id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Your Python code"></textarea>
+      </div>
+      <div class="actions">
+        <button class="btn" id="runBtn" disabled>Run</button>
+        <button class="btn primary" id="submitBtn" disabled>Submit</button>
+        <span class="sep"></span>
+        <button class="btn item" id="hintBtn">Hint <span id="hintCount">15</span></button>
+        <button class="btn item" id="peekBtn">Peek <span id="peekCount">15</span></button>
+        <button class="btn item" id="solBtn">Solution <span id="solCount">5</span></button>
+        <button class="btn ghost" id="resetBtn">Reset</button>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-output" aria-selected="true" data-tab="output">Output</button>
+        <button class="tab" role="tab" id="tab-tests" aria-selected="false" data-tab="tests">Tests<span class="count" id="testCount"></span></button>
+        <button class="tab" role="tab" id="tab-feedback" aria-selected="false" data-tab="feedback">Feedback</button>
+      </div>
+      <div class="panel" id="panel-output" role="tabpanel"></div>
+      <div class="panel" id="panel-tests" role="tabpanel" hidden></div>
+      <div class="panel" id="panel-feedback" role="tabpanel" hidden></div>
+    </section>
+  </div>
+</div>
+
+<dialog id="faqDialog" class="faq-dialog">
+  <form method="dialog" class="faq-head"><b>FAQ &amp; glossary</b><button class="btn ghost" aria-label="Close">Close</button></form>
+  <div id="faqDialogBody"></div>
+</dialog>
+<div class="toast" id="toast" hidden></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

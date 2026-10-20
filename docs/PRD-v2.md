@@ -121,7 +121,7 @@ Decided with Isaac on 2026-10-18:
   - Isaac chooses which teammate is active and can switch any time.
 - **Prices:** confirmed by Isaac.
 
-## Addendum B: home page (draft, awaiting "go")
+## Addendum B: home page (approved with "go", built 2026-10-20)
 
 Decided with Isaac on 2026-10-20:
 - **Home page at `/`.** The course moves to `/python`, unchanged.
