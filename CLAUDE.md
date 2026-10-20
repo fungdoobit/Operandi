@@ -93,6 +93,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 - [ ] Sign in on the home page just opens the course for now. Later it can reuse the Firebase sign-in from `cloud.js`.
 - [ ] Isaac sets up Vercel and Firebase (`docs/SETUP.md`), then pastes the Firebase config into `site/js/firebase-config.js`.
 - [ ] Firebase sign-in and sync are untested: the cloud sandbox couldn't reach Google. Test once Isaac has a config.
+- [ ] Addendum C (boss fights and streak rewards) is drafted in `docs/PRD-v2.md` and waiting for Isaac's "go". Ideas parked for later: the Super move, and bosses mixing topics from earlier modules.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).
 - [ ] v1: Isaac's first real use inside claude.ai is still unconfirmed.

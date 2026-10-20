@@ -148,7 +148,7 @@ Decided with Isaac on 2026-10-20:
 - **Build order:** the battle system, the Module 1 boss and streak rewards first. Each later module ships with its own boss.
 - **Special moves:** each boss has its own, tied to that module's topic. They are telegraphed one turn ahead and must be beatable with that module's skills only.
 - **Difficulty scales by module, based on what that module taught** (Isaac, 2026-10-20).
-  - Boss challenges are built only from the topics of that module and earlier ones, and mostly from that module's own topics.
+  - Boss challenges test only that module's topics (see "Boss topics" below).
   - Later bosses get harder through challenge difficulty, special-move frequency and fewer misses you can afford. Not just bigger HP numbers, which would only make fights longer.
   - The validator checks that every boss challenge and special move uses only topics already taught.
 - **Fight rules (proposed):**
@@ -166,6 +166,7 @@ Decided with Isaac on 2026-10-20:
   - Firewall: blocks part of your next hit; only a crit breaks through.
   - Typo Swarm: planted typos in the starter.
   - Glitch Text: the given text arrives messed up and must be cleaned first.
-- **Open questions:**
-  - Super move after 2 crits in a row: yes or no?
-  - Boss topics: only that module, or that module plus earlier ones (mainly its own)?
+- **Boss topics: own module only, for now** (Isaac, 2026-10-20). Each boss tests only its own module's topics.
+  - Earlier basics (print, variables) may appear as glue but are never what's tested.
+  - Review mixing modules later, once we've seen the balance.
+- **Super move: parked** (Isaac, 2026-10-20). It would be double damage after 2 crits in a row. Left out until the balance has been seen in real fights, so the companion isn't made too strong.
