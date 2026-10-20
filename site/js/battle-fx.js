@@ -135,6 +135,7 @@ export class BattleFX {
   place(elm, p) { elm._pos = { r: 0, ...p }; elm.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) rotate(${(p.r || 0).toFixed(1)}deg)`; }
 
   loop(now) {
+    if (!this.stage.isConnected) return; // removed from the page: stop
     const real = Math.min(50, now - this.last);
     this.last = now;
     const d = battleTime.step(now, real);

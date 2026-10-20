@@ -40,6 +40,7 @@ export class PixelBoss {
   later(ms, f) { this.fx.wait(ms).then(f); }
 
   tick() {
+    if (!this.dc.isConnected) return; // removed from the page: stop
     const c = this.golem.localPoint([0, -0.1, -0.6]);
     this.coreEl.style.left = c.x + "px"; this.coreEl.style.top = c.y + "px";
     const k = this.golem.canvas.clientWidth / this.golem.canvas.width;
@@ -70,6 +71,21 @@ export class PixelBoss {
     if (move === "firewall") this.buildDome();
     if (move === "typos") this.typoSwarm(opts);
     if (move === "glitch") this.glitchText();
+  }
+
+  // Knocked out: the eye dies, he slumps out of the air, his pixels tear, then he fades.
+  defeat() {
+    const g = this.golem;
+    if (this.dome.childElementCount) this.breakDome();
+    g.fxv.glitch = 1.2;
+    g.to({ flare: -1, thrust: 0, bob: -0.45, tilt: -0.35, lean: 0.25, ca: -1.2, ce: 0.2, na: -1.2, ne: 0.2 }, 1600, "io");
+    this.later(1500, () => { g.fxv.glitch = 2.5; g.to({ glitch: 3 }, 700, "lin", g.fxv); g.canvas.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, delay: 300, fill: "forwards" }); });
+  }
+  // He won: rears up, arms high, eye blazing.
+  win() {
+    const g = this.golem;
+    g.to({ flare: 2, tilt: 0.2, bob: 0.25, ca: 1.1, ce: 0.5, na: 1.1, ne: 0.5, thrust: 2 }, 450, "out")
+      .then(() => this.fx.wait(1300)).then(() => g.rest(700));
   }
 
   // ---- Firewall ----

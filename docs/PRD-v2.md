@@ -176,6 +176,20 @@ Decided with Isaac on 2026-10-20:
   - Review mixing modules later, once we've seen the balance.
 - **Super move: parked** (Isaac, 2026-10-20). It would be double damage after 2 crits in a row. Left out until the balance has been seen in real fights, so the companion isn't made too strong.
 
+### Addendum C, step 2: the fight in the course (built 2026-10-20, after Isaac's "yea, good")
+- **Where:** "Boss: GOLEM" sits at the end of Module 1 in the course list, unlocked by finishing the lessons. The fight shows in the lesson column (hi-bit stage on top, the challenge below); the editor works as usual.
+- **Module completion moved:** with a boss, finishing the lessons unlocks him and **beating him** completes the module (+50 Bits, level up). Saves that completed Module 1 before bosses existed keep it.
+- **Turns:** each challenge is a turn. A pass is your strike (15–25 by mark; 40 crit for 10/10 on the first Submit with no hints or peeks). **Every failed Submit is a miss and GOLEM hits back for 20.** Run is free.
+- **Numbers (BOSS in `economy.js`):** 300 HP each. Challenges get harder as he weakens (Easy above 200 HP, Medium above 100, then Hard).
+- **Specials:** after every 3rd pass he telegraphs one (never the same twice running):
+  - Firewall: halves your next hit (then it's used up); a crit smashes straight through.
+  - Typo Swarm: two letters of a given variable's name in the next starter are swapped.
+  - Glitch Text: # % & @ symbols land inside the next starter's given text.
+- **Solutions are off;** hints and peeks work but cancel the crit. The fight is saved after every turn.
+- **Rewards:** first-try win +100 Bits, a win on a retry +50, rematches nothing. **GOLEM's exclusive accessory isn't designed yet:** first-try winners are recorded so they get it when it exists.
+- **Test links (for Isaac):** `/python?test=boss` loads a save with Module 1's lessons done and GOLEM ready; `/python?test=reset` wipes everything back to the very beginning. Both ask first.
+- **Still to do:** GOLEM's exclusive accessory (and the aura slot), streak rewards.
+
 ## Addendum D: lesson sections (approved with "sure", built 2026-10-20)
 
 - **Problem:** lessons taught several things but practised only one. For example, Lesson 1 taught text, numbers and comments, but its task only used text.

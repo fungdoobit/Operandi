@@ -265,6 +265,7 @@ export class PixelGolem {
   wait(ms) { return this.to({}, ms); }
   rest(ms = 600) { return this.to({ ...REST }, ms, "io"); }
   loop(now) {
+    if (!this.canvas.isConnected) return; // removed from the page: stop
     const raw = Math.min(now - this.last, 50); this.last = now;
     const dt = battleTime.step(now, raw);
     this.at += dt;
@@ -341,6 +342,7 @@ export class PixelGolem {
   // Transition in: big blocks resolve down to the full-density pixels.
   async resolve(ms = 900, from = 48) {
     this.fxv.block = from;
+    this.render();   // draw the blocky first frame now, not one frame late
     await this.to({ block: 1 }, ms, "out", this.fxv);
   }
 }

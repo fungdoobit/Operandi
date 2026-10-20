@@ -242,3 +242,7 @@ textarea.code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
 .sections .sec[aria-selected="true"] { color: var(--ink); border-color: var(--ink); }
 .sections .sec:disabled { opacity: .45; cursor: not-allowed; }
 .sec-title { margin-top: 0; }
+
+/* Boss entry in the course list */
+.rail-item.boss .n { color: #ff6a3d; font-weight: 700; }
+.rail-item.boss.done .n { color: inherit; }

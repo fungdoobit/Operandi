@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { ALL_LESSONS, ALL_TEMPLATES } from "../site/content/index.js";
 import { rng } from "../site/js/rng.js";
 import { LINT_PENALTY } from "../site/content/help.js";
+import { specialApplies, applySpecial } from "../site/js/boss-rules.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SEEDS = Number(process.argv[2] || 60);
@@ -55,6 +56,19 @@ for (const t of ALL_TEMPLATES) {
   }
 }
 py.stdin.end();
+
+// Boss specials: Typo Swarm and Glitch Text must change the starter they're
+// planted in, and every boss difficulty needs templates they can be planted in.
+for (const kind of ["typos", "glitch"]) {
+  for (const d of [1, 2, 3]) {
+    const fits = ALL_TEMPLATES.filter((t) => t.difficulty === d && specialApplies(kind, t.make(rng(1)).starter));
+    if (!fits.length) fail(`boss ${kind}`, `no difficulty ${d} template can take it`);
+  }
+  for (const t of ALL_TEMPLATES) for (let seed = 1; seed <= 20; seed++) {
+    const c = t.make(rng(seed));
+    if (specialApplies(kind, c.starter) && applySpecial(kind, c.starter, rng(seed + 7)).starter === c.starter) fail(`boss ${kind} on ${t.id}`, "changed nothing");
+  }
+}
 
 const ids = ALL_TEMPLATES.map((t) => t.id);
 const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);

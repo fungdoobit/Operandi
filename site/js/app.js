@@ -5,7 +5,9 @@
 import { Dot, DOT_CSS } from "./dot.js";
 import { Runner } from "./runner.js";
 import { Store } from "./store.js";
-import { SHOP, LEVELS, DIFFS, EARN, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
+import { SHOP, LEVELS, DIFFS, EARN, BOSS, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
+import { BattleStage, pixelateOut } from "./boss-fight.js";
+import { newFight, difficultyFor, strikeFor, nextSpecial, specialApplies, applySpecial } from "./boss-rules.js";
 import { Pet } from "./pet.js";
 import { VOICES } from "../content/voices.js";
 import { startCloud, cloudConfigured } from "./cloud.js";
@@ -82,6 +84,10 @@ const sectionDone = (l, i) => lessonDone(l.id) || !!S().lessons[sectionKey(l, i)
 const firstOpenSection = (l) => { const n = sectionsOf(l).findIndex((_, i) => !sectionDone(l, i)); return n < 0 ? 0 : n; };
 const lessonsDoneCount = () => ALL_LESSONS.filter((l) => lessonDone(l.id)).length;
 const modulesDone = () => Object.keys(S().modulesDone).length;
+// Each module ends with a boss: its lessons unlock him, and beating him completes the module.
+const BOSSES = { 1: { name: "GOLEM" } };
+const bossUnlocked = (m) => MODULE_LESSONS(m).length > 0 && MODULE_LESSONS(m).every((l) => lessonDone(l.id));
+const bossBeaten = (m) => !!S().bossWins[m] || !!S().modulesDone[m];
 
 // Which lesson a template's topics need (Module 1). Challenges only use what you've learned.
 function requiredLessons(t) {
@@ -116,6 +122,7 @@ function challengeTask(cur) {
 
 // The record that tracks attempts, hints and so on for the task on screen.
 function rec() {
+  if (task.kind === "boss") return S().boss.cur;
   if (task.kind === "lesson") return (S().lessons[task.key] ||= { done: false, attempts: 0, hints: 0, assisted: false, solutionUsed: false, peeked: [] });
   return S().current;
 }
@@ -235,6 +242,7 @@ async function doRun() {
 
 function isSolved() {
   if (!task) return false;
+  if (task.kind === "boss") return false;
   return task.kind === "lesson" ? sectionDone(ALL_LESSONS[lessonIndex(task.lessonId)], task.section) : !!S().current?.solved;
 }
 
@@ -261,7 +269,7 @@ async function doSubmit() {
     const mark = hardcoded ? 5 : markFor({ passedCount, total: results.length, lintIds: styleLint.map((l) => l.id), attempt: r.attempts, penalties: LINT_PENALTY });
 
     let rewardLine = "", rewardParts = [];
-    if (passed && !already) {
+    if (passed && !already && task.kind !== "boss") {
       const repeat = task.kind === "challenge" && task.difficulty < 3 && (S().solves[`1:${task.difficulty}`] || 0) >= EARN.repeatAfter;
       const rw = rewardFor({ kind: task.kind, difficulty: task.difficulty, attempt: r.attempts, mark, assisted: r.assisted, solved: r.solutionUsed, repeat });
       store.earn(rw.total);
@@ -278,7 +286,9 @@ async function doSubmit() {
           S().lessons[l.id] = { done: true, mark: avg, at: new Date().toISOString() };
         }
         const moduleId = l.module;
-        if (lessonDone(l.id) && MODULE_LESSONS(moduleId).every((l) => lessonDone(l.id)) && !S().modulesDone[moduleId]) {
+        if (BOSSES[moduleId] && lessonDone(l.id) && bossUnlocked(moduleId) && !bossBeaten(moduleId)) {
+          setTimeout(() => toast(`Boss unlocked: ${BOSSES[moduleId].name}. Beat him to complete Module ${moduleId}.`), 600);
+        } else if (!BOSSES[moduleId] && lessonDone(l.id) && MODULE_LESSONS(moduleId).every((l) => lessonDone(l.id)) && !S().modulesDone[moduleId]) {
           const before = levelFor(modulesDone());
           S().modulesDone[moduleId] = new Date().toISOString();
           store.earn(EARN.moduleComplete);
@@ -298,9 +308,10 @@ async function doSubmit() {
 
     renderFeedback({ passed, mark, rewardLine, rewardParts, run, diff, hardcoded, styleLint, already, attempts: r.attempts });
     showTab(passed ? "feedback" : run.error ? "output" : diff ? "tests" : "tests");
-    dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, already, attempts: r.attempts, results });
+    if (task.kind !== "boss" || !passed) dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, already, attempts: r.attempts, results });
     renderTop(); renderRail();
     if (task.kind === "challenge") renderChallenge();
+    else if (task.kind === "boss") await bossTurn(passed, mark, r);
     else if (passed) renderLessonFooter();
   } catch (e) {
     toast(e.message || "Something went wrong running your code.");
@@ -316,6 +327,7 @@ function nextAction() {
     const nextSec = sectionsOf(l)[task.section + 1];
     if (nextSec) return { label: `Next: ${nextSec.title} →`, onClick: () => openLesson(l.id, task.section + 1) };
     const next = ALL_LESSONS[i + 1];
+    if ((!next || next.module !== l.module) && BOSSES[l.module] && bossUnlocked(l.module) && !bossBeaten(l.module)) return { label: `Fight ${BOSSES[l.module].name} →`, onClick: () => openBoss(l.module) };
     if (next) return { label: `Next: ${next.title} →`, onClick: () => openLesson(next.id) };
     return { label: "Practice challenges →", onClick: () => openView("practice") };
   }
@@ -399,6 +411,7 @@ function usePeek() {
 
 function useSolution() {
   if (!task) return;
+  if (task.kind === "boss") return dot.say("Solutions are switched off in boss fights. Hints and peeks still work, but they cancel your crit.", { title: "No solutions here", mood: "thinking" });
   const r = rec();
   if (r.solutionUsed) return renderSolutionBlock();
   if (S().items.solution <= 0) return dot.say("You're out of solutions. They're 60 Bits in the Shop.", { title: "No solutions left", mood: "sad", actions: [{ label: "Open the Shop", onClick: () => openView("shop") }] });
@@ -457,6 +470,7 @@ function wireExamples() {
 }
 
 function openLesson(id, section) {
+  leaveBoss();
   const l = ALL_LESSONS.find((x) => x.id === id);
   const secs = sectionsOf(l);
   if (section == null) section = firstOpenSection(l);
@@ -514,12 +528,17 @@ function renderLessonFooter() {
     b.querySelector(".n").textContent = done ? "✓" : n + 1;
     b.disabled = !(n === 0 || sectionDone(l, n - 1));
   });
-  if (lessonDone(l.id) && mod[mod.length - 1].id === l.id) f.innerHTML = `<div class="note"><b>Module ${l.module} complete</b>Keep sharpening your skills in Practice. Module ${l.module + 1} is on its way.</div>`;
+  if (lessonDone(l.id) && mod[mod.length - 1].id === l.id && BOSSES[l.module] && !bossBeaten(l.module)) {
+    f.innerHTML = `<div class="note"><b>Boss unlocked: ${BOSSES[l.module].name}</b>Beat him to complete Module ${l.module}.<div style="margin-top:10px"><button class="btn primary" id="bossGo">Fight ${BOSSES[l.module].name} →</button></div></div>`;
+    $("bossGo").addEventListener("click", () => openBoss(l.module));
+  }
+  else if (lessonDone(l.id) && mod[mod.length - 1].id === l.id) f.innerHTML = `<div class="note"><b>Module ${l.module} complete</b>Keep sharpening your skills in Practice. Module ${l.module + 1} is on its way.</div>`;
   else f.innerHTML = "";
 }
 
 function openView(kind) {
   if (kind === "practice") return openPractice();
+  leaveBoss();
   view = { kind };
   task = null;
   setWorkVisible(false);
@@ -531,6 +550,7 @@ function openView(kind) {
 
 let difficulty = 1;
 function openPractice() {
+  leaveBoss();
   view = { kind: "practice" };
   const cur = S().current;
   if (cur && ALL_TEMPLATES.some((t) => t.id === cur.templateId)) {
@@ -717,6 +737,191 @@ function openFaq(id) {
   document.getElementById("faq-" + id)?.scrollIntoView({ block: "start" });
 }
 
+/* ---------- Boss fight ---------- */
+
+// The fight's state is S().boss (boss-rules.js newFight). Each challenge is a
+// turn: a pass is your strike, a failed Submit is a miss and the boss hits back.
+let battle = null;
+
+function leaveBoss() {
+  battle = null;
+  dot.root.style.visibility = "";
+  dot.sayOverride = null;
+}
+
+// Pick the next challenge: harder as the boss weakens, and one that a pending
+// Typo Swarm or Glitch Text can actually be planted in.
+function makeBossCur(f) {
+  const special = f.pending;
+  f.pending = null;
+  const pool = ALL_TEMPLATES.filter((t) => t.module === f.module && t.difficulty === difficultyFor(f));
+  const fresh = pool.filter((t) => !(f.recent || []).includes(t.id));
+  const choices = fresh.length ? fresh : pool;
+  for (let tries = 0; tries < 40; tries++) {
+    const t = choices[Math.floor(Math.random() * choices.length)], seed = newSeed();
+    if (special && tries < 39 && !specialApplies(special, t.make(rng(seed)).starter)) continue;
+    f.recent = [t.id, ...(f.recent || [])].slice(0, 8);
+    const fits = !special || specialApplies(special, t.make(rng(seed)).starter);
+    return { templateId: t.id, seed, attempts: 0, hints: 0, assisted: false, solutionUsed: false, peeked: [], special: fits ? special : null };
+  }
+}
+
+function bossTask(cur) {
+  const base = challengeTask(cur);
+  const t = { ...base, kind: "boss", key: `boss:${cur.templateId}:${cur.seed}` };
+  if (cur.special) { const m = applySpecial(cur.special, base.starter, rng(cur.seed + 7)); t.starter = m.starter; t.specialNote = m.note; }
+  return t;
+}
+
+function startFight(m) {
+  S().bossFights[m] = (S().bossFights[m] || 0) + 1;
+  const f = newFight(m, S().bossFights[m]);
+  f.cur = makeBossCur(f);
+  S().boss = f;
+  store.save();
+}
+
+// again: a fresh fight from the result screen, so the entrance plays again.
+async function openBoss(m = 1, { again = false } = {}) {
+  if (busy || !bossUnlocked(m)) return;
+  const entering = view.kind !== "boss" || again;
+  // The entry transition: the page breaks up into big blocks, then the arena resolves.
+  if (entering && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    busy = true;
+    try { await pixelateOut($("briefInner")); } finally { busy = false; $("briefInner").style.filter = ""; }
+  }
+  leaveBoss();
+  view = { kind: "boss", module: m };
+  let f = S().boss;
+  if (!f || f.module !== m) { if (bossBeaten(m)) return renderBossPanel("beaten"); startFight(m); f = S().boss; }
+  renderBossStage();
+  if (f.over === "lost") return renderBossPanel("lost");
+  task = bossTask(f.cur);
+  setWorkVisible(true);
+  renderBossBody();
+  loadEditor();
+  prepareTask();
+  renderRail();
+  $("brief").scrollTop = 0;
+  if (entering) battle.intro();
+  battle.say(f.turn === 0 && !f.cur.attempts
+    ? `Each challenge you pass is a strike: ${BOSS.damage[6]} to ${BOSS.damage[10]} damage depending on your mark, and a flawless pass (10/10, first submit, no hints or peeks) is a ${BOSS.crit} crit. A failed Submit is a miss, and he hits back. Run your code as often as you like first: only Submit counts.`
+    : "Welcome back. The fight's right where you left it.", { title: f.turn === 0 && !f.cur.attempts ? `${BOSSES[m].name} blocks the way` : "Fight resumed", mood: "fierce" });
+}
+
+function renderBossStage() {
+  const f = S().boss;
+  $("briefInner").innerHTML = `<p class="eyebrow">Module ${view.module} · Boss fight${f && f.number > 1 ? ` · attempt ${f.number}` : ""}</p>
+    <div id="bossStage"></div><div class="bsay" id="bossSay" hidden></div><div id="bossBody"></div>`;
+  battle = new BattleStage($("bossStage"), $("bossSay"), { skin: S().equipped.teammate || "dot", accessories: wearing(), name: BOSSES[view.module].name });
+  if (f) battle.hp(f.me, f.foe); else battle.hp(BOSS.hp, BOSS.hp);
+  if (f?.dome) battle.restoreDome();
+  // Your roaming teammate steps into the arena: messages show under the stage.
+  dot.root.style.visibility = "hidden";
+  dot.sayOverride = (text, opts) => battle?.say(text, opts);
+}
+
+function renderBossBody() {
+  const f = S().boss, c = task, name = BOSSES[f.module].name;
+  const banners = [c.specialNote, f.dome ? `${name}'s Firewall is up: your next hit is halved, unless it's a crit.` : ""].filter(Boolean);
+  $("bossBody").innerHTML = `${banners.map((b) => `<div class="bspecial">${esc(b)}</div>`).join("")}
+    <h1>${esc(c.title)}</h1>
+    <p>${esc(c.scenario)}</p>
+    <div class="task"><h3>Your task</h3><ol>${c.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+      <div class="expected"><span>Expected output</span><pre id="expectedBox">${c.expected ? esc(c.expected.join("\n")) : "…"}</pre></div>
+      <div class="chips">${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}<span class="chip gold">Pass ${BOSS.damage[6]}–${BOSS.damage[10]} · flawless ${BOSS.crit}</span>${f.cur.attempts ? `<span class="chip">Attempt ${f.cur.attempts}</span>` : ""}</div>
+      <div class="hints" id="hintBox"></div>
+      <div id="solutionBox"></div>
+    </div>`;
+  renderHints();
+}
+
+// One turn of the fight, after a Submit. The new state is saved before the
+// animation plays, so closing the page mid-fight loses nothing.
+async function bossTurn(passed, mark, r) {
+  const f = S().boss, name = BOSSES[f.module].name;
+  if (!battle || !f) return;
+  if (!passed) {
+    f.me = Math.max(0, f.me - BOSS.bossHit);
+    if (f.me <= 0) f.over = "lost";
+    store.save();
+    await battle.counter(() => battle.hp(f.me, f.foe));
+    if (f.over === "lost") { await battle.defeat(); renderBossPanel("lost"); }
+    else renderBossBody();
+    return;
+  }
+  const flawless = mark === 10 && r.attempts === 1 && !r.assisted;
+  const strike = strikeFor({ mark, flawless, dome: f.dome });
+  f.foe = Math.max(0, f.foe - strike.dmg);
+  f.turn += 1;
+  f.dome = false;   // a crit breaks the Firewall; a blocked hit uses it up
+  const special = nextSpecial(f);
+  if (special) { f.lastSpecial = special; if (special === "firewall") f.dome = true; else f.pending = special; }
+  if (f.foe <= 0) f.over = "won";
+  const reward = f.over === "won" ? winFight(f) : null;
+  if (!reward) f.cur = makeBossCur(f);
+  store.save();
+  const v = V().passed(mark);
+  const why = strike.result !== "crit" && mark === 10 ? ` (A crit needs 10/10 on the first Submit with no hints or peeks.)` : "";
+  battle.say(strike.result === "crit" ? "Flawless: critical hit!" : strike.result === "blocked" ? `${v.text} The Firewall soaked up half of it.${why}` : v.text + why, { title: `${mark}/10 · ${strike.dmg} damage`, mood: "fierce" });
+  await battle.attack(strike, () => battle.hp(f.me, f.foe));
+  if (reward) { await battle.victory(); renderBossPanel("won", reward); renderTop(); renderRail(); return; }
+  if (special) await battle.special(special);
+  task = bossTask(f.cur);
+  renderBossBody();
+  loadEditor();
+  prepareTask();
+  if (special === "firewall") battle.say(`The Firewall halves your next hit. Only a crit breaks straight through: 10/10 on the first submit, with no hints or peeks.`, { title: `${name} raised a Firewall`, mood: "worried" });
+  else if (special) battle.say(task.specialNote, { title: special === "typos" ? "Typo Swarm!" : "Glitch Text!", mood: "worried" });
+}
+
+// Rewards for a win: Bits (first try or retry), the module, the level.
+function winFight(f) {
+  const m = f.module, already = !!S().bossWins[m];
+  const firstTry = !already && f.number === 1;
+  const lines = [];
+  let bits = 0;
+  if (!already) { bits += firstTry ? BOSS.reward.firstTry : BOSS.reward.retry; lines.push(`+${bits} Bits for ${firstTry ? "a first-try win" : "the win"}`); }
+  let levelUp = null;
+  if (!S().modulesDone[m]) {
+    const before = levelFor(modulesDone());
+    S().modulesDone[m] = new Date().toISOString();
+    bits += EARN.moduleComplete;
+    lines.push(`+${EARN.moduleComplete} Bits: Module ${m} complete`);
+    const after = levelFor(modulesDone());
+    if (after > before) levelUp = LEVELS[after].name;
+  }
+  store.earn(bits);
+  if (!already) S().bossWins[m] = { at: new Date().toISOString(), firstTry, number: f.number };
+  S().boss = null;
+  return { lines, levelUp, firstTry, already };
+}
+
+function renderBossPanel(kind, reward) {
+  const m = view.module, name = BOSSES[m].name;
+  task = null;
+  setWorkVisible(false);
+  if (!$("bossBody")) renderBossStage();
+  let h = "";
+  if (kind === "won") {
+    h = `<h1>${name} defeated!</h1>
+      ${reward.lines.length ? `<div class="note"><b>Rewards</b><ul>${reward.lines.map((l) => `<li>${esc(l)}</li>`).join("")}${reward.levelUp ? `<li>Level up: you're now <b>${esc(reward.levelUp)}</b></li>` : ""}</ul></div>` : `<p>A rematch win. Rewards only come from the first win.</p>`}
+      ${reward.already ? "" : `<p class="empty">${reward.firstTry ? `${name}'s exclusive accessory is still being designed. You won on your first try, so it's yours as soon as it's ready.` : `${name}'s exclusive accessory is still being designed. It'll be in the Shop for ${BOSS.exclusivePrice.toLocaleString()} Bits once it's ready (a first-try win would have given it free).`}</p>`}
+      <button class="btn primary" id="bossNext">Practice challenges →</button>`;
+    if (reward.levelUp) setTimeout(() => toast(`Level up: you're now ${reward.levelUp}!`), 400);
+  } else if (kind === "lost") {
+    h = `<h1>${name} won this round</h1><p>Losing costs nothing. Your HP and his are reset, and you get a fresh set of challenges.</p>
+      <button class="btn primary" id="bossAgain">Fight again</button>`;
+  } else {
+    h = `<h1>${name} is defeated</h1><p>You've already beaten him. A rematch is just for fun: no rewards.</p>
+      <button class="btn primary" id="bossAgain">Rematch</button>`;
+  }
+  $("bossBody").innerHTML = h;
+  $("bossNext")?.addEventListener("click", () => openView("practice"));
+  $("bossAgain")?.addEventListener("click", () => { startFight(m); openBoss(m, { again: true }); });
+  renderRail();
+}
+
 /* ---------- Top bar and rail ---------- */
 
 function renderTop() {
@@ -747,11 +952,13 @@ function renderRail() {
   const mods = MODULES.map((m) => {
     if (m.soon) return `<div class="module-soon"><span>${m.id} · ${esc(m.title)}</span><span>Soon</span></div>`;
     const lessons = MODULE_LESSONS(m.id);
+    const B = BOSSES[m.id], f = S().boss;
+    const bossItem = !B ? "" : `<li><button class="rail-item boss ${bossBeaten(m.id) ? "done" : ""}" data-boss="${m.id}" ${bossUnlocked(m.id) ? "" : "disabled"} aria-current="${view.kind === "boss" && view.module === m.id}"><span class="n">${bossBeaten(m.id) ? "✓" : "⚔"}</span><span class="t">Boss: ${B.name}<span class="sub">${bossBeaten(m.id) ? "Defeated" : !bossUnlocked(m.id) ? "Finish the lessons to unlock" : f?.module === m.id && !f.over ? `Fight in progress · ${f.foe} HP left` : "Ready to fight"}</span></span></button></li>`;
     return `<div class="rail-group"><h4>Module ${m.id} · ${esc(m.title)}</h4><ol>${lessons.map((l) => {
       const i = lessonIndex(l.id), done = lessonDone(l.id), open = lessonUnlocked(i);
       const cur = view.kind === "lesson" && view.id === l.id;
       return `<li><button class="rail-item ${done ? "done" : ""}" data-lesson="${l.id}" ${open ? "" : "disabled"} aria-current="${cur}"><span class="n">${done ? "✓" : String(lessons.indexOf(l) + 1).padStart(2, "0")}</span><span class="t">${esc(l.title)}<span class="sub">${done ? `Marked ${S().lessons[l.id].mark}/10` : !open ? "Locked" : l.sections && sectionDone(l, 0) ? `Section ${firstOpenSection(l) + 1} of ${l.sections.length}` : esc(l.sub)}</span></span></button></li>`;
-    }).join("")}</ol></div>`;
+    }).join("")}${bossItem}</ol></div>`;
   });
   $("moduleList").innerHTML = mods[0] + `<div class="rail-group" style="margin-top:14px"><h4>Coming next</h4>${mods.slice(1).join("")}</div>`;
   const unlocked = lessonDone(ALL_LESSONS[0].id);
@@ -761,7 +968,10 @@ function renderRail() {
   document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-current", String(view.kind === b.dataset.view)));
 }
 
-$("moduleList").addEventListener("click", (e) => { const b = e.target.closest("[data-lesson]"); if (b && !b.disabled && !busy) openLesson(b.dataset.lesson); });
+$("moduleList").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-lesson]"); if (b && !b.disabled && !busy) openLesson(b.dataset.lesson);
+  const bb = e.target.closest("[data-boss]"); if (bb && !bb.disabled && !busy) openBoss(+bb.dataset.boss);
+});
 document.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => { if (!busy && !b.disabled) openView(b.dataset.view); }));
 
 /* ---------- Account and sync ---------- */
@@ -807,10 +1017,36 @@ async function initCloud() {
   }
 }
 
+/* ---------- Test links ---------- */
+
+// For trying things out on a real device:
+//   ?test=boss   load a save with Module 1's lessons done and GOLEM ready to fight
+//   ?test=reset  wipe everything back to the very beginning
+// Both ask first. The link is cleaned from the address bar either way.
+let bootBoss = false;
+const testMode = new URLSearchParams(location.search).get("test");
+if (testMode) {
+  history.replaceState(null, "", location.pathname);
+  if (testMode === "boss" && confirm("Load the boss test save?\n\nThis replaces your lesson progress with: every Module 1 lesson done, and GOLEM ready to fight. Your Bits and Shop items stay.")) {
+    const at = new Date().toISOString();
+    for (const l of ALL_LESSONS) {
+      sectionsOf(l).forEach((_, i) => { S().lessons[sectionKey(l, i)] = { done: true, mark: 9, attempts: 1, hints: 0, assisted: false, solutionUsed: false, peeked: [], at }; });
+      S().lessons[l.id] = { done: true, mark: 9, at };
+    }
+    Object.assign(S(), { modulesDone: {}, boss: null, bossWins: {}, bossFights: {}, seenIntro: true });
+    store.save();
+    bootBoss = true;
+  }
+  if (testMode === "reset" && confirm("Reset ALL your progress to the very beginning?\n\nBits, items, lessons, Shop purchases, boss fights and saved code are all wiped. This can't be undone.")) {
+    store.reset();
+  }
+}
+
 /* ---------- Start ---------- */
 
 applyCosmetics();
 renderTop();
 const firstOpen = ALL_LESSONS.find((l, i) => lessonUnlocked(i) && !lessonDone(l.id));
 openLesson((firstOpen || ALL_LESSONS[ALL_LESSONS.length - 1]).id);
+if (bootBoss) openBoss(1);
 initCloud();

@@ -143,6 +143,11 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Effects and DOT go through the `#hibit` SVG filter (2-px grid, posterised). DOT himself is still the old one; his hi-bit round comes after GOLEM is approved. **Keep DOT's size as is** (Isaac 2026-10-20: don't make him bigger next to GOLEM).
   - Battle transition: the lesson pixelates through an SVG filter into big blocks, cuts to the arena, GOLEM resolves from 48-px blocks, then roars (title card).
   - Preview: `site/pixel-preview.html`. Videos (not in git): `previews/`.
+- [ ] Addendum C step 2 **built 2026-10-20**: the GOLEM fight is in the course (PRD "Addendum C, step 2"). Isaac approved the hi-bit GOLEM and DOT's current look ("looks amazing"; no separate DOT/PYRO pixel redesign). In battle DOT has **angry eyes** (eye shape cut on a slant, no brows): `dot.js` mood "angry", the battle default.
+  - Code: `js/boss-rules.js` (rules, Typo/Glitch planting), `js/boss-fight.js` (`BattleStage`: stage, HP bars, damage numbers, messages, `pixelateOut` transition), `app.js` "Boss fight" section (`openBoss`, `bossTurn`, `winFight`), numbers in `economy.js` `BOSS`. Save: `state.boss` (fight in progress), `bossWins`, `bossFights`.
+  - During a fight the roaming pet hides and its messages show under the stage (`pet.sayOverride`).
+  - Test links: `/python?test=boss` and `/python?test=reset` (asks first; `store.reset()`; a reset beats an older cloud copy via `resetAt`). **Isaac will use reset after testing.**
+  - Waiting on: Isaac testing it on his devices. Next: GOLEM's exclusive accessory (+ aura slot), streak rewards. Performance on iPad untested (the GOLEM renderer is a WebGL raymarcher).
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).

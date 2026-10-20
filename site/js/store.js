@@ -18,6 +18,9 @@ export function freshState() {
     solves: {},          // "module:difficulty" -> count
     recent: [],          // recent template ids, newest first
     current: null,       // the challenge in progress
+    boss: null,          // the boss fight in progress (boss-rules.js newFight)
+    bossWins: {},        // module -> { at, firstTry }
+    bossFights: {},      // module -> fights started (the first one is the "first try")
     streak: { count: 0, last: null },
     history: [],
     updatedAt: 0,
@@ -72,7 +75,9 @@ export class Store {
   adoptCloud(remote) {
     const local = this.state;
     const localHasProgress = Object.keys(local.lessons).length > 0 || local.bits > 0;
-    if (remote && (remote.updatedAt > local.updatedAt || !localHasProgress)) {
+    // A deliberate reset on this device beats an older cloud copy.
+    const resetWins = local.resetAt && remote && remote.updatedAt < local.resetAt;
+    if (remote && !resetWins && (remote.updatedAt > local.updatedAt || !localHasProgress)) {
       this.state = upgrade(Object.assign(freshState(), remote));
       try { localStorage.setItem(KEY, JSON.stringify(this.state)); } catch {}
       this.listeners.forEach((fn) => fn(this.state));
@@ -80,6 +85,19 @@ export class Store {
     }
     this.cloud?.push(this.state);
     return "local";
+  }
+
+  // Start again from the very beginning: progress and saved code drafts.
+  reset() {
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("operandi:draft:")) localStorage.removeItem(k);
+      }
+    } catch {}
+    this.state = freshState();
+    this.state.resetAt = Date.now();
+    this.save();
   }
 
   // ----- Economy actions -----

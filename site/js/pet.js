@@ -55,7 +55,8 @@ export class Pet {
 
   // ----- Same calls as Dot -----
   get figure() { return this.dot.figure; }
-  say(text, opts) { this.dot.say(text, opts); }
+  // sayOverride: somewhere else shows the messages for now (the battle stage).
+  say(text, opts) { if (this.sayOverride) return this.sayOverride(text, opts); this.dot.say(text, opts); }
   setMood(m, o) { this.dot.setMood(m, o); }
   hush() { this.dot.hush(); }
   typing() { this.dot.typing(); }
