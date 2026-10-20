@@ -3,10 +3,10 @@
 // impact, recovery), driven by the pixel model's pose numbers.
 import { teammateHurt } from "../battle-moves.js";
 
-const MOVES = ["slam", "barrage", "laser", "ram"];
+const MOVES = ["slam", "barrage", "laser"];
 let last = null;
 
-// ctx: { fx, dot, mateEl, theme, golem, foeEl }
+// ctx: { fx, dot, mateEl, theme, golem }
 export async function golemAttack(ctx, kind, { onHit } = {}) {
   if (!kind) {
     const options = MOVES.filter((m) => m !== last);
@@ -101,51 +101,7 @@ const ATTACKS = {
     await fx.wait(900);
     fx.darken(0, 500);
   },
-
-  // Rocket ram: he coils back as the thruster roars, sweeps his arms back and
-  // blasts across the stage into the teammate, then drifts home.
-  async ram(s) {
-    const { fx, g, foeEl } = s;
-    fx.focus(1.05, s.mid(), 500);
-    g.to({ lunge: 0.35, lean: 0.2, bob: 0.2, ca: 0.2, ce: 0.2, na: 0.2, ne: 0.2, tilt: 0.15, thrust: 2.2, flare: 0.8 }, 600, "out");
-    for (let i = 0; i < 7; i++) fx.wait(i * 80).then(() => {
-      const t = s.P("thruster");
-      fx.sparks(t, 6, { colors: ["#ffffff", "#c9d3dc", "#8fc8ff"], power: 1, dir: 1 });
-      fx.smoke(t, 1, 0.6);
-    });
-    await fx.wait(620);
-    const home = foeEl._pos || { x: 0, y: 0 };
-    const dist = s.P("core").x - s.dotC().x - 240;
-    fx.focus(1, null, 200);
-    g.to({ lean: -0.3, tilt: -0.3, lunge: 0, bob: -0.05, ca: -1.4, ce: 0.4, na: -1.4, ne: 0.4, thrust: 2.6 }, 170, "in");
-    const c = s.P("core");
-    fx.dashTrail({ x: c.x, y: c.y + 40 }, { x: s.dotC().x + 150, y: c.y + 40 }, "fire");
-    fx.dust(c.x, 10, 1.6);
-    await fx.move(foeEl, { x: home.x - dist }, 170, "in");
-    const hit = s.dotC();
-    fx.hitstop(130); fx.shake(26); fx.punch(0.05, hit); fx.flash(0.25, "#ffe2b0");
-    fx.ring(hit, { size: 180, ms: 420 }); fx.sparks(hit, 22, { power: 1.6, dir: -1 }); fx.debris(hit, 6, { dir: -1 });
-    s.hurt({ crit: true });
-    await fx.move(foeEl, { x: home.x - dist + 50 }, 160, "out");
-    await fx.wait(180);
-    g.to({ lean: 0.1, tilt: 0.1, bob: 0.2, thrust: 1 }, 300);
-    await fx.move(foeEl, { x: home.x }, 620, "inOut");
-    await fx.wait(250);
-  },
 };
-
-// When the teammate lands a hit: sparks, crackling arcs and armour chips at the
-// core, plus his own flinch. A crit adds an explosion and a beat of slow motion.
-export function golemHit(ctx, { crit = false } = {}) {
-  const { fx, golem } = ctx;
-  const at = fx.fromPage(golem.point("core"));
-  fx.hitstop(crit ? 170 : 85); fx.shake(crit ? 18 : 9); fx.punch(crit ? 0.06 : 0.025, at);
-  fx.arcs(at, crit ? 6 : 3, { radius: crit ? 110 : 70, color: "#8fc8ff" });
-  fx.debris(at, crit ? 10 : 4, { dir: 1, power: crit ? 1.2 : 0.9 });
-  fx.sparks(at, crit ? 14 : 7, { dir: 1 });
-  if (crit) { fx.flash(0.35); fx.ring(at, { size: 210, ms: 460 }); fx.slowmo(0.35, 400); fx.explosion({ x: at.x + 30, y: at.y - 20 }, { size: 0.9 }); }
-  return golem.hurt({ crit });
-}
 
 // His entrance after the transition: he powers up with a roar.
 export async function golemIntro(ctx) {

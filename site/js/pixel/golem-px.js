@@ -317,9 +317,18 @@ export class PixelGolem {
   // Named points in page coordinates: core, claw (tip), muzzle, thruster.
   point(name) {
     const at = { core: [[0, -0.1, -0.6]], claw: [[-0.06, -1.5, -0.05], "claw"], muzzle: [[0, -1.05, 0], "cannon"], thruster: [[0, -0.84, -0.02]] }[name];
-    const [fx, fy] = this.toCanvas(...at);
+    return this.pagePoint(...at);
+  }
+  // Any point on him (body space, or a forearm's space) in page coordinates.
+  pagePoint(L, part) {
+    const [fx, fy] = this.toCanvas(L, part);
     const r = this.canvas.getBoundingClientRect();
     return { x: r.left + fx * r.width / this.canvas.width, y: r.top + (this.canvas.height - fy) * r.height / this.canvas.height };
+  }
+  // The same, in CSS pixels inside the canvas (ignores the battle camera).
+  localPoint(L, part) {
+    const [fx, fy] = this.toCanvas(L, part), k = this.canvas.clientWidth / this.canvas.width;
+    return { x: fx * k, y: (this.canvas.height - fy) * k };
   }
 
   // ---- reactions ----

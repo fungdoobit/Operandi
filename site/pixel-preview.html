@@ -31,16 +31,18 @@ h1 { font-size: 22px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 16px; f
 <body>
 <main>
   <h1>GOLEM, hi-bit prototype</h1>
-  <p>Modelled on Isaac's reference and rendered as dense pixel art. DOT is a stand-in here (put through the same pixel grid) until his own hi-bit design round.</p>
+  <p>Modelled on Isaac's reference and rendered as dense pixel art. DOT and the effects go through the same pixel grid; DOT's own hi-bit design round comes later.</p>
   <div class="controls">
     <button data-a="enter">Enter battle (transition)</button>
-    <button data-a="slam">Claw slam</button>
-    <button data-a="barrage">Cannon barrage</button>
-    <button data-a="laser">Core laser</button>
-    <button data-a="ram">Rocket ram</button>
-    <button data-a="hit">DOT hits him</button>
-    <button data-a="crit">DOT crits him</button>
     <button data-a="all">Play all</button>
+  </div>
+  <div class="controls">
+    GOLEM: <button data-a="slam">Claw slam</button><button data-a="barrage">Cannon barrage</button><button data-a="laser">Core laser</button>
+    <button data-a="firewall">Firewall</button><button data-a="typos">Typo Swarm</button><button data-a="glitch">Glitch Text</button>
+  </div>
+  <div class="controls">
+    DOT: <button data-m="blade">Water blade</button><button data-m="dive">Tidal dive</button><button data-m="volley">Hydro volley</button>
+    <button data-m="crossBlades">Crit: cross blades</button><button data-m="tidalWave">Crit: tidal wave</button>
   </div>
   <div class="stage" id="stage">
     <div class="world" id="world">
@@ -87,7 +89,9 @@ print(f"Total: {price * qty:.2f}")</pre>
 </svg>
 <script type="module">
 import { PixelGolem } from "./js/pixel/golem-px.js";
-import { golemAttack, golemHit, golemIntro } from "./js/pixel/golem-moves.js";
+import { PixelBoss } from "./js/pixel/golem-boss.js";
+import { golemAttack, golemIntro } from "./js/pixel/golem-moves.js";
+import * as M from "./js/battle-moves.js";
 import { Dot, DOT_CSS } from "./js/dot.js";
 import { BattleFX } from "./js/battle-fx.js";
 
@@ -95,13 +99,23 @@ const st = document.createElement("style"); st.textContent = DOT_CSS; document.h
 const stage = document.getElementById("stage");
 const fx = new BattleFX(stage, document.getElementById("world"), { floor: 0.8 });
 fx.svg.classList.add("hibit");
-const golem = new PixelGolem(document.getElementById("foe"));
+const foeEl = document.getElementById("foe");
+const golem = new PixelGolem(foeEl);
+const boss = new PixelBoss({ golem, fx, figure: foeEl });
 const mateEl = document.getElementById("mate");
 const dot = new Dot(mateEl, { facing: "right", battle: true });
-const ctx = { fx, dot, mateEl, theme: "water", golem, foeEl: document.getElementById("foe") };
-fx.place(ctx.mateEl, { x: 0, y: 0 });
-fx.place(ctx.foeEl, { x: 0, y: 0 });
+const ctx = { fx, dot, boss, golem, mateEl, theme: "water" };
+fx.place(mateEl, { x: 0, y: 0 });
 window.__golem = golem;
+
+// What DOT's strike does: blocked by the Firewall, a hit, or a crit that breaks it.
+function strike(n, crit) {
+  const blocked = !!boss.dome.childElementCount && !(crit && n === 2);
+  if (blocked) { boss.hit({ blocked: true }); return "blocked"; }
+  const isCrit = crit && n === 2;
+  boss.hit({ crit: isCrit });
+  return isCrit ? "crit" : "hit";
+}
 
 // Block size for the lesson's pixelate filter.
 function setBlock(b) {
@@ -130,21 +144,29 @@ async function enter() {
   await golemIntro(ctx);
 }
 
+const SPECIAL = { firewall: "Firewall", typos: "Typo Swarm", glitch: "Glitch Text" };
+const dotMove = (move) => M.teammateAttack(ctx, { move, crit: move === "crossBlades" || move === "tidalWave", onHit: (n) => strike(n, move === "crossBlades" || move === "tidalWave") });
 const actions = {
   enter,
   slam: () => golemAttack(ctx, "slam"),
   barrage: () => golemAttack(ctx, "barrage"),
   laser: () => golemAttack(ctx, "laser"),
-  ram: () => golemAttack(ctx, "ram"),
-  hit: () => { dot.attack?.(); return fx.wait(250).then(() => golemHit(ctx)); },
-  crit: () => { dot.attack?.(); return fx.wait(250).then(() => golemHit(ctx, { crit: true })); },
+  ...Object.fromEntries(Object.entries(SPECIAL).map(([k, name]) => [k, () => M.bossSpecial(ctx, k, name)])),
   all: async () => {
-    await enter();
-    for (const k of ["slam", "barrage", "laser", "ram"]) { await fx.wait(500); await actions[k](); }
-    await fx.wait(400); await actions.crit();
+    const pause = () => fx.wait(450);
+    await actions.firewall(); await pause();
+    await dotMove("blade"); await pause();            // blocked by the dome
+    await dotMove("crossBlades"); await pause();      // the crit smashes it
+    await actions.typos(); await pause();
+    await dotMove("dive"); await pause();
+    await actions.glitch(); await pause();
+    await dotMove("volley"); await pause();
+    await actions.slam(); await pause();
+    await dotMove("tidalWave");
   },
 };
 document.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => actions[b.dataset.a]()));
+document.querySelectorAll("[data-m]").forEach((b) => b.addEventListener("click", () => dotMove(b.dataset.m)));
 window.__actions = actions;
 </script>
 </body>

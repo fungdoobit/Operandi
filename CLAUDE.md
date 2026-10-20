@@ -134,11 +134,15 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Defeat: chained explosions in slow motion, then a huge final blast. Win: a roar with shock rings and arcs.
   - Swarmed DOT (no damage): worried, jittering and squashing about, wincing (>_<), shaking off droplets.
   - The Typo Swarm is drawn in the effects layer, in front of DOT, and circles all the way round him. Bugs passing behind are dimmer and smaller. Boss `typoSwarm({ spawn })` hands the bugs to `fx.bug()`.
-- [ ] Addendum F (hi-bit pixel art for battles, "go" 2026-10-20). Step 1 prototype built, **waiting on Isaac's verdict on GOLEM**.
-  - Technique: `site/js/pixel/pixel-gl.js` (WebGL2). Pass 1 raymarches a 3D distance-function model; pass 2 turns it into pixel art (6-colour ramp per material, Bayer dithering, outline, inner lines, dithered glow halos, ground shadow, impact dust ring, glitch rows, hit flash, `uBlock` for the transition). The canvas is scaled up with `image-rendering: pixelated` at 2 screen px per art pixel.
-  - GOLEM: `site/js/pixel/golem-px.js` (`PixelGolem`: model GLSL, palettes, pose tweens on battleTime, `slam`, `hurt`, `resolve`). Preview: `site/pixel-preview.html`.
-  - Battle transition: the lesson pixelates through an SVG filter (blur, sample, dilate) into big blocks, cuts to the arena, and GOLEM resolves from 48-px blocks down to the fine pixels.
-  - Next, after OK: DOT and PYRO in the same style (design round), then the effects, then switch the battle preview over.
+- [ ] Addendum F (hi-bit pixel art for battles, "go" 2026-10-20). GOLEM prototype v3 built, **waiting on Isaac's verdict**.
+  - Technique: `site/js/pixel/pixel-gl.js` (WebGL2). Pass 1 raymarches a 3D distance-function model; pass 2 turns it into pixel art (6-colour ramp per material, Bayer dithering, outline, inner lines, dithered glow halos, ground shadow, thruster plume, glitch rows, hit flash, `uBlock` for the transition). Scaled up with `image-rendering: pixelated` at 2 screen px per art pixel.
+  - Design: Isaac disliked v1 and sent a reference (a wide armoured crab-mech). v2+ follows it closely: wide hull, stepped dome, missile-pod holes, back horns, amber honeycomb core eye, dark ribbed jaw, thruster (no dangling wires now), spiky arms with a huge claw (left) and a cannon (right), blue ice patches and glowing nodes. He faces left, toward the teammate.
+    - IP note told to Isaac: fine for a personal project; change him enough to be our own before Operandi ever charges money.
+  - Code: `golem-px.js` (`PixelGolem`: model, poses, `toCanvas`/`pagePoint` find points on him), `golem-moves.js` (attacks: claw slam, cannon barrage, core laser; `golemIntro`), `golem-boss.js` (`PixelBoss`: the old Boss interface so `battle-moves.js` works unchanged, plus the specials).
+  - Isaac dropped the rocket ram ("DOT is so tiny"). Specials kept: Firewall (same look, sized to him, drawn on a pixel canvas), Typo Swarm (bugs fly out of the pod holes), Glitch Text.
+  - Effects and DOT go through the `#hibit` SVG filter (2-px grid, posterised). DOT himself is still the old one; his hi-bit round comes after GOLEM is approved.
+  - Battle transition: the lesson pixelates through an SVG filter into big blocks, cuts to the arena, GOLEM resolves from 48-px blocks, then roars (title card).
+  - Preview: `site/pixel-preview.html`. Videos (not in git): `previews/`.
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).
