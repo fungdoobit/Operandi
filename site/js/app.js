@@ -832,7 +832,9 @@ function renderBossBody() {
       <div class="chips">${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}<span class="chip gold">Pass ${BOSS.damage[6]}–${BOSS.damage[10]} · flawless ${BOSS.crit}</span>${f.cur.attempts ? `<span class="chip">Attempt ${f.cur.attempts}</span>` : ""}</div>
       <div class="hints" id="hintBox"></div>
       <div id="solutionBox"></div>
-    </div>`;
+    </div>
+    ${S().testMode ? `<div class="note"><b>Test mode</b>Fills the editor with a correct answer. Submit it to strike, or submit the starter code as it is to see a miss.<div style="margin-top:10px"><button class="btn" id="testFill">Fill in the answer</button></div></div>` : ""}`;
+  $("testFill")?.addEventListener("click", () => { setCode(task.solution); lsSet("operandi:draft:" + task.key, task.solution); });
   renderHints();
 }
 
@@ -1033,7 +1035,8 @@ if (testMode) {
       sectionsOf(l).forEach((_, i) => { S().lessons[sectionKey(l, i)] = { done: true, mark: 9, attempts: 1, hints: 0, assisted: false, solutionUsed: false, peeked: [], at }; });
       S().lessons[l.id] = { done: true, mark: 9, at };
     }
-    Object.assign(S(), { modulesDone: {}, boss: null, bossWins: {}, bossFights: {}, seenIntro: true });
+    // testMode: boss challenges get a "Fill in the answer" button. ?test=reset clears it with everything else.
+    Object.assign(S(), { modulesDone: {}, boss: null, bossWins: {}, bossFights: {}, seenIntro: true, testMode: true });
     store.save();
     bootBoss = true;
   }

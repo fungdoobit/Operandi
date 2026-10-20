@@ -146,7 +146,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 - [ ] Addendum C step 2 **built 2026-10-20**: the GOLEM fight is in the course (PRD "Addendum C, step 2"). Isaac approved the hi-bit GOLEM and DOT's current look ("looks amazing"; no separate DOT/PYRO pixel redesign). In battle DOT has **angry eyes** (eye shape cut on a slant, no brows): `dot.js` mood "angry", the battle default.
   - Code: `js/boss-rules.js` (rules, Typo/Glitch planting), `js/boss-fight.js` (`BattleStage`: stage, HP bars, damage numbers, messages, `pixelateOut` transition), `app.js` "Boss fight" section (`openBoss`, `bossTurn`, `winFight`), numbers in `economy.js` `BOSS`. Save: `state.boss` (fight in progress), `bossWins`, `bossFights`.
   - During a fight the roaming pet hides and its messages show under the stage (`pet.sayOverride`).
-  - Test links: `/python?test=boss` and `/python?test=reset` (asks first; `store.reset()`; a reset beats an older cloud copy via `resetAt`). **Isaac will use reset after testing.**
+  - Test links: `/python?test=boss` (also turns on `testMode`: a "Fill in the answer" button on boss challenges) and `/python?test=reset` (asks first; `store.reset()`; a reset beats an older cloud copy via `resetAt`). **Isaac will use reset after testing.**
   - Waiting on: Isaac testing it on his devices. Next: GOLEM's exclusive accessory (+ aura slot), streak rewards. Performance on iPad untested (the GOLEM renderer is a WebGL raymarcher).
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
