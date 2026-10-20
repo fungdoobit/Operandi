@@ -1,8 +1,8 @@
 // Bosses: the end-of-module fights. The Module 1 boss is a hulking armoured
 // mech corrupted by glitches. He floats, with torn wires dangling where legs
-// would be, and has a glowing orange core for an eye under an angry armoured
-// brow, a fanged jaw, a crushing claw on one arm and a cannon on the other,
-// and cyan "corrupted data" crystals growing out of his plates.
+// would be, and has a glowing orange core for an eye, a crushing claw on one
+// arm and a cannon on the other, and cyan "corrupted data" crystals growing
+// out of his plates.
 //
 // Like DOT it is SVG, animated every frame. The battle screen drives it with:
 //   attack({ kind: "slam" | "cannon", onRelease(point) }), hit({ crit, blocked }),
@@ -40,6 +40,11 @@ function crystal(x, y, s = 1, r = 0) {
     <path d="M-1 -4 L1 -17" stroke="${C.crystalLight}" stroke-width="2" stroke-linecap="round"/>
   </g>`;
 }
+
+// The Firewall dome: a smooth half-sphere planted on the ground, big enough to
+// cover him through every move (lunges, swinging arms, the win stomp).
+const DOME = { cx: 200, cy: 322, rx: 300, ry: 400 };
+const DOME_PATH = `M${DOME.cx - DOME.rx} ${DOME.cy} A${DOME.rx} ${DOME.ry} 0 0 1 ${DOME.cx + DOME.rx} ${DOME.cy} Z`;
 
 // Torn cables dangling from his underside: x where it leaves the body,
 // length, thickness, colour, and a phase so they don't swing together.
@@ -114,6 +119,11 @@ function svg(id, b) {
       <stop class="core-a" offset="0%"/><stop class="core-b" offset="55%"/><stop class="core-c" offset="100%"/>
     </radialGradient>
     <radialGradient id="bossGlow${id}"><stop class="glow-a" offset="0%" stop-opacity=".55"/><stop class="glow-a" offset="100%" stop-opacity="0"/></radialGradient>
+    <clipPath id="bossDomeClip${id}"><path d="${DOME_PATH}"/></clipPath>
+    <radialGradient id="bossDomeFill${id}" cx="50%" cy="100%" r="100%" fx="50%" fy="80%">
+      <stop offset="0%" stop-color="#ff9a3c" stop-opacity=".05"/><stop offset="70%" stop-color="#ff9a3c" stop-opacity=".12"/>
+      <stop offset="92%" stop-color="#ffb366" stop-opacity=".32"/><stop offset="100%" stop-color="#ffd29a" stop-opacity=".55"/>
+    </radialGradient>
     <clipPath id="bossCoreClip${id}"><circle cx="200" cy="160" r="28"/></clipPath>
     <clipPath id="bossSlice${id}" clipPathUnits="userSpaceOnUse"><rect class="slice-rect" x="-80" y="0" width="560" height="0"/></clipPath>
     ${tint("bossCyan", [0.25, 1, 0.95])}${tint("bossPink", [1, 0.25, 0.6])}${tint("bossWhite", [1, 1, 1], 1)}
@@ -143,10 +153,6 @@ function svg(id, b) {
         ${holes.map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="11" ry="6.5" fill="${INK}" stroke="${C.dark}" stroke-width="2.5"/>`).join("")}
         <rect x="108" y="140" width="18" height="7" rx="2" fill="#ff4a2a"/><rect x="274" y="140" width="18" height="7" rx="2" fill="#ff4a2a"/>
         <circle cx="146" cy="186" r="4" fill="#ffb347"/><circle cx="254" cy="186" r="4" fill="#ffb347"/>
-        <path d="M160 210 L240 210 L230 238 L170 238 Z" fill="#160a06" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>
-        <path class="boss-grille" d="M168 216 L232 216 L226 233 L174 233 Z" fill="#ff5a1f" opacity=".25"/>
-        <path d="${Array.from({ length: 6 }, (_, i) => `M${164 + i * 12.5} 211 L${170 + i * 12.5} 224 L${176 + i * 12.5} 211`).join(" ")}" fill="#d9dde3" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
-        <path d="${Array.from({ length: 5 }, (_, i) => `M${172 + i * 12} 237 L${178 + i * 12} 227 L${184 + i * 12} 237`).join(" ")}" fill="#d9dde3" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
         <circle cx="200" cy="160" r="41" fill="${C.deep}" stroke="${INK}" stroke-width="5"/>
         <circle cx="200" cy="160" r="33" fill="${INK}"/>
         <circle class="boss-core" cx="200" cy="160" r="28" fill="url(#bossCore${id})"/>
@@ -157,8 +163,6 @@ function svg(id, b) {
           <ellipse class="boss-pupil" cx="200" cy="164" rx="4.5" ry="17" fill="#3a0f02" opacity=".75"/>
         </g>
         <ellipse cx="186" cy="160" rx="7" ry="4" fill="#fff" opacity=".4" transform="rotate(-25 186 160)"/>
-        <path d="M146 112 L200 140 L254 112 L250 132 L200 156 L150 132 Z" fill="${C.dark}" stroke="${INK}" stroke-width="4.5" stroke-linejoin="round"/>
-        <path d="M152 117 L200 142 L248 117" fill="none" stroke="${C.rim}" stroke-width="2.5" opacity=".5"/>
         ${crystal(92, 108, 1.1, -15)}${crystal(316, 112, 1, 20)}${crystal(126, 168, 0.8, -40)}${crystal(282, 200, 0.9, 35)}${crystal(220, 244, 0.7, 10)}${crystal(150, 60, 0.7, -10)}
         <g transform="translate(66 112) rotate(16)">${arm(-1)}</g>
         <g transform="translate(334 112) rotate(-16)">${arm(1)}</g>
@@ -166,8 +170,8 @@ function svg(id, b) {
     </g>
     <g clip-path="url(#bossSlice${id})"><use class="boss-slice" href="#bossArt${id}"/></g>
     <use class="boss-flash" href="#bossArt${id}" filter="url(#bossWhite${id})" opacity="0"/>
-    <g class="boss-dome"></g>
   </g>
+  <g class="boss-dome"></g>
   <g class="boss-fx"></g>
 </svg>`;
 }
@@ -189,6 +193,9 @@ export const BOSS_CSS = `
 .boss-dome polygon { transform-box: fill-box; transform-origin: center; transition: transform .4s cubic-bezier(.3,1.5,.5,1), opacity .4s; }
 .boss-dome polygon.off { transform: scale(0); opacity: 0; }
 .boss-dome polygon.gone { transition: transform .8s ease-out, opacity .8s ease-out; opacity: 0; }
+.boss-dome .dome-shell, .boss-dome .dome-rim { transform-box: view-box; transform-origin: 200px 322px; transition: transform .55s cubic-bezier(.3,1.3,.5,1), opacity .4s; }
+.boss-dome .dome-shell.off, .boss-dome .dome-rim.off { transform: scale(.2, 0); opacity: 0; }
+.boss-dome .dome-shell.gone, .boss-dome .dome-rim.gone { transform: scale(1.12); opacity: 0; transition: transform .35s ease-out, opacity .35s ease-out; }
 .boss-fx text { font: 700 18px ui-monospace, "SF Mono", Menlo, monospace; }
 @media (prefers-reduced-motion: reduce) { .boss-crystal { animation: none; } }
 `;
@@ -197,6 +204,7 @@ export class Boss {
   constructor(container, { id = "m1" } = {}) {
     this.b = BOSSES[id] || BOSSES.m1;
     const n = ++uid;
+    this.n = n;
     container.innerHTML = `<div class="boss-figure" data-eye="idle">${svg(n, this.b)}</div>`;
     const q = (s) => container.querySelector(s);
     this.figure = q(".boss-figure");
@@ -212,7 +220,6 @@ export class Boss {
     this.eyeGlow = q(".boss-eyeglow");
     this.pupil = q(".boss-pupil");
     this.hexgrid = q(".boss-hexgrid");
-    this.grille = q(".boss-grille");
     this.dome = q(".boss-dome");
     this.fx = q(".boss-fx");
     this.shadow = q(".boss-shadow");
@@ -311,73 +318,75 @@ export class Boss {
     if (move === "glitch") this.glitchText();
   }
 
-  // Firewall: a geodesic dome of orange triangles over a see-through shell.
-  // Points sit on rings around a half-sphere seen from the front, every other
-  // ring shifted half a step, and neighbouring rings are stitched into triangles.
+  // Firewall: a smooth glowing dome (brighter towards its rim, like a bubble)
+  // with a honeycomb of hexagons inside it, clipped to the dome's outline.
   buildDome() {
     this.dome.innerHTML = "";
-    const cx = 200, cy = 320, rx = 248, ry = 300, R = 4, N = 6;
-    const rings = [];
-    for (let k = 0; k <= R; k++) {
-      const th = (k / R) * Math.PI / 2;
-      let phis = k === R ? [Math.PI / 2] : Array.from({ length: N + 1 }, (_, j) => (Math.PI * j) / N);
-      if (k % 2 && k < R) phis = [0, ...Array.from({ length: N }, (_, j) => (Math.PI * (j + 0.5)) / N), Math.PI];
-      rings.push(phis.map((ph) => ({ ph, x: cx - rx * Math.cos(th) * Math.cos(ph), y: cy - ry * Math.sin(th) })));
-    }
-    const tris = [];
-    for (let k = 0; k < R; k++) {
-      const A = rings[k], B = rings[k + 1];
-      let i = 0, j = 0;
-      while (i < A.length - 1 || j < B.length - 1) {
-        const stepA = j >= B.length - 1 || (i < A.length - 1 && A[i + 1].ph <= B[j + 1].ph);
-        if (stepA) { tris.push([A[i], A[i + 1], B[j], k]); i++; } else { tris.push([A[i], B[j], B[j + 1], k]); j++; }
+    const { cx, cy, rx, ry } = DOME, r = 20, w = r * Math.sqrt(3);
+    const shell = document.createElementNS(NS, "path");
+    shell.setAttribute("d", DOME_PATH);
+    shell.setAttribute("fill", `url(#bossDomeFill${this.n})`);
+    shell.classList.add("dome-shell", "off");
+    const hexes = document.createElementNS(NS, "g");
+    hexes.setAttribute("clip-path", `url(#bossDomeClip${this.n})`);
+    hexes.classList.add("dome-hexes");
+    for (let row = 0; row * r * 1.5 < ry + r; row++) {
+      const y = cy - row * r * 1.5;
+      for (let x = cx - rx - w; x <= cx + rx + w; x += w) {
+        const px = x + (row % 2 ? w / 2 : 0);
+        const d = Math.hypot((px - cx) / rx, (y - cy) / ry);
+        if (d > 1.06) continue;
+        const p = document.createElementNS(NS, "polygon");
+        p.setAttribute("points", hexPoints(px, y, r - 2));
+        // Hexes fade out towards the middle so he stays easy to see.
+        const edge = Math.max(0, (d - 0.45) / 0.6);
+        p.setAttribute("fill", "#ffb366"); p.setAttribute("fill-opacity", (0.03 + edge * 0.1).toFixed(3));
+        p.setAttribute("stroke", "#ffb366"); p.setAttribute("stroke-opacity", (0.18 + edge * 0.5).toFixed(2)); p.setAttribute("stroke-width", "1.8");
+        p.dataset.x = px; p.dataset.base = p.getAttribute("fill-opacity");
+        p.classList.add("off");
+        hexes.append(p);
+        this.later(80 + row * 45 + rand(0, 60), () => p.classList.remove("off"));
       }
     }
-    const shell = document.createElementNS(NS, "path");
-    shell.setAttribute("d", `M${cx - rx} ${cy} A${rx} ${ry} 0 0 1 ${cx + rx} ${cy} Z`);
-    shell.setAttribute("fill", "#ff8a33"); shell.setAttribute("opacity", "0");
-    shell.style.transition = "opacity .6s";
-    shell.classList.add("dome-shell");
-    this.dome.append(shell);
-    this.later(60, () => shell.setAttribute("opacity", "0.2"));
-    for (const [p1, p2, p3, k] of tris) {
-      const p = document.createElementNS(NS, "polygon");
-      p.setAttribute("points", [p1, p2, p3].map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" "));
-      p.setAttribute("fill", "#ffb366"); p.setAttribute("fill-opacity", "0.06");
-      p.setAttribute("stroke", "#e09a52"); p.setAttribute("stroke-width", "3"); p.setAttribute("stroke-linejoin", "round");
-      p.dataset.x = (p1.x + p2.x + p3.x) / 3;
-      p.classList.add("off");
-      this.dome.append(p);
-      this.later(40 + k * 110 + rand(0, 90), () => p.classList.remove("off"));
-    }
+    const rim = document.createElementNS(NS, "path");
+    rim.setAttribute("d", `M${cx - rx} ${cy} A${rx} ${ry} 0 0 1 ${cx + rx} ${cy}`);
+    rim.setAttribute("fill", "none"); rim.setAttribute("stroke", "#ffd29a"); rim.setAttribute("stroke-width", "4");
+    rim.setAttribute("stroke-linecap", "round"); rim.classList.add("dome-rim", "off");
+    const shine = document.createElementNS(NS, "path");
+    shine.setAttribute("d", `M${cx - rx * 0.62} ${cy - ry * 0.62} A${rx * 0.85} ${ry * 0.85} 0 0 1 ${cx - rx * 0.1} ${cy - ry * 0.93}`);
+    shine.setAttribute("fill", "none"); shine.setAttribute("stroke", "#fff3e0"); shine.setAttribute("stroke-width", "7");
+    shine.setAttribute("stroke-linecap", "round"); shine.setAttribute("opacity", ".35"); shine.classList.add("dome-rim", "off");
+    this.dome.append(shell, hexes, rim, shine);
+    this.later(30, () => [shell, rim, shine].forEach((e) => e.classList.remove("off")));
     this.domeShimmer = true;
     this.glitch(200);
   }
 
-  // A blocked hit: the panels facing the teammate flare up.
+  // A blocked hit: the hexes on the side facing the teammate flare up.
   domeRipple() {
-    const shell = this.dome.querySelector(".dome-shell");
-    shell?.setAttribute("opacity", "0.38");
-    this.later(220, () => shell?.setAttribute("opacity", "0.2"));
-    this.dome.querySelectorAll("polygon").forEach((p) => {
-      const near = Math.max(0, 1 - (+p.dataset.x + 50) / 260);
+    this.dome.querySelectorAll(".dome-hexes polygon").forEach((p) => {
+      const near = Math.max(0, 1 - (+p.dataset.x + 100) / 300);
       if (near <= 0) return;
-      p.setAttribute("fill-opacity", (0.06 + near * 0.5).toFixed(2));
-      this.later(160 + near * 200, () => p.setAttribute("fill-opacity", "0.06"));
+      p.setAttribute("fill-opacity", (+p.dataset.base + near * 0.45).toFixed(2));
+      this.later(140 + (1 - near) * 260, () => p.setAttribute("fill-opacity", p.dataset.base));
     });
-    this.sparks(-40, rand(150, 260), 10, 0.8, ["#ffd39a", "#ff8a33"]);
+    const rim = this.dome.querySelector(".dome-rim");
+    rim?.setAttribute("stroke-width", "7");
+    this.later(200, () => rim?.setAttribute("stroke-width", "4"));
+    this.sparks(-95, rand(170, 280), 10, 0.8, ["#ffd39a", "#ff8a33"]);
   }
 
+  // A crit smashes it: the outline pops and the hexes scatter.
   breakDome() {
-    const shell = this.dome.querySelector(".dome-shell");
-    shell?.setAttribute("opacity", "0");
-    const tris = [...this.dome.querySelectorAll("polygon")];
-    tris.forEach((p) => {
+    this.dome.querySelectorAll(".dome-shell, .dome-rim").forEach((e) => e.classList.add("gone"));
+    const g = this.dome.querySelector(".dome-hexes");
+    g?.removeAttribute("clip-path");
+    g?.querySelectorAll("polygon").forEach((p) => {
       p.classList.add("gone");
-      p.setAttribute("fill-opacity", "0.35");
-      p.style.transform = `translate(${rand(-110, 110)}px, ${rand(-110, 40)}px) rotate(${rand(-200, 200)}deg) scale(.3)`;
+      p.setAttribute("fill-opacity", "0.3");
+      p.style.transform = `translate(${rand(-120, 120)}px, ${rand(-120, 40)}px) rotate(${rand(-200, 200)}deg) scale(.3)`;
     });
-    this.sparks(-30, 200, 22, 1.6, ["#ffd39a", "#ff8a33", "#fff3c4"]);
+    this.sparks(-60, 220, 22, 1.6, ["#ffd39a", "#ff8a33", "#fff3c4"]);
     this.domeShimmer = false;
     const all = [...this.dome.children];
     this.later(850, () => all.forEach((p) => p.remove()));
@@ -385,7 +394,7 @@ export class Boss {
 
   typoSwarm() {
     this.glitch(220);
-    this.grilleFlash(900);
+    this.flare(900);
     const letters = ["p", "r", "i", "n", "t", "(", '"', ":", ")"];
     const holes = [[100, 84], [126, 76], [152, 72], [248, 72], [274, 76], [300, 84]];
     letters.forEach((ch, i) => this.later(i * 120, () => {
@@ -406,7 +415,7 @@ export class Boss {
 
   glitchText() {
     this.glitch(800, 2.6);
-    this.grilleFlash(800);
+    this.flare(800);
     this.noiseUntil = performance.now() + 800;
     const chars = "#%&@?!*~$";
     for (let i = 0; i < 18; i++) {
@@ -439,11 +448,11 @@ export class Boss {
     });
   }
 
-  // He won: arms up, eye blazing, a stomp and a laugh from the grille.
+  // He won: arms up, eye blazing, a stomp.
   win() {
     if (this.dead) return;
     this.arms.forEach((A) => { A.a.t = -140 * A.side; A.e.t = -30; });
-    this.grilleFlash(1600);
+    this.flare(1600);
     this.jump.v = -6;
     this.later(560, () => { this.jump.v = -4.5; });
     this.later(1700, () => this.arms.forEach((A) => { A.a.t = 0; A.e.t = 0; }));
@@ -462,10 +471,10 @@ export class Boss {
     this.parts.forEach((p) => p.el.remove()); this.parts = [];
   }
 
-  // His jaw glows bright (a laugh, or loading up a move).
-  grilleFlash(ms) {
-    this.grille.setAttribute("opacity", ".95");
-    this.later(ms, () => this.grille.setAttribute("opacity", ".25"));
+  // His eye blazes for a moment (a laugh, or loading up a move).
+  flare(ms) {
+    this.eyeBoost = 1;
+    this.later(ms, () => { this.eyeBoost = 0; });
   }
 
   // The centre of an element in the boss's own drawing coordinates.
@@ -569,7 +578,7 @@ export class Boss {
     });
     // The eye core pulses, its hex grid drifts, and the pupil keeps watching the teammate.
     const pulse = 0.75 + 0.25 * Math.sin(t * (charge ? 9 : 2.4));
-    this.eyeGlow.setAttribute("opacity", this.dead ? "0" : (pulse * (charge ? 1.3 : 1) + this.flash * 0.6).toFixed(3));
+    this.eyeGlow.setAttribute("opacity", this.dead ? "0" : (pulse * (charge ? 1.3 : 1) + this.flash * 0.6 + (this.eyeBoost || 0) * 0.6).toFixed(3));
     this.look.t = this.dead ? 0 : -7 + Math.sin(t * 0.7) * 3 * calm;
     this.look.s += (this.look.t - this.look.s) * 0.08 * step;
     this.pupil.setAttribute("cx", (200 + this.look.s).toFixed(2));
@@ -601,7 +610,11 @@ export class Boss {
     }
     if (this.noiseUntil && now < this.noiseUntil) this.figure.dataset.eye = Math.random() < 0.5 ? "hurt" : "charge";
     else if (this.noiseUntil) { this.noiseUntil = 0; this.eye(this.charging ? "charge" : "idle"); }
-    if (this.domeShimmer) this.dome.querySelectorAll("polygon").forEach((p) => { if (Math.random() < 0.015) p.setAttribute("stroke-opacity", (0.55 + Math.random() * 0.45).toFixed(2)); });
+    // A slow shimmer runs across the dome's honeycomb.
+    if (this.domeShimmer) this.dome.querySelectorAll(".dome-hexes polygon").forEach((p) => {
+      const glow = Math.max(0, Math.sin(t * 2.2 - +p.dataset.x / 60));
+      p.setAttribute("fill-opacity", (+p.dataset.base + glow ** 6 * 0.08).toFixed(3));
+    });
     this.flashEl.setAttribute("opacity", Math.min(0.85, this.flash).toFixed(3));
     const x = this.x.s + jx, y = this.jump.s + jy;
     this.rig.setAttribute("transform",

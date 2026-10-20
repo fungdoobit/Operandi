@@ -94,8 +94,8 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 - [ ] Isaac sets up Vercel and Firebase (`docs/SETUP.md`), then pastes the Firebase config into `site/js/firebase-config.js`.
 - [ ] Firebase sign-in and sync are untested: the cloud sandbox couldn't reach Google. Test once Isaac has a config.
 - [ ] Addendum C (boss fights and streak rewards): "go" given 2026-10-20.
-  - Step 1 (design) is in its second round, after Isaac's feedback on 2026-10-20. The boss is now a big floating mech: wires dangling instead of legs, an angry brow over an orange core eye, a fanged jaw, a claw arm and a cannon arm, and cyan glitch crystals.
-    - Firewall is a geodesic dome of orange triangles around him.
+  - Step 1 (design) is in its second round, after Isaac's feedback on 2026-10-20. The boss is now a big floating mech: wires dangling instead of legs, an orange core eye, a claw arm and a cannon arm, and cyan glitch crystals. Isaac removed the brow and the fanged jaw in round 3.
+    - Firewall: a smooth glowing dome with a hex pattern inside, planted on the ground (it doesn't move with him) and big enough to cover all his moves. A crit scatters the hexes.
     - DOT faces the boss in battle (mirrored) and has attack / hurt / KO / win moves (`dot.js`).
     - Companions now face the way they roam (`pet.js` calls `dot.face()`).
     - Preview: `site/boss-preview.html`. Still waiting on: Isaac's approval, a name pick (working name GLITCH), and a decision on the HP scale (Isaac asked for 300 boss HP).

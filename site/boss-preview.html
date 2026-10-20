@@ -28,8 +28,8 @@ main { padding: 24px max(16px, 3vw); }
 .hp.foe .fill { background: linear-gradient(90deg, #ff9a3c, #ffd28a); margin-left: auto; }
 .mate-spot { position: absolute; left: 8%; bottom: calc(22% - 12px); }
 .mate-spot .dot-figure { width: 130px; } .mate-spot .dot-bubble { display: none; }
-.foe-spot { position: absolute; right: 3%; bottom: calc(22% - 34px); }
-.foe-spot .boss-figure { width: 470px; }
+.foe-spot { position: absolute; right: 7%; bottom: calc(22% - 30px); }
+.foe-spot .boss-figure { width: 420px; }
 .tell { position: absolute; left: 50%; top: 56px; transform: translateX(-50%); background: #2a1a12; border: 1px solid #ff6a3d; color: #ffd6c2; padding: 6px 14px; border-radius: 99px; font-size: 13px; font-weight: 600; white-space: nowrap; opacity: 0; transition: opacity .25s; }
 .tell.on { opacity: 1; }
 .pop { position: absolute; font: 800 24px "Bricolage Grotesque", sans-serif; pointer-events: none; text-shadow: 0 2px 0 #0008; }
@@ -145,12 +145,12 @@ function fly(cls, from, to, { ms, arc }, then) {
   setTimeout(() => { b.remove(); then(); }, ms);
 }
 function dotShoots(crit, then) {
-  dot.attack(() => fly("bolt" + (crit ? " crit" : ""), dotAt(), dome ? { x: coreAt().x - 150, y: coreAt().y } : coreAt(), { ms: crit ? 380 : 480, arc: 40 }, then));
+  dot.attack(() => fly("bolt" + (crit ? " crit" : ""), dotAt(), dome ? { x: coreAt().x - 230, y: coreAt().y } : coreAt(), { ms: crit ? 380 : 480, arc: 40 }, then));
 }
 function hurtDot(n, crit) { me = Math.max(0, me - n); show(); dot.hurt({ crit }); pop("-" + n, dotAt(), "#8ae2ff"); if (!me) setTimeout(() => act.lose(), 500); }
 const act = {
   hit: () => dotShoots(false, () => {
-    if (dome) { boss.hit({ blocked: true }); pop("Blocked", { x: coreAt().x - 150, y: coreAt().y }, "#ffb35c"); return; }
+    if (dome) { boss.hit({ blocked: true }); pop("Blocked", { x: coreAt().x - 230, y: coreAt().y }, "#ffb35c"); return; }
     boss.hit(); foe = Math.max(0, foe - 45); show(); pop("-45", coreAt(), "#ffd28a");
   }),
   crit: () => dotShoots(true, () => {
