@@ -632,14 +632,18 @@ export class Dot {
     this.clearTimers();
     const later = (ms, fn) => this.timers.push(setTimeout(fn, ms));
     this.setMood("fierce");
-    this.dx.t = 12; this.sx.t = 1.14; this.sy.t = 0.86; this.lean.t = -0.12;
-    later(200, () => {
-      this.dx.t = -34; this.dx.v = -6; this.sx.t = 0.88; this.sy.t = 1.14; this.lean.t = 0.18;
-      this.jump.v = -3.2; this.nudge(0, 0.5);
-      onRelease?.();
+    // 1. Crouch: squash down low and lean back, wobbling with energy.
+    this.dx.t = 16; this.sx.t = 1.26; this.sy.t = 0.74; this.lean.t = -0.16; this.energy = 1.2;
+    // 2. Leap: spring up and forward, stretched tall.
+    later(240, () => {
+      this.dx.t = -42; this.dx.v = -7; this.sx.t = 0.84; this.sy.t = 1.2; this.lean.t = 0.2;
+      this.jump.v = -6.5; this.nudge(0, 0.6);
     });
-    later(430, () => { this.dx.t = 0; this.sx.t = 1; this.sy.t = 1; this.lean.t = 0; });
-    later(800, () => this.setMood("idle"));
+    // 3. Throw at the top of the leap: a quick forward snap.
+    later(420, () => { this.sx.s = 1.14; this.sy.s = 0.9; this.lean.v = 0.06; onRelease?.(); });
+    // 4. Land (frame() adds the landing squish), then hop back into place.
+    later(700, () => { this.dx.t = 0; this.sx.t = 1; this.sy.t = 1; this.lean.t = 0; });
+    later(1000, () => this.setMood("idle"));
   }
 
   hurt({ crit = false } = {}) {

@@ -15,7 +15,7 @@ const NS = "http://www.w3.org/2000/svg";
 
 export const BOSSES = {
   m1: {
-    name: "GLITCH",            // working name until Isaac picks one
+    name: "GOLEM",             // Glitched Overclocked Logic-Eating Machine
     module: 1,
     hp: 300,
     moves: {
@@ -259,29 +259,51 @@ export class Boss {
   attack({ kind = "slam", onRelease } = {}) {
     if (this.dead) return;
     const [L, R] = this.arms;
+    const idle = () => this.eye(this.charging ? "charge" : "idle");
     if (kind === "cannon") {
-      R.a.t = -125; R.e.t = -25; this.rot.t = 2; this.eye("charge");
-      this.later(80, () => { this.muzzleGlow = 1; });
-      this.later(520, () => {
-        R.a.v += 8; this.x.v += 5; this.rot.v += 1.2; this.shake = 4; this.muzzleGlow = 2.2;
-        this.puff(...this.local(this.muzzle), 5, 0.9);
+      // 1. Aim: rise up, lean back, swing the cannon skyward while it charges and trembles.
+      R.a.t = -130; R.e.t = -30; L.a.t = -20; L.e.t = 20;
+      this.rot.t = 5; this.y.t = -18; this.x.t = 10; this.eye("charge");
+      this.later(60, () => { this.muzzleGlow = 1; this.aiming = true; });
+      // 2. Fire: big recoil that shoves his whole body back, muzzle flash, smoke.
+      this.later(620, () => {
+        this.aiming = false;
+        R.a.v += 16; R.e.v -= 10; this.x.v += 11; this.rot.v += 2.6; this.y.v += 3;
+        this.shake = 9; this.muzzleGlow = 2.6; this.flash = 0.3;
+        const [mx, my] = this.local(this.muzzle);
+        this.blast(mx, my); this.puff(mx, my, 6, 1.1);
+        this.sx.s = 1.06; this.sy.s = 0.95;
         onRelease?.(this.point("muzzle"));
       });
-      this.later(760, () => { R.a.t = 0; R.e.t = 0; this.rot.t = 0; this.eye(this.charging ? "charge" : "idle"); });
+      // 3. Settle back down, cannon still smoking.
+      this.later(900, () => { R.a.t = -40; R.e.t = 0; this.rot.t = -2; this.y.t = 0; this.x.t = 0; L.a.t = 0; L.e.t = 0; idle(); });
+      this.later(1050, () => { const [mx, my] = this.local(this.muzzle); this.puff(mx, my, 2, 0.6); });
+      this.later(1300, () => { R.a.t = 0; this.rot.t = 0; });
       return;
     }
-    // Slam: rear back with the claw raised, then lunge and smash it down.
-    L.a.t = 125; L.e.t = 35; this.rot.t = 4; this.x.t = 14; this.sy.t = 1.04;
-    this.later(380, () => {
-      L.a.t = 22; L.a.v = -16; L.e.t = -12; this.rot.t = -7; this.x.t = -50; this.x.v = -8; this.sy.t = 0.95; this.sx.t = 1.04;
+    // Slam. 1. Rear up: rise high, lean back, claw raised overhead, the other arm swung back.
+    L.a.t = 150; L.e.t = 55; R.a.t = -35; R.e.t = 25;
+    this.rot.t = 9; this.x.t = 26; this.y.t = -42; this.sy.t = 1.06; this.sx.t = 0.96;
+    this.eye("charge"); this.flare(500);
+    this.later(250, () => { this.shake = 2.5; });
+    // 2. Lunge: drop and throw his whole weight forward, claw whipping down.
+    this.later(460, () => {
+      L.a.t = 18; L.a.v = -22; L.e.t = -18; R.a.t = 30;
+      this.rot.t = -12; this.rot.v = -2; this.x.t = -95; this.x.v = -14; this.y.t = 16; this.y.v = 6;
+      this.sy.t = 0.94; this.sx.t = 1.05;
     });
-    this.later(520, () => {
-      this.shake = 9; this.glitch(140);
-      const [cx, cy] = this.local(this.arms[0].fore);
-      this.dust(cx, 306, 14);
+    // 3. Impact: the ground shakes, dust and sparks fly, and the shockwave leaves.
+    this.later(600, () => {
+      this.shake = 16; this.glitch(200, 1.4);
+      this.sx.s = 1.1; this.sy.s = 0.88;
+      const [cx] = this.local(this.arms[0].fore);
+      this.dust(cx, 306, 22); this.sparks(cx - this.x.s, 300, 12, 1.2);
+      this.debris(cx - this.x.s, 290, 5);
       onRelease?.(this.point("claw"));
     });
-    this.later(900, () => { L.a.t = 0; L.e.t = 0; this.rot.t = 0; this.x.t = 0; this.sx.t = 1; this.sy.t = 1; });
+    // 4. Pull back with a small heave, then settle.
+    this.later(950, () => { L.a.t = 40; L.e.t = 10; R.a.t = 0; this.rot.t = 3; this.x.t = -20; this.y.t = -8; idle(); });
+    this.later(1250, () => { L.a.t = 0; L.e.t = 0; R.e.t = 0; this.rot.t = 0; this.x.t = 0; this.y.t = 0; this.sx.t = 1; this.sy.t = 1; });
   }
 
   // Hit by the teammate's code. A Firewall dome blocks normal hits; a crit smashes it.
@@ -392,25 +414,30 @@ export class Boss {
     this.later(850, () => all.forEach((p) => p.remove()));
   }
 
+  // Typo Swarm: a cloud of little letter-bugs buzzes out of his deck vents
+  // and flies at the teammate in a wobbly swarm.
   typoSwarm() {
     this.glitch(220);
     this.flare(900);
-    const letters = ["p", "r", "i", "n", "t", "(", '"', ":", ")"];
+    const letters = ["p", "r", "i", "n", "t", "(", '"', ":", ")", "'", ";", "#"];
     const holes = [[100, 84], [126, 76], [152, 72], [248, 72], [274, 76], [300, 84]];
-    letters.forEach((ch, i) => this.later(i * 120, () => {
+    letters.forEach((ch, i) => this.later(i * 70, () => {
       const [hx, hy] = holes[i % holes.length];
-      this.puff(hx, hy, 2, 0.6);
-      this.spawnBug(ch, hx, hy);
+      this.puff(hx, hy - 24, 1, 0.5);
+      this.spawnBug(ch, hx, hy - 24);
     }));
   }
 
   spawnBug(ch, x, y) {
     const g = document.createElementNS(NS, "g");
-    g.innerHTML = `<path d="M-7 7 L-12 13 M0 8 L0 14 M7 7 L12 13" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>
-      <rect x="-12" y="-12" width="24" height="21" rx="6" fill="#ff4d7e" stroke="${INK}" stroke-width="3"/>
+    g.innerHTML = `<g class="wings" fill="#e8f7ff" fill-opacity=".75" stroke="${INK}" stroke-width="1.6">
+        <ellipse cx="-7" cy="-13" rx="7" ry="4" transform="rotate(-25 -7 -13)"/><ellipse cx="7" cy="-13" rx="7" ry="4" transform="rotate(25 7 -13)"/></g>
+      <path d="M-7 7 L-11 12 M0 8 L0 13 M7 7 L11 12" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>
+      <rect x="-12" y="-11" width="24" height="20" rx="6" fill="#ff4d7e" stroke="${INK}" stroke-width="3"/>
       <text x="0" y="5" text-anchor="middle" fill="#fff">${ch}</text>`;
     this.fx.append(g);
-    this.parts.push({ el: g, kind: "bug", x: x + this.x.s, y, vx: rand(-6.5, -4.5), vy: rand(-6, -4), g: 0.13, floor: 300, life: 0, max: 210, phase: rand(0, 6) });
+    this.parts.push({ el: g, wings: g.querySelector(".wings"), kind: "bug", x: x + this.x.s, y, vx: rand(-5.2, -3.6), vy: rand(0.7, 1.5), g: 0,
+      life: 0, max: 230, phase: rand(0, 6), freq: rand(5, 8), amp: rand(6, 14) });
   }
 
   glitchText() {
@@ -616,7 +643,8 @@ export class Boss {
       p.setAttribute("fill-opacity", (+p.dataset.base + glow ** 6 * 0.08).toFixed(3));
     });
     this.flashEl.setAttribute("opacity", Math.min(0.85, this.flash).toFixed(3));
-    const x = this.x.s + jx, y = this.jump.s + jy;
+    if (this.aiming && !still) { this.arms[1].a.s += rand(-0.8, 0.8); this.muzzleGlow = Math.min(1.6, this.muzzleGlow + 0.02 * step); }
+    const x = this.x.s + jx, y = this.y.s + this.jump.s + jy;
     this.rig.setAttribute("transform",
       `translate(${x.toFixed(2)} ${y.toFixed(2)}) translate(200 306) rotate(${this.rot.s.toFixed(2)}) scale(${this.sx.s.toFixed(4)} ${this.sy.s.toFixed(4)}) translate(-200 -306)`);
     this.rig.setAttribute("opacity", this.fade.toFixed(3));
@@ -660,12 +688,14 @@ export class Boss {
           break;
         }
         case "bug": {
-          // Letter bugs scuttle along the ground once they land.
-          const onGround = p.y >= p.floor - 0.5;
-          if (onGround) { p.vy = 0; p.vx = Math.min(p.vx, -4); }
-          const wob = onGround ? Math.sin(t * 20 + p.phase) * 2 : 0;
-          el.setAttribute("transform", `translate(${p.x.toFixed(1)} ${(p.y - 12 + wob).toFixed(1)}) rotate(${(Math.sin(t * 18 + p.phase) * 10).toFixed(1)})`);
-          el.setAttribute("opacity", k > 0.85 ? ((1 - k) / 0.15).toFixed(2) : 1);
+          // Flying letter-bugs: each weaves on its own wobbly path, wings buzzing.
+          if (p.y > 250) p.vy -= 0.08 * step;
+          const wy = p.y + Math.sin(t * p.freq + p.phase) * p.amp;
+          const wx = p.x + Math.cos(t * p.freq * 0.7 + p.phase) * p.amp * 0.5;
+          const tilt = Math.cos(t * p.freq + p.phase) * 14;
+          el.setAttribute("transform", `translate(${wx.toFixed(1)} ${wy.toFixed(1)}) rotate(${tilt.toFixed(1)})`);
+          p.wings.setAttribute("transform", `translate(0 -13) scale(1 ${(0.25 + Math.abs(Math.sin(t * 60 + p.phase)) * 0.75).toFixed(2)}) translate(0 13)`);
+          el.setAttribute("opacity", k > 0.85 ? ((1 - k) / 0.15).toFixed(2) : Math.min(1, p.life / 6).toFixed(2));
           break;
         }
         case "char": {

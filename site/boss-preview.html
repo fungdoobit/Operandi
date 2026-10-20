@@ -46,7 +46,7 @@ main { padding: 24px max(16px, 3vw); }
 .names span { font-size: 13px; color: #9ea6b5; }
 @media (max-width: 700px) { .mate-spot .dot-figure { width: 80px; } .mate-spot { left: 3%; } .foe-spot .boss-figure { width: 230px; } .stage { height: 300px; } }
 </style></head><body><main>
-<h1>Module 1 boss (working name: GLITCH)</h1>
+<h1>Module 1 boss: GOLEM</h1>
 <p>A hulking mech corrupted by glitches. He has a glowing orange core for an eye, a crushing claw on one arm and a mortar cannon on the other, and cyan "corrupted data" crystals growing out of his armour. Every animation below loops live.</p>
 <h2>Boss animations</h2>
 <div class="grid" id="bossGrid"></div>
@@ -58,7 +58,7 @@ main { padding: 24px max(16px, 3vw); }
 <div class="stage" id="stage">
   <div class="floor"></div>
   <div class="hp me"><div class="row"><span>DOT</span><small id="meNum">100 / 100</small></div><div class="bar"><div class="fill" id="hpMe"></div></div></div>
-  <div class="hp foe"><div class="row"><span>GLITCH</span><small id="foeNum">300 / 300</small></div><div class="bar"><div class="fill" id="hpFoe"></div></div></div>
+  <div class="hp foe"><div class="row"><span>GOLEM</span><small id="foeNum">300 / 300</small></div><div class="bar"><div class="fill" id="hpFoe"></div></div></div>
   <div class="tell" id="tell"></div>
   <div class="foe-spot" id="foe"></div>
   <div class="mate-spot" id="mate"></div>
@@ -179,7 +179,7 @@ const act = {
 };
 function special(move, run) {
   boss.charge(move);
-  $("tell").textContent = `GLITCH ${boss.b.moves[move].tell}!`; $("tell").classList.add("on");
+  $("tell").textContent = `${boss.b.name} ${boss.b.moves[move].tell}!`; $("tell").classList.add("on");
   setTimeout(() => { $("tell").classList.remove("on"); run(); }, 1600);
 }
 document.querySelectorAll(".controls button").forEach((b) => b.addEventListener("click", () => act[b.dataset.a]()));
