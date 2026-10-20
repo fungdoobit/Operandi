@@ -141,6 +141,7 @@ const MOUTHS = {
   held: "M57 130 a3.5 4.5 0 1 0 7 0 a3.5 4.5 0 1 0 -7 0",
   plop: "M53 129 Q60 133 67 129",
   fierce: "M53 130 L67 127",
+  angry: "M54 131 Q60 128 66 131",
   ko: "M52 132 Q56 128 60 132 Q64 136 68 132",
 };
 
@@ -209,8 +210,8 @@ function svg(id, skin) {
       <path class="dot-outline" style="stroke:${k.outline}"/>
       <g class="face-shift"><g class="dot-face">
         <g class="dot-eyes" filter="url(#eyeGlow${id})">
-          <g class="dot-eye"><circle class="eye-white" cx="36" cy="103" r="16.5"/><path class="eye-line eye-arc" d="M22 106 Q36 92 50 106"/><path class="eye-line eye-shut" d="M22 103 Q36 112 50 103"/><path class="eye-line eye-squeeze" d="M25 96 L44 103 L25 110"/><path class="eye-line eye-x" d="M28 95 L44 111 M44 95 L28 111"/></g>
-          <g class="dot-eye"><circle class="eye-white" cx="98" cy="108" r="19"/><path class="eye-line eye-arc" d="M82 111 Q98 95 114 111"/><path class="eye-line eye-shut" d="M82 108 Q98 118 114 108"/><path class="eye-line eye-squeeze" d="M109 100 L88 108 L109 116"/><path class="eye-line eye-x" d="M89 99 L107 117 M107 99 L89 117"/></g>
+          <g class="dot-eye"><circle class="eye-white" cx="36" cy="103" r="16.5"/><path class="eye-angry" d="M21.7 94.8 L52.2 105.9 A16.5 16.5 0 1 1 21.7 94.8 Z"/><path class="eye-line eye-arc" d="M22 106 Q36 92 50 106"/><path class="eye-line eye-shut" d="M22 103 Q36 112 50 103"/><path class="eye-line eye-squeeze" d="M25 96 L44 103 L25 110"/><path class="eye-line eye-x" d="M28 95 L44 111 M44 95 L28 111"/></g>
+          <g class="dot-eye"><circle class="eye-white" cx="98" cy="108" r="19"/><path class="eye-angry" d="M114.5 98.5 L79.3 111.3 A19 19 0 1 0 114.5 98.5 Z"/><path class="eye-line eye-arc" d="M82 111 Q98 95 114 111"/><path class="eye-line eye-shut" d="M82 108 Q98 118 114 108"/><path class="eye-line eye-squeeze" d="M109 100 L88 108 L109 116"/><path class="eye-line eye-x" d="M89 99 L107 117 M107 99 L89 117"/></g>
         </g>
         <path class="dot-mouth" d="${MOUTHS.idle}"/>
         <path class="dot-sweat" d="M150 66 Q157 77 150 84 Q143 77 150 66 Z"/>
@@ -246,6 +247,9 @@ export const DOT_CSS = `
 .ripple.r2 { animation-delay: 1.8s; } .ripple.r3 { animation-delay: 3.6s; }
 .ember { fill: #ffe7a0; opacity: 0; animation: dot-ember 3.4s ease-out infinite; }
 .eye-white { fill: #fbfeff; stroke: ${INK}; stroke-width: 3.5; transform-box: fill-box; transform-origin: center; transition: transform .2s; }
+.eye-angry { fill: #fbfeff; stroke: ${INK}; stroke-width: 3.5; stroke-linejoin: round; display: none; }
+.dot-figure[data-mood="angry"] .eye-white { display: none; }
+.dot-figure[data-mood="angry"] .eye-angry { display: inline; }
 .eye-line { fill: none; stroke: ${INK}; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; display: none; }
 .dot-eyes { transform-origin: 66px 105px; animation: dot-blink 4.6s infinite; }
 .dot-face { transition: transform .35s ease; }
@@ -286,7 +290,7 @@ export const DOT_CSS = `
 .dot-figure[data-mood="ko"] .dot-face { transform: translateY(8px); }
 .dot-svg { transition: filter .25s ease-out, transform .32s cubic-bezier(.4, 0, .3, 1); }
 .dot-figure.hurt .dot-svg { filter: brightness(1.9) saturate(.5); transition: none; }
-.dot-figure.battle[data-mood="idle"] .dot-hop { animation: dot-ready 1.3s ease-in-out infinite; }
+.dot-figure.battle:is([data-mood="idle"],[data-mood="angry"]) .dot-hop { animation: dot-ready 1.3s ease-in-out infinite; }
 @keyframes dot-ready { 0%,100% { transform: translateY(0) scale(1, 1); } 50% { transform: translateY(-3px) scale(.98, 1.02); } }
 
 .dot-figure[data-acc~="shades"] .acc-shades, .dot-figure[data-acc~="nerd"] .acc-nerd, .dot-figure[data-acc~="moustache"] .acc-moustache,
@@ -367,7 +371,9 @@ export class Dot {
     // DOT is drawn looking left. In a battle he's mirrored to face the boss.
     this.figure.classList.toggle("face-right", facing === "right");
     this.figure.classList.toggle("battle", battle);
+    this.battle = battle;
     this.moodTimer = null;
+    if (battle) { this.figure.dataset.mood = "angry"; this.mouth.setAttribute("d", MOUTHS.angry); }
     // Squash and stretch springs: s = current, v = velocity, target set by mood.
     this.sx = { s: 1, v: 0, t: 1 };
     this.sy = { s: 1, v: 0, t: 1 };
@@ -608,6 +614,8 @@ export class Dot {
 
   setMood(mood, { revertAfter } = {}) {
     clearTimeout(this.moodTimer);
+    // In a battle his resting face is angry: the eyes cut on a slant, no brows.
+    if (this.battle && mood === "idle") mood = "angry";
     this.figure.dataset.mood = mood;
     this.mouth.setAttribute("d", MOUTHS[mood] || MOUTHS.idle);
     // Body shape for the mood: stretched when held, melting a little when sad.
