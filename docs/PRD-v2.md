@@ -209,3 +209,45 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 - Decision: drop the look and bring the animation over to the approved characters, themed to each one: DOT water, PYRO fire.
 - He wants high-quality, high-impact, cinematic animation.
 - Built as `battle-time.js`, `battle-fx.js` and `battle-moves.js` (see CLAUDE.md).
+
+## Addendum F: hi-bit pixel art for battles (draft, awaiting "go")
+
+**Problem.** Isaac: the battle art looks like "simple shapes glued together".
+- He wants detailed, high-density pixel art like his two references: a heavy armoured mech with an orange core, and a mechanical spider-bot.
+- That style is usually called "hi-bit" pixel art: fine pixels, rich shading, dithering and dense mechanical detail.
+
+**Scope (Isaac, 2026-10-20):** everything in battles.
+- GOLEM, DOT, PYRO and the effects (water, fire, explosions).
+- Lessons and the home page stay as they are.
+
+**Ready-made art, checked:**
+- Free licensed packs (Foozle's CC0 Sci-Fi Lab Mecha Boss, TheScrawlHive's mechs, PVFX Foundry's CC0 water effects) are small, low-detail sprites (32 to 96 px).
+- None match the density Isaac wants, and none are our characters.
+- Decision (Isaac left it to Claude): build our own, using a proven technique rather than other people's art.
+
+**Technique: 3D model rendered as pixel art** (how Dead Cells made its characters):
+- Each character is modelled in code as 3D shapes. GOLEM gets armour panels, bolts, vents, pistons, cables, crystals and a faceted core. DOT stays a glossy goo blob with his face.
+- A WebGL shader renders the model at a reduced resolution with:
+  - a key light and a rim light
+  - a fixed palette per material
+  - ordered dithering between shades
+  - dark outlines
+- The image is then scaled up with hard pixel edges.
+- Pixel size is about 2–3 screen pixels, so "very high density", as Isaac asked.
+- It animates freely (aiming, swinging, squash and stretch) because the 3D parts move.
+- Effects get the same palette, dithering and pixel grid, so they match.
+- If a device is too slow, the same renderer can pre-render frames into sprite sheets instead.
+
+**Honest limit.** It gets real shading, depth and detail, but it won't be identical to art hand-painted pixel by pixel by a professional pixel artist.
+
+**Plan (smallest first, Isaac checks each step):**
+1. GOLEM prototype: idle animation plus one attack, rendered in this style. Isaac approves or gives feedback before anything else is converted.
+2. DOT and PYRO in the same style: same characters and faces, approved designs kept. A design round.
+3. Effects converted to the pixel style.
+4. Swap the battle preview over.
+
+**Cost:** free. WebGL works on laptop, desktop and iPad.
+
+**Open questions:**
+- Pixel size (2 or 3 screen pixels): decide on the prototype.
+- Whether the boss's glitch effects stay as they are or become pixel glitches.
