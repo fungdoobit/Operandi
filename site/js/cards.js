@@ -42,7 +42,7 @@ export const CARDS_CSS = `
 .bcard .back .nm { padding: 0 0 2px; font-size: 12px; }
 .bcard .back .stats { display: grid; grid-template-columns: auto 1fr; gap: 0 5px; font-weight: 700; color: #dfe4ee; font-size: 9px; white-space: nowrap; }
 .bcard .back .stats span:nth-child(odd) { color: #9aa3b5; font-weight: 500; }
-.bcard .back p { margin: 2px 0 0; color: #cfd5e1; font-size: 8.5px; line-height: 1.3; max-width: none; }
+.bcard .back p { margin: 2px 0 0; color: #cfd5e1; font-size: 8px; line-height: 1.25; max-width: none; flex: 1; min-height: 0; overflow: hidden; }   /* the Cast button always stays on the card */
 .bcard .back .cast { margin-top: auto; border: 0; border-radius: 6px; padding: 5px 0; font: 800 11px var(--font-display, system-ui); color: #120a02; background: var(--c2); cursor: pointer; }
 .bcard .back .cast:disabled { background: #3a3f4c; color: #9aa3b5; cursor: not-allowed; }
 .bcard .back small { text-align: center; color: #8790a2; font-size: 9px; }

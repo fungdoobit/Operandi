@@ -519,7 +519,7 @@ export const PYRO_KIT = [
     desc: "Leaps and kicks a fireball into the boss as a comet. It bursts in a fire explosion.",
     art(pen, w, h) { for (let i = 0; i < 10; i++) { pen.puff("heat", 8 + i * 5, 54 - i * 3.6, 4 + i * 0.9, 0.55 + i * 0.06); pen.puff("smoke", 4 + i * 4, 44 - i * 3, 4, 0.6); } pen.puff("heat", 60, 18, 15, 1.3); } },
   { id: "sunfire", name: "Sunfire Halo", tier: "heavy", run: sunfireHalo,
-    desc: "A ring of fire blazes up round him. He gathers a sun and fires it: a wave of fire that bursts on the boss." ,
+    desc: "A ring of fire blazes up round him, then he fires a sun at the boss as a roaring wave of fire.",
     art(pen, w, h) { for (let i = 0; i < 30; i++) { const a = (i / 30) * Math.PI * 2; pen.puff("heat", 40 + Math.cos(a) * 18, 30 + Math.sin(a) * 25, 4.5, 0.95); } pen.puff("heat", 40, 30, 9, 1.3); } },
   { id: "meteorRain", name: "Meteor Rain", tier: "ultimate", run: meteorRain,
     desc: "Target circles lock onto the floor, then meteors slam down one after another. The last hits the boss's core.",
