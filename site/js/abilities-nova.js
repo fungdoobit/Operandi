@@ -825,7 +825,7 @@ async function eclipseLance(s) {
 // its meal, the black hole collapses into a blinding flash.
 async function eventHorizon(s) {
   const { fx, px, toon, pxTop, mate, foeEl, boss } = s;
-  const core = s.golemC(), floor = fx.floorY, bh = { x: core.x - Math.min(330, fx.w * 0.26), y: Math.max(120, core.y - 40) };
+  const core = s.golemC(), floor = fx.floorY, bh = { x: core.x - Math.min(330, fx.w * 0.26), y: Math.min(floor - 110, Math.max(core.y + 10, 150)) };   // open air, clear of the HP bars
   const home = foeEl._pos || { x: 0, y: 0, r: 0 };
   fx.letterbox(true); fx.darken(0.88, 600);
   fx.title("EVENT HORIZON", "NOVA · ultimate II");
@@ -885,8 +885,11 @@ async function eventHorizon(s) {
   sound.sfx("ghostWind", { ms: 2400 }); sound.sfx("whispers", { ms: 2400 });
   s.golem.to({ thrust: 2.2, flare: 1.4, tilt: 0.2, lean: 0.12 }, 500, "io");
   const toX = bh.x - core.x, toY = bh.y - core.y;
+  // spin and shrink him round his own core, so the pull lands his core right in the hole
+  const cl = s.golem.localPoint([0, -0.1, -0.6]);
+  foeEl.style.transformOrigin = `${cl.x}px ${cl.y}px`;
   const drag = pxTop.add({ dur: 1700, draw(g, k) {
-    pull = ease.in(k) * 0.86;   // stops just short of the middle
+    pull = ease.in(k) * 0.92;   // stops just short of the middle
     fx.place(foeEl, { x: home.x + toX * pull + Math.sin(k * 60) * 3 * k, y: home.y + toY * pull, r: -pull * 160 });
     foeEl.style.scale = String(1 - pull * 0.78);
   } });
@@ -929,7 +932,7 @@ async function eventHorizon(s) {
     fx.place(foeEl, { x: lerp(start.x, home.x, e) + Math.sin(k * 40) * 3 * (1 - k), y: lerp(start.y, home.y, e), r: lerp(start.r || 0, 0, e) });
     foeEl.style.scale = String(lerp(sc0, 1, e));
   } });
-  reel = 1; foeEl.style.scale = "";
+  reel = 1; foeEl.style.scale = ""; foeEl.style.transformOrigin = "";
   fx.place(foeEl, { x: home.x, y: home.y });
   fx.shake(20); fx.dust(s.golemC().x, 12, 1.4); sound.sfx("impact", { size: 1.2 });
   mate.setMood("sad", { revertAfter: 900 });
