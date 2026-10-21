@@ -322,11 +322,11 @@ function voidShot(toon, from, to, ms, { r = 12, arc = 0 } = {}) {
       const last = trail[trail.length - 1], p = pos(ease.in(u) * 0.5 + u * 0.5);
       const n = last ? Math.max(1, Math.floor(Math.hypot(p.x - last.x, p.y - last.y) / 5)) : 1;
       for (let i = 1; i <= n; i++) trail.push({ x: last ? lerp(last.x, p.x, i / n) : p.x, y: last ? lerp(last.y, p.y, i / n) : p.y, t });
-      pen.puff("void", p.x, p.y, r * 1.5, 1.15); pen.puff("void", p.x, p.y, r * 2.8, 0.32);
+      pen.puff("void", p.x, p.y, r * 2, 1.3); pen.puff("void", p.x, p.y, r * 3.2, 0.34);
     }
     for (const q of trail) {
-      const age = (t - q.t) / 320; if (age > 1) continue;
-      pen.puff("void", q.x, q.y - age * 8, r * (1.15 - age * 0.7), 0.9 * (1 - age));
+      const age = (t - q.t) / 220; if (age > 1) continue;
+      pen.puff("void", q.x, q.y - age * 10, r * (1.5 - age * 0.9), 1.1 * (1 - age));
     }
   } });
   return toon.wait(ms);

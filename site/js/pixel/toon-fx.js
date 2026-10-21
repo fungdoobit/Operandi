@@ -284,8 +284,11 @@ export function explode(toon, x, y, { size = 1, kind = "fire", dur = 1500, up = 
     for (const p of puffs) {
       const u = Math.max(0, k - p.delay), grow = 1 - (1 - Math.min(1, u / 0.16)) ** 3;
       if (grow <= 0) continue;
-      const heat = kind === "void" ? 1.15 - Math.max(0, u - 0.25) * 1.9 : 1.02 - u * 1.4;
-      pen.puff(ch, x + p.dx * R * grow, y + p.dy * R * grow - rise * 0.6 + R * 0.08, p.r * R * (0.55 + 0.45 * grow) * (1 + u * 0.35), Math.max(0, heat));
+      const px = x + p.dx * R * grow, py = y + p.dy * R * grow - rise * 0.6 + R * 0.08, r = p.r * R * (0.55 + 0.45 * grow) * (1 + u * 0.35);
+      if (kind === "void") {   // shadow: puffs that hollow out into rings and strands, with a haze round them
+        pen.puff("void", px, py, r, 1.25 * (1 - Math.max(0, u - 0.45) / 0.55), Math.min(0.95, Math.max(0, (u - 0.12) / 0.45)));
+        pen.puff("void", px, py, r * 1.5, 0.32 * (1 - u));
+      } else pen.puff(ch, px, py, r, Math.max(0, 1.02 - u * 1.4));
     }
     if (kind === "void") return;
     // smoke spots bloom inside it, grow over it, then break into rings and fade
