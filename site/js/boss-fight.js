@@ -14,18 +14,17 @@ import { BOSS } from "./economy.js";
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 export const BATTLE_CSS = `
-/* The stage fills the battle band's height; it's at most 2.4× as wide as tall,
-   so on very wide screens it sits in the middle instead of stretching. */
-.bstage { position: relative; height: 100%; aspect-ratio: 12 / 5; max-width: 100%; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 1px solid #262c38;
+/* The stage fills the whole battle band, edge to edge. */
+.bstage { position: relative; height: 100%; width: 100%; overflow: hidden;
   background: radial-gradient(ellipse at 70% 35%, #1d2330, #12151c 70%); color: #e9ecf2; }
 .bworld { position: absolute; inset: 0; will-change: transform; }
 .bfloor { position: absolute; left: 0; right: 0; top: 80%; bottom: 0; background: linear-gradient(#171b24, #0e1015); border-top: 1px solid #2c3442; }
 .bfoe { position: absolute; }
-.bmate { position: absolute; left: 6%; }
+.bmate { position: absolute; }
 .bmate .dot-bubble { display: none; }
 .hibit { filter: url(#hibit); }
 .bhp { position: absolute; top: calc(12px * var(--k, 1)); width: 40%; font: 600 max(11px, calc(13px * var(--k, 1))) var(--font-body, sans-serif); display: flex; flex-direction: column; gap: calc(5px * var(--k, 1)); z-index: 22; }
-.bhp.me { left: 14px; } .bhp.foe { right: 14px; text-align: right; }
+.bhp.foe { text-align: right; }
 .bhp .row { display: flex; justify-content: space-between; } .bhp.foe .row { flex-direction: row-reverse; }
 .bhp small { color: #9ea6b5; font-weight: 500; }
 .bhp .bar { height: calc(10px * var(--k, 1)); border-radius: 99px; background: #262c38; overflow: hidden; }
@@ -119,9 +118,17 @@ export class BattleStage {
   fit() {
     const H = this.stage.clientHeight;
     if (!H) return;
-    const k = H / 440;
+    const k = H / 440, W = this.stage.clientWidth;
+    // The fighters stay in a fight zone in the middle (at most 2.4× as wide as
+    // tall), so on wide screens they don't end up miles apart.
+    const zone = Math.min(W, H * 2.4), edge = (W - zone) / 2;
     this.golem.setPx(k);
-    Object.assign(this.foeEl.style, { right: 6 * k + "px", bottom: 0.2 * H - 17 * k + "px" });
+    Object.assign(this.foeEl.style, { right: edge + 6 * k + "px", bottom: 0.2 * H - 17 * k + "px" });
+    this.mateEl.style.left = edge + zone * 0.06 + "px";
+    // HP bars line up with the zone, clear of the ☰ button in the corner.
+    const left = Math.max(64, edge + 14 * k), right = Math.max(14, edge + 14 * k), mid = W / 2;
+    Object.assign(this.stage.querySelector(".bhp.me").style, { left: left + "px", width: mid - 20 - left + "px" });
+    Object.assign(this.stage.querySelector(".bhp.foe").style, { right: right + "px", width: mid - 20 - right + "px" });
     this.stage.style.setProperty("--k", k.toFixed(3));   // text on the stage scales too
     this.mateEl.style.bottom = 0.2 * H - 6 * k + "px";
     this.dot.figure.style.width = 65 * k + "px";

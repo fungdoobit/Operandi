@@ -79,7 +79,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
 .rail-toggle { position: fixed; z-index: 31; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); box-shadow: 0 2px 8px #0002; }
 /* With the list away, leave room for the button above the instructions; in a fight it sits on the battle band. */
 .app.rail-closed .body:not(.boss-mode) .brief { padding-top: 64px; }
-.body.boss-mode .arena { padding-left: 60px; padding-right: 60px; }
+.body.boss-mode .arena { padding: 0; }
 
 /* Main grid. Areas: the course list (rail), instructions (brief), editor
    (work), and in a boss fight the battle band (arena) across the top. */
