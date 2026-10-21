@@ -7,6 +7,7 @@
 //   drone: GOLEM's mini drone (his armour, a red eye), 16 headings x 2 rotor frames
 //   hook:  a three-pronged grappling hook (steel and orange), 16 angles
 //   shard: the chain's spear tip, a violet crystal, 16 angles
+//   missile: GOLEM's missile (steel, orange band, red nose, fins), 16 angles
 import { PixelGL } from "./pixel-gl.js";
 
 const MODEL = `
@@ -57,6 +58,19 @@ float map(vec3 p){
     if (tip < d) { d = tip; gm = 6.; }
     return d;
   }
+  if (uKind > 3.5) {                      // GOLEM's missile pointing along +x: a steel body, an orange band, a red nose, four fins
+    float d = sdCap(p, vec3(-.27, 0., 0.), vec3(.16, 0., 0.), .068); gm = 5.;
+    float band = sdCylY(p.yxz - vec3(0., .1, 0.), .074, .025);
+    if (band < d) { d = band; gm = 6.; }
+    float nose = sdCapT(p, vec3(.16, 0., 0.), vec3(.33, 0., 0.), .068, .008);
+    if (nose < d) { d = nose; gm = 4.; }
+    for (int i = 0; i < 4; i++) {
+      vec3 q = p; q.yz = R(float(i)*1.5708 + .785 + uFrame) * q.yz;
+      float fin = sdBox(q - vec3(-.23, .1, 0.), vec3(.06, .055, .007));
+      if (fin < d) { d = fin; gm = 3.; }
+    }
+    return d;
+  }
   // a crystal spear tip pointing along +x
   vec3 q = p; q.yz = R(uFrame) * q.yz;
   float d = max(sdOct(vec3(q.x*.55, q.y, q.z), .1), -q.x - .05);
@@ -78,7 +92,7 @@ void main(){
     if (d < .002) { m = gm; break; }
     t += d*.85; if (t > 7.) break;
   }
-  float halo = uKind < .5 || uKind > 2.5 ? exp(-max(minGlow, 0.)*18.)*.75 : 0.;
+  float halo = uKind < .5 || (uKind > 2.5 && uKind < 3.5) ? exp(-max(minGlow, 0.)*18.)*.75 : 0.;
   float eyeGlow = exp(-max(minEye, 0.)*22.)*.8;
   if (m == 0.) { o = vec4(eyeGlow, 0., 1., halo); return; }
   vec3 p = ro + rd*t, n = nrm(p);
@@ -101,7 +115,7 @@ const PALETTES = [
 ];
 // glow colours: [violet halo x3, red eye x3]
 const GLOW = ["#5a24a8", "#8a4dff", "#d6bcff", "#7a0d0d", "#ff3a3a", "#ffb0b0"];
-const KINDS = { link: [0, 22, 0.62], drone: [1, 44, 1.1], hook: [2, 30, 0.8], shard: [3, 22, 0.55] };   // id, frame px, view
+const KINDS = { link: [0, 22, 0.62], drone: [1, 44, 1.1], hook: [2, 30, 0.8], shard: [3, 22, 0.55], missile: [4, 26, 0.85] };   // id, frame px, view
 
 let cache = null;
 // The sprite sheets: sheets[kind][variant][angle] = a canvas.

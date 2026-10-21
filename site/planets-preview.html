@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Planets</title>
+<style>body{margin:0;background:#06070c;color:#ccd;font:14px system-ui;padding:16px} canvas{image-rendering:pixelated;margin:4px;vertical-align:middle}</style></head>
+<body><h1>Planets (planets-px.js)</h1><div id="out"></div>
+<script type="module">
+import { planetSprites } from "./js/pixel/planets-px.js";
+const P = planetSprites(), out = document.getElementById("out");
+for (const [name, frames] of Object.entries(P)) {
+  const row = document.createElement("div"); row.append(name + " ");
+  for (const f of [frames[0], frames[4], frames[8]]) { f.style.width = f.width * (name === "jupiter" ? 1.2 : 2) + "px"; row.append(f); }
+  out.append(row);
+}
+</script></body></html>

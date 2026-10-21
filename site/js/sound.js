@@ -478,9 +478,41 @@ const SFX = {
   },
   swarm(t, k, o) { this.swarm(t, (o.ms || 3000) / 1000, 0.35 * k); },
   bite(t) { this.noise(t, 0.08, 0.4, { type: "bandpass", f0: 1200, q: 3, dist: true }); this.tone("square", 300, 120, t, 0.06, 0.1); },
+  // Digital crackle: tiny bit-flip blips (no noise bursts; the old version stacked into a clap, Isaac 2026-10-21).
   glitch(t) {
-    for (let i = 0; i < 4; i++) this.tone("square", 80 + Math.random() * 1600, 80 + Math.random() * 1600, t + i * 0.03, 0.03, 0.09);
-    this.noise(t, 0.12, 0.22, { type: "bandpass", f0: 300 + Math.random() * 3000, q: 4, dist: true });
+    for (let i = 0; i < 5; i++) { const f = 1800 + Math.random() * 4200; this.tone("square", f, f * (0.7 + Math.random() * 0.6), t + i * 0.014 + Math.random() * 0.01, 0.012, 0.035); }
+    this.tone("sine", 120 + Math.random() * 60, 60, t, 0.05, 0.06);
+  },
+  // A stream of data: rapid random bleeps in a narrow band, like a modem screaming.
+  dataStream(t, k, o) {
+    const d = (o.ms || 1200) / 1000;
+    for (let x = 0; x < d; x += 0.022) { const f = [880, 1320, 1760, 2640, 3520][Math.floor(Math.random() * 5)] * (0.98 + Math.random() * 0.04); this.tone("square", f, f, t + x, 0.018, 0.028 * k * (0.6 + 0.4 * Math.sin(x * 20))); }
+    this.tone("sawtooth", 55, 52, t, d, 0.08 * k, { vibrato: [11, 3], attack: 0.1 });
+  },
+  // An error box popping up: a two-note "dong".
+  errorPop(t, k) {
+    this.tone("sine", 880, 880, t, 0.12, 0.12 * k, { room: 0.3 });
+    this.tone("sine", 660, 660, t + 0.09, 0.22, 0.12 * k, { room: 0.3 });
+    this.tone("square", 220, 220, t, 0.05, 0.03 * k);
+  },
+  // A target lock: three quick rising beeps, then a held tone.
+  lockOn(t, k) {
+    [1400, 1700, 2000].forEach((f, i) => this.tone("square", f, f, t + i * 0.055, 0.035, 0.05 * k));
+    this.tone("square", 2400, 2400, t + 0.17, 0.12, 0.05 * k);
+  },
+  // The claw slam: a sub-bass blow, a metal clang, crushed concrete, and a long rolling tail.
+  slamImpact(t, k) {
+    this.tone("sine", 70, 22, t, 1.4, 1.0 * k, { room: 0.4 });
+    this.tone("sine", 140, 40, t, 0.35, 0.6 * k);
+    this.noise(t, 0.5, 0.8 * k, { type: "lowpass", f0: 2400, f1: 120, dist: true, room: 0.5 });
+    [[233, 0.25], [311, 0.2], [466, 0.12], [587, 0.08]].forEach(([f, a]) => this.tone("triangle", f, f * 0.98, t, 0.9, a * k, { room: 0.6 }));   // the clang
+    for (let i = 0; i < 10; i++) this.noise(t + 0.03 + Math.random() * 0.35, 0.05, 0.25 * k, { type: "bandpass", f0: 400 + Math.random() * 1600, q: 2 });   // concrete
+    this.noise(t + 0.1, 1.6, 0.35 * k, { type: "lowpass", f0: 400, f1: 80, room: 0.5, attack: 0.15 });   // the rumble rolling away
+  },
+  // Rock slabs bursting up out of the floor.
+  rubble(t, k) {
+    this.tone("sine", 110, 45, t, 0.25, 0.4 * k);
+    for (let i = 0; i < 4; i++) this.noise(t + i * 0.02, 0.08, 0.3 * k, { type: "bandpass", f0: 500 + Math.random() * 1200, q: 1.5 });
   },
   screech(t) {
     // the data blast: a tearing digital shriek

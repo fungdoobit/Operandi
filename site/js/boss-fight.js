@@ -170,6 +170,7 @@ export class BattleStage {
   }
 
   hp(me, foe) {
+    this.lastHp = { me, foe };
     const set = (cls, v) => {
       this.stage.querySelector(`.bhp.${cls} .fill`).style.width = (v / BOSS.hp) * 100 + "%";
       this.stage.querySelector(`.bhp.${cls} small`).textContent = `${v} / ${BOSS.hp}`;
@@ -218,9 +219,14 @@ export class BattleStage {
   // card = the ability card cast (abilities.js); without one, the first in the kit.
   async attack(strike, onImpact, card) {
     const crit = strike.result === "crit";
-    let landed = false;
+    let landed = false, shown = 0;
     const land = () => {
       landed = true;
+      if (shown) {   // the earlier chunks already showed: this is the last one
+        this.number(crit ? `CRIT -${strike.dmg - shown}` : `-${strike.dmg - shown}`, "foe", strike.result);
+        onImpact?.();
+        return;
+      }
       this.number(crit ? `CRIT -${strike.dmg}` : strike.result === "blocked" ? `BLOCKED -${strike.dmg}` : `-${strike.dmg}`, "foe", strike.result);
       onImpact?.();
     };
@@ -233,14 +239,23 @@ export class BattleStage {
       if (final && !landed) land();
       return result;
     };
-    await this.ability(card || this.kit[0], onHit, crit);
+    // A move that hits in several blows shows each chunk as it lands; the last
+    // onHit shows what's left (Planetfall: Venus, Mars, then Uranus).
+    const chunk = (frac) => {
+      const d = Math.round(strike.dmg * frac);
+      shown += d;
+      this.boss.hit({ crit: false });
+      this.number(`-${d}`, "foe", strike.result === "blocked" ? "blocked" : "hit");
+      if (this.lastHp) this.hp(this.lastHp.me, Math.max(0, this.lastHp.foe - d));
+    };
+    await this.ability(card || this.kit[0], onHit, crit, chunk);
     if (!landed) land();   // a move with a single hit that was a crit
   }
 
   // Play one ability from the teammate's kit.
-  async ability(a, onHit = () => "hit", crit = false) {
+  async ability(a, onHit = () => "hit", crit = false, chunk = () => {}) {
     const { fx, px, golem, dot } = this.ctx;
-    await a.run({ ...this.ctx, crit, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
+    await a.run({ ...this.ctx, crit, chunk, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
       Pt: (L, part) => fx.fromPage(golem.pagePoint(L, part)),
       mateC: () => fx.at(dot.figure, { fy: 0.55 }), golemC: () => fx.fromPage(golem.point("core")), onHit, px });
   }

@@ -22,7 +22,7 @@ h1 { font-size: 20px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 12px; f
   <div class="bar"><a href="?skin=nova">NOVA</a><a href="?skin=pyro">PYRO</a><a href="?skin=dot">DOT</a></div>
   <div id="arena"></div><div id="say"></div>
   <div class="bar" id="moves"></div>
-  <div class="bar"><button id="hand">Card hand (flawless pass, 30 mana)</button><button id="missiles">GOLEM: Missile Swarm</button></div>
+  <div class="bar"><button id="hand">Card hand (flawless pass, 30 mana)</button><button id="missiles">GOLEM: Missile Swarm</button><button onclick="__golem('slam')">GOLEM: Claw Slam</button><button onclick="__golem('laser')">GOLEM: Core Laser</button><button onclick="__special('typos')">GOLEM: Typo Swarm</button><button onclick="__special('glitch')">GOLEM: Glitch Text</button></div>
 </main>
 <script type="module">
 import { BattleStage } from "./js/boss-fight.js";
@@ -48,6 +48,8 @@ window.__hand = () => run(async () => { const c = await battle.pickCard(f, { gai
 window.__mine = () => window.__cast(battle.kit[battle.kit.length - 1].id);
 window.__boom = () => run(async () => { const c = battle.ctx.fx.fromPage(battle.golem.point("core")); await explode(battle.toon, c.x, c.y, { size: 1.4 }); });
 window.__missiles = () => run(() => golemAttack(battle.ctx, "missiles", { onHit() {} }));
+window.__golem = (k) => run(() => golemAttack(battle.ctx, k, { onHit() {} }));   // slam | barrage | laser | missiles
+window.__special = (k) => run(() => battle.special(k));   // typos | glitch | firewall
 document.getElementById("moves").innerHTML = battle.kit.map((c) => `<button data-id="${c.id}">${c.name} <small>(${TIERS[c.tier].label})</small></button>`).join("");
 document.getElementById("moves").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) window.__cast(b.dataset.id); });
 document.getElementById("hand").onclick = window.__hand;
