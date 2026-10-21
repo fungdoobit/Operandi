@@ -113,8 +113,9 @@ export class BattleStage {
     this.dot = skin === "nova" ? new NovaFighter(mateEl) : new Dot(mateEl, { facing: "right", battle: true, skin });
     this.dot.setAccessory(accessories);
     this.px = new PixelFX(world);   // hi-bit effects for the abilities (pixel/pixel-fx.js)
+    this.pxBack = new PixelFX(world, { z: 0, before: foeEl });   // a layer behind the fighters (the far side of a portal...)
     this.kit = kitFor(skin);
-    this.ctx = { fx: this.fx, px: this.px, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
+    this.ctx = { fx: this.fx, px: this.px, pxBack: this.pxBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
     sound.music("battle");
@@ -218,6 +219,7 @@ export class BattleStage {
   async ability(a, onHit = () => "hit") {
     const { fx, px, golem, dot } = this.ctx;
     await a.run({ ...this.ctx, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
+      Pt: (L, part) => fx.fromPage(golem.pagePoint(L, part)),
       mateC: () => fx.at(dot.figure, { fy: 0.55 }), golemC: () => fx.fromPage(golem.point("core")), onHit, px });
   }
 

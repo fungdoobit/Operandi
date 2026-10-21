@@ -2,7 +2,8 @@
 // effects (shadow hands, flame blades, missiles, chains...) with ordinary 2D
 // canvas calls in stage pixels; every frame the layer is turned into pixel art
 // so it matches GOLEM, NOVA and the arena:
-//   - drawn at the arena's art size (220 px tall), shown with crisp pixels
+//   - drawn at GOLEM's pixel density (one art px per stage px, at most 440 tall;
+//     Isaac 2026-10-21: the half-density version looked low quality)
 //   - see-through parts (glows, smoke) become a dither pattern
 //   - colours snap to a few levels with ordered dithering
 //   - a dark one-pixel outline round everything solid
@@ -10,14 +11,15 @@
 import { battleTime } from "../battle-time.js";
 
 const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
-const HA = 220, LEVELS = 7;
+const LEVELS = 7;
 
 export class PixelFX {
-  constructor(world, { outline = "#0b0614", z = 6 } = {}) {
+  // before: put the layer behind this element (for effects behind the fighters).
+  constructor(world, { outline = "#0b0614", z = 6, before = null } = {}) {
     this.world = world;
     this.canvas = document.createElement("canvas");
     Object.assign(this.canvas.style, { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", imageRendering: "pixelated", pointerEvents: "none", zIndex: z });
-    world.append(this.canvas);
+    if (before) world.insertBefore(this.canvas, before); else world.append(this.canvas);
     this.g = this.canvas.getContext("2d", { willReadFrequently: true });
     this.ink = [1, 3, 5].map((i) => parseInt(outline.slice(i, i + 2), 16));
     this.actors = [];
@@ -52,7 +54,7 @@ export class PixelFX {
     const d = battleTime.step(now, real);
     const W = this.w, H = this.h;
     if (!W || !H) return;
-    const wa = Math.max(64, Math.round((W / H) * HA));
+    const HA = Math.min(440, Math.round(H)), wa = Math.max(64, Math.round((W / H) * HA));
     if (this.canvas.width !== wa || this.canvas.height !== HA) { this.canvas.width = wa; this.canvas.height = HA; }
     const g = this.g;
     if (!this.actors.length) {
