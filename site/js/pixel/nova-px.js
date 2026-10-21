@@ -21,15 +21,25 @@ export const NOVA_KINDS = ["flame", "eclipse", "wraith", "moon", "imp", "darkfla
 
 const model = (kind) => `
 #define KIND ${kind}
-uniform vec2 uRes; uniform float uTime, uYaw, uView, uBlink, uBob, uSway;
+uniform vec2 uRes; uniform float uTime, uYaw, uView, uBlink, uBob, uSway, uMood, uEnergy;
 float gm; float gEye; float gMagic;
 void U(inout float d, float nd, float m){ if (nd < d) { d = nd; gm = m; } }
 float sdEll(vec3 p, vec3 r){ float k0 = length(p/r), k1 = length(p/(r*r)); return k0*(k0 - 1.)/k1; }
 float fbm(vec3 p){ return vnoise(p)*.6 + vnoise(p*2.1 + 4.)*.3 + vnoise(p*4.3 + 9.)*.1; }
 
+// One eye, shaped by mood (uMood: 0 idle, 1 happy, 2 angry, 3 sad, 4 sleepy).
+// s is +1 for his left eye (its inner side is +x), -1 for his right.
+float eye1(vec3 q, vec3 r, float s){
+  vec3 rb = vec3(r.x, r.y*uBlink*(uMood == 4. ? .14 : 1.), r.z);
+  if (uMood == 4.) q.y += r.y*.25;                                   // sleepy: shut, slightly low
+  float e = sdEll(q, rb);
+  if (uMood == 1.) e = max(e, -sdEll(q + vec3(0., r.y*1.02, 0.), r*vec3(1.6, 1.05, 2.)));  // happy: an upturned arc
+  if (uMood == 2.) e = max(e, (q.y + s*q.x*.95 - r.y*.3)*.7);         // angry: cut down toward the middle
+  if (uMood == 3.) e = max(e, (q.y - s*q.x*.7 - r.y*.45)*.7);         // sad: cut down toward the outside
+  return e;
+}
 void eyes(inout float d, vec3 p, vec3 a, vec3 b, vec3 r){
-  vec3 rb = vec3(r.x, r.y*uBlink, r.z);
-  float e = min(sdEll(p - a, rb), sdEll(p - b, rb*vec3(1.08, 1.04, 1.)));
+  float e = min(eye1(p - a, r, 1.), eye1(p - b, r*vec3(1.08, 1.04, 1.), -1.));
   U(d, e, 3.); gEye = min(gEye, e);
 }
 // A flame horn: a thick base blended into the head, a licking tip that ends in purple fire.
@@ -44,12 +54,13 @@ float horn(inout float body, inout float d, vec3 p, vec3 a, vec3 b, vec3 c, floa
 }
 
 // The eclipse corona behind a head at c (radius rr): a ring and flickering rays of purple fire.
+// uEnergy scales the rays: long and fast when angry, short and slow when sad or sleepy.
 void corona(inout float d, vec3 p, vec3 c0, float rr){
   vec3 c = p - c0 - vec3(0., 0., .32);
   float ring = sdTorZ(c, rr, .04);
   float n = 20., sec = 6.2831853/n, a = atan(c.y, c.x);
   float id = floor((a + sec*.5)/sec), an = mod(a + sec*.5, sec) - sec*.5;
-  float len = .16 + .16*hash1(id) + .07*sin(uTime*3.3 + id*2.1);
+  float len = (.16 + .16*hash1(id) + .07*sin(uTime*3.3*uEnergy + id*2.1))*uEnergy;
   vec3 rp = vec3(cos(an)*length(c.xy), sin(an)*length(c.xy), c.z);
   ring = min(ring, sdCapT(rp, vec3(rr, 0., 0.), vec3(rr + len, 0., 0.), .045, .0));
   U(d, ring, 4.); gMagic = min(gMagic, ring);
@@ -57,7 +68,7 @@ void corona(inout float d, vec3 p, vec3 c0, float rr){
 // Eyes on the front of a round head at c with radius r.
 void headEyes(inout float d, vec3 p, vec3 c, float r, float k){
   float z = -r*.86;
-  eyes(d, p, c + vec3(-.18*k, .01, z), c + vec3(.17*k, .01, z), vec3(.1, .18, .06)*k);
+  eyes(d, p, c + vec3(-.18*k, .01, z), c + vec3(.17*k, .01, z), vec3(.1, .18, .11)*k);
 }
 
 // A tongue of shadow fire rising from base (height h, base radius r), purple at the tip.
@@ -351,6 +362,14 @@ void main(){
   o = vec4(clamp(sh, 0., 1.), m/16., t/10., eyeGlow);
 }`;
 
+export const NOVA_MOODS = {
+  idle: { id: 0, energy: 1, bob: 1.5, amp: 0.05 },
+  happy: { id: 1, energy: 1.2, bob: 3.2, amp: 0.07, hop: true },
+  angry: { id: 2, energy: 1.6, bob: 2.4, amp: 0.035 },
+  sad: { id: 3, energy: 0.55, bob: 0.9, amp: 0.03, sink: -0.06 },
+  sleepy: { id: 4, energy: 0.45, bob: 0.7, amp: 0.025, sink: -0.04 },
+};
+
 export class PixelNova {
   // host: element the canvas goes in. w,h: art pixels. px: screen px per art pixel.
   constructor(host, { kind = "flame", w = 200, h = 230, px = 2, view = 3.4 } = {}) {
@@ -361,10 +380,20 @@ export class PixelNova {
     this.canvas.width = w; this.canvas.height = h;
     this.gl = new PixelGL(this.canvas, { model: model(NOVA_KINDS.indexOf(kind)), palettes: PALETTES, glow: GLOW, extra: EXTRA });
     this.view = view; this.yaw = 0.25; this.sway = 0;
+    this.setMood("idle");
     this.t0 = performance.now() - Math.random() * 4000;
     this.nextBlink = 2 + Math.random() * 3;
     this.loop = this.loop.bind(this);
     requestAnimationFrame(this.loop);
+  }
+  // Moods change his eyes, how hard the corona burns, and how he floats.
+  setMood(name) {
+    this.mood = name;
+    this.m = NOVA_MOODS[name] ?? NOVA_MOODS.idle;
+  }
+  bob(s) {
+    const m = this.m, w = s * m.bob;
+    return (m.hop ? Math.abs(Math.sin(w)) * m.amp * 1.6 - m.amp * 0.4 : Math.sin(w) * m.amp) + (m.sink ?? 0);
   }
   loop(now) {
     if (!this.canvas.isConnected) return;
@@ -373,8 +402,8 @@ export class PixelNova {
     if (s > this.nextBlink + 0.16) this.nextBlink = s + 2.5 + Math.random() * 3;
     const blink = s > this.nextBlink ? 0.1 : 1;
     this.gl.draw(
-      { uTime: s, uYaw: this.yaw, uView: this.view, uBlink: blink, uBob: Math.sin(s * 1.5) * 0.05, uSway: this.sway },
-      { uTime: s, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0.7 - Math.sin(s * 1.5) * 0.2, uShadowX: 0.5, uPlume: [0, 0, 0, 0] },
+      { uTime: s, uYaw: this.yaw, uView: this.view, uBlink: this.m.id === 4 ? 1 : blink, uBob: this.bob(s), uSway: this.sway, uMood: this.m.id, uEnergy: this.m.energy },
+      { uTime: s, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0.7 - this.bob(s) * 4, uShadowX: 0.5, uPlume: [0, 0, 0, 0] },
     );
     requestAnimationFrame(this.loop);
   }

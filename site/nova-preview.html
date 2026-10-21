@@ -3,51 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NOVA concepts</title>
+<title>NOVA</title>
 <style>
 body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: #0f1116; color: #e9ecf2; }
-main { max-width: 1360px; margin: 0 auto; padding: 24px 16px 60px; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
 h1 { font-size: 22px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 18px; font-size: 14px; }
-h3 { font-size: 15px; margin: 22px 0 10px; color: #c9b8f0; }
-.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.card h2 { font-size: 15px; margin: 0 0 4px; } .card p { font-size: 12.5px; margin: 0 0 8px; min-height: 34px; }
-.panel { border-radius: 14px; border: 1px solid #262c38; display: flex; align-items: flex-end; justify-content: center; gap: 12px; padding: 10px 6px; margin-bottom: 8px; overflow: hidden; }
+h2 { font-size: 16px; margin: 22px 0 10px; }
+.top { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.panel { border-radius: 14px; border: 1px solid #262c38; display: flex; align-items: center; justify-content: center; padding: 10px 6px; overflow: hidden; }
 .panel.light { background: #f4f2ee; } .panel.dark { background: #12151c; }
-@media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+.moods { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.moods figure { margin: 0; text-align: center; } .moods figcaption { font-size: 13px; color: #9aa3b5; margin-top: 6px; }
+@media (max-width: 800px) { .top { grid-template-columns: 1fr; } .moods { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
 </head>
 <body>
 <main>
-  <h1>NOVA: round 3</h1>
-  <p>New designs mixing the three you picked (black moon, dark flame, cloaked). Big on the battle background, roaming size on the lesson background.</p>
-  <div class="grid">
-    <div class="card" data-k="moonflame"><h2>C1 · Moon flame</h2><p>The black moon crowned with one tall tongue of shadow fire, dust ring below. (B1 + B3)</p></div>
-    <div class="card" data-k="mooncloak"><h2>C2 · Cloaked moon</h2><p>The cloaked one with the black moon's dust ring circling his cloak. (B4 + B1)</p></div>
-    <div class="card" data-k="flamecloak"><h2>C3 · Flame cloak</h2><p>The cloaked one with a flame rising from his head. (B4 + B3)</p></div>
-    <div class="card" data-k="twinflame"><h2>C4 · Twin flames</h2><p>The black moon with two flame horns leaning outward.</p></div>
-    <div class="card" data-k="flamehood"><h2>C5 · Hooded flame</h2><p>A cloak whose head draws up into one thick flame, like a hood made of fire.</p></div>
-    <div class="card" data-k="satellites"><h2>C6 · Satellites</h2><p>The black moon with two small shadow moons orbiting him.</p></div>
+  <h1>NOVA: cloaked moon</h1>
+  <p>GOLEM's exclusive companion. Idle on the battle background, roaming size on the lesson background, then his moods.</p>
+  <div class="top">
+    <div class="panel dark" id="big"></div>
+    <div class="panel light" id="small"></div>
   </div>
-  <h3>Your picks from last round, for comparison</h3>
-  <div class="grid">
-    <div class="card" data-k="moon" data-only><h2>B1 · Black moon</h2></div>
-    <div class="card" data-k="darkflame" data-only><h2>B3 · Dark flame</h2></div>
-    <div class="card" data-k="cloak" data-only><h2>B4 · Cloaked</h2></div>
+  <h2>Moods</h2>
+  <div class="moods">
+    <figure><div class="panel dark" data-m="idle"></div><figcaption>idle</figcaption></figure>
+    <figure><div class="panel dark" data-m="happy"></div><figcaption>happy</figcaption></figure>
+    <figure><div class="panel dark" data-m="angry"></div><figcaption>angry (battle)</figcaption></figure>
+    <figure><div class="panel dark" data-m="sad"></div><figcaption>sad</figcaption></figure>
+    <figure><div class="panel dark" data-m="sleepy"></div><figcaption>sleepy</figcaption></figure>
   </div>
 </main>
 <script type="module">
 import { PixelNova } from "./js/pixel/nova-px.js";
-for (const card of document.querySelectorAll(".card[data-k]")) {
-  const k = card.dataset.k;
-  const dark = Object.assign(document.createElement("div"), { className: "panel dark" });
-  card.append(dark);
-  new PixelNova(dark, { kind: k, w: 150, h: 180, px: 2 });
-  if (card.hasAttribute("data-only")) continue;
-  const light = Object.assign(document.createElement("div"), { className: "panel light" });
-  card.append(light);
-  new PixelNova(light, { kind: k, w: 96, h: 115, px: 1 });
-}
+new PixelNova(document.getElementById("big"), { kind: "mooncloak", w: 200, h: 230, px: 2 });
+new PixelNova(document.getElementById("small"), { kind: "mooncloak", w: 96, h: 115, px: 1 });
+for (const el of document.querySelectorAll("[data-m]")) new PixelNova(el, { kind: "mooncloak", w: 96, h: 115, px: 2 }).setMood(el.dataset.m);
 </script>
 </body>
 </html>
