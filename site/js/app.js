@@ -1174,5 +1174,6 @@ applyCosmetics();
 renderTop();
 const firstOpen = ALL_LESSONS.find((l, i) => lessonUnlocked(i) && !lessonDone(l.id));
 openLesson((firstOpen || ALL_LESSONS[ALL_LESSONS.length - 1]).id);
-if (bootBoss) openBoss(1);
+// A pass still waiting for its ability card (the page was closed mid-choice): straight back to the fight.
+if (bootBoss || (S().boss?.hand && !S().boss.over)) openBoss(S().boss?.module || 1);
 initCloud();
