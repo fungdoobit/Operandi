@@ -17,7 +17,7 @@ const PALETTES = [
 // Glow halos: eyes (pale lavender), then magic haze (deep to light violet).
 const GLOW = ["#5b4c92", "#a99ee0", "#f2eeff", "#2c1258", "#5a2aa6", "#9a62ea"];
 const EXTRA = ["#c9b8f0", "#ffffff", "#030206"];
-export const NOVA_KINDS = ["flame", "eclipse", "wraith"];
+export const NOVA_KINDS = ["flame", "eclipse", "wraith", "moon", "imp", "darkflame", "cloak", "crystal", "veil"];
 
 const model = (kind) => `
 #define KIND ${kind}
@@ -43,12 +43,29 @@ float horn(inout float body, inout float d, vec3 p, vec3 a, vec3 b, vec3 c, floa
   return body;
 }
 
+// The eclipse corona behind a head at c (radius rr): a ring and flickering rays of purple fire.
+void corona(inout float d, vec3 p, vec3 c0, float rr){
+  vec3 c = p - c0 - vec3(0., 0., .32);
+  float ring = sdTorZ(c, rr, .04);
+  float n = 20., sec = 6.2831853/n, a = atan(c.y, c.x);
+  float id = floor((a + sec*.5)/sec), an = mod(a + sec*.5, sec) - sec*.5;
+  float len = .16 + .16*hash1(id) + .07*sin(uTime*3.3 + id*2.1);
+  vec3 rp = vec3(cos(an)*length(c.xy), sin(an)*length(c.xy), c.z);
+  ring = min(ring, sdCapT(rp, vec3(rr, 0., 0.), vec3(rr + len, 0., 0.), .045, .0));
+  U(d, ring, 4.); gMagic = min(gMagic, ring);
+}
+// Eyes on the front of a round head at c with radius r.
+void headEyes(inout float d, vec3 p, vec3 c, float r, float k){
+  float z = -r*.86;
+  eyes(d, p, c + vec3(-.18*k, .01, z), c + vec3(.17*k, .01, z), vec3(.1, .18, .06)*k);
+}
+
 float map(vec3 p){
   gm = 0.; gEye = 1e5; gMagic = 1e5;
   float d = 1e5;
   p.y -= uBob;
   p.xz = R(uYaw) * p.xz;
-  if (sdBox(p - vec3(0., .1, 0.), vec3(1.5, 1.7, 1.2)) > .3) return 1.;
+  if (sdBox(p - vec3(0., .2, 0.), vec3(1.6, 1.8, 1.3)) > .3) return 1.;
   float body;
 #if KIND == 0
   // head with four flame horns
@@ -91,7 +108,7 @@ float map(vec3 p){
   ring = min(ring, sdCapT(rp, vec3(.6, 0., 0.), vec3(.6 + len, 0., 0.), .045, .0));
   U(d, ring, 4.); gMagic = min(gMagic, ring);
   eyes(d, p, vec3(-.18, .37, -.41), vec3(.17, .37, -.41), vec3(.1, .18, .06));
-#else
+#elif KIND == 2
   // hooded wraith: a void face in a deep hood, a ragged cape, shoulder spikes, orbiting shards
   vec3 h = p; h.z -= (h.y - .4)*(h.y - .4)*.45;
   float hood = sdCapT(h, vec3(0., .42, .06), vec3(.02, 1.08, .38), .5, .05);
@@ -113,6 +130,92 @@ float map(vec3 p){
     U(d, o, 5.); gMagic = min(gMagic, o + .02);
   }
   eyes(d, p, vec3(-.11, .54, -.27), vec3(.11, .54, -.27), vec3(.065, .1, .04));
+#elif KIND == 3
+  // black moon: a shadow sphere, a tilted ring of obsidian dust, shadow flames licking up its lower half
+  vec3 c = vec3(0., .2, 0.);
+  vec3 s = p - c;
+  body = length(s) - .55;
+  body += (fbm(s*5. + vec3(0., -uTime*1.6, 0.)) - .5)*.14*clamp(-s.y*1.6 + .1, 0., 1.);
+  U(d, body, 1.);
+  vec3 r = s + vec3(0., .4, 0.); r.yz = R(1.3) * r.yz; r.xy = R(-.22) * r.xy;
+  float an = atan(r.y, r.x) + uTime*.4, ra = length(r.xy);
+  float seg = mod(an, .26) - .13;
+  vec3 rq = vec3(seg*ra, ra - .92, r.z);
+  U(d, sdBox(rq, vec3(.045, .045, .045)), 5.);
+  corona(d, p, c, .68);
+  headEyes(d, p, c, .55, 1.05);
+#elif KIND == 4
+  // imp: round head with two swept-back horns, a small body curling into a wisp
+  vec3 c = vec3(0., .42, 0.);
+  body = length(p - c) - .44;
+  vec3 a = vec3(abs(p.x), p.yz);
+  body = smin(body, sdCapT(a, vec3(.22, .7, -.02), vec3(.42, 1.12, .08), .13, .0), .08);
+  vec3 s = p; s.x += sin(s.y*3. + uTime*1.6)*.07*max(-s.y, 0.) + uSway*max(-s.y, 0.);
+  body = smin(body, sdEll(s - vec3(0., -.12, .02), vec3(.3, .38, .27)), .12);
+  float tail = sdCapT(s, vec3(0., -.35, .02), vec3(.18 + .1*sin(uTime*1.3), -.88, .05), .16, .01);
+  tail = smin(tail, sdCapT(s, vec3(.18 + .1*sin(uTime*1.3), -.88, .05), vec3(.36, -.74, .06), .03, .0), .06);
+  body = smin(body, tail, .1);
+  U(d, body, 1.);
+  corona(d, p, c, .6);
+  headEyes(d, p, c, .44, .95);
+#elif KIND == 5
+  // dark flame: a round base whose top rises into one tall licking tongue of shadow fire
+  vec3 c = vec3(0., .05, 0.);
+  body = length(p - c) - .46;
+  vec3 f = p; float k = clamp((f.y - .2)/1.4, 0., 1.);
+  f.x -= sin(f.y*3.2 - uTime*4.)*.1*k + .12*k*k;
+  float flame = sdCapT(f, vec3(0., .1, 0.), vec3(0., 1.62, .05), .42, .0);
+  flame += (fbm(f*4.5 + vec3(0., -uTime*2.2, 0.)) - .5)*.18*k;
+  body = smin(body, flame, .12);
+  U(d, body, 1.);
+  float tips = sdCapT(f, vec3(0., 1.15, .05), vec3(0., 1.7, .05), .14, .0);
+  U(d, tips, 4.); gMagic = min(gMagic, tips);
+  corona(d, p, c, .58);
+  headEyes(d, p, c, .46, 1.);
+#elif KIND == 6
+  // cloaked: a round head on a short shadow cloak with a ragged, drifting hem
+  vec3 c = vec3(0., .48, 0.);
+  body = length(p - c) - .4;
+  vec3 s = p; s.x += sin(s.y*2.4 + uTime*1.5)*.06*max(.2 - s.y, 0.) + uSway*max(-s.y, 0.) - .14*pow(max(.2 - s.y, 0.), 2.);
+  float ry = mix(.22, .62, clamp((.2 - s.y)/.9, 0., 1.));
+  float cape = (length(vec2(s.x, s.z*1.3)) - ry)*.7;
+  float jag = .22*abs(sin(s.x*8. + uTime*1.2)) + .06*sin(s.x*21. - uTime*2.3);
+  cape = max(cape, max(s.y - .22, (-.72 + jag) - s.y));
+  body = smin(body, cape, .1);
+  U(d, body, 1.);
+  corona(d, p, c, .56);
+  headEyes(d, p, c, .4, .92);
+#elif KIND == 7
+  // crystal: a faceted shadow gem body (stretched octahedron) with a smaller gem head
+  vec3 c = vec3(0., .5, 0.);
+  vec3 g = p - c; g.xz = R(uTime*.25) * g.xz;
+  body = sdOct(g*vec3(1., .9, 1.), .5);
+  vec3 b = p - vec3(0., -.35, 0.); b.xz = R(-uTime*.3) * b.xz;
+  float low = sdOct(b*vec3(1., .5, 1.), .3);
+  U(d, min(body, low), 5.);
+  for (int k = 0; k < 2; k++) {
+    float an = uTime*1.1 + float(k)*3.14;
+    vec3 q = p - vec3(cos(an)*.62, .02 + sin(an*2.)*.05, sin(an)*.4);
+    q.xy = R(uTime*2.) * q.xy;
+    U(d, sdOct(q*vec3(1., .6, 1.), .07), 5.);
+  }
+  corona(d, p, c, .64);
+  eyes(d, p, c + vec3(-.14, -.02, -.4), c + vec3(.14, -.02, -.4), vec3(.075, .13, .07));
+#else
+  // veil: a round head trailing a long shadow ribbon that ripples behind him
+  vec3 c = vec3(0., .3, 0.);
+  body = length(p - c) - .46;
+  float rib = 1e5; vec3 prev = c + vec3(.1, -.2, .1);
+  for (int k = 1; k <= 7; k++) {
+    float fk = float(k), w = fk/7.;
+    vec3 nx = c + vec3(.1 + w*1.0, -.2 - w*.75 + sin(fk*.9 - uTime*3.)*.12*w, .1 + w*.2);
+    rib = smin(rib, sdCapT(p, prev, nx, .3*(1. - (fk - 1.)/7.*.85), .3*(1. - w*.85)), .05);
+    prev = nx;
+  }
+  body = smin(body, rib, .12);
+  U(d, body, 1.);
+  corona(d, p, c, .58);
+  headEyes(d, p, c, .46, .98);
 #endif
   return d;
 }

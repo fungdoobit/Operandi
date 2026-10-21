@@ -6,40 +6,39 @@
 <title>NOVA concepts</title>
 <style>
 body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: #0f1116; color: #e9ecf2; }
-main { max-width: 1320px; margin: 0 auto; padding: 24px 16px 60px; }
+main { max-width: 1360px; margin: 0 auto; padding: 24px 16px 60px; }
 h1 { font-size: 22px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 18px; font-size: 14px; }
-.row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.col h2 { font-size: 16px; margin: 0 0 4px; } .col p { font-size: 13px; margin: 0 0 10px; min-height: 54px; }
-.panel { border-radius: 14px; border: 1px solid #262c38; display: flex; align-items: flex-end; justify-content: center; gap: 18px; padding: 16px 8px; margin-bottom: 12px; overflow: hidden; }
-.panel.light { background: #f4f2ee; }
-.panel.dark { background: #12151c; }
-@media (max-width: 1000px) { .row { grid-template-columns: 1fr; } }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 4px; } .card p { font-size: 12.5px; margin: 0 0 8px; min-height: 48px; }
+.panel { border-radius: 14px; border: 1px solid #262c38; display: flex; align-items: flex-end; justify-content: center; gap: 12px; padding: 10px 6px; margin-bottom: 8px; overflow: hidden; }
+.panel.light { background: #f4f2ee; } .panel.dark { background: #12151c; }
+@media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <main>
-  <h1>NOVA: hi-bit pixel art, three shapes</h1>
-  <p>Same renderer as GOLEM: a 3D shadow model turned into dithered pixel art. Each is shown big on the battle background, then at roaming size on both backgrounds.</p>
-  <div class="row">
-    <div class="col"><h2>A · Flame-horned shadow</h2><p>A shadow head crowned with four flame horns burning purple at the tips. His body thins into rising smoke.</p>
-      <div class="panel dark" data-k="flame" data-big></div>
-      <div class="panel dark" data-k="flame"></div><div class="panel light" data-k="flame"></div>
-    </div>
-    <div class="col"><h2>B · Eclipse entity</h2><p>A shadow teardrop in front of a burning eclipse corona. His tail sways and crumbles into dust.</p>
-      <div class="panel dark" data-k="eclipse" data-big></div>
-      <div class="panel dark" data-k="eclipse"></div><div class="panel light" data-k="eclipse"></div>
-    </div>
-    <div class="col"><h2>C · Cosmic wraith</h2><p>A hooded shadow with a void face and a ragged cape, shoulder spikes, and obsidian shards in orbit. More "boss you tamed".</p>
-      <div class="panel dark" data-k="wraith" data-big></div>
-      <div class="panel dark" data-k="wraith"></div><div class="panel light" data-k="wraith"></div>
-    </div>
+  <h1>NOVA: eclipse family</h1>
+  <p>All keep the eclipse corona, blank eyes and purple haze from B; only the body changes. Big on the battle background, roaming size on the lesson background.</p>
+  <div class="grid">
+    <div class="card" data-k="eclipse"><h2>B · Teardrop (last round)</h2><p>For comparison: the one you liked.</p></div>
+    <div class="card" data-k="moon"><h2>B1 · Black moon</h2><p>He is the eclipsed moon: a shadow sphere with shadow flames licking its underside and a tilted ring of obsidian dust.</p></div>
+    <div class="card" data-k="imp"><h2>B2 · Imp</h2><p>Round head with two swept-back horns, a small body that curls into a wisp.</p></div>
+    <div class="card" data-k="darkflame"><h2>B3 · Dark flame</h2><p>A round base rising into one tall licking tongue of shadow fire, purple at the tip.</p></div>
+    <div class="card" data-k="cloak"><h2>B4 · Cloaked</h2><p>Round head on a short shadow cloak with a ragged hem that drifts behind him.</p></div>
+    <div class="card" data-k="crystal"><h2>B5 · Crystal</h2><p>A faceted obsidian gem that slowly turns, a lower shard, and two small shards in orbit.</p></div>
+    <div class="card" data-k="veil"><h2>B6 · Veil</h2><p>Round head trailing a long shadow ribbon that ripples behind him like a scarf in the wind.</p></div>
   </div>
 </main>
 <script type="module">
 import { PixelNova } from "./js/pixel/nova-px.js";
-for (const el of document.querySelectorAll(".panel[data-k]")) {
-  const big = el.hasAttribute("data-big");
-  new PixelNova(el, big ? { kind: el.dataset.k, w: 190, h: 220, px: 2 } : { kind: el.dataset.k, w: 100, h: 116, px: 1 });
+for (const card of document.querySelectorAll(".card[data-k]")) {
+  const k = card.dataset.k;
+  const dark = Object.assign(document.createElement("div"), { className: "panel dark" });
+  const light = Object.assign(document.createElement("div"), { className: "panel light" });
+  card.append(dark, light);
+  new PixelNova(dark, { kind: k, w: 150, h: 172, px: 2 });
+  new PixelNova(light, { kind: k, w: 96, h: 110, px: 1 });
 }
 </script>
 </body>
