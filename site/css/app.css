@@ -76,8 +76,42 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
 .account { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 600; }
 
-/* Main grid */
-.body { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr) minmax(0, 1.1fr); min-height: 0; }
+/* Main grid. Areas: the course list (rail), instructions (brief), editor
+   (work), and in a boss fight the battle band (arena) across the top. */
+.body { flex: 1; display: grid; min-height: 0; --rail-w: 230px;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr) minmax(0, 1.1fr); grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "rail brief work"; }
+.body.no-work { grid-template-columns: var(--rail-w) minmax(0, 1fr); grid-template-areas: "rail brief"; }
+.body.boss-mode { grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "rail arena arena" "rail brief work"; }
+.rail { grid-area: rail; } .brief { grid-area: brief; } .work { grid-area: work; } .arena { grid-area: arena; }
+.arena { background: #0d0f14; padding: 10px; height: clamp(250px, 40vh, 640px); min-width: 0; }
+
+/* The course list can be put away. Wide screens: it collapses. Up to 1400px
+   (iPad and smaller): it's hidden until opened, then slides in over the page. */
+.rail-toggle { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; width: 36px; height: 36px; font-size: 18px; line-height: 1; display: grid; place-items: center; flex: none; }
+.app.rail-closed .body { --rail-w: 0px; }
+.app.rail-closed .rail { display: none; }
+.rail-backdrop { position: fixed; inset: 0; background: #0006; z-index: 29; }
+@media (max-width: 1400px) {
+  .body { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); grid-template-areas: "brief work"; }
+  .body.no-work { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brief"; }
+  .body.boss-mode { grid-template-areas: "arena arena" "brief work"; }
+  .app .rail { display: none; }
+  .app.rail-open .rail { display: flex; position: fixed; z-index: 30; left: 0; top: 0; bottom: 0; width: min(300px, 86vw); overflow-y: auto; box-shadow: 0 0 40px #0005; padding-top: max(20px, env(safe-area-inset-top)); }
+}
+
+/* Ultrawide: scale the interface up in steps instead of leaving it marooned. */
+@media (min-width: 1900px) { .app { --ui-zoom: 1.15; } }
+@media (min-width: 2300px) { .app { --ui-zoom: 1.3; } }
+@media (min-width: 2800px) { .app { --ui-zoom: 1.5; } }
+@media (min-width: 3300px) { .app { --ui-zoom: 1.7; } }
+@media (min-width: 1900px) {
+  .top, .rail, .brief, .work { zoom: var(--ui-zoom); }
+  .body { --rail-w: calc(230px * var(--ui-zoom)); }
+  .arena { height: clamp(250px, 42vh, 900px); }
+  .brief-inner { max-width: 84ch; }
+}
+
 .rail { border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 18px; background: var(--surface); }
 .rail h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -220,15 +254,16 @@ textarea.code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
 
 .toast { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 14px; z-index: 20; }
 
-.body.no-work { grid-template-columns: 230px minmax(0, 1fr); }
 .body.no-work .brief-inner { max-width: 80ch; }
 @media (max-width: 1100px) {
-  .body { grid-template-columns: 210px minmax(0, 1fr); }
-  .work { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); }
+  .body, .body.no-work { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brief" "work"; grid-template-rows: auto auto; }
+  .body.no-work { grid-template-areas: "brief"; }
+  .body.boss-mode { grid-template-areas: "arena" "brief" "work"; grid-template-rows: auto auto auto; }
+  /* the page scrolls here, so the battle sticks to the top of the screen */
+  .arena { position: sticky; top: 0; z-index: 5; height: clamp(220px, 34vh, 420px); }
+  .work { border-left: 0; border-top: 1px solid var(--line); }
 }
 @media (max-width: 720px) {
-  .body, .body.no-work { grid-template-columns: minmax(0, 1fr); }
-  .rail { border-right: 0; border-bottom: 1px solid var(--line); }
   .brief { padding: 20px max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left)); }
   .brief h1 { font-size: 28px; }
   .stats { gap: 12px; }

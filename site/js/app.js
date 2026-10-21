@@ -745,6 +745,9 @@ let battle = null;
 
 function leaveBoss() {
   battle = null;
+  $("arena").hidden = true;
+  $("arena").replaceChildren();          // stops the battle's animation loops
+  document.querySelector(".body").classList.remove("boss-mode");
   dot.root.style.visibility = "";
   dot.sayOverride = null;
 }
@@ -805,15 +808,18 @@ async function openBoss(m = 1, { again = false } = {}) {
   $("brief").scrollTop = 0;
   if (entering) battle.intro();
   battle.say(f.turn === 0 && !f.cur.attempts
-    ? `Each challenge you pass is a strike: ${BOSS.damage[6]} to ${BOSS.damage[10]} damage depending on your mark, and a flawless pass (10/10, first submit, no hints or peeks) is a ${BOSS.crit} crit. A failed Submit is a miss, and he hits back. Run your code as often as you like first: only Submit counts.`
+    ? `Each challenge you pass is a strike: ${BOSS.damage[6]} to ${BOSS.damage[10]} damage depending on your mark. He strikes back for ${BOSS.strikeBack} every time, unless your pass was flawless (10/10, first Submit, no hints or peeks): that's a ${BOSS.crit} crit and it staggers him. A failed Submit is a miss and he hits for ${BOSS.bossHit}. Run is free: only Submit counts.`
     : "Welcome back. The fight's right where you left it.", { title: f.turn === 0 && !f.cur.attempts ? `${BOSSES[m].name} blocks the way` : "Fight resumed", mood: "fierce" });
 }
 
 function renderBossStage() {
   const f = S().boss;
-  $("briefInner").innerHTML = `<p class="eyebrow">Module ${view.module} · Boss fight${f && f.number > 1 ? ` · attempt ${f.number}` : ""}</p>
-    <div id="bossStage"></div><div class="bsay" id="bossSay" hidden></div><div id="bossBody"></div>`;
-  battle = new BattleStage($("bossStage"), $("bossSay"), { skin: S().equipped.teammate || "dot", accessories: wearing(), name: BOSSES[view.module].name });
+  $("briefInner").innerHTML = `<div class="bsay" id="bossSay" hidden></div><p class="eyebrow">Module ${view.module} · Boss fight${f && f.number > 1 ? ` · attempt ${f.number}` : ""}</p><div id="bossBody"></div>`;
+  // The battle sits in its own band across the top, so it stays in view while
+  // you scroll the instructions and type.
+  $("arena").hidden = false;
+  document.querySelector(".body").classList.add("boss-mode");
+  battle = new BattleStage($("arena"), $("bossSay"), { skin: S().equipped.teammate || "dot", accessories: wearing(), name: BOSSES[view.module].name });
   if (f) battle.hp(f.me, f.foe); else battle.hp(BOSS.hp, BOSS.hp);
   if (f?.dome) battle.restoreDome();
   // Your roaming teammate steps into the arena: messages show under the stage.
@@ -847,7 +853,7 @@ async function bossTurn(passed, mark, r) {
     f.me = Math.max(0, f.me - BOSS.bossHit);
     if (f.me <= 0) f.over = "lost";
     store.save();
-    await battle.counter(() => battle.hp(f.me, f.foe));
+    await battle.counter(BOSS.bossHit, () => battle.hp(f.me, f.foe), { miss: true });
     if (f.over === "lost") { await battle.defeat(); renderBossPanel("lost"); }
     else renderBossBody();
     return;
@@ -857,17 +863,24 @@ async function bossTurn(passed, mark, r) {
   f.foe = Math.max(0, f.foe - strike.dmg);
   f.turn += 1;
   f.dome = false;   // a crit breaks the Firewall; a blocked hit uses it up
-  const special = nextSpecial(f);
+  // He strikes back after every hit, unless it was a crit (that staggers him).
+  const back = f.foe > 0 && strike.result !== "crit" ? BOSS.strikeBack : 0;
+  f.me = Math.max(0, f.me - back);
+  if (f.foe <= 0) f.over = "won"; else if (f.me <= 0) f.over = "lost";
+  const special = f.over ? null : nextSpecial(f);
   if (special) { f.lastSpecial = special; if (special === "firewall") f.dome = true; else f.pending = special; }
-  if (f.foe <= 0) f.over = "won";
   const reward = f.over === "won" ? winFight(f) : null;
-  if (!reward) f.cur = makeBossCur(f);
+  if (!f.over) f.cur = makeBossCur(f);
   store.save();
   const v = V().passed(mark);
   const why = strike.result !== "crit" && mark === 10 ? ` (A crit needs 10/10 on the first Submit with no hints or peeks.)` : "";
   battle.say(strike.result === "crit" ? "Flawless: critical hit!" : strike.result === "blocked" ? `${v.text} The Firewall soaked up half of it.${why}` : v.text + why, { title: `${mark}/10 · ${strike.dmg} damage`, mood: "fierce" });
-  await battle.attack(strike, () => battle.hp(f.me, f.foe));
+  // The save already counts his strike back; the bars show each hit as it lands.
+  await battle.attack(strike, () => battle.hp(f.me + back, f.foe));
   if (reward) { await battle.victory(); renderBossPanel("won", reward); renderTop(); renderRail(); return; }
+  if (back) await battle.counter(back, () => battle.hp(f.me, f.foe));
+  else battle.staggered();
+  if (f.over === "lost") { await battle.defeat(); renderBossPanel("lost"); return; }
   if (special) await battle.special(special);
   task = bossTask(f.cur);
   renderBossBody();
@@ -971,10 +984,33 @@ function renderRail() {
 }
 
 $("moduleList").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-lesson]"); if (b && !b.disabled && !busy) openLesson(b.dataset.lesson);
-  const bb = e.target.closest("[data-boss]"); if (bb && !bb.disabled && !busy) openBoss(+bb.dataset.boss);
+  const b = e.target.closest("[data-lesson]"); if (b && !b.disabled && !busy) { closeDrawer(); openLesson(b.dataset.lesson); }
+  const bb = e.target.closest("[data-boss]"); if (bb && !bb.disabled && !busy) { closeDrawer(); openBoss(+bb.dataset.boss); }
 });
-document.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => { if (!busy && !b.disabled) openView(b.dataset.view); }));
+document.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => { if (!busy && !b.disabled) { closeDrawer(); openView(b.dataset.view); } }));
+
+// The course list (rail): on wide screens the ☰ button collapses it (remembered);
+// up to 1400px (iPad and smaller) it's hidden and the button slides it in over the page.
+const NARROW = matchMedia("(max-width: 1400px)");
+const appEl = document.querySelector(".app");
+const railOpen = () => (NARROW.matches ? appEl.classList.contains("rail-open") : !appEl.classList.contains("rail-closed"));
+function setRail(open) {
+  if (NARROW.matches) {
+    appEl.classList.toggle("rail-open", open); appEl.classList.remove("rail-closed");
+    $("railBackdrop").hidden = !open;
+  } else {
+    appEl.classList.toggle("rail-closed", !open); appEl.classList.remove("rail-open");
+    $("railBackdrop").hidden = true;
+    lsSet("operandi:rail", open ? "open" : "closed");
+  }
+  $("railToggle").setAttribute("aria-expanded", String(open));
+}
+function closeDrawer() { if (NARROW.matches) setRail(false); }
+$("railToggle").addEventListener("click", () => setRail(!railOpen()));
+$("railBackdrop").addEventListener("click", () => setRail(false));
+const railDefault = () => setRail(NARROW.matches ? false : lsGet("operandi:rail") !== "closed");
+NARROW.addEventListener("change", railDefault);
+railDefault();
 
 /* ---------- Account and sync ---------- */
 

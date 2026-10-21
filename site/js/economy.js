@@ -81,13 +81,15 @@ export const WEAR_SLOTS = ["head", "face", "mouth", "prop"];
 
 // Boss fights (PRD Addendum C). Both sides start with the same HP. A pass
 // hits by its mark; a flawless pass (10/10, first submit, no hint or peek) is a
-// crit. A failed submit is a miss, and the boss hits back. Every few passes
+// crit. The boss strikes back after every hit except a crit, and harder after
+// a miss (a failed Submit). Every few passes
 // the boss telegraphs a special that changes the next challenge.
 export const BOSS = {
   hp: 300,
   damage: { 6: 15, 7: 17, 8: 20, 9: 22, 10: 25 },
   crit: 40,
-  bossHit: 20,
+  bossHit: 20,                 // after a miss (a failed Submit)
+  strikeBack: 10,              // after each of your hits, unless it was a crit
   firewallKeeps: 0.5,          // a blocked hit still does half
   specialEvery: 3,             // passes between specials
   reward: { firstTry: 100, retry: 50 },

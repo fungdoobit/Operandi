@@ -14,29 +14,32 @@ import { BOSS } from "./economy.js";
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 export const BATTLE_CSS = `
-.bstage { position: relative; height: 440px; border-radius: 14px; overflow: hidden; border: 1px solid #262c38; margin: 0 0 14px;
+/* The stage fills the battle band's height; it's at most 2.4× as wide as tall,
+   so on very wide screens it sits in the middle instead of stretching. */
+.bstage { position: relative; height: 100%; aspect-ratio: 12 / 5; max-width: 100%; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 1px solid #262c38;
   background: radial-gradient(ellipse at 70% 35%, #1d2330, #12151c 70%); color: #e9ecf2; }
 .bworld { position: absolute; inset: 0; will-change: transform; }
 .bfloor { position: absolute; left: 0; right: 0; top: 80%; bottom: 0; background: linear-gradient(#171b24, #0e1015); border-top: 1px solid #2c3442; }
-.bfoe { position: absolute; right: -28px; bottom: calc(20% - 17px); }
-.bmate { position: absolute; left: 6%; bottom: calc(20% - 6px); }
-.bmate .dot-figure { width: 65px; } .bmate .dot-bubble { display: none; }
+.bfoe { position: absolute; }
+.bmate { position: absolute; left: 6%; }
+.bmate .dot-bubble { display: none; }
 .hibit { filter: url(#hibit); }
-.bhp { position: absolute; top: 12px; width: 40%; font: 600 13px var(--font-body, sans-serif); display: flex; flex-direction: column; gap: 5px; z-index: 22; }
+.bhp { position: absolute; top: calc(12px * var(--k, 1)); width: 40%; font: 600 calc(13px * var(--k, 1)) var(--font-body, sans-serif); display: flex; flex-direction: column; gap: calc(5px * var(--k, 1)); z-index: 22; }
 .bhp.me { left: 14px; } .bhp.foe { right: 14px; text-align: right; }
 .bhp .row { display: flex; justify-content: space-between; } .bhp.foe .row { flex-direction: row-reverse; }
 .bhp small { color: #9ea6b5; font-weight: 500; }
-.bhp .bar { height: 10px; border-radius: 99px; background: #262c38; overflow: hidden; }
+.bhp .bar { height: calc(10px * var(--k, 1)); border-radius: 99px; background: #262c38; overflow: hidden; }
 .bhp .fill { height: 100%; width: 100%; border-radius: 99px; transition: width .5s cubic-bezier(.3,1.2,.5,1); }
 .bhp.me .fill { background: linear-gradient(90deg, #5bb7e4, #b3ebfc); }
 .bhp.me.fire .fill { background: linear-gradient(90deg, #ff7a2f, #ffd28a); }
 .bhp.foe .fill { background: linear-gradient(90deg, #ff9a3c, #ffd28a); margin-left: auto; }
-.bnum { position: absolute; z-index: 21; pointer-events: none; transform: translate(-50%, -50%); font: 800 24px var(--font-display, sans-serif); color: #fff;
+.bnum { position: absolute; z-index: 21; pointer-events: none; transform: translate(-50%, -50%); font: 800 calc(24px * var(--k, 1)) var(--font-display, sans-serif); color: #fff;
   text-shadow: 0 2px 0 #0009, 0 0 12px #000a; white-space: nowrap; animation: bnum 1.1s cubic-bezier(.2,.9,.3,1) forwards; }
-.bnum.crit { font-size: 34px; color: #ffd662; } .bnum.blocked { color: #ffb366; } .bnum.miss { color: #9ea6b5; font-size: 20px; } .bnum.ouch { color: #ff7a7a; }
+.bnum.crit { font-size: calc(34px * var(--k, 1)); color: #ffd662; } .bnum.blocked { color: #ffb366; } .bnum.miss { color: #9ea6b5; font-size: calc(20px * var(--k, 1)); } .bnum.ouch { color: #ff7a7a; }
 @keyframes bnum { 0% { opacity: 0; margin-top: 10px; scale: .6; } 15% { opacity: 1; scale: 1.15; } 30% { scale: 1; } 75% { opacity: 1; } 100% { opacity: 0; margin-top: -46px; } }
-.bsay { margin: 0 0 14px; padding: 12px 16px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; background: var(--surface); }
+.bsay { position: sticky; top: 0; z-index: 3; margin: 0 0 14px; padding: 12px 36px 12px 16px; box-shadow: 0 6px 18px #0001; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; background: var(--surface); }
 .bsay b { display: block; margin-bottom: 2px; }
+.bsay .x { position: absolute; top: 6px; right: 6px; border: 0; background: transparent; color: var(--muted); font-size: 18px; width: 28px; height: 28px; border-radius: 6px; }
 .bsay .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .bspecial { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; background: #2a1a12; color: #ffd6c2; border: 1px solid #ff6a3d; font-weight: 600; }
 `;
@@ -106,6 +109,22 @@ export class BattleStage {
     this.dot.setAccessory(accessories);
     this.ctx = { fx: this.fx, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: skin === "pyro" ? "fire" : "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
+    this.foeEl = foeEl; this.mateEl = mateEl;
+    // Everything was designed at a 440 px tall stage: scale GOLEM, your
+    // teammate and their spots to the real height, so big screens get big fighters.
+    this.fit();
+    new ResizeObserver(() => this.fit()).observe(this.stage);
+  }
+
+  fit() {
+    const H = this.stage.clientHeight;
+    if (!H) return;
+    const k = H / 440;
+    this.golem.setPx(k);
+    Object.assign(this.foeEl.style, { right: 6 * k + "px", bottom: 0.2 * H - 17 * k + "px" });
+    this.stage.style.setProperty("--k", k.toFixed(3));   // text on the stage scales too
+    this.mateEl.style.bottom = 0.2 * H - 6 * k + "px";
+    this.dot.figure.style.width = 65 * k + "px";
   }
 
   hp(me, foe) {
@@ -133,7 +152,8 @@ export class BattleStage {
   say(text, { title, mood, actions = [] } = {}) {
     const box = this.sayHost;
     box.hidden = false;
-    box.innerHTML = `${title ? `<b>${esc(title)}</b>` : ""}<div>${text}</div>${actions.length ? `<div class="acts">${actions.map((a, i) => `<button class="btn${i === 0 ? " primary" : ""}" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}`;
+    box.innerHTML = `<button class="x" aria-label="Hide message">×</button>${title ? `<b>${esc(title)}</b>` : ""}<div>${text}</div>${actions.length ? `<div class="acts">${actions.map((a, i) => `<button class="btn${i === 0 ? " primary" : ""}" data-i="${i}">${esc(a.label)}</button>`).join("")}</div>` : ""}`;
+    box.querySelector(".x").addEventListener("click", () => (box.hidden = true));
     box.querySelectorAll("[data-i]").forEach((b) => b.addEventListener("click", () => actions[+b.dataset.i].onClick()));
     if (mood && !["idle", "thinking"].includes(mood)) this.dot.setMood(mood, { revertAfter: 1800 });
   }
@@ -162,11 +182,16 @@ export class BattleStage {
     } });
   }
 
-  // GOLEM's turn after a miss.
-  async counter(onImpact) {
-    this.number("MISS", "me", "miss");
-    await this.fx.wait(350);
-    await golemAttack(this.ctx, null, { onHit: () => { this.number(`-${BOSS.bossHit}`, "me", "ouch"); onImpact?.(); } });
+  // GOLEM's turn: after a miss (the MISS label first), or striking back after your hit.
+  async counter(dmg, onImpact, { miss = false } = {}) {
+    if (miss) { this.number("MISS", "me", "miss"); await this.fx.wait(350); }
+    else await this.fx.wait(250);
+    await golemAttack(this.ctx, null, { onHit: () => { this.number(`-${dmg}`, "me", "ouch"); onImpact?.(); } });
+  }
+  // A crit staggers him: no strike back this turn.
+  staggered() {
+    this.number("STAGGERED", "foe", "blocked");
+    this.golem.fxv.glitch = 1; this.golem.to({ glitch: 0 }, 500, "lin", this.golem.fxv);
   }
 
   special(kind) { return M.bossSpecial(this.ctx, kind, SPECIALS[kind]); }

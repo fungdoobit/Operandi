@@ -180,6 +180,8 @@ Decided with Isaac on 2026-10-20:
 - **Where:** "Boss: GOLEM" sits at the end of Module 1 in the course list, unlocked by finishing the lessons. The fight shows in the lesson column (hi-bit stage on top, the challenge below); the editor works as usual.
 - **Module completion moved:** with a boss, finishing the lessons unlocks him and **beating him** completes the module (+50 Bits, level up). Saves that completed Module 1 before bosses existed keep it.
 - **Turns:** each challenge is a turn. A pass is your strike (15–25 by mark; 40 crit for 10/10 on the first Submit with no hints or peeks). **Every failed Submit is a miss and GOLEM hits back for 20.** Run is free.
+  - **Changed 2026-10-21 (Isaac: "the boss doesn't really get to attack, no tension"):** GOLEM also strikes back for 10 after every pass. A crit staggers him, so no strike back that turn. You lose after about 9 misses.
+- **Layout (2026-10-21):** the battle is a band across the top of the page (outside the scrolling instructions; sticky on iPad portrait and phones) and scales with the screen. The course list collapses behind a ☰ button (a slide-in drawer up to 1400 px wide). From 1900 px the interface scales up in steps.
 - **Numbers (BOSS in `economy.js`):** 300 HP each. Challenges get harder as he weakens (Easy above 200 HP, Medium above 100, then Hard).
 - **Specials:** after every 3rd pass he telegraphs one (never the same twice running):
   - Firewall: halves your next hit (then it's used up); a crit smashes straight through.
