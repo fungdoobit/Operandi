@@ -217,8 +217,6 @@ export class BattleStage {
     let landed = false;
     const land = () => {
       landed = true;
-      // A blocked hit uses up the Firewall.
-      if (strike.result === "blocked") this.fx.wait(380).then(() => this.boss.dome.childElementCount && this.boss.breakDome());
       this.number(crit ? `CRIT -${strike.dmg}` : strike.result === "blocked" ? `BLOCKED -${strike.dmg}` : `-${strike.dmg}`, "foe", strike.result);
       onImpact?.();
     };

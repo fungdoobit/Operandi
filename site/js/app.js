@@ -8,7 +8,7 @@ import { Store } from "./store.js";
 import { SHOP, LEVELS, DIFFS, EARN, BOSS, MANA, TIERS, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
 import { BattleStage, pixelateOut } from "./boss-fight.js";
 import { sound } from "./sound.js";
-import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard } from "./boss-rules.js";
+import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard, countersFirewall } from "./boss-rules.js";
 import { Pet } from "./pet.js";
 import { NovaMate, NOVA_CSS } from "./pixel/nova-mate.js";
 import { VOICES } from "../content/voices.js";
@@ -854,7 +854,7 @@ function renderBossStage() {
 
 function renderBossBody() {
   const f = S().boss, c = task, name = BOSSES[f.module].name;
-  const banners = [c.specialNote, f.dome ? `${name}'s Firewall is up: your next hit is halved, unless it's a crit.` : ""].filter(Boolean);
+  const banners = [c.specialNote, f.dome ? `${name}'s Firewall is up: every hit is halved until a crit or a card that breaks Firewalls smashes it.` : ""].filter(Boolean);
   $("bossBody").innerHTML = `${banners.map((b) => `<div class="bspecial">${esc(b)}</div>`).join("")}
     <h1>${esc(c.title)}</h1>
     <p>${esc(c.scenario)}</p>
@@ -900,12 +900,12 @@ async function castTurn() {
   const v = V().passed(mark);
   const why = !flawless && mark === 10 ? " (A crit needs 10/10 on the first Submit with no hints or peeks.)" : "";
   battle.say(`${flawless ? "Flawless: whatever you cast now is a critical hit!" : v.text + why} Pick an ability card.`, { title: `${mark}/10 · +${gain} mana`, mood: "fierce" });
-  const card = await battle.pickCard(f, { gain, crit: flawless });
+  const card = await battle.pickCard(f, { gain, crit: flawless, dome: f.dome });
   const strike = castCard(f, card, { crit: flawless });
   f.hand = null;
   f.foe = Math.max(0, f.foe - strike.dmg);
   f.turn += 1;
-  f.dome = false;   // a crit breaks the Firewall; a blocked hit uses it up
+  if (strike.result === "crit" || countersFirewall(card)) f.dome = false;   // only a crit or a counter card breaks the Firewall
   // He strikes back after every hit, unless it was a crit (that staggers him).
   const back = f.foe > 0 && strike.result !== "crit" ? BOSS.strikeBack : 0;
   f.me = Math.max(0, f.me - back);
@@ -929,7 +929,7 @@ async function castTurn() {
   loadEditor();
   prepareTask();
   if (special === "typos" || special === "glitch") corruptEditor(special);
-  if (special === "firewall") battle.say(`The Firewall halves your next hit. Only a crit breaks straight through: 10/10 on the first submit, with no hints or peeks.`, { title: `${name} raised a Firewall`, mood: "worried" });
+  if (special === "firewall") battle.say(`The Firewall halves every hit until it's broken. Only a crit (10/10 on the first Submit, no hints or peeks) or a card that breaks Firewalls smashes it.`, { title: `${name} raised a Firewall`, mood: "worried" });
   else if (special) battle.say(task.specialNote, { title: special === "typos" ? "Typo Swarm!" : "Glitch Text!", mood: "worried" });
 }
 

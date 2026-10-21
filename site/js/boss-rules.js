@@ -30,7 +30,9 @@ export function cantCast(f, card) {
 }
 
 // Cast a card: pay its mana, start its cooldown, tick the others' down, and
-// work out the strike. crit = this pass was flawless.
+// work out the strike. crit = this pass was flawless. The Firewall halves every
+// hit until a crit or a card that counters it breaks it (Isaac 2026-10-21).
+export const countersFirewall = (card) => card.counters === "firewall";
 export function castCard(f, card, { crit }) {
   const t = TIERS[card.tier];
   f.mana = Math.max(0, (f.mana || 0) - t.mana);
@@ -38,7 +40,7 @@ export function castCard(f, card, { crit }) {
   for (const id of Object.keys(f.cd)) f.cd[id] = Math.max(0, f.cd[id] - 1);
   if (t.cd) f.cd[card.id] = t.cd;
   if (crit) return { result: "crit", dmg: Math.round(t.dmg * BOSS.critTimes) };
-  if (f.dome) return { result: "blocked", dmg: Math.round(t.dmg * BOSS.firewallKeeps) };
+  if (f.dome && !countersFirewall(card)) return { result: "blocked", dmg: Math.round(t.dmg * BOSS.firewallKeeps) };
   return { result: "hit", dmg: t.dmg };
 }
 

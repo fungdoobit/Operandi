@@ -540,6 +540,89 @@ const SFX = {
     this.noise(t, 0.5, 0.35, { type: "lowpass", f0: 1800, f1: 150, dist: true });
     for (let i = 0; i < 6; i++) this.noise(t + 0.05 + Math.random() * 0.3, 0.04, 0.12, { type: "highpass", f0: 3000 });
   },
+  // ---- NOVA's dark space magic (Isaac 2026-10-21: windy, ghastly, whispering) ----
+  // A cold wind howling through the void: whistling noise sweeping up and down.
+  ghostWind(t, k, o) {
+    const d = (o.ms || 1500) / 1000;
+    this.noise(t, d, 0.22 * k, { type: "bandpass", f0: 260, f1: 760, q: 7, attack: d * 0.3, room: 0.6 });
+    this.noise(t + d * 0.2, d * 0.8, 0.16 * k, { type: "bandpass", f0: 900, f1: 340, q: 9, attack: d * 0.2, room: 0.6 });
+    this.noise(t, d, 0.12 * k, { type: "lowpass", f0: 260, f1: 160, attack: d * 0.25 });
+  },
+  // Many voices whispering and chattering: short breathy bursts shaped like vowels.
+  whispers(t, k, o) {
+    const d = (o.ms || 2000) / 1000, V = [[300, 870], [400, 2000], [700, 1200], [500, 1000], [350, 2300], [600, 1700]];
+    for (let x = 0; x < d; x += 0.035 + Math.random() * 0.06) {
+      const [f1, f2] = V[Math.floor(Math.random() * V.length)], len = 0.04 + Math.random() * 0.12, pk = (0.04 + Math.random() * 0.06) * k;
+      this.noise(t + x, len, pk, { type: "bandpass", f0: f1 * (0.9 + Math.random() * 0.3), q: 9, attack: 0.01, room: 0.5 });
+      this.noise(t + x, len, pk * 0.8, { type: "bandpass", f0: f2 * (0.9 + Math.random() * 0.3), q: 9, attack: 0.01, room: 0.5 });
+      if (Math.random() < 0.12) this.noise(t + x, 0.12, pk * 0.6, { type: "highpass", f0: 4500, attack: 0.03 });   // a hiss of "sss"
+    }
+    SFX.ghostWail.call(this, t + d * 0.3, k * 0.5, { ms: d * 700 });
+  },
+  // A ghost's wail: a wavering voice sliding up and down.
+  ghostWail(t, k, o) {
+    const d = (o.ms || 1200) / 1000;
+    this.tone("triangle", 380, 640, t, d * 0.55, 0.06 * k, { glide: d * 0.4, vibrato: [6, 14], attack: 0.15, room: 0.7 });
+    this.tone("triangle", 640, 300, t + d * 0.45, d * 0.55, 0.05 * k, { vibrato: [7, 18], attack: 0.05, room: 0.7 });
+    this.noise(t, d, 0.05 * k, { type: "bandpass", f0: 900, f1: 600, q: 3, attack: 0.2, room: 0.6 });
+  },
+  // A wraith flying past: a falling whoosh with a short shriek.
+  ghostFly(t, k) {
+    this.noise(t, 0.5, 0.2 * k, { type: "bandpass", f0: 2800, f1: 380, q: 4, room: 0.4 });
+    this.tone("sine", 900, 320, t, 0.4, 0.05 * k, { vibrato: [9, 25], room: 0.6 });
+  },
+  // A low hum for an open portal.
+  voidHum(t, k, o) {
+    const d = (o.ms || 1500) / 1000;
+    this.tone("sine", 48, 44, t, d, 0.22 * k, { attack: 0.2, vibrato: [3, 2], room: 0.4 });
+    this.tone("sine", 73, 70, t, d, 0.1 * k, { attack: 0.3, room: 0.4 });
+  },
+  // Chains: rattling links, and one snapping.
+  chainRattle(t, k) {
+    for (let i = 0; i < 9; i++) {
+      const x = t + i * 0.045 + Math.random() * 0.02, f = 2200 + Math.random() * 1400;
+      this.tone("triangle", f, f, x, 0.05, 0.05 * k, { attack: 0.001 });
+      this.tone("sine", f * 1.6, f * 1.6, x, 0.08, 0.03 * k, { attack: 0.001, room: 0.3 });
+    }
+  },
+  chainSnap(t, k) {
+    this.tone("square", 1900, 500, t, 0.09, 0.08 * k, { attack: 0.001 });
+    this.noise(t, 0.08, 0.3 * k, { type: "highpass", f0: 3000 });
+    this.tone("triangle", 3100, 3100, t + 0.02, 0.25, 0.05 * k, { room: 0.4 });
+  },
+  // GOLEM's drones and their little lasers; his grappling hook.
+  droneBuzz(t, k, o) {
+    const d = (o.ms || 800) / 1000;
+    this.tone("sawtooth", 360, 420, t, d, 0.03 * k, { vibrato: [28, 22], attack: 0.05 });
+  },
+  miniLaser(t, k) {
+    this.tone("sine", 2600, 900, t, 0.14, 0.1 * k, { attack: 0.002 });
+    this.tone("square", 1300, 1300, t, 0.06, 0.03 * k);
+  },
+  grapple(t, k) {
+    this.noise(t, 0.3, 0.25 * k, { type: "bandpass", f0: 1200, f1: 3500, q: 2 });
+    this.tone("sine", 220, 70, t + 0.25, 0.3, 0.4 * k, { room: 0.3 });
+    this.tone("square", 1700, 700, t + 0.25, 0.07, 0.07 * k);
+  },
+  cableReel(t, k, o) {
+    const d = (o.ms || 700) / 1000;
+    this.tone("sawtooth", 70, 260, t, d, 0.06 * k, { vibrato: [40, 10] });
+    this.noise(t, d, 0.1 * k, { type: "bandpass", f0: 1500, f1: 3500, q: 3 });
+  },
+  // A black hole: a sub-bass that drags lower, with wind being sucked in.
+  bhRumble(t, k, o) {
+    const d = (o.ms || 3000) / 1000;
+    this.tone("sine", 42, 26, t, d, 0.45 * k, { attack: 0.5, room: 0.3 });
+    this.noise(t, d, 0.25 * k, { type: "lowpass", f0: 300, f1: 120, attack: 0.4, dist: true });
+    this.noise(t, d, 0.15 * k, { type: "bandpass", f0: 3000, f1: 300, q: 5, attack: 0.6, room: 0.5 });
+  },
+  // A dark choir swelling as power gathers (Eclipse Lance).
+  darkChoir(t, k, o) {
+    const d = (o.ms || 1500) / 1000;
+    [147, 175, 220, 294].forEach((f, i) => this.tone("triangle", f, f * 1.06, t + i * 0.05, d, 0.04 * k, { attack: d * 0.6, vibrato: [5, 4], room: 0.8 }));
+    SFX.whispers.call(this, t, k * 0.6, { ms: d * 1000 });
+  },
+
   // PYRO: a blade of fire roaring into life
   flameIgnite(t) {
     this.noise(t, 0.45, 0.3, { type: "bandpass", f0: 300, f1: 1400, q: 1.2, attack: 0.1 });
