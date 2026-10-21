@@ -893,7 +893,7 @@ async function planetfall(s) {
   if (!PL) return voidOrb(s);   // no WebGL for the planets
   const core = s.golemC(), floor = fx.floorY, c = s.mateC();
   const skyY = Math.max(64, fx.h * 0.16);
-  fx.letterbox(true); fx.darken(0.78, 600);
+  fx.darken(0.78, 600);   // no letterbox: the top bar would hide the sky the planets come from
   fx.title("PLANETFALL", "NOVA · ultimate II");
   const settle = castPose(mate, { lift: 0.18, energy: 3.6, ms: 600 });
   sound.sfx("darkChoir", { ms: 2000 }); sound.sfx("ghostWind", { ms: 9000 });
@@ -906,9 +906,9 @@ async function planetfall(s) {
   // GOLEM, and each planet comes straight out of its portal and slams into him
   // in one go, like an asteroid (no pause, no drifting).
   const smalls = [
-    { key: "venus", at: { x: lerp(c.x, core.x, 0.18), y: 58 }, frac: 0.3, spin: 7 },
-    { key: "mars", at: { x: lerp(c.x, core.x, 0.36), y: 38 }, frac: 0.3, spin: 10 },
-    { key: "uranus", at: { x: lerp(c.x, core.x, 0.52), y: 62 }, frac: 0.4, spin: 6, last: true },
+    { key: "venus", at: { x: lerp(c.x, core.x, 0.18), y: 108 }, frac: 0.3, spin: 7 },
+    { key: "mars", at: { x: lerp(c.x, core.x, 0.36), y: 90 }, frac: 0.3, spin: 10 },
+    { key: "uranus", at: { x: lerp(c.x, core.x, 0.52), y: 112 }, frac: 0.4, spin: 6, last: true },
   ];
   const throwPlanet = async (P) => {
     const frames = PL[P.key], r = frames.r, to0 = s.golemC();
@@ -959,7 +959,7 @@ async function planetfall(s) {
   // inside it). He holds it with everything he has, then forces it slowly back
   // up into the portal, which slams shut.
   const jf = PL.jupiter, R = jf.r;
-  const big = { x: core.x - 15, y: 30 };
+  const big = { x: core.x - 15, y: 2 };   // at the very top: Jupiter comes down from above the frame
   fx.focus(1, null, 500);
   fx.darken(0.86, 800);
   mate.setMood("angry");
@@ -975,7 +975,6 @@ async function planetfall(s) {
   // he sees it coming: looks up, braces, arms up
   await fx.wait(700);
   sound.sfx("servo", { ms: 500 }); sound.sfx("roar");
-  fx.focus(1.06, { x: core.x - 20, y: fx.h * 0.42 }, 600);
   s.golem.to({ tilt: -0.28, ca: 1.5, ce: 1.4, cp: 0, na: 1.5, ne: 1.4, np: 0.3, flare: 1.6, thrust: 2.2, bob: 0.05 }, 520, "out");
   await opening;
   fx.title("JUPITER", "");
@@ -985,7 +984,7 @@ async function planetfall(s) {
   const J = { x: hands().x, y: big.y - R };
   let jLive = true;
   const jBody = spr.add({ dur: 20000, draw(g, k, t, a) { if (!jLive) { a.t = a.dur; return; } drawPlanet(g, jf, J, t, { clipY: big.y, spin: 2.5 }); } });
-  pxTop.add({ dur: 20000, draw(g, k, t, a) { if (!jLive) { a.t = a.dur; return; } glow(g, J.x, Math.max(J.y, big.y + 20), R * 1.4, "#ff9a4a", 0.2); } });
+  pxTop.add({ dur: 20000, draw(g, k, t, a) { if (!jLive) { a.t = a.dur; return; } glow(g, J.x, Math.max(J.y, big.y + 40), R * 1.4, "#ff9a4a", 0.2); } });
   sound.sfx("ghostFly", { size: 1.4 }); sound.sfx("laserCharge", { ms: 1300 });
   for (let i = 0; i < 6; i++) fx.wait(i * 200).then(() => { fx.shake(6 + i * 2); sound.sfx("rumble", { size: 0.6 }); });
   const y0 = J.y;
@@ -1002,7 +1001,6 @@ async function planetfall(s) {
   fx.move(foeEl, { x: home.x, y: home.y + 36 }, 200, "out");
   s.golem.to({ ce: 1.78, ne: 1.78, bob: -0.22, tilt: -0.2, flare: 2.4, thrust: 3 }, 200, "out");
   fx.slowmo(0.55, 1800);
-  fx.focus(1.1, { x: core.x - 20, y: (big.y + floor) / 2 + 20 }, 600);
   let holding = true;
   pxTop.add({ dur: 12000, draw(g, k, t, a) {   // the grinding contact at his hands
     if (!holding) { a.t = a.dur; return; }
@@ -1023,7 +1021,6 @@ async function planetfall(s) {
   sound.sfx("roar"); sound.sfx("laserCharge", { ms: 1600 });
   fx.flash(0.3, "#ffd9a3"); impactFrame(fx, { ms: 60 });
   fx.ring(s.golemC(), { color: "#ffb040", size: 320, flat: 0.6, ms: 600, width: 8 });
-  fx.focus(1.03, { x: big.x, y: fx.h * 0.36 }, 1200);
   const pushing = s.golem.to({ ca: 1.7, ce: 1.5, cp: -0.6, na: 1.7, ne: 1.5, np: -0.3, tilt: -0.3, flare: 3, thrust: 3.2, bob: 0.06 }, 1500, "io");
   fx.move(foeEl, { x: home.x, y: home.y - 12 }, 1500, "inOut");
   for (let i = 0; i < 5; i++) fx.wait(i * 300).then(() => { sound.sfx("servo", { ms: 260 }); fx.shake(8); fx.sparks(hands().a, 4, { colors: ["#fff3c4", "#ffb040"], power: 0.8 }); fx.sparks(hands().b, 4, { colors: ["#fff3c4", "#ffb040"], power: 0.8 }); });
@@ -1043,7 +1040,7 @@ async function planetfall(s) {
   fx.move(foeEl, { x: home.x, y: home.y }, 400, "inOut");
   s.golem.rest(700);
   await fx.wait(500);
-  fx.letterbox(false); fx.darken(0, 600); fx.focus(1, null, 600);
+  fx.darken(0, 600); fx.focus(1, null, 600);
   mate.nova.idle.shake = 0;
   settle();
   await fx.wait(500);
