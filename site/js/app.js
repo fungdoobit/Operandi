@@ -5,10 +5,10 @@
 import { Dot, DOT_CSS } from "./dot.js";
 import { Runner } from "./runner.js";
 import { Store } from "./store.js";
-import { SHOP, LEVELS, DIFFS, EARN, BOSS, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
+import { SHOP, LEVELS, DIFFS, EARN, BOSS, MANA, TIERS, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
 import { BattleStage, pixelateOut } from "./boss-fight.js";
 import { sound } from "./sound.js";
-import { newFight, difficultyFor, strikeFor, nextSpecial, specialApplies, applySpecial } from "./boss-rules.js";
+import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard } from "./boss-rules.js";
 import { Pet } from "./pet.js";
 import { NovaMate, NOVA_CSS } from "./pixel/nova-mate.js";
 import { VOICES } from "../content/voices.js";
@@ -230,7 +230,9 @@ async function doRun() {
   try {
     const r = await runner.run(ed.value, { expected: task.expected });
     showOutput(r); showTab("output");
-    if (r.diagnosis) sayHelp(r.diagnosis.id, r.diagnosis, { mood: "worried" });
+    if (quietTry()) {   // boss fights: no tips until the third Submit
+      if (task.expected && r.lines.join("\n") === task.expected.join("\n")) { const v = V().outputMatches(); dot.say(v.text, { title: v.title, mood: "happy" }); }
+    } else if (r.diagnosis) sayHelp(r.diagnosis.id, r.diagnosis, { mood: "worried" });
     else if (task.expected && r.lines.join("\n") === task.expected.join("\n")) { const v = V().outputMatches(); dot.say(v.text, { title: v.title, mood: "happy" }); }
     else if (task.expected) {
       const d = compareOutput(r.lines, task.expected);
@@ -241,6 +243,11 @@ async function doRun() {
 }
 
 /* ---------- Submit ---------- */
+
+// Boss fights: no tips on the first two Submits of a challenge (Addendum J).
+// tries = Submits so far (including the one just made).
+const QUIET_TRIES = 2;
+function quietTry(tries = (rec()?.attempts || 0) + 1) { return task?.kind === "boss" && tries <= QUIET_TRIES; }
 
 function isSolved() {
   if (!task) return false;
@@ -259,7 +266,9 @@ async function doSubmit() {
     r.attempts = (r.attempts || 0) + 1;
     const run = await runner.run(ed.value, { checks: task.checks, expected: task.expected });
     const diff = run.error ? null : compareOutput(run.lines, task.expected);
+    const quiet = quietTry(r.attempts);
     const results = [...run.results, { name: "Output matches the expected output", passed: !run.error && !diff, message: diff ? HELP[diff.id].body(diff) : run.error ? "Your code stopped with an error." : "", peek: "" }];
+    if (quiet) for (const x of results) x.message = "";   // only pass / fail, and Python's own error in Output
     lastRun = { results };
     showOutput(run); showTests(results);
 
@@ -308,9 +317,10 @@ async function doSubmit() {
     store.log({ kind: task.kind, id: task.key, title: task.title, attempt: r.attempts, passed, mark, diagnosis: run.diagnosis?.id || diff?.id || (hardcoded ? "lint-hardcoded" : null), failed: results.filter((x) => !x.passed).map((x) => x.name).slice(0, 3) });
     store.save();
 
-    renderFeedback({ passed, mark, rewardLine, rewardParts, run, diff, hardcoded, styleLint, already, attempts: r.attempts });
+    renderFeedback({ passed, mark, rewardLine, rewardParts, run, diff, hardcoded, styleLint, already, attempts: r.attempts, quiet });
     showTab(passed ? "feedback" : run.error ? "output" : diff ? "tests" : "tests");
-    if (task.kind !== "boss" || !passed) dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, already, attempts: r.attempts, results });
+    if (quiet && !passed) battle?.say(`${passedCount} of ${results.length} tests passed. No tips on tries 1 and 2 in a boss fight: read Python's error in Output and the failing tests. From your third Submit I can help again${r.attempts === QUIET_TRIES ? " (that's the next one)" : ""}.`, { title: `Not yet · try ${r.attempts}`, mood: "worried" });
+    else if (task.kind !== "boss" || !passed) dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, already, attempts: r.attempts, results });
     renderTop(); renderRail();
     if (task.kind === "challenge") renderChallenge();
     else if (task.kind === "boss") await bossTurn(passed, mark, r);
@@ -358,10 +368,15 @@ function dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, a
   if (diff) return sayHelp(diff.id, diff, { mood: "thinking", extra });
 }
 
-function renderFeedback({ passed, mark, rewardLine, rewardParts, run, diff, hardcoded, styleLint, already, attempts }) {
+function renderFeedback({ passed, mark, rewardLine, rewardParts, run, diff, hardcoded, styleLint, already, attempts, quiet }) {
   let h = `<div class="fb"><div class="fb-head"><div class="score">${mark}<small>/10</small></div><div class="verdict"><span class="pill ${passed ? "ok" : "no"}">${passed ? "Passed" : "Not yet"}</span><span>Attempt ${attempts}</span></div></div>`;
   if (rewardLine) h += `<div class="reward">${esc(rewardLine)} · ${esc(rewardParts.join(" · "))}</div>`;
   if (already && passed) h += `<p class="empty">Already completed, so no extra Bits. Practice challenges keep paying.</p>`;
+  if (quiet && !passed) {   // boss fight, tries 1 and 2: no explanations
+    h += `<p class="empty">No tips on tries 1 and 2 in a boss fight. Python's own error message is in Output, and Tests shows which tests failed. From your third Submit, the usual help comes back.</p>`;
+    $("panel-feedback").innerHTML = h + `</div>`;
+    return;
+  }
   const problems = [];
   if (run.diagnosis) problems.push(HELP[run.diagnosis.id] ? [HELP[run.diagnosis.id].title, HELP[run.diagnosis.id].body(run.diagnosis)] : null);
   if (diff) problems.push([HELP[diff.id].title, HELP[diff.id].body(diff)]);
@@ -814,8 +829,10 @@ async function openBoss(m = 1, { again = false } = {}) {
   renderRail();
   $("brief").scrollTop = 0;
   if (entering) battle.intro();
+  // A pass was saved but no card picked yet (the page was closed): back to the hand.
+  if (f.hand) { busy = true; castTurn().finally(() => { busy = false; }); return; }
   battle.say(f.turn === 0 && !f.cur.attempts
-    ? `Each challenge you pass is a strike: ${BOSS.damage[6]} to ${BOSS.damage[10]} damage depending on your mark. He strikes back for ${BOSS.strikeBack} every time, unless your pass was flawless (10/10, first Submit, no hints or peeks): that's a ${BOSS.crit} crit and it staggers him. A failed Submit is a miss and he hits for ${BOSS.bossHit}. Run is free: only Submit counts.`
+    ? `Every challenge you pass gives mana: ${MANA.flawless} for a flawless pass (10/10 on your first Submit, no hints or peeks), less otherwise. Mana saves up to ${MANA.cap}. Then you pick an ability card to cast: the basic strike is free, bigger ones cost mana and rest for a few turns. A flawless pass makes it a crit (×${BOSS.critTimes}) and staggers him; otherwise he strikes back for ${BOSS.strikeBack}. A failed Submit is a miss: he hits for ${BOSS.bossHit}. No tips on your first two tries of each challenge. Run is free: only Submit counts.`
     : "Welcome back. The fight's right where you left it.", { title: f.turn === 0 && !f.cur.attempts ? `${BOSSES[m].name} blocks the way` : "Fight resumed", mood: "fierce" });
 }
 
@@ -828,6 +845,7 @@ function renderBossStage() {
   document.querySelector(".body").classList.add("boss-mode");
   battle = new BattleStage($("arena"), $("bossSay"), { skin: S().equipped.teammate || "dot", accessories: wearing(), name: BOSSES[view.module].name });
   if (f) battle.hp(f.me, f.foe); else battle.hp(BOSS.hp, BOSS.hp);
+  battle.mana(f?.mana || 0);
   if (f?.dome) battle.restoreDome();
   // Your roaming teammate steps into the arena: messages show under the stage.
   dot.root.style.visibility = "hidden";
@@ -842,7 +860,7 @@ function renderBossBody() {
     <p>${esc(c.scenario)}</p>
     <div class="task"><h3>Your task</h3><ol>${c.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
       <div class="expected"><span>Expected output</span><pre id="expectedBox">${c.expected ? esc(c.expected.join("\n")) : "…"}</pre></div>
-      <div class="chips">${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}<span class="chip gold">Pass ${BOSS.damage[6]}–${BOSS.damage[10]} · flawless ${BOSS.crit}</span>${f.cur.attempts ? `<span class="chip">Attempt ${f.cur.attempts}</span>` : ""}</div>
+      <div class="chips">${c.topics.map((t) => `<span class="chip">${esc(t)}</span>`).join("")}<span class="chip gold">Pass: up to ${MANA.flawless} mana · flawless = crit</span>${f.cur.attempts ? `<span class="chip">Attempt ${f.cur.attempts}</span>` : ""}</div>
       <div class="hints" id="hintBox"></div>
       <div id="solutionBox"></div>
     </div>
@@ -865,8 +883,26 @@ async function bossTurn(passed, mark, r) {
     else renderBossBody();
     return;
   }
+  // A pass gives mana by how clean it was (it saves up, to a cap); then you
+  // pick an ability card. Saved first, so a reload brings the hand back.
   const flawless = mark === 10 && r.attempts === 1 && !r.assisted;
-  const strike = strikeFor({ mark, flawless, dome: f.dome });
+  const gain = manaFor(mark, r);
+  f.mana = Math.min(MANA.cap, (f.mana || 0) + gain);
+  f.hand = { mark, flawless, gain };
+  store.save();
+  await castTurn();
+}
+
+// The card hand, then the cast ability plays out and the turn finishes.
+async function castTurn() {
+  const f = S().boss, name = BOSSES[f.module].name, { mark, flawless, gain } = f.hand;
+  battle.mana(f.mana);
+  const v = V().passed(mark);
+  const why = !flawless && mark === 10 ? " (A crit needs 10/10 on the first Submit with no hints or peeks.)" : "";
+  battle.say(`${flawless ? "Flawless: whatever you cast now is a critical hit!" : v.text + why} Pick an ability card.`, { title: `${mark}/10 · +${gain} mana`, mood: "fierce" });
+  const card = await battle.pickCard(f, { gain, crit: flawless });
+  const strike = castCard(f, card, { crit: flawless });
+  f.hand = null;
   f.foe = Math.max(0, f.foe - strike.dmg);
   f.turn += 1;
   f.dome = false;   // a crit breaks the Firewall; a blocked hit uses it up
@@ -879,11 +915,10 @@ async function bossTurn(passed, mark, r) {
   const reward = f.over === "won" ? winFight(f) : null;
   if (!f.over) f.cur = makeBossCur(f);
   store.save();
-  const v = V().passed(mark);
-  const why = strike.result !== "crit" && mark === 10 ? ` (A crit needs 10/10 on the first Submit with no hints or peeks.)` : "";
-  battle.say(strike.result === "crit" ? "Flawless: critical hit!" : strike.result === "blocked" ? `${v.text} The Firewall soaked up half of it.${why}` : v.text + why, { title: `${mark}/10 · ${strike.dmg} damage`, mood: "fierce" });
+  battle.mana(f.mana);
+  battle.say(strike.result === "crit" ? `${card.name}: critical hit!` : strike.result === "blocked" ? `${card.name}. The Firewall soaked up half of it.` : `${card.name}!`, { title: `${strike.dmg} damage`, mood: "fierce" });
   // The save already counts his strike back; the bars show each hit as it lands.
-  await battle.attack(strike, () => battle.hp(f.me + back, f.foe));
+  await battle.attack(strike, () => battle.hp(f.me + back, f.foe), card);
   if (reward) { await battle.victory(); renderBossPanel("won", reward); renderTop(); renderRail(); return; }
   if (back) await battle.counter(back, () => battle.hp(f.me, f.foe));
   else battle.staggered();

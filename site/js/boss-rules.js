@@ -1,23 +1,45 @@
 // Boss fight rules as plain functions (no page code), so they're easy to test.
 // The numbers live in economy.js (BOSS).
 
-import { BOSS } from "./economy.js";
+import { BOSS, MANA, TIERS } from "./economy.js";
 
 export const SPECIALS = { firewall: "Firewall", typos: "Typo Swarm", glitch: "Glitch Text" };
 
 export function newFight(module, number = 1) {
-  return { module, number, me: BOSS.hp, foe: BOSS.hp, turn: 0, cur: null, dome: false, pending: null, lastSpecial: null, over: null };
+  return { module, number, me: BOSS.hp, foe: BOSS.hp, turn: 0, cur: null, dome: false, pending: null, lastSpecial: null, over: null, mana: 0, cd: {}, hand: null };
 }
 
 // Challenges get harder as the boss weakens.
 export const difficultyFor = (f) => (f.foe > BOSS.hp * 2 / 3 ? 1 : f.foe > BOSS.hp / 3 ? 2 : 3);
 
-// A pass: how hard it hits. The Firewall halves a normal hit; a crit breaks it.
-export function strikeFor({ mark, flawless, dome }) {
-  if (flawless) return { result: "crit", dmg: BOSS.crit };
-  const base = BOSS.damage[Math.max(6, Math.min(10, mark))];
-  if (dome) return { result: "blocked", dmg: Math.round(base * BOSS.firewallKeeps) };
-  return { result: "hit", dmg: base };
+// Mana from a pass (Addendum J). r = the challenge record: attempts, hints,
+// peeked, solutionUsed.
+export function manaFor(mark, r) {
+  if (r.solutionUsed) return 0;
+  let m = r.attempts <= 1 ? mark : r.attempts === 2 ? Math.min(MANA.secondTry, mark) : Math.max(MANA.laterMin, mark - MANA.laterMinus);
+  m -= (r.hints || 0) * MANA.hint + (r.peeked || []).length * MANA.peek;
+  return Math.max(0, m);
+}
+
+// Can this card be cast now? Returns null if yes, else why not.
+export function cantCast(f, card) {
+  const t = TIERS[card.tier];
+  if ((f.cd?.[card.id] || 0) > 0) return `Cooling down: ${f.cd[card.id]} more turn${f.cd[card.id] === 1 ? "" : "s"}`;
+  if ((f.mana || 0) < t.mana) return `Needs ${t.mana} mana`;
+  return null;
+}
+
+// Cast a card: pay its mana, start its cooldown, tick the others' down, and
+// work out the strike. crit = this pass was flawless.
+export function castCard(f, card, { crit }) {
+  const t = TIERS[card.tier];
+  f.mana = Math.max(0, (f.mana || 0) - t.mana);
+  f.cd ||= {};
+  for (const id of Object.keys(f.cd)) f.cd[id] = Math.max(0, f.cd[id] - 1);
+  if (t.cd) f.cd[card.id] = t.cd;
+  if (crit) return { result: "crit", dmg: Math.round(t.dmg * BOSS.critTimes) };
+  if (f.dome) return { result: "blocked", dmg: Math.round(t.dmg * BOSS.firewallKeeps) };
+  return { result: "hit", dmg: t.dmg };
 }
 
 // After a pass: does the boss charge a special for the next challenge?

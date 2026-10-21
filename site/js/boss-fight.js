@@ -15,6 +15,8 @@ import { PixelFX } from "./pixel/pixel-fx.js";
 import { ToonFX } from "./pixel/toon-fx.js";
 import { NovaFighter } from "./pixel/nova-mate.js";
 import { kitFor } from "./abilities.js";
+import { pickCard, CARDS_CSS } from "./cards.js";
+import { MANA } from "./economy.js";
 import { sound, wireBattleSounds } from "./sound.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -44,6 +46,10 @@ export const BATTLE_CSS = `
 .bhp.me .fill { background: linear-gradient(90deg, #5bb7e4, #b3ebfc); }
 .bhp.me.fire .fill { background: linear-gradient(90deg, #ff7a2f, #ffd28a); }
 .bhp.me.void .fill { background: linear-gradient(90deg, #6a35c8, #cba2ff); }
+/* Mana (Addendum J): a thin bar of gems under your HP bar. */
+.bhp .mana { display: flex; align-items: center; gap: calc(6px * var(--k, 1)); font-size: max(10px, calc(11px * var(--k, 1))); color: #9be7ff; }
+.bhp .mana .mbar { flex: 1; height: calc(6px * var(--k, 1)); border-radius: 99px; background: #1a2333; overflow: hidden; }
+.bhp .mana .mbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #2a68d8, #9be7ff); transition: width .5s; }
 .bhp.foe .fill { background: linear-gradient(90deg, #ff9a3c, #ffd28a); margin-left: auto; }
 .bsound { position: absolute; z-index: 23; left: 50%; bottom: 10px; transform: translateX(-50%); border: 1px solid #ffffff40; background: #0d0f14cc; color: #fff; border-radius: 99px; padding: 6px 14px; font: 600 13px var(--font-body, sans-serif); }
 .bnum { position: absolute; z-index: 21; pointer-events: none; transform: translate(-50%, -50%); font: 800 calc(24px * var(--k, 1)) var(--font-display, sans-serif); color: #fff;
@@ -96,11 +102,11 @@ export class BattleStage {
   // host: where the stage goes. sayHost: where your teammate's messages go.
   constructor(host, sayHost, { skin = "dot", accessories = [], name = "GOLEM" } = {}) {
     ensureFilters();
-    if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS; document.head.append(st); }
+    if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS + CARDS_CSS; document.head.append(st); }
     const who = { pyro: "PYRO", nova: "NOVA" }[skin] || "DOT";
     host.innerHTML = `<div class="bstage" role="img" aria-label="Boss battle: ${who} against ${esc(name)}">
       <div class="bworld"><div class="bfloor"></div><div class="bfoe"></div><div class="bmate"></div></div>
-      <div class="bhp me ${skin === "pyro" ? "fire" : skin === "nova" ? "void" : ""}"><div class="row"><span>${who}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
+      <div class="bhp me ${skin === "pyro" ? "fire" : skin === "nova" ? "void" : ""}"><div class="row"><span>${who}</span><small></small></div><div class="bar"><div class="fill"></div></div><div class="mana"><span>Mana</span><div class="mbar"><i></i></div><b>0</b></div></div>
       <div class="bhp foe"><div class="row"><span>${esc(name)}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
     </div>`;
     this.sayHost = sayHost;
@@ -116,8 +122,9 @@ export class BattleStage {
     this.px = new PixelFX(world);   // hi-bit effects for the abilities (pixel/pixel-fx.js)
     this.pxBack = new PixelFX(world, { z: 0, before: foeEl });   // a layer behind the fighters (the far side of a portal...)
     this.toon = new ToonFX(world);   // cel-shaded fire, smoke and shadow on the GPU (pixel/toon-fx.js)
+    this.pxTop = new PixelFX(world, { z: 8 });   // over the toon layer: eyes, sparks, star-flashes
     this.kit = kitFor(skin);
-    this.ctx = { fx: this.fx, px: this.px, pxBack: this.pxBack, toon: this.toon, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
+    this.ctx = { fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, toon: this.toon, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
     sound.music("battle");
@@ -165,6 +172,14 @@ export class BattleStage {
     sound.setDanger(1 - foe / BOSS.hp, 1 - me / BOSS.hp);   // the music gets tenser as either side weakens
   }
 
+  mana(v) {
+    this.stage.querySelector(".bhp.me .mana b").textContent = `${v} / ${MANA.cap}`;
+    this.stage.querySelector(".bhp.me .mbar i").style.width = (v / MANA.cap) * 100 + "%";
+  }
+
+  // The card hand: resolves with the card you cast (cards.js).
+  pickCard(f, opts) { return pickCard(this.stage, this.kit, f, { theme: this.ctx.theme, ...opts }); }
+
   // A damage number popping up over someone ("-22", "CRIT -40", "MISS").
   number(text, who, kind = "") {
     const el = who === "foe" ? this.golem.canvas : this.dot.figure;
@@ -194,33 +209,34 @@ export class BattleStage {
   intro() { return golemIntro(this.ctx); }
 
   // Your strike. strike = { result: "hit" | "crit" | "blocked", dmg }; onImpact runs when it lands.
-  async attack(strike, onImpact) {
+  // card = the ability card cast (abilities.js); without one, the first in the kit.
+  async attack(strike, onImpact, card) {
     const crit = strike.result === "crit";
     let landed = false;
+    const land = () => {
+      landed = true;
+      // A blocked hit uses up the Firewall.
+      if (strike.result === "blocked") this.fx.wait(380).then(() => this.boss.dome.childElementCount && this.boss.breakDome());
+      this.number(crit ? `CRIT -${strike.dmg}` : strike.result === "blocked" ? `BLOCKED -${strike.dmg}` : `-${strike.dmg}`, "foe", strike.result);
+      onImpact?.();
+    };
     const onHit = (n) => {
       const final = !crit || n === 2;
       const dome = this.boss.dome.childElementCount > 0;
       let result;
       if (dome && !(crit && n === 2)) { this.boss.hit({ blocked: true }); result = "blocked"; }
       else { this.boss.hit({ crit: crit && n === 2 }); result = crit && n === 2 ? "crit" : "hit"; }
-      if (final && !landed) {
-        landed = true;
-        // A blocked hit uses up the Firewall.
-        if (strike.result === "blocked") this.fx.wait(380).then(() => this.boss.dome.childElementCount && this.boss.breakDome());
-        this.number(crit ? `CRIT -${strike.dmg}` : strike.result === "blocked" ? `BLOCKED -${strike.dmg}` : `-${strike.dmg}`, "foe", strike.result);
-        onImpact?.();
-      }
+      if (final && !landed) land();
       return result;
     };
-    // PYRO and NOVA have their own ability kits (abilities.js); DOT keeps his water moves.
-    if (this.kit) await this.ability(this.kit[0], onHit);
-    else await M.teammateAttack(this.ctx, { crit, onHit });
+    await this.ability(card || this.kit[0], onHit, crit);
+    if (!landed) land();   // a move with a single hit that was a crit
   }
 
   // Play one ability from the teammate's kit.
-  async ability(a, onHit = () => "hit") {
+  async ability(a, onHit = () => "hit", crit = false) {
     const { fx, px, golem, dot } = this.ctx;
-    await a.run({ ...this.ctx, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
+    await a.run({ ...this.ctx, crit, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
       Pt: (L, part) => fx.fromPage(golem.pagePoint(L, part)),
       mateC: () => fx.at(dot.figure, { fy: 0.55 }), golemC: () => fx.fromPage(golem.point("core")), onHit, px });
   }

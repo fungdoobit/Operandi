@@ -17,28 +17,38 @@ h1 { font-size: 20px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 12px; f
 </head>
 <body>
 <main>
-  <h1>Battle abilities (PRD Addendum I, first three)</h1>
-  <p>The quality bar: NOVA's Grasp of the Void, PYRO's Flame Sword and GOLEM's Missile Swarm, in the Sunken Foundry. Pick a teammate, then play the moves.</p>
+  <h1>Battle abilities and cards (PRD Addenda I and J)</h1>
+  <p>Pick a teammate, then play any ability, or open the card hand (hover lifts, left-click flips, right-click casts).</p>
   <div class="bar"><a href="?skin=nova">NOVA</a><a href="?skin=pyro">PYRO</a><a href="?skin=dot">DOT</a></div>
   <div id="arena"></div><div id="say"></div>
-  <div class="bar"><button id="mine">Teammate ability</button><button id="missiles">GOLEM: Missile Swarm</button></div>
+  <div class="bar" id="moves"></div>
+  <div class="bar"><button id="hand">Card hand (flawless pass, 30 mana)</button><button id="missiles">GOLEM: Missile Swarm</button></div>
 </main>
 <script type="module">
 import { BattleStage } from "./js/boss-fight.js";
 import { DOT_CSS } from "./js/dot.js";
 import { NOVA_CSS } from "./js/pixel/nova-mate.js";
 import { golemAttack } from "./js/pixel/golem-moves.js";
+import { castCard, newFight } from "./js/boss-rules.js";
+import { TIERS } from "./js/economy.js";
+import { explode } from "./js/pixel/toon-fx.js";
 const st = document.createElement("style"); st.textContent = DOT_CSS + NOVA_CSS; document.head.append(st);
 const skin = new URLSearchParams(location.search).get("skin") || "nova";
 document.querySelectorAll(".bar a").forEach((a) => a.classList.toggle("on", a.href.endsWith(skin)));
 const battle = new BattleStage(document.getElementById("arena"), document.getElementById("say"), { skin });
 let busy = false;
 const run = async (fn) => { if (busy) return; busy = true; try { await fn(); } finally { busy = false; } };
-window.__mine = () => run(() => battle.kit ? battle.ability(battle.kit[0]) : battle.attack({ result: "hit", dmg: 20 }));
-import { explode } from "./js/pixel/toon-fx.js";
+const f = newFight(1); f.mana = 30; battle.mana(f.mana);
+// Play one card as a normal hit (or a crit with ?crit).
+const crit = new URLSearchParams(location.search).has("crit");
+window.__cast = (id) => run(() => { const c = battle.kit.find((k) => k.id === id); return battle.attack({ result: crit ? "crit" : "hit", dmg: TIERS[c.tier].dmg }, null, c); });
+window.__hand = () => run(async () => { const c = await battle.pickCard(f, { gain: 10, crit: true }); const strike = castCard(f, c, { crit: true }); battle.mana(f.mana); await battle.attack(strike, null, c); });
+window.__mine = () => window.__cast(battle.kit[battle.kit.length - 1].id);
 window.__boom = () => run(async () => { const c = battle.ctx.fx.fromPage(battle.golem.point("core")); await explode(battle.toon, c.x, c.y, { size: 1.4 }); });
 window.__missiles = () => run(() => golemAttack(battle.ctx, "missiles", { onHit() {} }));
-document.getElementById("mine").onclick = window.__mine;
+document.getElementById("moves").innerHTML = battle.kit.map((c) => `<button data-id="${c.id}">${c.name} <small>(${TIERS[c.tier].label})</small></button>`).join("");
+document.getElementById("moves").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) window.__cast(b.dataset.id); });
+document.getElementById("hand").onclick = window.__hand;
 document.getElementById("missiles").onclick = window.__missiles;
 </script>
 </body>

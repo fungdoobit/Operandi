@@ -441,3 +441,14 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 | heavy | 11 | 3 turns | 34 |
 | ultimate | 15 | 5 turns | 48 |
 | ultimate II | 20 | 6 turns | 60 |
+
+**Built 2026-10-21 (Isaac: "go"), with these build decisions:**
+- Tiers as in the rebalanced table above (`economy.js` `MANA`, `TIERS`). A crit multiplies the cast card's damage by 1.5 (`BOSS.critTimes`) and staggers GOLEM (no strike back). The Firewall still halves a non-crit.
+- Cooldowns count your turns (passes): casting a card ticks every other card's cooldown down by one.
+- Each teammate has 7 cards: a free basic strike plus the 6 abilities.
+  - NOVA: Shadow Bolt (basic), Wraith Flock (light), Void Orb, Spectral Chains (medium), Grasp of the Void (heavy), Eclipse Lance (ultimate), Event Horizon (ultimate II).
+  - PYRO: Ember Shot (basic), Crescent Wave (light), Eruption, Comet Kick (medium), Sunfire Halo (heavy), Meteor Rain (ultimate), Inferno Line (ultimate II). Flame Sword was dropped (Isaac disliked it); Sunfire Halo took the heavy slot.
+  - DOT keeps his water moves as cards: Water Blade (basic), Hydro Volley (light), Tidal Dive (medium), Crossing Blades (heavy), Tidal Wave (ultimate). No ultimate II yet.
+- A pass is saved with its mana before the hand opens (`fight.hand`), so closing the page mid-choice brings the hand back.
+- Card art is painted with the battle's cel-effects shader (`toonStill` in `toon-fx.js`).
+- The old mark-based damage (15 to 25, crit 40) is gone: damage comes from the card, the mark decides the mana.
