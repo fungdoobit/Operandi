@@ -1032,6 +1032,18 @@ function wireSettings() {
   bind("setSfx", "setSfxVol", "sfx", "sfxVol");
   // a short test sound when you let go of the effects slider
   $("setSfxVol").addEventListener("change", () => sound.sfx("hit"));
+  // your teammate's own sounds, each with its own volume (under the effects volume)
+  const team = () => (S().equipped.teammate === "pyro" ? "fire" : "water");
+  for (const [id, key, test] of [["setRoamVol", "roamVol", "hop"], ["setGrabVol", "grabVol", "plop"]]) {
+    $(id).value = Math.round(s[key] * 100);
+    $(id).addEventListener("input", () => sound.set({ [key]: $(id).value / 100 }));
+    $(id).addEventListener("change", () => sound.sfx(test, { theme: team() }));
+  }
+  const sub = () => ["setRoamVol", "setGrabVol"].forEach((id) => ($(id).disabled = !$("setSfx").checked));
+  sub(); $("setSfx").addEventListener("change", sub);
+  // the Settings section folds away; remember whether it was open
+  $("settings").open = lsGet("operandi:settings-open") === "1";
+  $("settings").addEventListener("toggle", () => lsSet("operandi:settings-open", $("settings").open ? "1" : "0"));
   const roam = lsGet("operandi:roam") !== "off";
   $("setRoam").checked = roam;
   if (!roam) dot.setRoaming(false);

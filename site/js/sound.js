@@ -9,7 +9,7 @@
 // Settings (on/off and volume for each) are saved per device.
 
 const KEY = "operandi:sound";
-const DEFAULTS = { music: true, musicVol: 0.6, sfx: true, sfxVol: 0.8 };
+const DEFAULTS = { music: true, musicVol: 0.6, sfx: true, sfxVol: 0.8, roamVol: 0.6, grabVol: 0.8 };
 const load = () => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch { return { ...DEFAULTS }; } };
 const midi = (n) => 440 * 2 ** ((n - 69) / 12);
 
@@ -56,6 +56,10 @@ class Sound {
       this.master = c.createGain(); this.master.gain.value = 0.6; this.master.connect(this.comp);
       this.sfxBus = c.createGain(); this.sfxBus.connect(this.master);
       this.musicBus = c.createGain(); this.musicBus.connect(this.master);
+      // your teammate's own sounds have their own volume, under the effects volume
+      this.roamBus = c.createGain(); this.roamBus.connect(this.sfxBus);   // moving about
+      this.grabBus = c.createGain(); this.grabBus.connect(this.sfxBus);   // picked up and dropped
+      this.bus = this.sfxBus;                                            // where the effect being built goes
       this.room = c.createConvolver(); this.room.buffer = this.impulse(1.3);
       this.roomSend = c.createGain(); this.roomSend.gain.value = 0.4;
       this.roomSend.connect(this.room); this.room.connect(this.sfxBus);
@@ -91,6 +95,8 @@ class Sound {
     const t = this.ctx.currentTime, s = this.settings;
     this.sfxBus.gain.setTargetAtTime(s.sfx ? s.sfxVol : 0, t, 0.05);
     this.musicBus.gain.setTargetAtTime(s.music ? s.musicVol * 0.55 : 0, t, 0.08);
+    this.roamBus.gain.setTargetAtTime(s.roamVol, t, 0.05);
+    this.grabBus.gain.setTargetAtTime(s.grabVol, t, 0.05);
   }
 
   // ---- Building blocks ----
@@ -116,7 +122,7 @@ class Sound {
     gain.gain.exponentialRampToValueAtTime(0.0001, t + attack + dur);
   }
   // Where a voice goes: the bus, plus optional room echo and distortion.
-  route(g, { to = this.sfxBus, room = 0, dist = false } = {}) {
+  route(g, { to = this.bus, room = 0, dist = false } = {}) {
     let node = g;
     if (dist) { const ws = this.ctx.createWaveShaper(); ws.curve = this.curve; ws.oversample = "2x"; g.connect(ws); node = ws; }
     node.connect(to);
@@ -152,7 +158,7 @@ class Sound {
     bp.type = "bandpass"; bp.Q.value = q; bp.frequency.setValueAtTime(f, t);
     lfo.frequency.value = rate; lg.gain.value = depth; lfo.connect(lg); lg.connect(bp.frequency);
     this.env(g, t, peak, dur, 0.02);
-    s.connect(lp); lp.connect(bp); bp.connect(g); g.connect(this.sfxBus);
+    s.connect(lp); lp.connect(bp); bp.connect(g); g.connect(this.bus);
     s.start(t, Math.random()); s.stop(t + dur + 0.1); lfo.start(t); lfo.stop(t + dur + 0.1);
   }
   // A cloud of wings: detuned buzzing voices, each fluttering at its own wingbeat,
@@ -164,7 +170,7 @@ class Sound {
     bus.gain.exponentialRampToValueAtTime(peak * 0.6, t + Math.min(0.5, dur * 0.2));
     bus.gain.exponentialRampToValueAtTime(peak, t + dur * 0.7);
     bus.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    bus.connect(bp); bp.connect(this.sfxBus);
+    bus.connect(bp); bp.connect(this.bus);
     const end = t + dur + 0.1;
     for (let i = 0; i < 9; i++) {
       const o = c.createOscillator(), amp = c.createGain(), wing = c.createOscillator(), wg = c.createGain(), drift = c.createOscillator(), dg = c.createGain();
@@ -192,7 +198,9 @@ class Sound {
     if (now - (this.last[name] || 0) < gap) return;
     this.last[name] = now;
     const S = SFX[name];
+    this.bus = name === "hop" ? this.roamBus : name === "pickup" || name === "plop" ? this.grabBus : this.sfxBus;
     if (S) S.call(this, now + 0.005, o.size ?? 1, { ...o, fire: o.theme === "fire" });
+    this.bus = this.sfxBus;
   }
 
   // ---- Music ----
