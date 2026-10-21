@@ -190,6 +190,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Cards: `js/cards.js` (`pickCard`, `CARDS_CSS`): a fixed hand on the arena's bottom edge; hover lifts, left click flips (stats, description, Cast button), right click casts; touch: tap flips, hold 450 ms casts. Art painted by `toonStill` (toon-fx.js), cached. Mana bar under your HP bar (`battle.mana`).
   - Kits (7 cards each, basic first): `js/abilities.js` (`kitFor`, DOT's water cards), `js/abilities-nova.js`, `js/abilities-pyro.js`. A third FX layer `pxTop` (above the toon layer) holds eyes, chains, sparks and star-flashes.
   - Preview: `site/abilities-preview.html?skin=nova|pyro|dot` (a button per ability, "Card hand"; `&crit` plays them as crits).
+  - Videos: `previews/abilities-nova-v3.mp4`, `abilities-pyro-v3.mp4` (all 7 cards each, in order), `previews/cards-v1.png`. End-to-end test in the course passed (miss with no tips, second-try pass = 8 mana, hand back after reload, a 4-mana card did 16).
   - Waiting on: Isaac's review of the 12 new abilities and the cards; then sounds polish, iPad performance, balance from real play.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).
