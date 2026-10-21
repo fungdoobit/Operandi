@@ -7,6 +7,7 @@ import { Runner } from "./runner.js";
 import { Store } from "./store.js";
 import { SHOP, LEVELS, DIFFS, EARN, BOSS, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
 import { BattleStage, pixelateOut } from "./boss-fight.js";
+import { sound } from "./sound.js";
 import { newFight, difficultyFor, strikeFor, nextSpecial, specialApplies, applySpecial } from "./boss-rules.js";
 import { Pet } from "./pet.js";
 import { VOICES } from "../content/voices.js";
@@ -745,6 +746,7 @@ let battle = null;
 
 function leaveBoss() {
   battle = null;
+  sound.music(null);
   $("arena").hidden = true;
   $("arena").replaceChildren();          // stops the battle's animation loops
   document.querySelector(".body").classList.remove("boss-mode");
@@ -1015,6 +1017,26 @@ function setRail(open) {
 function closeDrawer() { if (NARROW.matches) setRail(false); }
 $("railToggle").addEventListener("click", () => setRail(!railOpen()));
 $("railBackdrop").addEventListener("click", () => setRail(false));
+// Settings in the course list: music and sound effects (on/off and volume,
+// saved per device by sound.js) and whether your teammate roams the screen.
+function wireSettings() {
+  const s = sound.settings;
+  const bind = (sw, vol, onKey, volKey) => {
+    $(sw).checked = s[onKey]; $(vol).value = Math.round(s[volKey] * 100); $(vol).disabled = !s[onKey];
+    $(sw).addEventListener("change", () => { sound.set({ [onKey]: $(sw).checked }); $(vol).disabled = !$(sw).checked; });
+    $(vol).addEventListener("input", () => sound.set({ [volKey]: $(vol).value / 100 }));
+  };
+  bind("setMusic", "setMusicVol", "music", "musicVol");
+  bind("setSfx", "setSfxVol", "sfx", "sfxVol");
+  // a short test sound when you let go of the effects slider
+  $("setSfxVol").addEventListener("change", () => sound.sfx("hit"));
+  const roam = lsGet("operandi:roam") !== "off";
+  $("setRoam").checked = roam;
+  if (!roam) dot.setRoaming(false);
+  $("setRoam").addEventListener("change", () => { lsSet("operandi:roam", $("setRoam").checked ? "on" : "off"); dot.setRoaming($("setRoam").checked); });
+}
+wireSettings();
+
 const railDefault = () => setRail(NARROW.matches ? false : lsGet("operandi:rail") !== "closed");
 NARROW.addEventListener("change", railDefault);
 railDefault();

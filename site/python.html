@@ -37,6 +37,14 @@
           <li><button class="rail-item" data-view="faq"><span class="n">?</span><span class="t">FAQ &amp; glossary<span class="sub">Always free</span></span></button></li>
         </ol>
       </div>
+      <div class="rail-group settings">
+        <h4>Settings</h4>
+        <label class="set"><span>Music <small>in boss fights</small></span><input type="checkbox" role="switch" id="setMusic"></label>
+        <input class="vol" type="range" min="0" max="100" id="setMusicVol" aria-label="Music volume">
+        <label class="set"><span>Sound effects <small>in boss fights</small></span><input type="checkbox" role="switch" id="setSfx"></label>
+        <input class="vol" type="range" min="0" max="100" id="setSfxVol" aria-label="Sound effects volume">
+        <label class="set"><span>Companion roams the screen</span><input type="checkbox" role="switch" id="setRoam"></label>
+      </div>
       <div class="account" id="account"></div>
       <p class="save-state" id="saveState"></p>
     </nav>

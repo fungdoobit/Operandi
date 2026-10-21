@@ -3,6 +3,7 @@
 // impact, recovery), driven by the pixel model's pose numbers.
 import { teammateHurt, bossSpecial } from "../battle-moves.js";
 import { PODS } from "./golem-boss.js";
+import { sound } from "../sound.js";
 
 const MOVES = ["slam", "barrage", "laser"];
 let last = null;
@@ -169,6 +170,7 @@ async function typoSwarm(ctx, name) {
   for (let w = 0; w < 3; w++) {
     g.to({ tilt: 0.5, bob: 0.1 }, 50, "out").then(() => g.to({ tilt: 0.38, bob: 0.16 }, 220, "out"));
     fx.shake(12); fx.flash(0.14, PINK); fx.punch(0.025, core());
+    sound.sfx("launch");
     for (let i = 0; i < 6; i++) {
       const p = pod(i);
       fx.smoke(p, 1, 0.55);
@@ -262,6 +264,7 @@ function glyph(fx, a, b, onArrive) {
 
 // Bars of static flickering across the arena.
 function staticBars(fx, n, ms) {
+  sound.sfx("glitch");
   for (let i = 0; i < n; i++) {
     const h = rnd(2, 10), y = rnd(0, fx.h), w = rnd(fx.w * 0.15, fx.w * 0.7), x = rnd(-50, fx.w - w);
     const r = node("rect", { x, y, width: w, height: h, fill: pickOne([CYAN, PINK, "#ffffff", "#0b0910"]), opacity: rnd(0.35, 0.85).toFixed(2) }, fx.g);

@@ -137,6 +137,16 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
 .rail-item .sub { display: block; font-size: 12px; color: var(--muted); }
 .module-soon { font-size: 13px; color: var(--muted); padding: 4px 10px; display: flex; justify-content: space-between; gap: 8px; }
 .module-soon span:last-child { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+/* Settings: on/off switches and volume sliders. */
+.settings { display: flex; flex-direction: column; gap: 8px; }
+.set { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+.set small { display: block; font-size: 11px; color: var(--muted); }
+.set input { appearance: none; -webkit-appearance: none; flex: none; width: 36px; height: 20px; border-radius: 99px; background: var(--line); position: relative; cursor: pointer; transition: background .2s; margin: 0; }
+.set input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #0003; transition: transform .2s; }
+.set input:checked { background: var(--accent); }
+.set input:checked::after { transform: translateX(16px); }
+.vol { width: 100%; accent-color: var(--accent); margin: -2px 0 4px; }
+.vol:disabled { opacity: .4; }
 .save-state { margin: auto 0 0; font-size: 12px; color: var(--muted); }
 
 /* Brief */

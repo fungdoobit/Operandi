@@ -4,6 +4,8 @@
 // It also owns his three specials: the Firewall dome (same look as before,
 // sized to the new GOLEM), the Typo Swarm (bugs fly out of his missile pods)
 // and Glitch Text.
+import { sound } from "../sound.js";
+
 const NS = "http://www.w3.org/2000/svg";
 const rand = (a, b) => a + Math.random() * (b - a);
 const svg = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent?.append(e); return e; };
@@ -112,14 +114,16 @@ export class PixelBoss {
       }
     }
     this.domeState = { on: now, gone: 0, ripple: -1e9 };
+    sound.sfx("shield");
     this.dome.childElementCount = 1;
     this.golem.fxv.glitch = 0.6; this.golem.to({ glitch: 0 }, 200, "lin", this.golem.fxv);
   }
   // A blocked hit: the hexes on the side facing the teammate flare up.
-  domeRipple() { this.domeState.ripple = this.fx.time; }
+  domeRipple() { this.domeState.ripple = this.fx.time; sound.sfx("block"); }
   // A crit smashes it: the outline pops and the hexes scatter.
   breakDome() {
     this.domeState.gone = this.fx.time;
+    sound.sfx("shatter");
     for (const h of this.hexes) { h.vx = rand(-2.6, 2.6); h.vy = rand(-2.8, 0.6); h.spin = rand(-0.12, 0.12); }
     this.dome.childElementCount = 0;
     const D = this.D, k = this.dc.getBoundingClientRect().width / this.dc.width, r = this.dc.getBoundingClientRect();

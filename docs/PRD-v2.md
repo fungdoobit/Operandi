@@ -270,7 +270,7 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 
 - **Battle transition (Isaac, 2026-10-20):** entering a battle should pixelate into this style. The pixel grid starts very coarse and resolves down to the fine, high-density pixels. Build it with the battle screen.
 
-## Addendum G: battle sound and music (draft, awaiting "go")
+## Addendum G: battle sound and music ("go" 2026-10-21, built)
 
 **Problem.** Battles are silent. Isaac (2026-10-21) wants cinematic, heavy sound design and pixel-style battle music.
 
@@ -306,3 +306,8 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 **Open questions**
 - Music on by default, or off until turned on?
 - Default volume around 60%?
+
+**Built 2026-10-21** (Isaac: "just add the music with settings in the side bar").
+- `site/js/sound.js`: the Web Audio engine (compressor + limiter, short room echo), the effects, and the chiptune battle theme (D minor, 150 BPM, 16 bars; heavier above 2/3 intensity), plus victory and defeat jingles. `wireBattleSounds()` ties sounds to the battle effects, so they line up with hit-stop and slow motion.
+- **Settings in the course list:** Music on/off and volume, Sound effects on/off and volume (saved per device), and **Companion roams the screen** (off: your teammate stays in the bottom-right corner; you can still drag him).
+- Defaults: music on at 60%, effects on at 80%.

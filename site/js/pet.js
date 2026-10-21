@@ -160,8 +160,22 @@ export class Pet {
     if (this.before === "roam" && this.voice) setTimeout(() => this.say(this.voice().parked().text, { mood: "happy" }), 900);
   }
 
+  // Roaming switched off in Settings: he stays still in the bottom-right corner
+  // (you can still drag him somewhere else), and double-click won't set him off.
+  setRoaming(on) {
+    this.fixed = !on;
+    if (on) { if (this.mode !== "roam") { this.mode = "roam"; this.wait = 1; } }
+    else {
+      const { w, h } = this.size();
+      this.mode = "parked"; this.target = null;
+      this.x = innerWidth - w - MARGIN - 6; this.y = innerHeight - h - MARGIN - 6;
+      this.place(0);
+    }
+    this.save();
+  }
+
   roam() {
-    if (this.mode === "roam") return;
+    if (this.mode === "roam" || this.fixed) return;
     this.mode = "roam";
     this.wait = 1.5;
     this.save();

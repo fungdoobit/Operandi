@@ -10,6 +10,7 @@ import { PixelBoss } from "./pixel/golem-boss.js";
 import { golemAttack, golemIntro, golemSpecial } from "./pixel/golem-moves.js";
 import { SPECIALS } from "./boss-rules.js";
 import { BOSS } from "./economy.js";
+import { sound, wireBattleSounds } from "./sound.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -76,6 +77,7 @@ export async function pixelateOut(el, ms = 650) {
     document.getElementById("pxBlur").setAttribute("stdDeviation", b / 3);
   };
   set(1); el.style.filter = "url(#pixelate)";
+  sound.sfx("swoosh");
   const t0 = performance.now();
   await new Promise((done) => {
     const step = (now) => { const k = Math.min(1, (now - t0) / ms); set(1 + k * k * 47); k < 1 ? requestAnimationFrame(step) : done(); };
@@ -104,6 +106,8 @@ export class BattleStage {
     this.dot.setAccessory(accessories);
     this.ctx = { fx: this.fx, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: skin === "pyro" ? "fire" : "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
+    wireBattleSounds(this.fx, this.ctx.theme);
+    sound.music("battle");
     this.foeEl = foeEl; this.mateEl = mateEl;
     // Everything was designed at a 440 px tall stage: scale GOLEM, your
     // teammate and their spots to the real height, so big screens get big fighters.
@@ -136,6 +140,7 @@ export class BattleStage {
       this.stage.querySelector(`.bhp.${cls} small`).textContent = `${v} / ${BOSS.hp}`;
     };
     set("me", me); set("foe", foe);
+    sound.setIntensity(1 - foe / BOSS.hp);   // the music gets heavier as he weakens
   }
 
   // A damage number popping up over someone ("-22", "CRIT -40", "MISS").
@@ -149,6 +154,8 @@ export class BattleStage {
     n.style.top = (who === "foe" ? r.top + r.height * 0.3 : r.top) - st.top + "px";
     this.stage.append(n);
     setTimeout(() => n.remove(), 1200);
+    if (kind === "miss") sound.sfx("miss");
+    if (kind === "ouch") sound.sfx("hurt");
   }
 
   // Your teammate's messages, shown under the stage while the roaming pet is away.
@@ -200,6 +207,6 @@ export class BattleStage {
   special(kind) { return golemSpecial(this.ctx, kind, SPECIALS[kind]); }
   // Put a standing Firewall back after a reload.
   restoreDome() { this.boss.buildDome(); }
-  victory() { return M.bossDefeat(this.ctx); }
-  async defeat() { await M.bossWin(this.ctx); }
+  async victory() { sound.music(null); await M.bossDefeat(this.ctx); sound.music("victory"); }
+  async defeat() { sound.music("defeat"); await M.bossWin(this.ctx); }
 }
