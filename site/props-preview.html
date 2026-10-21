@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Battle props</title>
+<style>body{margin:0;background:#0d0f14;color:#ccd;font:14px system-ui;padding:16px} canvas{image-rendering:pixelated;background:#1a1d26;margin:2px} h3{margin:12px 0 4px}</style></head>
+<body><h1>Battle props (props-px.js)</h1><div id="out"></div>
+<script type="module">
+import { propSprites } from "./js/pixel/props-px.js";
+const S = propSprites(), out = document.getElementById("out");
+for (const [name, variants] of Object.entries(S)) {
+  const h = document.createElement("h3"); h.textContent = name; out.append(h);
+  for (const frames of variants) { const row = document.createElement("div"); for (const f of frames) { f.style.width = f.width * 3 + "px"; row.append(f); } out.append(row); }
+}
+</script></body></html>

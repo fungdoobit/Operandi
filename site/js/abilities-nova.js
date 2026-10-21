@@ -5,6 +5,7 @@ import { explode } from "./pixel/toon-fx.js";
 import { sound } from "./sound.js";
 import { impactFrame, speedLines, bigHit, drawVoidPortal } from "./cine.js";
 import { PODS } from "./pixel/golem-boss.js";
+import { propSprites, stamp } from "./pixel/props-px.js";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -579,140 +580,208 @@ async function voidOrb(s) {
 }
 
 // ---- Spectral Chains (medium) ----
-// Two portals tear open, one above him and one below. Chains of light lash
-// out of both and wrap his hull and arms; she hauls both ways at once, trying
-// to rip him in half. His pods open, mini drones fly out and laser the chains
-// apart one by one, and he's free.
-function drawChain(g, a, b, k, t, taut = 0, wobble = 1) {
-  const L0 = Math.hypot(b.x - a.x, b.y - a.y) || 1, ux = (b.x - a.x) / L0, uy = (b.y - a.y) / L0, L = L0 * k, n = Math.max(1, Math.floor(L / 9));
-  const sag = (1 - taut) * 14 * wobble;
-  for (let i = 0; i < n; i++) {
-    const u = (i + 0.5) / n, tremble = taut ? Math.sin(t * 0.09 + i * 1.3) * taut * 2 : 0;
-    const x = a.x + ux * L * u - uy * (Math.sin(u * Math.PI) * sag + tremble), y = a.y + uy * L * u + ux * (Math.sin(u * Math.PI) * sag + tremble);
-    g.save(); g.translate(x, y); g.rotate(Math.atan2(uy, ux));
-    g.strokeStyle = i % 2 ? DEEP : VIOLET; g.lineWidth = 3;
-    g.beginPath(); g.ellipse(0, 0, 6.5, i % 2 ? 1.8 : 4, 0, 0, Math.PI * 2); g.stroke();
-    if (i % 2 === 0) { g.fillStyle = PALE; g.fillRect(-2, -4, 3, 1.5); }
-    g.restore();
+// Two portals tear open, above him and below. Spear-tipped chains of violet
+// metal whip out of both: the ones for his arms coil round them (round the back
+// and over the front), the ones for his hull spear into it. Energy pulses up
+// the chains as she hauls both ways, trying to tear him in half; light cracks
+// across his hull. Then his pods burst open, drones fly out, lock on, and laser
+// the chains apart one by one.
+// Chains are made of real 3D links (props-px.js) on the sprite layers.
+function chainPath(A, B, ext, t, { whip = 0, taut = 0, seed = 0, step = 12 } = {}) {
+  const L0 = Math.hypot(B.x - A.x, B.y - A.y) || 1, ux = (B.x - A.x) / L0, uy = (B.y - A.y) / L0;
+  const n = Math.max(2, Math.floor((L0 * ext) / step)), pts = [];
+  for (let i = 0; i <= n; i++) {
+    const u = (i / n) * ext;
+    const off = whip * Math.sin(u * 10 - t * 0.035 + seed) * 22 * u * (1 - ext * 0.7)
+      + (1 - taut) * Math.sin(u * Math.PI) * 10 * (1 - whip)
+      + taut * Math.sin(t * 0.09 + i * 1.7) * 1.6;
+    pts.push({ x: A.x + ux * L0 * u - uy * off, y: A.y + uy * L0 * u + ux * off });
   }
-  if (k < 1) { const x = a.x + ux * L, y = a.y + uy * L; glow(g, x, y, 14, "#a066f0", 0.8); g.fillStyle = PALE; g.beginPath(); g.moveTo(x + ux * 10, y + uy * 10); g.lineTo(x - uy * 6, y + ux * 6); g.lineTo(x + uy * 6, y - ux * 6); g.fill(); }
+  for (let i = 0; i < pts.length; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; pts[i].ang = Math.atan2(b.y - a.y, b.x - a.x); }
+  return pts;
 }
-// A mini drone: a little disc with a red eye and a blur of rotor.
-function drawDrone(g, d, t) {
-  g.save(); g.translate(d.x, d.y); g.rotate(Math.sin(t * 0.02 + d.seed) * 0.15); g.scale(1.9, 1.9);
-  g.fillStyle = "#3c4250"; g.fillRect(-9, -3, 18, 6);
-  g.fillStyle = "#6b7484"; g.fillRect(-9, -3, 18, 2);
-  g.fillStyle = "#9aa3b5"; g.fillRect(-12 + ((t / 30) | 0) % 3 * 2, -6, 8, 1); g.fillRect(4 - ((t / 30) | 0) % 3 * 2, -6, 8, 1);
-  glow(g, 0, 1, 7, "#ff3a3a", 0.8); g.fillStyle = "#ff6a6a"; g.fillRect(-1.5, -0.5, 3, 3);
-  g.restore();
+function drawLinks(g, S, pts, from = 0) {
+  for (let i = from; i < pts.length; i++) stamp(g, S.link[i % 2], pts[i].x, pts[i].y, pts[i].ang, 1, Math.PI);
+}
+// A coil of chain wound round an arm: the half behind the arm goes on the back
+// layer, the half in front on the front layer. axis = the arm's direction.
+function drawCoil(gFront, gBack, S, B, axis, k, t) {
+  const loops = 1.7 * k, N = Math.max(2, Math.floor(26 * k)), ax = Math.cos(axis), ay = Math.sin(axis);
+  for (let i = 0; i < N; i++) {
+    const ph = (i / 26) * Math.PI * 2 * 1.7 + t * 0.002, s = (i / 26 - 0.5) * 34, r = 17;
+    const x = B.x + ax * s - ay * Math.cos(ph) * r, y = B.y + ay * s + ax * Math.cos(ph) * r;
+    const front = Math.sin(ph) > 0, ang = axis + Math.PI / 2 + (front ? 0.5 : -0.5);
+    stamp(front ? gFront : gBack, S.link[i % 2], x, y, ang, 1, Math.PI);
+  }
+  void loops;
+}
+// Branching cracks of light spreading over his hull while they haul.
+function drawCracks(g, cracks, at, k, t) {
+  if (k <= 0) return;
+  for (const c of cracks) {
+    const n = Math.floor(c.length * k);
+    if (n < 2) continue;
+    g.strokeStyle = "#a066f0"; g.lineWidth = 4; g.beginPath();
+    c.slice(0, n).forEach(([x, y], i) => (i ? g.lineTo(at.x + x, at.y + y) : g.moveTo(at.x + x, at.y + y))); g.stroke();
+    g.strokeStyle = "#ffffff"; g.lineWidth = 1.5; g.stroke();
+  }
+  glow(g, at.x, at.y, 70 * k, "#cba2ff", 0.4 * k * (0.8 + 0.2 * Math.sin(t * 0.05)));
 }
 async function spectralChains(s) {
-  const { fx, px, pxTop, toon, mate } = s;
+  const { fx, px, pxTop, spr, sprBack, toon, mate } = s;
+  const S = propSprites();
+  if (!S) return graspOfTheVoid(s);   // no WebGL for the props: fall back to the hands
   const core = s.golemC(), floor = fx.floorY, cx = core.x - 10;
   const settle = castPose(mate, { lift: 0.1, energy: 3 });
-  sound.sfx("ghostWind", { ms: 4200 });
-  fx.darken(0.5, 400); fx.letterbox(true);
+  sound.sfx("ghostWind", { ms: 6000 }); sound.sfx("voidCharge");
+  fx.darken(0.55, 400); fx.letterbox(true);
   fx.focus(1.04, { x: cx, y: (core.y + floor) / 2 - 50 }, 600);
-  // two portals, one above him and one on the floor below
-  const top = portal(s, px, { x: cx, y: Math.max(84, core.y - 112), rx: 130, ry: 24 });   // low enough to stay in shot
+  // 1. two portals, above him and below
+  const top = portal(s, px, { x: cx, y: Math.max(84, core.y - 112), rx: 130, ry: 24 });
   const bot = portal(s, px, { x: cx, y: floor + 2, rx: 140, ry: 26 }, { hum: false });
-  gatherMotes(pxTop, () => s.mateC(), 400, { n: 18, r: 90 });
+  gatherMotes(pxTop, () => s.mateC(), 420, { n: 22, r: 100 });
   await fx.wait(250);
   await Promise.all([top.open(560), fx.wait(120).then(() => bot.open(560))]);
-  // chains lash out of both portals and wrap him: hull and arms, from above and below
+  // 2. chains whip out: arms get coils, the hull gets speared
   const tg = [
-    ["top", "claw", [0, -0.35, -0.2]], ["top", null, [-0.35, 0.25, -0.5]], ["top", null, [0.35, 0.25, -0.5]], ["top", "cannon", [0, -0.45, -0.2]],
-    ["bot", "claw", [0.1, -0.7, -0.1]], ["bot", null, [-0.3, -0.25, -0.5]], ["bot", null, [0.3, -0.25, -0.5]], ["bot", "cannon", [0, -0.8, -0.2]],
+    ["top", "claw", [0, -0.3, -0.2]], ["top", null, [-0.3, 0.3, -0.55]], ["top", null, [0.3, 0.3, -0.55]], ["top", "cannon", [0, -0.4, -0.2]],
+    ["bot", "claw", [0.1, -0.75, -0.1]], ["bot", null, [-0.25, -0.3, -0.55]], ["bot", null, [0.25, -0.3, -0.55]], ["bot", "cannon", [0, -0.85, -0.2]],
   ];
-  const chains = tg.map(([side, part, L], i) => ({ side, part, L, ext: 0, wrap: 0, cut: 0, delay: (i % 4) * 70 + (side === "bot" ? 40 : 0), seed: i }));
+  const chains = tg.map(([side, part, L], i) => ({ side, part, L, ext: 0, wrap: 0, cut: 0, gone: 0, delay: [0, 120, 200, 60, 90, 170, 240, 30][i], seed: i * 1.3 }));
   const target = (ch) => (ch.part ? s.Pt(ch.L, ch.part) : s.Pt(ch.L));
-  const anchor = (ch) => { const P = ch.side === "top" ? top.P : bot.P, t = target(ch); return { x: Math.max(P.x - P.rx * 0.8, Math.min(P.x + P.rx * 0.8, t.x)), y: P.y }; };
-  let taut = 0, tear = 0;
-  pxTop.add({ dur: 7000, draw(g, k, t, a) {
-    if (chains.every((c) => c.cut >= 1)) { a.t = a.dur; return; }
+  const axisOf = (ch) => { if (!ch.part) return 0; const a = s.Pt([ch.L[0], ch.L[1] + 0.12, ch.L[2]], ch.part), b = s.Pt([ch.L[0], ch.L[1] - 0.12, ch.L[2]], ch.part); return Math.atan2(b.y - a.y, b.x - a.x); };
+  const anchor = (ch) => { const P = ch.side === "top" ? top.P : bot.P, t = target(ch); return { x: Math.max(P.x - P.rx * 0.75, Math.min(P.x + P.rx * 0.75, t.x)), y: P.y }; };
+  let taut = 0, rip = 0, pulses = 0;
+  const cracks = Array.from({ length: 7 }, (_, i) => { const a = (i / 7) * Math.PI * 2 + rand(-0.3, 0.3), pts = [[0, 0]]; for (let k = 0; k < 9; k++) { const [x, y] = pts[pts.length - 1]; pts.push([x + Math.cos(a) * rand(8, 16) + rand(-6, 6), y + Math.sin(a) * rand(4, 9) + rand(-4, 4)]); } return pts; });
+  const drawAll = (gF, gB, t) => {
     for (const ch of chains) {
-      if (ch.ext <= 0 || ch.cut >= 1) continue;
+      if (ch.ext <= 0 || ch.gone >= 1) continue;
       const A = anchor(ch), B = target(ch);
-      if (ch.cut > 0) {   // a cut chain whips back into its portal
+      if (ch.cut > 0) {   // cut: the portal end whips back in, the far end falls away
         const back = ease.in(ch.cut);
-        drawChain(g, A, B, 1 - back, t, 0, 2.5);
+        drawLinks(gF, S, chainPath(A, B, 0.5 * (1 - back), t, { whip: 1, seed: ch.seed }));
+        if (ch.part && ch.cut < 0.6) drawCoil(gF, gB, S, B, axisOf(ch), 1 - ch.cut / 0.6, t);
         continue;
       }
-      drawChain(g, A, B, ch.ext, t, taut);
-      if (ch.wrap > 0) {
-        g.save(); g.translate(B.x, B.y); g.rotate(t * 0.004 + ch.seed);
-        g.strokeStyle = VIOLET; g.lineWidth = 3; g.setLineDash([6, 4]);
-        g.beginPath(); g.ellipse(0, 0, 20 * ch.wrap, 10 * ch.wrap, 0.4, 0, Math.PI * 2); g.stroke(); g.restore();
-      }
+      const pts = chainPath(A, B, ch.ext, t, { whip: ch.wrap ? 0 : 1 - ch.ext * 0.5, taut, seed: ch.seed });
+      drawLinks(gF, S, pts);
+      if (ch.ext < 1) { const h = pts[pts.length - 1]; stamp(gF, S.shard[0], h.x, h.y, h.ang, 1.2); }
+      else if (ch.part) drawCoil(gF, gB, S, B, axisOf(ch), ch.wrap, t);
+      else { stamp(gF, S.shard[0], B.x, B.y, Math.atan2(B.y - A.y, B.x - A.x), 1.2); }   // speared into the hull
     }
-    if (tear > 0) {   // a seam of light splitting across his middle as they haul
-      const L = s.Pt([-0.7, 0, -0.5]), R2 = s.Pt([0.7, 0, -0.5]);
-      g.strokeStyle = "#ffffff"; g.lineWidth = 2 + tear * 3; g.beginPath(); g.moveTo(L.x, L.y);
-      for (let i = 1; i <= 10; i++) { const u = i / 10; g.lineTo(lerp(L.x, R2.x, u), lerp(L.y, R2.y, u) + (i % 2 ? -1 : 1) * 5 * tear * Math.sin(t * 0.05 + i)); }
-      g.stroke();
-      glow(g, (L.x + R2.x) / 2, (L.y + R2.y) / 2, 60 * tear, "#cba2ff", 0.5 * tear);
+  };
+  spr.add({ dur: 9000, draw(g, k, t, a) { if (chains.every((c) => c.gone >= 1)) { a.t = a.dur; return; } drawAll(g, { drawImage() {} }, t); } });
+  sprBack.add({ dur: 9000, draw(g, k, t, a) { if (chains.every((c) => c.gone >= 1)) { a.t = a.dur; return; } drawAll({ drawImage() {} }, g, t); } });
+  pxTop.add({ dur: 9000, draw(g, k, t, a) {   // energy pulses running up the chains, the cracks in his hull
+    if (chains.every((c) => c.gone >= 1)) { a.t = a.dur; return; }
+    if (pulses > 0) for (const ch of chains) {
+      if (ch.cut > 0 || ch.ext < 1) continue;
+      const A = anchor(ch), B = target(ch);
+      for (let j = 0; j < 3; j++) { const u = ((t * 0.0016 + j / 3 + ch.seed) % 1); glow(g, lerp(B.x, A.x, u), lerp(B.y, A.y, u), 12, "#cba2ff", 0.9 * pulses); }
     }
+    drawCracks(g, cracks, s.golemC(), rip, t);
   } });
-  sound.sfx("chainRattle"); sound.sfx("whoosh", { theme: "void" });
-  await Promise.all(chains.map((ch) => fx.wait(ch.delay).then(() => pxTop.add({ dur: 200, draw(g, k) { ch.ext = ease.out(k); } })).then(() => pxTop.add({ dur: 140, draw(g, k) { ch.wrap = ease.back(k); } })).then(() => sound.sfx("chainRattle", { size: 0.6 }))));
+  sound.sfx("whoosh", { theme: "void" }); sound.sfx("ghostFly");
+  fx.focus(1.1, { x: cx, y: core.y }, 400);
+  await Promise.all(chains.map((ch) => fx.wait(ch.delay).then(async () => {
+    sound.sfx("chainRattle", { size: 0.7 });
+    await spr.add({ dur: 230, draw(g, k) { ch.ext = ease.out(k); } });
+    fx.hitstop(35); fx.shake(9); fx.punch(0.015, target(ch)); shards(pxTop, target(ch), 6, 0.5);
+    sound.sfx(ch.part ? "chainRattle" : "hit", { size: 0.8 });
+    await spr.add({ dur: 170, draw(g, k) { ch.wrap = ease.back(k); } });
+  })));
   sound.sfx("voidCrush");
-  bigHit(fx, core, { stop: 120, shake: 18, punch: 0.04, flash: "#8a4dff", invert: false });
+  bigHit(fx, core, { stop: 130, shake: 20, punch: 0.04, flash: "#8a4dff", invert: false });
   s.golem.fxv.glitch = 0.6; s.golem.to({ glitch: 0 }, 300, "lin", s.golem.fxv);
   s.onHit(1);
-  // she hauls both ways: the chains go taut and he's stretched between the portals
-  mate.nova.idle.shake = 0.6;
-  sound.sfx("whispers", { ms: 1600 }); sound.sfx("roar");
-  await pxTop.add({ dur: 220, draw(g, k) { taut = ease.out(k); } });
-  fx.focus(1.08, { x: core.x, y: core.y - 20 }, 500); fx.slowmo(0.5, 900);
+  // 3. she hauls both ways: he's stretched between the portals, light cracks across him
+  mate.nova.idle.shake = 0.6; pulses = 1;
+  sound.sfx("whispers", { ms: 2200 }); sound.sfx("roar");
+  await spr.add({ dur: 200, draw(g, k) { taut = ease.out(k); } });
+  fx.focus(1.18, { x: core.x, y: core.y - 10 }, 900); fx.slowmo(0.5, 1200);
   for (let i = 0; i < 4; i++) {
-    s.golem.to({ tilt: i % 2 ? 0.14 : -0.14, lean: i % 2 ? -0.08 : 0.08, bob: 0.03 * (i % 2 ? 1 : -1) }, 120, "io");
-    s.golem.fxv.glitch = 0.8; s.golem.to({ glitch: 0.2 }, 180, "lin", s.golem.fxv);
-    fx.shake(12 + i * 4); fx.hitstop(40); sound.sfx("chainRattle", { size: 0.8 }); sound.sfx("hit", { size: 0.5 });
-    await pxTop.add({ dur: 200, draw(g, k) { tear = Math.min(1, (i + k) / 3); } });
+    s.golem.to({ tilt: i % 2 ? 0.16 : -0.16, lean: i % 2 ? -0.1 : 0.1, bob: 0.04 * (i % 2 ? 1 : -1), ca: -0.85 - 0.25 * (i % 2 ? 1 : -1), na: -0.85 + 0.25 * (i % 2 ? 1 : -1) }, 110, "io");
+    s.golem.fxv.glitch = 0.9; s.golem.to({ glitch: 0.25 }, 180, "lin", s.golem.fxv);
+    fx.shake(12 + i * 5); fx.hitstop(50); sound.sfx("chainRattle", { size: 1 }); sound.sfx("impact", { size: 0.5 });
+    await spr.add({ dur: 210, draw(g, k) { rip = Math.min(1, (i + k) / 3.2); } });
   }
-  bigHit(fx, core, { stop: 160, shake: 28, punch: 0.06, flash: "#e8d4ff" });
-  speedLines(pxTop, core, 400);
-  shards(pxTop, core, 20, 1.2);
+  bigHit(fx, core, { stop: 180, shake: 30, punch: 0.06, flash: "#e8d4ff" });
+  speedLines(pxTop, core, 420);
+  shards(pxTop, core, 22, 1.3);
   s.onHit(2);
-  // he fights back: mini drones out of his pods, lasers cutting the chains
-  mate.nova.idle.shake = 0.3;
-  sound.sfx("servo", { ms: 300 }); sound.sfx("droneBuzz", { ms: 2200 });
-  s.golem.to({ flare: 1.5, thrust: 1.2 }, 200, "out");
-  const drones = Array.from({ length: 4 }, (_, i) => ({ seed: i, x: 0, y: 0, from: fx.fromPage(s.golem.pagePoint(PODS[i % PODS.length])) }));
-  let dronesOut = 0;
-  const droneActor = pxTop.add({ dur: 4000, draw(g, k, t, a) { if (dronesOut < 0) { a.t = a.dur; return; } for (const d of drones) if (d.on) drawDrone(g, d, t); } });
-  const cutOrder = [0, 4, 1, 5, 2, 6, 3, 7];
-  for (const [j, d] of drones.entries()) {
-    d.on = true; d.x = d.from.x; d.y = d.from.y;
-    const spot = { x: core.x + (j % 2 ? 1 : -1) * rand(70, 120), y: core.y + (j < 2 ? -70 : 40) };
-    pxTop.add({ dur: 260, draw(g, k) { const e = ease.out(k); d.x = lerp(d.from.x, spot.x, e); d.y = lerp(d.from.y, spot.y, e) - Math.sin(e * Math.PI) * 30; } });
-    await fx.wait(90);
-  }
+  // 4. he fights back: smoke bursts from his pods, drones fly out
+  sound.sfx("servo", { ms: 300 }); sound.sfx("laserCharge", { ms: 300 });
+  s.golem.to({ flare: 1.8, thrust: 1.4 }, 200, "out");
+  const pods = [0, 1, 2, 3].map((i) => fx.fromPage(s.golem.pagePoint(PODS[i % PODS.length])));
+  fx.focus(1.22, { x: core.x, y: pods[0].y }, 260);
   await fx.wait(220);
-  for (const [n, ci] of cutOrder.entries()) {
-    const ch = chains[ci], d = drones[n % drones.length], A = anchor(ch), B = target(ch), hitAt = { x: lerp(A.x, B.x, 0.55), y: lerp(A.y, B.y, 0.55) };
-    sound.sfx("miniLaser");
-    await pxTop.add({ dur: 110, draw(g, k) {   // the laser
-      glow(g, hitAt.x, hitAt.y, 10, "#ff3a3a", 0.8);
-      glow(g, d.x, d.y + 2, 14, "#ff3a3a", 0.9);
-      g.strokeStyle = "#ff2a2a"; g.lineWidth = 6; g.beginPath(); g.moveTo(d.x, d.y + 2); g.lineTo(hitAt.x, hitAt.y); g.stroke();
-      g.strokeStyle = "#ffd0d0"; g.lineWidth = 2; g.stroke();
+  sound.sfx("droneBuzz", { ms: 3600 }); sound.sfx("missileLaunch");
+  const drones = pods.map((p, i) => ({ i, x: p.x, y: p.y, vx: 0, on: true, aim: null, from: { ...p }, spot: { x: core.x + (i % 2 ? 1 : -1) * rand(110, 160), y: core.y + (i < 2 ? -80 : 30) + rand(-10, 10) } }));
+  for (const p of pods) { for (let j = 0; j < 4; j++) toon.add({ dur: 700, draw(pen, k) { pen.puff("smoke", p.x + rand(-6, 6), p.y - k * 30 - j * 6, 10 + k * 14, 0.9 * (1 - k), k * 0.8); } }); fx.sparks(p, 5, { colors: ["#ff6a3a", "#ffd27a"], power: 0.8 }); }
+  fx.shake(10);
+  const droneActor = spr.add({ dur: 9000, draw(g, k, t, a) {
+    if (drones.every((d) => !d.on)) { a.t = a.dur; return; }
+    for (const d of drones) {
+      if (!d.on) continue;
+      const face = d.aim ? (d.aim.x < d.x ? 0 : 8) : d.vx < -0.5 ? 0 : d.vx > 0.5 ? 8 : 12;
+      stamp(g, S.drone[((t / 40) | 0) % 2], d.x, d.y + Math.sin(t * 0.008 + d.i) * 2, face * Math.PI / 8 * -1, 1);
+    }
+  } });
+  pxTop.add({ dur: 9000, draw(g, k, t, a) {   // their eyes, and the downdraft under them
+    if (drones.every((d) => !d.on)) { a.t = a.dur; return; }
+    for (const d of drones) if (d.on && ((t / 120) | 0) % 2) glow(g, d.x + (d.aim ? (d.aim.x < d.x ? -10 : 10) : 0), d.y + 1, 7, "#ff3a3a", 0.8);
+  } });
+  await Promise.all(drones.map((d, j) => fx.wait(j * 70).then(() => spr.add({ dur: 320, draw(g, k) {
+    const e = ease.out(k), x = lerp(d.from.x, d.spot.x, e), y = lerp(d.from.y, d.spot.y, e) - Math.sin(e * Math.PI) * 50;
+    d.vx = x - d.x; d.x = x; d.y = y;
+  } }))));
+  fx.focus(1.08, { x: core.x, y: core.y }, 300);
+  // 5. the first cut in slow motion: lock on, charge, fire, the chain glows white-hot and snaps
+  const cutOrder = [0, 4, 3, 7, 1, 5, 2, 6];
+  const cut = async (n, slow) => {
+    const ch = chains[cutOrder[n]], d = drones[n % drones.length], A = anchor(ch), B = target(ch), at = { x: lerp(A.x, B.x, 0.55), y: lerp(A.y, B.y, 0.55) };
+    d.aim = at;
+    const eye = () => ({ x: d.x + (at.x < d.x ? -10 : 10), y: d.y + 2 });
+    if (slow) { fx.slowmo(0.3, 900); fx.focus(1.25, { x: (d.x + at.x) / 2, y: (d.y + at.y) / 2 }, 250); }
+    sound.sfx("miniLaser", { size: 0.4 });
+    await pxTop.add({ dur: slow ? 300 : 90, draw(g, k) {   // lock-on reticle closing in, and the charge
+      const r = 26 * (1 - ease.out(k)) + 9;
+      g.strokeStyle = "#ff3a3a"; g.lineWidth = 2;
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { g.beginPath(); g.moveTo(at.x + sx * r, at.y + sy * (r - 6)); g.lineTo(at.x + sx * r, at.y + sy * r); g.lineTo(at.x + sx * (r - 6), at.y + sy * r); g.stroke(); }
+      const e = eye(); glow(g, e.x, e.y, 6 + 10 * k, "#ff3a3a", 0.9);
     } });
-    sound.sfx("chainSnap"); fx.shake(9);
-    flashAt(pxTop, hitAt, 26, 200);
-    pxTop.add({ dur: 260, draw(g, k) { ch.cut = ease.in(k); } });
-    if (n === 3) { mate.setMood("sad"); }
-    await fx.wait(n < 4 ? 120 : 70);
-  }
-  // free: he shakes it off and roars
-  taut = 0; tear = 0; mate.nova.idle.shake = 0;
+    sound.sfx("miniLaser");
+    const beam = pxTop.add({ dur: slow ? 260 : 120, draw(g, k, t) {
+      const e = eye(), w = (slow ? 7 : 5) * (1 - k * 0.5) * (0.85 + 0.15 * Math.sin(t * 0.3));
+      glow(g, e.x, e.y, 16, "#ff3a3a", 0.9); glow(g, at.x, at.y, 22, "#ff8a3a", 0.9);
+      g.lineCap = "round";
+      g.strokeStyle = "#7a0d0d"; g.lineWidth = w + 6; g.beginPath(); g.moveTo(e.x, e.y); g.lineTo(at.x, at.y); g.stroke();
+      g.strokeStyle = "#ff3a3a"; g.lineWidth = w + 2; g.stroke();
+      g.strokeStyle = "#ffffff"; g.lineWidth = Math.max(1, w - 3); g.stroke();
+    } });
+    toon.add({ dur: 400, draw(pen, k) { pen.puff("heat", at.x, at.y, 9 + 6 * k, 1.2 * (1 - k)); } });   // the link glowing white-hot
+    fx.sparks(at, slow ? 14 : 6, { colors: ["#ffffff", "#ffd27a", "#ff6a3a"], power: 1.1 });
+    await beam;
+    sound.sfx("chainSnap");
+    if (slow) { impactFrame(fx, { ms: 60 }); fx.hitstop(120); fx.shake(18); }
+    else { fx.hitstop(30); fx.shake(9); }
+    flashAt(pxTop, at, slow ? 40 : 24, 220);
+    const bits = Array.from({ length: slow ? 6 : 3 }, (_, j) => ({ x: at.x, y: at.y, vx: rand(-160, 160), vy: rand(-220, -60), a: rand(0, 6), va: rand(-12, 12), v: j % 2 }));
+    spr.add({ dur: 800, draw(g, k) { for (const b of bits) stamp(g, S.link[b.v], b.x + b.vx * k, b.y + b.vy * k + 420 * k * k, b.a + b.va * k, 1, Math.PI); } });
+    spr.add({ dur: 300, draw(g, k) { ch.cut = ease.out(k); } }).then(() => { ch.gone = 1; });
+    d.aim = null;
+    if (slow) fx.focus(1.06, { x: core.x, y: core.y }, 300);
+  };
+  await cut(0, true);
+  mate.setMood("sad");
+  taut = 0.6;
+  for (let n = 1; n < 8; n++) { await cut(n, false); await fx.wait(40); }
+  // 6. free: he roars, the drones zip home, the portals collapse
+  taut = 0; rip = 0; pulses = 0; mate.nova.idle.shake = 0;
   sound.sfx("roar");
-  fx.shake(20); fx.flash(0.3, "#ffd9a3");
-  s.golem.to({ flare: 2, thrust: 2, tilt: -0.2, lean: -0.1 }, 220, "out");
-  // the drones zip back into his pods
-  for (const d of drones) pxTop.add({ dur: 260, draw(g, k) { const e = ease.in(k); d.x = lerp(d.x, d.from.x, e); d.y = lerp(d.y, d.from.y, e); } });
-  await fx.wait(280);
-  dronesOut = -1;
+  fx.shake(22); fx.flash(0.3, "#ffd9a3"); fx.ring(core, { color: "#ffb040", size: 260, flat: 0.6, ms: 500, width: 8 });
+  s.golem.to({ flare: 2.2, thrust: 2, tilt: -0.2, lean: -0.1, ca: -0.85, na: -0.85 }, 220, "out");
+  await Promise.all(drones.map((d) => spr.add({ dur: 260, draw(g, k) { const e = ease.in(k), x = lerp(d.spot.x, d.from.x, e); d.vx = x - d.x; d.x = x; d.y = lerp(d.y, d.from.y, e); } }).then(() => { d.on = false; })));
   await Promise.all([top.close(), bot.close()]);
   s.golem.rest(500);
   fx.letterbox(false); fx.darken(0, 500); fx.focus(1, null, 500);
@@ -818,44 +887,61 @@ async function eclipseLance(s) {
 }
 
 // ---- Event Horizon (ultimate II) ----
-// A real black hole opens in the air. If his Firewall is up, the pull tears it
-// apart first (this card counters it). Then it drags GOLEM in, shrinking and
-// spinning him into the dark; just as he's almost swallowed he fires a
-// grappling hook into the floor on his side and hauls himself out. Robbed of
-// its meal, the black hole collapses into a blinding flash.
+// A real black hole tears open in the air, its burning disc spinning. If his
+// Firewall is up, the pull rips it apart first (this card counters it). Then
+// it drags GOLEM in: he's stretched toward it, his thrusters screaming, bits of
+// armour and ice tearing off him and spiralling into the dark. Half swallowed,
+// he swings his cannon round and fires a grappling hook into the floor behind
+// him; the cable snaps taut and he winches himself out. Robbed of its meal,
+// the black hole collapses into a blinding flash.
+// A braided steel cable from a to b, sagging by `sag`, humming when taut.
+function drawCable(g, a, b, sag, t, taut) {
+  const pts = [];
+  for (let i = 0; i <= 24; i++) {
+    const u = i / 24, hum = taut * Math.sin(t * 0.11 + i * 1.3) * 1.2 * Math.sin(u * Math.PI);
+    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;
+    const x = a.x + dx * u - (dy / L) * hum, y = a.y + dy * u + (dx / L) * hum + Math.sin(u * Math.PI) * sag;
+    pts.push([x, y]);
+  }
+  const line = (w, c) => { g.strokeStyle = c; g.lineWidth = w; g.lineCap = "round"; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); };
+  line(5, "#1a1d22"); line(3, "#4a525e");
+  g.strokeStyle = "#cfd6e2"; g.lineWidth = 1.2;   // the braid: little bright twists along it
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], mx = (x0 + x1) / 2, my = (y0 + y1) / 2, a = Math.atan2(y1 - y0, x1 - x0) + 0.9;
+    g.beginPath(); g.moveTo(mx - Math.cos(a) * 1.6, my - Math.sin(a) * 1.6); g.lineTo(mx + Math.cos(a) * 1.6, my + Math.sin(a) * 1.6); g.stroke();
+  }
+  return pts;
+}
 async function eventHorizon(s) {
-  const { fx, px, toon, pxTop, mate, foeEl, boss } = s;
-  const core = s.golemC(), floor = fx.floorY, bh = { x: core.x - Math.min(330, fx.w * 0.26), y: Math.min(floor - 110, Math.max(core.y + 10, 150)) };   // open air, clear of the HP bars
+  const { fx, px, toon, pxTop, spr, mate, foeEl, boss } = s;
+  const S = propSprites();
+  const core = s.golemC(), floor = fx.floorY, bh = { x: core.x - Math.min(330, fx.w * 0.26), y: Math.min(floor - 110, Math.max(core.y + 10, 150)) };
   const home = foeEl._pos || { x: 0, y: 0, r: 0 };
   fx.letterbox(true); fx.darken(0.88, 600);
   fx.title("EVENT HORIZON", "NOVA · ultimate II");
   const settle = castPose(mate, { lift: 0.16, energy: 3.6, ms: 600 });
-  sound.sfx("darkChoir", { ms: 1800 }); sound.sfx("bhRumble", { ms: 6000 });
+  sound.sfx("darkChoir", { ms: 1800 }); sound.sfx("bhRumble", { ms: 7000 });
   fx.focus(1.06, { x: (bh.x + core.x) / 2, y: bh.y }, 800);
-  let size = 0, collapse = 0, pull = 0;
-  const sc = () => size * (1 - collapse);
-  toon.add({ dur: 9000, draw(pen, k, t, a) {
-    const S = sc(); if (S <= 0) { if (collapse >= 1) a.t = a.dur; return; }
-    for (let i = 0; i < 44; i++) {   // the accretion disc, tilted, burning hotter on the side spinning toward us
-      const ang = (i / 44) * Math.PI * 2 + t * 0.005, rx = 150 * S, ry = 28 * S;
-      pen.puff("heat", bh.x + Math.cos(ang) * rx, bh.y + Math.sin(ang) * ry, (9 + 3 * Math.sin(i * 1.7 + t * 0.01)) * S, 0.55 + 0.45 * (0.5 + 0.5 * Math.cos(ang)));
+  let size = 0, grow = 1, collapse = 0;
+  const sc = () => size * grow * (1 - collapse);
+  toon.add({ dur: 11000, draw(pen, k, t, a) {
+    const Sz = sc(); if (Sz <= 0) { if (collapse >= 1) a.t = a.dur; return; }
+    for (let i = 0; i < 48; i++) {   // the accretion disc, tilted, burning hotter on the side turning toward us
+      const ang = (i / 48) * Math.PI * 2 + t * 0.005, rx = 160 * Sz, ry = 30 * Sz;
+      pen.puff("heat", bh.x + Math.cos(ang) * rx, bh.y + Math.sin(ang) * ry, (9 + 3 * Math.sin(i * 1.7 + t * 0.01)) * Sz, 0.5 + 0.5 * (0.5 + 0.5 * Math.cos(ang)));
     }
-    for (let i = 0; i < 22; i++) {   // the inner disc, white-hot
-      const ang = (i / 22) * Math.PI * 2 + t * 0.008;
-      pen.puff("heat", bh.x + Math.cos(ang) * 82 * S, bh.y + Math.sin(ang) * 16 * S, 7 * S, 0.95);
-    }
-    pen.puff("void", bh.x, bh.y, 54 * S, 1.4);
-    pen.puff("void", bh.x, bh.y, 100 * S, 0.3);
+    for (let i = 0; i < 24; i++) { const ang = (i / 24) * Math.PI * 2 + t * 0.009; pen.puff("heat", bh.x + Math.cos(ang) * 86 * Sz, bh.y + Math.sin(ang) * 17 * Sz, 7 * Sz, 0.95); }
+    pen.puff("void", bh.x, bh.y, 58 * Sz, 1.45);
+    pen.puff("void", bh.x, bh.y, 110 * Sz, 0.3);
   } });
-  pxTop.add({ dur: 9000, draw(g, k, t, a) {   // the photon ring bending over and under the hole
-    const S = sc(); if (S <= 0) { if (collapse >= 1) a.t = a.dur; return; }
+  pxTop.add({ dur: 11000, draw(g, k, t, a) {   // the photon ring bent over and under the hole; light streaking in
+    const Sz = sc(); if (Sz <= 0) { if (collapse >= 1) a.t = a.dur; return; }
     for (const [a0, a1, w] of [[Math.PI * 1.02, Math.PI * 1.98, 5], [Math.PI * 0.12, Math.PI * 0.88, 3]]) {
-      g.strokeStyle = "#ffb040"; g.lineWidth = w * S; g.beginPath(); g.ellipse(bh.x, bh.y, 50 * S, 46 * S, 0, a0, a1); g.stroke();
-      g.strokeStyle = "#fff3c4"; g.lineWidth = w * 0.4 * S; g.stroke();
+      g.strokeStyle = "#ffb040"; g.lineWidth = w * Sz; g.beginPath(); g.ellipse(bh.x, bh.y, 54 * Sz, 50 * Sz, 0, a0, a1); g.stroke();
+      g.strokeStyle = "#fff3c4"; g.lineWidth = w * 0.4 * Sz; g.stroke();
     }
-    // streaks of light spiralling in
     for (let i = 0; i < 26; i++) {
-      const u = ((t * 0.0007 + i / 26) % 1), ang = i * 2.4 + u * 5, r = (320 - 280 * ease.in(u)) * S;
+      const u = (t * 0.0007 + i / 26) % 1, ang = i * 2.4 + u * 5, r = (340 - 290 * ease.in(u)) * Sz;
       const x = bh.x + Math.cos(ang) * r, y = bh.y + Math.sin(ang) * r * 0.45;
       g.globalAlpha = u; g.strokeStyle = i % 3 ? "#cba2ff" : "#ffd28a"; g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.sin(ang) * 14, y - Math.cos(ang) * 6); g.stroke();
@@ -863,7 +949,7 @@ async function eventHorizon(s) {
     g.globalAlpha = 1;
   } });
   const rocks = Array.from({ length: 50 }, () => ({ a: rand(0, Math.PI * 2), r: rand(180, 380), s: rand(3, 8), delay: rand(0, 3000), sp: rand(0.7, 1.5) }));
-  px.add({ dur: 4800, draw(g, k, t) {   // debris torn off the floor and walls, spiralling in
+  px.add({ dur: 5000, draw(g, k, t) {   // debris torn off the floor and walls, spiralling in
     for (const r of rocks) {
       const u = clamp01((t - r.delay) / (1000 / r.sp)); if (u <= 0 || u >= 1) continue;
       const d = r.r * (1 - ease.in(u)), ang = r.a + u * 4.5, sz = r.s * (1 - u * 0.7);
@@ -881,60 +967,104 @@ async function eventHorizon(s) {
     fx.title("FIREWALL TORN", "");
     await fx.wait(500);
   }
-  // he's dragged in: across, up, shrinking and spinning into the dark
-  sound.sfx("ghostWind", { ms: 2400 }); sound.sfx("whispers", { ms: 2400 });
-  s.golem.to({ thrust: 2.2, flare: 1.4, tilt: 0.2, lean: 0.12 }, 500, "io");
-  const toX = bh.x - core.x, toY = bh.y - core.y;
-  // spin and shrink him round his own core, so the pull lands his core right in the hole
+  // he's dragged in: stretched toward the hole, thrusters fighting it, pieces tearing off
+  sound.sfx("ghostWind", { ms: 2600 }); sound.sfx("whispers", { ms: 2600 });
   const cl = s.golem.localPoint([0, -0.1, -0.6]);
   foeEl.style.transformOrigin = `${cl.x}px ${cl.y}px`;
-  const drag = pxTop.add({ dur: 1700, draw(g, k) {
-    pull = ease.in(k) * 0.92;   // stops just short of the middle
-    fx.place(foeEl, { x: home.x + toX * pull + Math.sin(k * 60) * 3 * k, y: home.y + toY * pull, r: -pull * 160 });
-    foeEl.style.scale = String(1 - pull * 0.78);
+  const toX = bh.x - core.x, toY = bh.y - core.y;
+  let pull = 0, shedding = true;
+  const stretch = (p) => { foeEl.style.scale = `${1 + p * 0.55} ${1 - p * 0.3}`; };
+  const BODY = [[[-0.6, 0.2, -0.5]], [[0.6, 0.2, -0.5]], [[0, 0.4, -0.3]], [[-0.3, -0.3, -0.55]], [[0, -0.35, -0.2], "claw"], [[0, -0.8, -0.1], "claw"], [[0, -0.5, -0.2], "cannon"], [[0.4, 0.1, -0.5]]];
+  const bits = [];
+  pxTop.add({ dur: 6000, draw(g, k, t, a) {   // his armour, ice and sparks streaming into the hole
+    if (!shedding && !bits.length) { a.t = a.dur; return; }
+    if (shedding && pull > 0.05) for (let n = 0; n < 3; n++) {
+      const p = s.Pt(...BODY[Math.floor(Math.random() * BODY.length)]);
+      bits.push({ x: p.x, y: p.y, t0: t, d: rand(500, 900), c: ["#57707a", "#7f99a1", "#9fd2ff", "#ffb040", "#b8ccd0"][Math.floor(Math.random() * 5)], s: rand(2, 5), spin: rand(1, 3) });
+    }
+    for (let i = bits.length - 1; i >= 0; i--) {
+      const b = bits[i], u = (t - b.t0) / b.d; if (u >= 1) { bits.splice(i, 1); continue; }
+      const e = ease.in(u), ang = Math.atan2(b.y - bh.y, b.x - bh.x) + e * b.spin, r = Math.hypot(b.x - bh.x, b.y - bh.y) * (1 - e);
+      const x = bh.x + Math.cos(ang) * r, y = bh.y + Math.sin(ang) * r * 0.8;
+      g.fillStyle = b.c; g.fillRect(x - b.s / 2, y - b.s / 2, b.s * (1 + e * 2), b.s * (1 - e * 0.5));
+    }
   } });
-  for (let i = 0; i < 4; i++) {
-    await fx.wait(330);
+  s.golem.to({ thrust: 2.8, flare: 1.6, lean: -0.14, tilt: 0.1 }, 400, "out");
+  const drag = pxTop.add({ dur: 1900, draw(g, k) {
+    pull = ease.in(k) * 0.74; grow = 1 + 0.25 * k;
+    fx.place(foeEl, { x: home.x + toX * pull + Math.sin(k * 70) * 4 * k, y: home.y + toY * pull });
+    stretch(pull);
+    s.golem.pose.ca = -0.85 + Math.sin(k * 30) * 0.35; s.golem.pose.cg = 0.5 + 0.5 * Math.sin(k * 23);   // the claw flailing
+  } });
+  for (let i = 0; i < 5; i++) {
+    await fx.wait(320);
     fx.hitstop(40); fx.shake(10 + i * 4); sound.sfx("hit", { size: 0.7 });
-    s.golem.fxv.glitch = 0.7; s.golem.to({ glitch: 0.2 }, 200, "lin", s.golem.fxv);
+    s.golem.fxv.glitch = 0.8; s.golem.to({ glitch: 0.2 }, 200, "lin", s.golem.fxv);
     if (i === 0) s.onHit(1);
   }
   await drag;
-  // almost swallowed: he fires a grappling hook into the floor on his side
-  fx.slowmo(0.35, 500);
-  fx.focus(1.1, { x: (bh.x + core.x) / 2 + 60, y: (bh.y + floor) / 2 }, 300);
-  const from = () => fx.fromPage(s.golem.point("claw")), anchorAt = { x: core.x + 150, y: floor - 2 };
-  let hook = 0, reel = 0;
-  sound.sfx("grapple");
-  const cable = pxTop.add({ dur: 3000, draw(g, k, t, a) {
-    if (reel >= 1) { a.t = a.dur; return; }
-    const p = from(), tip = { x: lerp(p.x, anchorAt.x, hook), y: lerp(p.y, anchorAt.y, hook) - Math.sin(hook * Math.PI) * 40 };
-    g.strokeStyle = "#9aa3b5"; g.lineWidth = 3; g.beginPath(); g.moveTo(p.x, p.y);
-    const sag = (1 - reel) * (hook < 1 ? 10 : 0);
-    g.quadraticCurveTo((p.x + tip.x) / 2, (p.y + tip.y) / 2 + sag, tip.x, tip.y); g.stroke();
-    g.strokeStyle = "#e6ebf3"; g.lineWidth = 1; g.stroke();
-    // the hook: three prongs
-    g.save(); g.translate(tip.x, tip.y); g.rotate(Math.atan2(tip.y - p.y, tip.x - p.x));
-    g.fillStyle = "#c9d3dc"; g.fillRect(-6, -2, 10, 4); g.fillStyle = "#ff5a3a"; g.fillRect(2, -5, 5, 2); g.fillRect(2, 3, 5, 2); g.fillRect(4, -1, 5, 2);
-    g.restore();
+  // half swallowed: he swings his cannon round and fires a grappling hook into the floor behind him
+  fx.slowmo(0.35, 700);
+  fx.focus(1.12, { x: (bh.x + core.x) / 2 + 80, y: (bh.y + floor) / 2 }, 300);
+  sound.sfx("servo", { ms: 260 });
+  await s.golem.to({ na: 0.9, ne: -0.4, np: 0.4 }, 240, "out");
+  const muzzle = () => fx.fromPage(s.golem.point("muzzle"));
+  const anchorAt = { x: Math.min(fx.w - 40, core.x + 190), y: floor + 4 };
+  let hook = 0, hooked = false, taut = 0, reeling = false, done = false;
+  const m0 = muzzle();
+  sound.sfx("grapple"); sound.sfx("cannon");
+  explode(toon, m0.x, m0.y, { size: 0.45, dur: 600 });
+  flashAt(pxTop, m0, 40, 200); fx.shake(14); impactFrame(fx, { ms: 50 });
+  s.golem.to({ lunge: -0.05 }, 60, "out").then(() => s.golem.to({ lunge: 0 }, 200));
+  let ret = 0;   // 0..1: the hook flying back into the cannon at the end
+  const hookPos = () => {
+    if (ret > 0) { const m = muzzle(); return { x: lerp(anchorAt.x, m.x, ret), y: lerp(anchorAt.y, m.y, ret) }; }
+    if (hooked) return { x: anchorAt.x, y: anchorAt.y };
+    return { x: lerp(m0.x, anchorAt.x, hook), y: lerp(m0.y, anchorAt.y, hook) - Math.sin(hook * Math.PI) * 50 };
+  };
+  const cableActor = pxTop.add({ dur: 6000, draw(g, k, t, a) {
+    if (done) { a.t = a.dur; return; }
+    const m = muzzle(), h = hookPos();
+    const pts = drawCable(g, m, h, hooked ? 14 * (1 - taut) : 6, t, taut);
+    if (taut > 0.5) for (let j = 0; j < 3; j++) { const u = (t * 0.003 + j / 3) % 1, p = pts[Math.floor(u * (pts.length - 1))]; glow(g, p[0], p[1], 9, "#ffb040", 0.9); }   // the winch pulling
   } });
-  await pxTop.add({ dur: 260, draw(g, k) { hook = ease.out(k); } });
-  sound.sfx("impact", { size: 1 }); fx.shake(16); fx.crack(anchorAt.x, { width: 90 }); fx.dust(anchorAt.x, 8, 1.2);
-  flashAt(pxTop, anchorAt, 30, 200);
-  await fx.wait(160);
-  // he reels himself out of it
-  sound.sfx("cableReel", { ms: 800 }); sound.sfx("roar");
-  s.golem.to({ thrust: 2.6, flare: 2 }, 200, "out");
-  const start = { ...(foeEl._pos || home) }, sc0 = parseFloat(foeEl.style.scale || "1");
-  await pxTop.add({ dur: 760, draw(g, k) {
+  const hookSpr = spr.add({ dur: 6000, draw(g, k, t, a) {
+    if (done) { a.t = a.dur; return; }
+    if (!S) return;
+    const h = hookPos(), m = muzzle();
+    // in flight it points where it's going; once in, it points away from the cable
+    const ang = hooked || ret > 0 ? Math.atan2(anchorAt.y - m.y, anchorAt.x - m.x) : Math.atan2(anchorAt.y - m0.y + Math.cos(hook * Math.PI) * -157, anchorAt.x - m0.x);
+    stamp(g, S.hook[0], h.x, h.y, ang, 1.3);
+  } });
+  await pxTop.add({ dur: 300, draw(g, k) { hook = ease.out(k); } });
+  hooked = true;
+  sound.sfx("impact", { size: 1.2 }); sound.sfx("chainSnap");
+  fx.hitstop(100); fx.shake(22); fx.punch(0.04, anchorAt);
+  fx.crack(anchorAt.x, { width: 120 }); fx.dust(anchorAt.x, 12, 1.4); fx.debris(anchorAt, 10, { power: 1.3 });
+  fx.sparks(anchorAt, 16, { colors: ["#ffffff", "#ffd27a", "#ff8a3a"], power: 1.3, dir: -1 });
+  await fx.wait(150);
+  // the cable snaps taut, and he winches himself out
+  sound.sfx("cableReel", { ms: 900 }); sound.sfx("roar");
+  await pxTop.add({ dur: 160, draw(g, k) { taut = ease.out(k); } });
+  fx.shake(16);
+  s.golem.to({ thrust: 3, flare: 2.2, lean: 0.1 }, 200, "out");
+  shedding = false; reeling = true;
+  const start = { ...(foeEl._pos || home) }, p0 = pull;
+  fx.focus(1.04, { x: (bh.x + anchorAt.x) / 2, y: bh.y }, 400);
+  await pxTop.add({ dur: 700, draw(g, k) {
     const e = ease.io(k);
-    reel = k * 0.999;
-    fx.place(foeEl, { x: lerp(start.x, home.x, e) + Math.sin(k * 40) * 3 * (1 - k), y: lerp(start.y, home.y, e), r: lerp(start.r || 0, 0, e) });
-    foeEl.style.scale = String(lerp(sc0, 1, e));
+    fx.place(foeEl, { x: lerp(start.x, home.x, e) + Math.sin(k * 50) * 3 * (1 - k), y: lerp(start.y, home.y, e) });
+    stretch(p0 * (1 - e));
   } });
-  reel = 1; foeEl.style.scale = ""; foeEl.style.transformOrigin = "";
+  foeEl.style.scale = ""; foeEl.style.transformOrigin = "";
   fx.place(foeEl, { x: home.x, y: home.y });
   fx.shake(20); fx.dust(s.golemC().x, 12, 1.4); sound.sfx("impact", { size: 1.2 });
+  // the hook rips out of the floor and reels back into his cannon
+  sound.sfx("grapple", { size: 0.6 }); fx.dust(anchorAt.x, 6, 1);
+  taut = 0;
+  await pxTop.add({ dur: 260, draw(g, k) { ret = ease.in(k); } });
+  done = true;
+  s.golem.to({ na: -0.85, ne: 0.95, np: 0.85 }, 300, "io");
   mate.setMood("sad", { revertAfter: 900 });
   // robbed of its meal, the black hole collapses and blows
   sound.sfx("laserCharge", { ms: 300 });
@@ -953,7 +1083,7 @@ async function eventHorizon(s) {
   settle();
   await fx.wait(400);
   mate.setMood("idle");
-  void cable;
+  void cableActor; void hookSpr; void reeling;
 }
 
 // ---- the cards ----

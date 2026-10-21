@@ -125,8 +125,11 @@ export class BattleStage {
     this.pxBack = new PixelFX(world, { z: 0, before: foeEl });   // a layer behind the fighters (the far side of a portal...)
     this.toon = new ToonFX(world);   // cel-shaded fire, smoke and shadow on the GPU (pixel/toon-fx.js)
     this.pxTop = new PixelFX(world, { z: 8 });   // over the toon layer: eyes, sparks, star-flashes
+    // 3D props already in pixel art (props-px.js): in front of everything, and behind GOLEM (the back of a chain's coil)
+    this.spr = new PixelFX(world, { z: 9, raw: true });
+    this.sprBack = new PixelFX(world, { z: 0, before: foeEl, raw: true });
     this.kit = kitFor(skin);
-    this.ctx = { fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, toon: this.toon, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
+    this.ctx = { fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
     sound.music("battle");

@@ -15,7 +15,9 @@ const LEVELS = 7;
 
 export class PixelFX {
   // before: put the layer behind this element (for effects behind the fighters).
-  constructor(world, { outline = "#0b0614", z = 6, before = null } = {}) {
+  // raw: no pixel pass (for sprites that are already pixel art, props-px.js).
+  constructor(world, { outline = "#0b0614", z = 6, before = null, raw = false } = {}) {
+    this.raw = raw;
     this.world = world;
     this.canvas = document.createElement("canvas");
     Object.assign(this.canvas.style, { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", imageRendering: "pixelated", pointerEvents: "none", zIndex: z });
@@ -71,13 +73,13 @@ export class PixelFX {
     const s = HA / H;
     this.actors = this.actors.filter((a) => {
       const k = Math.min(1, a.t / a.dur);
-      g.save(); g.setTransform(s, 0, 0, s, 0, 0); g.globalAlpha = 1;
+      g.save(); g.setTransform(s, 0, 0, s, 0, 0); g.globalAlpha = 1; g.imageSmoothingEnabled = false;
       a.draw(g, k, a.t, a);
       g.restore();
       if (k >= 1) { a.done(); return false; }
       return true;
     });
-    this.pixelate(wa, HA);
+    if (!this.raw) this.pixelate(wa, HA);
     this.dirty = true;
   }
   ended() { return this.actors.some((a) => a.t >= a.dur); }
