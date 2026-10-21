@@ -155,8 +155,8 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 - [ ] Addendum H (GOLEM's reward is an exclusive companion, **NOVA**; "go" 2026-10-21). Design rounds so far:
   - Rejected: cosmic wizard / void spirit (vector), Gastly-style void ghost, the traced shadow creature and the Hollow Knight-like shadow cloak ("too close to Hollow Knight"), three cartoony vector redesigns ("unserious, like a kid's drawing").
   - Decided: **hi-bit pixel art on the GOLEM renderer** (`site/js/pixel/nova-px.js`, one shader, `NOVA_KINDS` picks the body). A living shadow with blank glowing eyes, a dithered purple haze, and (Isaac's favourite element) an **eclipse corona** behind his head.
-  - Isaac liked B1 black moon, B3 dark flame, B4 cloaked; round 3 (C1–C6 combinations) is on `site/nova-preview.html`, **waiting on his pick**.
-  - After the pick: moods, roaming, random idles (orbiting planets/black hole/asteroids; popcorn from a black-hole portal) with SFX, unlock (free on a first-try win, else 1,500 Bits), voice lines; battle moves later. Check WebGL cost while roaming on PC and iPad.
+  - **Picked 2026-10-21: C2 "Cloaked moon"** (`NOVA_KINDS` "mooncloak", KIND 10): round shadow head with blank eyes, short ragged shadow cloak, obsidian dust ring circling the cloak, eclipse corona behind his head, purple haze. Idle video: `previews/nova-c2-idle.mp4` (not in git). Paused here at Isaac's request (usage limit).
+  - Next: moods (happy, angry for battle, sad, sleepy), then roaming, random idles (orbiting planets/black hole/asteroids; popcorn from a black-hole portal) with SFX, unlock (free on a first-try win, else 1,500 Bits), voice lines; battle moves later. Check WebGL cost while roaming on PC and iPad.
 - [x] Addendum D built 2026-10-20 after Isaac's "sure": lesson sections. Module 1 has 12 sections, at 10 Bits each.
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).
