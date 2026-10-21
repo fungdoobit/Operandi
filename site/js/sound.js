@@ -535,11 +535,48 @@ const SFX = {
     this.tone("triangle", 1319, 440, t, 0.7, 0.06, { room: 0.5 });
     this.tone("sine", 82, 45, t, 0.8, 0.2, { room: 0.3 });
   },
-  // Snack time: a swirling portal, the bucket rising, pops, munching, the portal imploding.
+  // He crushes his dust ring: stone grinding inward, then a crack.
+  crush(t) {
+    this.noise(t, 0.75, 0.22, { type: "bandpass", f0: 900, f1: 220, q: 2.5, attack: 0.3 });
+    this.tone("sawtooth", 70, 45, t, 0.75, 0.06, { attack: 0.3, dist: true });
+    for (let i = 0; i < 6; i++) this.noise(t + 0.15 + i * 0.09, 0.03, 0.12, { type: "highpass", f0: 2500 });
+  },
+  // ...and it bursts: a deep boom with a bright magic crack and the shards flying
+  ringBurst(t) {
+    this.tone("sine", 110, 32, t, 0.7, 0.55, { room: 0.45 });
+    this.noise(t, 0.12, 0.45, { type: "bandpass", f0: 3200, q: 0.9 });
+    this.noise(t, 0.6, 0.3, { type: "lowpass", f0: 2500, f1: 200, room: 0.4 });
+    for (let i = 0; i < 5; i++) this.noise(t + 0.08 + Math.random() * 0.35, 0.04, 0.1, { type: "highpass", f0: 3500 });
+  },
+  // shaking them off: a fast rattle and a big whoosh outward
+  shakeOff(t) {
+    for (let i = 0; i < 9; i++) this.noise(t + i * 0.07, 0.05, 0.14, { type: "bandpass", f0: 1400 + (i % 2) * 600, q: 2 });
+    this.noise(t + 0.2, 0.55, 0.22, { type: "bandpass", f0: 600, f1: 3000, q: 1.2 });
+  },
+  // the dust ring spiralling back: a rising shimmer that settles
+  ringReform(t) {
+    this.noise(t, 0.8, 0.12, { type: "bandpass", f0: 3000, f1: 700, q: 3, attack: 0.25 });
+    [880, 1175, 1319].forEach((f, i) => this.tone("triangle", f * 0.5, f, t + i * 0.12, 0.6, 0.04, { room: 0.5 }));
+    this.tone("sine", 60, 82, t + 0.6, 0.4, 0.2);
+  },
+  // Snack time. First a sharp rip in the air...
+  portalTear(t) {
+    this.noise(t, 0.22, 0.4, { type: "highpass", f0: 1800, f1: 6000, attack: 0.01 });
+    this.noise(t, 0.08, 0.35, { type: "bandpass", f0: 2600, q: 1.2 });
+    this.tone("square", 220, 90, t, 0.18, 0.06, { dist: true });
+  },
+  // ...then it rips wide: a roaring swirl over a deep boom, with crackling sparks
   portal(t) {
-    this.noise(t, 0.7, 0.3, { type: "bandpass", f0: 300, f1: 2500, q: 4, room: 0.4 });
-    this.tone("sine", 70, 140, t, 0.6, 0.3, { room: 0.3 });
-    for (let i = 0; i < 4; i++) { const f = 1400 + Math.random() * 1200; this.tone("triangle", f, f * 1.3, t + 0.2 + i * 0.08, 0.12, 0.03, { room: 0.5 }); }
+    this.tone("sine", 95, 38, t, 0.9, 0.5, { room: 0.45 });
+    this.noise(t, 1.0, 0.32, { type: "bandpass", f0: 250, f1: 2400, q: 4, room: 0.4 });
+    this.tone("sawtooth", 55, 110, t + 0.05, 0.8, 0.07, { dist: true });
+    for (let i = 0; i < 7; i++) { const f = 1400 + Math.random() * 1600; this.tone("triangle", f, f * 1.3, t + 0.15 + i * 0.07, 0.1, 0.035, { room: 0.5 }); }
+  },
+  // telekinesis: a wavering, singing hum while the bucket floats
+  telekinesis(t) {
+    this.tone("sine", 220, 330, t, 1.1, 0.08, { attack: 0.15, vibrato: [6, 12], room: 0.4 });
+    this.tone("triangle", 440, 660, t, 1.1, 0.03, { attack: 0.2, vibrato: [7, 20], room: 0.5 });
+    this.noise(t, 1.0, 0.05, { type: "bandpass", f0: 1800, q: 6, attack: 0.2 });
   },
   bucketRise(t) {
     this.tone("sine", 220, 440, t, 0.4, 0.1);
@@ -555,13 +592,16 @@ const SFX = {
       this.noise(t + i * 0.11, 0.06, 0.2, { type: "lowpass", f0: 700 });
     }
   },
+  // the portal imploding, then a burst as it snaps shut
   portalClose(t) {
-    this.noise(t, 0.5, 0.3, { type: "bandpass", f0: 2500, f1: 250, q: 3, room: 0.3 });
-    this.tone("sine", 140, 45, t, 0.5, 0.35, { room: 0.3 });
-    this.tone("sine", 60, 40, t + 0.45, 0.15, 0.3);
+    this.noise(t, 0.4, 0.3, { type: "bandpass", f0: 2500, f1: 250, q: 3, room: 0.3 });
+    this.tone("sine", 140, 45, t, 0.4, 0.35, { room: 0.3 });
+    this.tone("sine", 90, 30, t + 0.38, 0.5, 0.5, { room: 0.45 });
+    this.noise(t + 0.38, 0.1, 0.35, { type: "bandpass", f0: 3000, q: 0.9 });
   },
 };
-const NOVA_IDLE = new Set(["novaSummon", "blackhole", "novaUnsummon", "portal", "bucketRise", "pop", "munch", "portalClose"]);
+const NOVA_IDLE = new Set(["novaSummon", "blackhole", "novaUnsummon", "crush", "ringBurst", "shakeOff", "ringReform",
+  "portalTear", "portal", "telekinesis", "bucketRise", "pop", "munch", "portalClose"]);
 
 export const sound = new Sound();
 

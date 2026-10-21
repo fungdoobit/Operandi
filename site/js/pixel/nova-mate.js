@@ -2,8 +2,9 @@
 // Dot (say, setMood, pickUp, drop, face, nudge...), so the roaming pet (pet.js)
 // and the Shop can use him like DOT or PYRO.
 // Every 20-40 s, when nobody needs him, he does one of two idles (never the same
-// twice in a row): an orrery of planets, a black hole and asteroids circling
-// him, or a popcorn break from a black-hole portal.
+// twice in a row): he crushes his dust ring and summons an orrery of planets, a
+// black hole and asteroids in its place, or he tears a portal open and pulls a
+// bucket of popcorn out with telekinesis.
 // Battle moves come later; in a fight the battle still uses DOT's moves.
 import { PixelNova } from "./nova-px.js";
 import { Dot } from "../dot.js";
@@ -17,9 +18,10 @@ export const NOVA_CSS = `
 // DOT's moods mapped onto NOVA's five.
 const MOOD = { happy: "happy", celebrate: "happy", sad: "sad", ko: "sad", sleepy: "sleepy", angry: "angry", fierce: "angry" };
 const EASE = { out: (t) => 1 - (1 - t) ** 3, in: (t) => t * t * t, io: (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2), lin: (t) => t };
-// Where things are in NOVA's own space (keep in step with the shader): the top of
-// the popcorn heap when the bucket is up, and the front of his head.
-const HEAP = [0.98, 0.04, -0.05], FACE = [0, 0.48, -0.3];
+// Where things are in NOVA's own space (keep in step with the shader): the portal,
+// where the bucket hangs beside his head while he eats, and the front of his head.
+const PORTAL = [1.04, 0.2, 0.05], HOLD = [0.8, 0.4, -0.25], FACE = [0, 0.48, -0.3];
+const lerp3 = (a, b, e) => a.map((v, i) => v + (b[i] - v) * e);
 
 export class NovaMate {
   constructor(container, { size = 96, idles = true, fast = false } = {}) {
@@ -30,7 +32,7 @@ export class NovaMate {
     this.figure.style.width = size + "px"; this.figure.style.height = 115 * k + "px";
     // The canvas is bigger than the figure so the planets and the portal have room.
     const W = 160, H = 170;
-    this.nova = new PixelNova(this.figure, { kind: "mooncloak", w: W, h: H, px: k, view: 5.03, half: true, shadow: false });
+    this.nova = new PixelNova(this.figure, { kind: "mooncloak", w: W, h: H, px: k, view: 4.79, half: true, shadow: false });   // view 4.79 (was 5.03): 5% bigger, Isaac 2026-10-21
     Object.assign(this.nova.canvas.style, { left: (size - W * k) / 2 + "px", top: (115 * k - H * k) / 2 + "px" });
     this.tweens = [];
     this.last = null;
@@ -110,44 +112,83 @@ export class NovaMate {
     finally { this.playing = false; }
   }
 
-  // Planets, a black hole and asteroids swing into orbit round him, then fade away.
+  // A burst of magic and flying shards at a point in his space.
+  burst(at, ms = 520) {
+    this.nova.idle.burstAt = at;
+    return this.anim(ms, (e) => { this.nova.idle.burst = e >= 1 ? 0 : e; }, "out");
+  }
+
+  // He crushes his dust ring into a burst, and planets, a black hole and asteroids
+  // fly out of it into orbit. Later he shakes them off and summons his ring back.
   async orrery() {
+    const I = this.nova.idle;
+    this.setMood("angry");
+    sound.sfx("crush");
+    const spin0 = I.spin;
+    await this.anim(750, (e) => { I.ringR = 1 - 0.75 * e; I.ringK = 1 - 0.35 * e; I.spin = spin0 + 5 * e; }, "in");
+    I.ringK = 0;
+    sound.sfx("ringBurst");
+    this.burst([0, 0.15, 0]);
     sound.sfx("novaSummon");
     this.setMood("happy");
-    await this.to({ orb: 1 }, 900, "out");
-    setTimeout(() => sound.sfx("blackhole"), 900);
-    await this.wait(4200);
-    sound.sfx("novaUnsummon");
-    await this.to({ orb: 0 }, 700, "in");
+    await this.anim(950, (e) => { I.orb = e; I.orbR = 0.2 + 0.8 * e; }, "out");
+    setTimeout(() => sound.sfx("blackhole"), 700);
+    await this.wait(3800);
+    // shake them off: everything is flung outward and fades
+    this.setMood("angry");
+    sound.sfx("shakeOff");
+    await this.anim(750, (e) => { I.shake = Math.sin(e * Math.PI); I.orbR = 1 + 1.6 * e * e; I.orb = 1 - e; }, "lin");
+    I.shake = 0; I.orb = 0; I.orbR = 1;
+    // and the dust ring spirals back in
+    sound.sfx("ringReform");
+    const spin1 = I.spin;
+    await this.anim(950, (e) => { I.ringK = e; I.ringR = 2.2 - 1.2 * e; I.spin = spin1 - 6 * (1 - e); }, "out");
+    I.ringK = 1; I.ringR = 1;
     this.setMood("idle");
   }
 
-  // A portal opens beside him, a popcorn bucket rises out, he eats a few, it all sinks away.
+  // He rips a portal open in the air, pulls a bucket of popcorn out with purple
+  // telekinesis, eats a few, sends it back, and the portal collapses.
   async popcorn() {
+    const I = this.nova.idle;
+    this.face("right");
+    this.setMood("angry");
+    sound.sfx("portalTear");
+    await this.anim(260, (e) => { I.tear = e; }, "out");
+    await this.wait(160);
     sound.sfx("portal");
-    await this.to({ portal: 1 }, 600, "out");
-    sound.sfx("bucketRise");
-    await this.to({ bucket: 1 }, 900, "out");
+    await this.anim(650, (e) => { I.portal = e; I.tear = 1 - e; }, "out");
+    I.tear = 0;
+    // telekinesis: the beam reaches into the portal and draws the bucket out
+    this.setMood("idle");
+    sound.sfx("telekinesis");
+    await this.anim(280, (e) => { I.tk = e; I.bucketAt = PORTAL; }, "out");
+    await this.anim(1100, (e) => { I.bucket = Math.min(1, e * 1.6); I.bucketAt = lerp3(PORTAL, HOLD, e); }, "io");
     const pieces = 2 + Math.round(Math.random());
     for (let i = 0; i < pieces; i++) {
-      await this.wait(350);
-      const from = [HEAP[0] + (Math.random() - 0.5) * 0.12, HEAP[1], HEAP[2]];
+      await this.wait(300);
+      const from = [HOLD[0] + (Math.random() - 0.5) * 0.1, HOLD[1] + 0.26, HOLD[2]];
       sound.sfx("pop");
-      // a little arc up and over into his face
-      await this.anim(480, (e) => {
-        const x = from[0] + (FACE[0] - from[0]) * e, z = from[2] + (FACE[2] - from[2]) * e;
-        const y = from[1] + (FACE[1] - from[1]) * e + Math.sin(e * Math.PI) * 0.35;
-        this.nova.idle.kern = [x, y, z, 1];
-      }, "lin");
-      this.nova.idle.kern = [0, 0, 0, 0];
+      // the piece floats up out of the bucket and over into his face
+      await this.anim(520, (e) => {
+        const k = lerp3(from, FACE, e);
+        this.nova.idle.kern = [k[0], k[1] + Math.sin(e * Math.PI) * 0.22, k[2], 1];
+      }, "io");
+      I.kern = [0, 0, 0, 0];
       sound.sfx("munch");
       this.setMood("happy");
-      await this.anim(320, (e) => { this.nova.idle.chomp = Math.sin(e * Math.PI * 3) * (1 - e); }, "lin");
+      await this.anim(320, (e) => { I.chomp = Math.sin(e * Math.PI * 3) * (1 - e); }, "lin");
     }
-    await this.wait(500);
+    await this.wait(450);
+    // send it back, and the portal collapses with a burst
     this.setMood("idle");
+    sound.sfx("telekinesis");
+    await this.anim(800, (e) => { I.bucketAt = lerp3(HOLD, PORTAL, e); I.bucket = 1 - Math.max(0, e - 0.4) / 0.6; }, "io");
+    I.bucket = 0;
+    await this.anim(200, (e) => { I.tk = 1 - e; }, "in");
     sound.sfx("portalClose");
-    await this.to({ bucket: 0 }, 600, "in");
-    await this.to({ portal: 0 }, 450, "in");
+    await this.anim(380, (e) => { I.portal = 1 - e; }, "in");
+    I.portal = 0;
+    await this.burst(PORTAL, 450);
   }
 }

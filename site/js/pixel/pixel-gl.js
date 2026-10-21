@@ -47,7 +47,7 @@ const float B4[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13
 float bayer(ivec2 p){ return (B4[(p.y&3)*4+(p.x&3)]+.5)/16.; }
 float h2(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
 vec4 at(ivec2 p){ return texelFetch(uTex, clamp(p, ivec2(0), ivec2(uRes)-1), 0); }
-int matOf(vec4 t){ return int(t.g*16.+.5) & 7; }
+int matOf(vec4 t){ return int(t.g*16.+.5) & 15; }   // up to 8 materials (NOVA uses 8)
 void main(){
   ivec2 p = ivec2(gl_FragCoord.xy);
   // Transition: snap to big blocks while uBlock > 1.
@@ -100,7 +100,7 @@ void main(){
 
 export class PixelGL {
   // model: GLSL defining `vec4 render(vec2 fragCoord)` (see golem-px.js).
-  // palettes: up to 7 ramps of 6 hex colours, then [dust, dust light, outline].
+  // palettes: up to 8 ramps of 6 hex colours, then [dust, dust light, outline].
   constructor(canvas, { model, uniforms, palettes, glow, extra = ["#cfd6e2", "#ffffff", "#07080c"] }) {
     this.canvas = canvas;
     const gl = (this.gl = canvas.getContext("webgl2", { premultipliedAlpha: false, antialias: false, alpha: true, preserveDrawingBuffer: true }));
