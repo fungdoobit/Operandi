@@ -351,3 +351,49 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 5. Battle moves.
 
 **Open questions:** his name, which design direction, and whether battle moves come now or later.
+
+## Addendum I: battle arena background and full ability kits (draft 2026-10-21, awaiting "go")
+
+**Problem.** The GOLEM fight happens on a plain dark band, NOVA can't fight yet (DOT stands in), PYRO reuses DOT's water moves recoloured as fire, and GOLEM has 3 attacks plus 3 specials. Isaac wants the fight to feel like a Demon Slayer scene: high quality, cinematic, heavy hit-stop and screen shake, all in the hi-bit pixel style.
+
+**Success criteria.**
+- A hi-bit pixel arena behind the GOLEM fight that matches GOLEM and NOVA, with light ambient motion, and no frame drops on Isaac's PC or iPad (target: 60 fps PC, 30 fps or better iPad).
+- NOVA fights with her own 6 abilities, PYRO with his own 6, GOLEM gains 2 attacks (5 attacks + 3 specials).
+- Every ability has anticipation, a fast strike, hit-stop on contact, screen shake and follow-through, and its own sound.
+- Isaac signs off the quality bar on the first three abilities before the rest are built.
+
+**Scope (in).**
+1. Arena background, boss 1, "The Sunken Foundry": a ruined data foundry in a cavern. Far layer: silhouetted server towers with blinking lights and a dim eclipse-purple haze; middle: hanging cables, broken pipes, cyan ice crystals (GOLEM's ice); floor: cracked metal grating that existing floor cracks and shockwaves land on. Drawn once into a pixel canvas, with a small animated layer (blinking lights, drifting dust, a cable sway). Parallax nudge on camera shake.
+2. A shared **pixel FX layer**: effects drawn on a low-res canvas and turned into pixel art (dither, colour steps, outline) in one GPU pass, so flames, magic ribbons, chains and hands all look hi-bit and consistent.
+3. **NOVA's kit** (4 attacks, 2 crit finishers), from Isaac's purple VFX references:
+   - *Grasp of the Void* (signature): a rune circle tears open under GOLEM; dozens of shadow hands claw up, grab him and crush; hit-stop on the squeeze.
+   - *Void Orb*: she gathers a swirling dark orb with a trailing tail, fires it; it detonates into a grinding vortex (multi-hit ticks).
+   - *Spectral Chains*: glowing chains burst from a rune circle, lash around GOLEM, she yanks and slams him down.
+   - *Wraith Flock*: screaming shadow wraiths stream out of her cloak and rip through him.
+   - Finisher *Eclipse Lance*: her corona spins up, the screen goes dark, a lance of black light fires through a ring of runes.
+   - Finisher *Event Horizon*: a black hole (disc and lensing ring, no sphere) forms above GOLEM, drags debris and him upward, collapses into a star-flash.
+4. **PYRO's kit**, from Isaac's fire references:
+   - *Flame Sword*: he forms a blade of fire, dashes, slashes with a long burning arc; afterburn embers.
+   - *Comet Kick*: leaps and kicks a spiralling fireball that bursts into cel-shaded fire and black smoke puffs.
+   - *Crescent Wave*: a ranged crescent of fire that skims the floor and bursts on impact.
+   - *Eruption*: the floor cracks under GOLEM and a volcanic pillar blasts up with fire rings.
+   - Finisher *Meteor Rain*: target circles appear, then meteors with long trails slam down in sequence.
+   - Finisher *Inferno Line*: a wall of fire races along the floor and erupts into a flame tornado.
+5. **GOLEM**, two new attacks: *Missile Swarm* (pod hatches open, a volley of homing missiles arc over with smoke trails, carpet explosions) and *Crystal Spikes* (he slams the floor and a line of ice spikes erupts toward the teammate).
+6. NOVA as a real fighter on the battle stage (her pixel model, facing GOLEM, angry eyes, hurt/KO/win reactions). PYRO and NOVA use their own kits; DOT keeps his water moves.
+
+**Scope (out).** New bosses; DOT's 3D rebuild; the NOVA unlock; new battle rules or damage numbers; any image assets (everything is drawn in code; the references are inspiration only, nothing traced or copied).
+
+**Constraints.** Zero budget, no sound or image files, no AI at runtime. Isaac's usage limits: this is several sessions. Performance: no per-frame SVG filters (Addendum F rule); one extra WebGL pass at most for the FX layer; NOVA in battle is a second raymarched character next to GOLEM, so iPad speed must be checked early.
+
+**Plan (smallest working version first).**
+1. Arena background → Isaac reviews.
+2. Pixel FX layer + one ability each as the quality bar: NOVA *Grasp of the Void*, PYRO *Flame Sword*, GOLEM *Missile Swarm* → video → Isaac reviews.
+3. NOVA as a fighter on the stage; the rest of NOVA's kit.
+4. The rest of PYRO's kit; GOLEM *Crystal Spikes*.
+5. Sounds for each, performance pass (iPad), notes.
+
+**Open questions.**
+- Isaac called NOVA "her". Switch NOVA to she/her everywhere (voice lines, notes)?
+- Background: "Sunken Foundry" (recommended, fits GOLEM's mech, ice and glitch), or a frozen crystal cavern, or a void wasteland under an eclipse sky?
+- OK to review after the first three abilities before building the rest?
