@@ -387,7 +387,7 @@ async function wraithFlock(s) {
     const P = [{ x: c.x - 4, y: c.y + 12 }, { x: c.x - 70 + rand(-30, 30), y: c.y - 150 + rand(-30, 30) }, { x: core.x - 200 + rand(-40, 40), y: core.y - 110 + rand(-50, 60) }, { x: core.x + 170, y: core.y + rand(-80, 50) }];
     let best = 0, bd = 1e9;   // where it passes closest to his core: that's its hit
     for (let k = 0; k <= 60; k++) { const p = bez(P, k / 60), d = Math.hypot(p.x - core.x, p.y - core.y); if (d < bd) { bd = d; best = k / 60; } }
-    return { P, delay: i * 95, sz: rand(9, 13), seed: i * 1.7, hitU: best };
+    return { P, delay: i * 95, sz: rand(14, 18), seed: i * 1.7, hitU: best };
   });
   const at = (w, u) => { const p = bez(w.P, clamp01(u)), q = bez(w.P, clamp01(u + 0.01)), dx = q.x - p.x, dy = q.y - p.y, n = Math.hypot(dx, dy) || 1, wob = Math.sin(u * 14 + w.seed) * 9; return { x: p.x - dy / n * wob, y: p.y + dx / n * wob, dx: dx / n, dy: dy / n }; };
   const uOf = (w, t) => (t - w.delay) / dur;
@@ -395,12 +395,13 @@ async function wraithFlock(s) {
     for (const w of wraiths) {
       const u = uOf(w, t); if (u <= 0 || u > 1.25) continue;
       const fade = u > 1 ? 1 - (u - 1) / 0.25 : 1, pts = [];
-      for (let j = 0; j <= 12; j++) pts.push(at(w, u - j * 0.022));
+      for (let j = 0; j <= 10; j++) pts.push(at(w, u - j * 0.0095));
       const P = pts.map((p) => [p.x, p.y]);
-      pen.limb("void", P, w.sz * 1.7, 1.2, 1.05 * fade);
-      pen.limb("void", P.map(([x, y], j) => [x + Math.sin(t * 0.02 + j) * 4, y + 5 + j * 0.6]), w.sz * 0.7, 0.8, 0.9 * fade);   // a ragged second strand
-      pen.puff("void", P[0][0], P[0][1], w.sz * 1.15, 1.15 * fade);
-      for (let j = 3; j < 12; j += 3) pen.puff("void", P[j][0], P[j][1] - 4, w.sz * 1.4, 0.3 * fade);   // haze shed off the tail
+      // a hooded head, a body that tapers into ragged tails, haze shed behind
+      pen.limb("void", P, w.sz * 1.6, 2, 1.1 * fade);
+      for (const side of [-1, 1]) pen.limb("void", P.slice(3).map(([x, y], j) => [x + Math.sin(t * 0.025 + j + side) * 5, y + side * (4 + j * 1.6)]), w.sz * 0.55, 0.6, 0.95 * fade);
+      pen.puff("void", P[0][0], P[0][1], w.sz * 1.25, 1.25 * fade);
+      for (let j = 2; j <= 10; j += 4) pen.puff("void", P[j][0], P[j][1] - 4, w.sz * 1.8, 0.3 * fade);
     }
   } });
   pxTop.add({ dur: N * 95 + dur + 300, draw(g, k, t) {   // glowing eyes and a gaping mouth
@@ -409,9 +410,9 @@ async function wraithFlock(s) {
       const h = at(w, u), px = -h.dy, py = h.dx, e = w.sz * 0.42, f = h.dx > 0 ? 1 : -1;
       for (const side of [-1, 1]) {
         const x = h.x + h.dx * w.sz * 0.25 + px * side * e * f, y = h.y + h.dy * w.sz * 0.25 + py * side * e * f - 2;
-        glow(g, x, y, 7, "#a066f0", 0.7); g.fillStyle = "#fff"; g.fillRect(x - 1.5, y - 1.5, 3, 3);
+        glow(g, x, y, 10, "#a066f0", 0.8); g.fillStyle = "#fff"; g.fillRect(x - 2, y - 2, 4, 4);
       }
-      g.fillStyle = "#2a0f48"; g.fillRect(h.x + h.dx * w.sz * 0.1 - 2, h.y + w.sz * 0.35 - 1, 4, 6);   // the scream
+      g.fillStyle = "#3a1466"; g.fillRect(h.x + h.dx * w.sz * 0.2 - 2.5, h.y + w.sz * 0.3, 5, 8);   // the scream
     }
   } });
   wraiths.forEach((w, i) => fx.wait(w.delay + w.hitU * dur).then(() => {
