@@ -183,6 +183,43 @@ class Sound {
     s.start(t); s.stop(end); flap.start(t); flap.stop(end);
   }
 
+  // The roaming teammate's movement: one continuous slimy slosh that fades in
+  // while he moves and out when he stops (not a sound per hop, which felt steppy).
+  // It swells and dips with his hopping rhythm and wobbles on top like jelly.
+  // level: 0 (still) to 1 (moving). Called every frame by pet.js.
+  slime(level, theme = "water") {
+    if (!this.ready) return;
+    const c = this.ctx, t = c.currentTime;
+    if (!this.slimeVoice && level > 0 && this.settings.sfx) {
+      const s = c.createBufferSource(), lp = c.createBiquadFilter(), bp = c.createBiquadFilter(), g = c.createGain();
+      const hop = c.createOscillator(), hg = c.createGain(), jiggle = c.createOscillator(), jg = c.createGain();
+      s.buffer = this.noiseBuf; s.loop = true;
+      lp.type = "lowpass"; lp.frequency.value = 1300;
+      bp.type = "bandpass"; bp.Q.value = 2.2; bp.frequency.value = 520;
+      hop.frequency.value = 2.2; hg.gain.value = 260; hop.connect(hg); hg.connect(bp.frequency);        // the hopping rhythm
+      jiggle.frequency.value = 9; jg.gain.value = 90; jiggle.connect(jg); jg.connect(bp.frequency);     // the jelly wobble
+      // a low glug underneath, breathing with the hops
+      const glug = c.createOscillator(), gg = c.createGain(), gam = c.createGain();
+      glug.type = "sine"; glug.frequency.value = 105;
+      const vib = c.createGain(); vib.gain.value = 14; jiggle.connect(vib); vib.connect(glug.frequency);
+      gam.gain.value = 0.5; const ha = c.createGain(); ha.gain.value = 0.5; hop.connect(ha); ha.connect(gam.gain);
+      gg.gain.value = 0.35;
+      g.gain.value = 0;
+      s.connect(lp); lp.connect(bp); bp.connect(g);
+      glug.connect(gam); gam.connect(gg); gg.connect(g);
+      g.connect(this.sfxBus);
+      for (const n of [s, hop, jiggle, glug]) n.start();
+      this.slimeVoice = { g, bp, lp, glug, gg, nodes: [s, hop, jiggle, glug] };
+    }
+    const v = this.slimeVoice;
+    if (!v) return;
+    const fire = theme === "fire";
+    v.lp.frequency.setTargetAtTime(fire ? 6000 : 1300, t, 0.1);
+    v.bp.Q.setTargetAtTime(fire ? 0.7 : 2.2, t, 0.1);
+    v.gg.gain.setTargetAtTime(fire ? 0 : 0.35, t, 0.1);
+    v.g.gain.setTargetAtTime(this.settings.sfx ? level * (fire ? 0.05 : 0.11) : 0, t, level > 0 ? 0.12 : 0.2);
+  }
+
   // ---- Effects ----
   // name: which sound. o: { size: 0.5..2, theme: "water"|"fire", ms: length }
   sfx(name, o = {}) {
@@ -484,10 +521,11 @@ const SFX = {
   // ---- Your roaming teammate (quiet: they play outside battles too) ----
   // DOT is liquid: he sloshes when he hops, glugs when picked up, splats when dropped.
   // (PYRO crackles instead.)
+  // a soft squelch as he lands each hop, under the continuous slime sound (slow attack: no clicks)
   hop(t, k, o) {
-    if (o.fire) { this.noise(t, 0.06, 0.06, { type: "highpass", f0: 3500 }); return; }
-    this.slosh(t, 0.22, 0.12, { f: 500 + Math.random() * 200, rate: 10 + Math.random() * 4, depth: 300 });
-    this.tone("sine", 140, 95, t, 0.1, 0.07, { vibrato: [18, 12] });
+    if (o.fire) { this.noise(t, 0.08, 0.03, { type: "highpass", f0: 3500, attack: 0.02 }); return; }
+    this.noise(t, 0.2, 0.05, { type: "bandpass", f0: 900, f1: 380, q: 2, attack: 0.03 });
+    this.tone("sine", 170, 110, t, 0.16, 0.04, { attack: 0.03, vibrato: [16, 10] });
   },
   pickup(t, k, o) {
     if (o.fire) { this.noise(t, 0.2, 0.12, { type: "highpass", f0: 3000 }); this.tone("sine", 200, 500, t, 0.2, 0.1); return; }

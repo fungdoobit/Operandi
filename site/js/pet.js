@@ -114,6 +114,9 @@ export class Pet {
         }
       }
     }
+    // the slime sound follows him: on while he travels (and is on screen), off when still
+    const moving = this.mode === "roam" && !this.speaking && this.wait <= 0 && this.target && this.root.style.visibility !== "hidden";
+    sound.slime(moving ? 1 : 0, this.skin === "pyro" ? "fire" : "water");
     this.place(bob);
     requestAnimationFrame(this.tick);
   }
