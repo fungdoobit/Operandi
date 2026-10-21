@@ -24,7 +24,7 @@ export const BATTLE_CSS = `
 .bmate { position: absolute; left: 6%; }
 .bmate .dot-bubble { display: none; }
 .hibit { filter: url(#hibit); }
-.bhp { position: absolute; top: calc(12px * var(--k, 1)); width: 40%; font: 600 calc(13px * var(--k, 1)) var(--font-body, sans-serif); display: flex; flex-direction: column; gap: calc(5px * var(--k, 1)); z-index: 22; }
+.bhp { position: absolute; top: calc(12px * var(--k, 1)); width: 40%; font: 600 max(11px, calc(13px * var(--k, 1))) var(--font-body, sans-serif); display: flex; flex-direction: column; gap: calc(5px * var(--k, 1)); z-index: 22; }
 .bhp.me { left: 14px; } .bhp.foe { right: 14px; text-align: right; }
 .bhp .row { display: flex; justify-content: space-between; } .bhp.foe .row { flex-direction: row-reverse; }
 .bhp small { color: #9ea6b5; font-weight: 500; }

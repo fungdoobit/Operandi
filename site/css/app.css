@@ -84,7 +84,13 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
 .body.no-work { grid-template-columns: var(--rail-w) minmax(0, 1fr); grid-template-areas: "rail brief"; }
 .body.boss-mode { grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "rail arena arena" "rail brief work"; }
 .rail { grid-area: rail; } .brief { grid-area: brief; } .work { grid-area: work; } .arena { grid-area: arena; }
-.arena { background: #0d0f14; padding: 10px; height: clamp(250px, 40vh, 640px); min-width: 0; }
+.arena { background: #0d0f14; padding: 10px; height: clamp(200px, 36vh, 640px); min-width: 0; }
+@media (max-height: 820px) { .arena { height: clamp(190px, 30vh, 640px); } }
+/* In a fight the editor and the Output/Tests panel share what's left below the
+   battle, so the output never gets pushed off the bottom of the screen. */
+.body.boss-mode .work { overflow-y: auto; }
+.body.boss-mode .editor { flex: 1 1 0; min-height: 110px; }
+.body.boss-mode .panel { flex: 1 1 0; min-height: 90px; }
 
 /* The course list can be put away. Wide screens: it collapses. Up to 1400px
    (iPad and smaller): it's hidden until opened, then slides in over the page. */
