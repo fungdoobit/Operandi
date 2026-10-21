@@ -311,3 +311,43 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 - `site/js/sound.js`: the Web Audio engine (compressor + limiter, short room echo), the effects, and the chiptune battle theme (D minor, 150 BPM, 16 bars; heavier above 2/3 intensity), plus victory and defeat jingles. `wireBattleSounds()` ties sounds to the battle effects, so they line up with hit-stop and slow motion.
 - **Settings in the course list:** Music on/off and volume, Sound effects on/off and volume (saved per device), and **Companion roams the screen** (off: your teammate stays in the bottom-right corner; you can still drag him).
 - Defaults: music on at 60%, effects on at 80%.
+
+## Addendum H: GOLEM's reward becomes an exclusive space-magic companion (draft, awaiting "go")
+
+**Change (Isaac, 2026-10-21):** GOLEM's reward is no longer an accessory. It's a new exclusive **companion**, the third after DOT and PYRO, and the first that isn't goo.
+- Theme: space magic.
+- Special because only a boss win unlocks him.
+
+**How he's earned** (same rule as the accessory had):
+- Beat GOLEM on your **first try**: he's yours for free.
+- Win on a **retry**: he appears in the Shop for **1,500 Bits**.
+- Not available any other way.
+
+**What he does**
+- **Same companion jobs as DOT and PYRO:** he roams the page (or stays put), gives feedback, hints and error help, wears accessories and fights in boss battles. He has his own voice lines.
+- **Random idle animations**, while roaming or parked:
+  1. **Orrery:** he floats up and summons small planets, a tiny black hole and asteroids that orbit around him, then fades them away.
+  2. **Snack break:** a small black-hole portal opens, he pulls out a bucket of popcorn and eats a couple of pieces, then the portal swallows the bucket.
+  3. Room for 1–2 more later (e.g. a shooting star, a mini constellation).
+- **Cinematic sound effects** for each idle: cosmic shimmer, a gravity whoosh and hum, the portal opening, popcorn munching. They use the effects and roaming volumes, so they're easy to turn down.
+- **A reveal moment:** when he's unlocked (the win screen or buying him), a short cinematic introduces him.
+
+**Success criteria**
+- He reads instantly as different from DOT and PYRO, and as premium.
+- The idle animations play at random (every 20–40 s, never the same twice in a row) without getting in the way of lessons.
+- Smooth on PC and iPad (no per-frame SVG filters).
+
+**Scope: in**
+- A design round first (concepts for Isaac to pick from), then his body and moods (idle, happy, thinking, worried, sad, sleepy, celebrate, angry for battle), roaming, pick-up and drop, the idles with their sounds, the Shop and unlock flow, voice lines, and battle moves.
+
+**Scope: out (for now)**
+- Exclusive companions for later bosses.
+
+**Plan**
+1. Design concepts (still images) for Isaac to choose from.
+2. Body, moods and roaming.
+3. Idle animations and sounds.
+4. Unlock flow, Shop and reveal.
+5. Battle moves.
+
+**Open questions:** his name, which design direction, and whether battle moves come now or later.
