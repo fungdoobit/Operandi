@@ -93,24 +93,29 @@ export class BattleFX {
     requestAnimationFrame(this.loop);
   }
 
-  get w() { return this.stage.clientWidth; }
-  get h() { return this.stage.clientHeight; }
+  // Sizes are the world's design size (BattleStage.fit lays the world out at
+  // 440 px tall and k scales it to the band); k = band px per design px.
+  get w() { return this.world.clientWidth; }
+  get h() { return this.world.clientHeight; }
+  get k() { return this._k || 1; }
+  set k(v) { this._k = v; }
   get floorY() { return this.h * this.floorFrac; }
 
   // Centre of an element in stage pixels, with the camera's zoom and shake undone
   // (on screen p' = O + t + s(p - O), so p = O + (p' - O - t) / s), so aim stays true.
+  // (on screen X = t + k (O + s (p - O)), so p = O + ((X - t) / k - O) / s)
   at(elm, { fy = 0.5 } = {}) {
     const r = elm.getBoundingClientRect(), st = this.stage.getBoundingClientRect();
-    const c = this.cam || { s: 1, ox: 0, oy: 0, tx: 0, ty: 0 };
+    const c = this.cam || { s: 1, k: this.k, ox: 0, oy: 0, tx: 0, ty: 0 };
     const X = r.left + r.width / 2 - st.left, Y = r.top + r.height * fy - st.top;
-    return { x: c.ox + (X - c.ox - c.tx) / c.s, y: c.oy + (Y - c.oy - c.ty) / c.s };
+    return { x: c.ox + ((X - c.tx) / c.k - c.ox) / c.s, y: c.oy + ((Y - c.ty) / c.k - c.oy) / c.s };
   }
 
   // A point on the page (e.g. from getBoundingClientRect) in stage pixels.
   fromPage(p, y) {
-    const st = this.stage.getBoundingClientRect(), c = this.cam || { s: 1, ox: 0, oy: 0, tx: 0, ty: 0 };
+    const st = this.stage.getBoundingClientRect(), c = this.cam || { s: 1, k: this.k, ox: 0, oy: 0, tx: 0, ty: 0 };
     const X = p.x - st.left, Y = p.y - st.top;
-    return { x: c.ox + (X - c.ox - c.tx) / c.s, y: y ?? c.oy + (Y - c.oy - c.ty) / c.s };
+    return { x: c.ox + ((X - c.tx) / c.k - c.ox) / c.s, y: y ?? c.oy + ((Y - c.ty) / c.k - c.oy) / c.s };
   }
 
   // ---- Time and camera -----------------------------------------------------
@@ -131,7 +136,7 @@ export class BattleFX {
   // Move an element (by CSS transform) over game time, so it freezes in hit-stop.
   move(elm, to, ms, ease = "out") {
     const cur = { x: 0, y: 0, r: 0, ...elm._pos };
-    return new Promise((res) => this.tweens.push({ elm, from: cur, to: { x: to.x ?? cur.x, y: to.y ?? cur.y, r: to.r ?? cur.r }, start: this.time, ms: Math.max(1, ms), ease: EASE[ease], res }));
+    return new Promise((res) => this.tweens.push({ elm, from: cur, to: { x: to.x ?? cur.x, y: to.y ?? cur.y, r: to.r ?? cur.r }, start: this.time, ms: Math.max(1, ms), ease: EASE[ease] || EASE.inOut, res }));   // an unknown ease name falls back rather than crashing the loop
   }
   place(elm, p) { elm._pos = { r: 0, ...p }; elm.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) rotate(${(p.r || 0).toFixed(1)}deg)`; }
 
@@ -159,10 +164,11 @@ export class BattleFX {
     this.shakeAmt *= Math.pow(0.87, real / 16.67);
     const s = this.shakeAmt, sx = s > 0.3 ? rand(-s, s) : 0, sy = s > 0.3 ? rand(-s, s) * 0.7 : 0;
     const scale = this.zoom.s + kick;
-    const ox = (kick > 0.002 ? this.zoom.kx : this.zoom.x) * 100, oy = (kick > 0.002 ? this.zoom.ky : this.zoom.y) * 100;
-    this.world.style.transformOrigin = `${ox.toFixed(1)}% ${oy.toFixed(1)}%`;
-    this.cam = { s: scale, ox: (ox / 100) * this.w, oy: (oy / 100) * this.h, tx: sx, ty: sy };
-    this.world.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) scale(${scale.toFixed(4)})`;
+    const ox = (kick > 0.002 ? this.zoom.kx : this.zoom.x) * this.w, oy = (kick > 0.002 ? this.zoom.ky : this.zoom.y) * this.h, K = this.k;
+    this.world.style.transformOrigin = "0 0";
+    this.cam = { s: scale, k: K, ox, oy, tx: sx, ty: sy };
+    // shake (band px), the band scale, then the camera zoom about its focus point (design px)
+    this.world.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) scale(${K.toFixed(4)}) translate(${ox.toFixed(1)}px, ${oy.toFixed(1)}px) scale(${scale.toFixed(4)}) translate(${(-ox).toFixed(1)}px, ${(-oy).toFixed(1)}px)`;
     this.flashAmt *= Math.pow(0.82, real / 16.67);
     this.flashEl.style.opacity = this.flashAmt.toFixed(3);
     // Particles move in game time, so they freeze during hit-stop too.

@@ -43,7 +43,7 @@ const ATTACKS = {
   // into the floor. The ground explodes into a cel dust cloud and a wave of rock
   // slabs bursts up out of the floor all the way to the teammate.
   async slam(s) {
-    const { fx, g, toon, px, pxTop } = s;
+    const { fx, g, toon, spr, pxTop } = s;
     fx.letterbox(true); fx.darken(0.35, 500);
     sound.sfx("servo", { ms: 600 });
     fx.focus(1.1, s.mid(), 700);
@@ -87,25 +87,29 @@ const ATTACKS = {
       explode(toon, at.x, fx.floorY - 20, { size: 0.7, dur: 900 });
     }
     // the wave of rock slabs racing to the teammate
-    const to = s.dotC().x, dir = Math.sign(to - at.x) || -1, n = Math.max(6, Math.floor(Math.abs(to - at.x) / 30));
+    const to = s.dotC().x, dir = Math.sign(to - at.x) || -1, n = Math.max(5, Math.floor(Math.abs(to - at.x) / 48));
     const slabs = [];
-    const rock = { dur: n * 45 + 1400, draw(gc, k, t) {
+    const R = propSprites()?.rock;
+    const rock = { dur: n * 45 + 1400, draw(gc, k, t) {   // 3D slabs of floor (props-px.js) punching up out of it
+      if (!R) return;
       for (const sl of slabs) {
         const u = (t - sl.t0) / 900; if (u < 0 || u > 1) continue;
-        const rise = u < 0.12 ? ease.out(u / 0.12) : u > 0.6 ? 1 - ease.in((u - 0.6) / 0.4) : 1, h = sl.h * rise;
-        if (h < 1) continue;
-        const x = sl.x, y = fx.floorY + 2, w = sl.w;
-        gc.fillStyle = "#3a3f4c";   // the slab: a jagged block of floor with a lit top
-        gc.beginPath(); gc.moveTo(x - w / 2, y); gc.lineTo(x - w / 2 + sl.j1, y - h * 0.85); gc.lineTo(x + sl.j2, y - h); gc.lineTo(x + w / 2 - sl.j1, y - h * 0.7); gc.lineTo(x + w / 2, y); gc.fill();
-        gc.fillStyle = "#6e7887"; gc.beginPath(); gc.moveTo(x - w / 2 + sl.j1, y - h * 0.85); gc.lineTo(x + sl.j2, y - h); gc.lineTo(x + w / 2 - sl.j1, y - h * 0.7); gc.lineTo(x + sl.j2 * 0.5, y - h * 0.8); gc.fill();
-        gc.fillStyle = "#9fd2ff"; gc.fillRect(x - 1, y - h * 0.5, 2, h * 0.3);   // a crack of light in it
+        const rise = u < 0.1 ? ease.back(u / 0.1) : u > 0.62 ? 1 - ease.in((u - 0.62) / 0.38) : 1;
+        if (rise <= 0) continue;
+        const f = R[sl.v][0], w = f.width * sl.sc, h = f.height * sl.sc, base = fx.floorY + 4;
+        gc.save();
+        gc.beginPath(); gc.rect(sl.x - w, 0, w * 2, base); gc.clip();   // what's still under the floor stays hidden
+        gc.translate(sl.x, base + (1 - rise) * h * 0.85 + h * 0.08); gc.scale(sl.flip * sl.sc, sl.sc);
+        gc.drawImage(f, -f.width / 2, -f.height);
+        gc.restore();
       }
     } };
-    px.add(rock);   // rock.t is its clock: each slab starts at the time it was added
+    spr.add(rock);   // rock.t is its clock: each slab starts at the time it was added
     let hit = false;
-    for (let i = 1; i <= n; i++) fx.wait(i * 45).then(() => {
+    for (let i = 1; i <= n; i++) fx.wait(i * 60).then(() => {
       const last = i === n, x = at.x + dir * (Math.abs(to - at.x) * i / n);
-      slabs.push({ x, t0: rock.t, h: last ? 70 : rand(26, 48) * (0.7 + i / n * 0.5), w: last ? 46 : rand(20, 30), j1: rand(2, 6), j2: rand(-6, 6) });
+      slabs.push({ x, t0: rock.t, v: Math.floor(Math.random() * 6), sc: last ? 2.3 : rand(1.05, 1.4) * (0.8 + i / n * 0.35), flip: Math.random() < 0.5 ? -1 : 1 });
+      fx.wait(560).then(() => fx.dust(x, 2, 0.6));   // dust as it sinks back
       fx.dust(x, 3, 1); if (i % 2) sound.sfx("rubble", { size: 0.6 });
       if (toon) toon.add({ dur: 700, draw(pen, k) { pen.puff("smoke", x, fx.floorY - 8 - k * 20, 14 + k * 18, 0.95 * (1 - k), k * 0.9); } });
       fx.shake(8);

@@ -1045,7 +1045,7 @@ async function planetfall(s) {
   await gate.close(280);
   sound.sfx("explosion", { size: 1 });
   fx.shake(24); fx.flash(0.4, "#e8d4ff"); flashAt(pxTop, big, 150, 400);
-  fx.move(foeEl, { x: home.x, y: home.y }, 400, "io");
+  fx.move(foeEl, { x: home.x, y: home.y }, 400, "inOut");
   s.golem.rest(700);
   await fx.wait(500);
   fx.letterbox(false); fx.darken(0, 600); fx.focus(1, null, 600);

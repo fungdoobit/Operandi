@@ -143,30 +143,37 @@ export class BattleStage {
       this.stage.append(b);
       sound.onReady(() => b.remove());
     }
-    this.foeEl = foeEl; this.mateEl = mateEl;
+    this.foeEl = foeEl; this.mateEl = mateEl; this.world = world;
     // Everything was designed at a 440 px tall stage: scale GOLEM, your
     // teammate and their spots to the real height, so big screens get big fighters.
     this.fit();
     new ResizeObserver(() => this.fit()).observe(this.stage);
   }
 
+  // The battle world is laid out at the size it was designed for (440 px tall,
+  // as wide as the band's shape needs) and then scaled to the band as a whole
+  // (BattleFX's camera adds the scale), so GOLEM, your teammate and every effect
+  // stay in proportion on any screen (Isaac 2026-10-21: on a short band the
+  // effects were drawn too big for him).
   fit() {
     const H = this.stage.clientHeight;
     if (!H) return;
-    const k = H / 440, W = this.stage.clientWidth;
+    const k = H / 440, W = this.stage.clientWidth, Wd = W / k, Hd = 440;
+    Object.assign(this.world.style, { right: "auto", bottom: "auto", width: Wd + "px", height: Hd + "px" });
+    this.fx.k = k;
     // The fighters stay in a fight zone in the middle (at most 3.6× as wide as
     // tall), so on wide screens they don't end up miles apart.
-    const zone = Math.min(W, H * 3.6), edge = (W - zone) / 2;
-    this.golem.setPx(k);
-    Object.assign(this.foeEl.style, { right: edge + (6 - GOLEM_EXTRA) * k + "px", bottom: 0.2 * H - 17 * k + "px" });
+    const zone = Math.min(Wd, Hd * 3.6), edge = (Wd - zone) / 2;
+    this.golem.setPx(1);
+    Object.assign(this.foeEl.style, { right: edge + (6 - GOLEM_EXTRA) + "px", bottom: 0.2 * Hd - 17 + "px" });
     this.mateEl.style.left = edge + zone * 0.06 + "px";
-    // HP bars line up with the zone, clear of the ☰ button in the corner.
-    const left = Math.max(64, edge + 14 * k), right = Math.max(14, edge + 14 * k), mid = W / 2;
+    // HP bars (on the stage itself, in real pixels) line up with the zone, clear of the ☰ button in the corner.
+    const left = Math.max(64, (edge + 14) * k), right = Math.max(14, (edge + 14) * k), mid = W / 2;
     Object.assign(this.stage.querySelector(".bhp.me").style, { left: left + "px", width: mid - 20 - left + "px" });
     Object.assign(this.stage.querySelector(".bhp.foe").style, { right: right + "px", width: mid - 20 - right + "px" });
     this.stage.style.setProperty("--k", k.toFixed(3));   // text on the stage scales too
-    this.mateEl.style.bottom = 0.2 * H - 6 * k + "px";
-    if (this.dot.resize) this.dot.resize(72 * k); else this.dot.figure.style.width = 65 * k + "px";
+    this.mateEl.style.bottom = 0.2 * Hd - 6 + "px";
+    if (this.dot.resize) this.dot.resize(72); else this.dot.figure.style.width = "65px";
   }
 
   hp(me, foe) {

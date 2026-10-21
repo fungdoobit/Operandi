@@ -8,6 +8,7 @@
 //   hook:  a three-pronged grappling hook (steel and orange), 16 angles
 //   shard: the chain's spear tip, a violet crystal, 16 angles
 //   missile: GOLEM's missile (steel, orange band, red nose, fins), 16 angles
+//   rock:  a slab of floor for GOLEM's slam (jagged stone, an ice-blue crack), 6 shapes
 import { PixelGL } from "./pixel-gl.js";
 
 const MODEL = `
@@ -58,6 +59,18 @@ float map(vec3 p){
     if (tip < d) { d = tip; gm = 6.; }
     return d;
   }
+  if (uKind > 4.5) {                      // a slab of floor bursting up (GOLEM's slam): jagged stone, a sharp top, an ice-blue crack
+    float sd = uFrame*13.7;
+    vec3 q = p; q.xz = R(.5 + sd) * q.xz; q.xy = R(.12*sin(sd*3.)) * q.xy;
+    float d = sdBox(q, vec3(.23 + .05*sin(sd), .5, .17 + .04*cos(sd*2.)));
+    d = max(d, dot(q - vec3(0., .5, 0.), normalize(vec3(.55*sin(sd*5.), 1., .3))));   // the slanted broken top
+    d = max(d, dot(q - vec3(0., .38, 0.), normalize(vec3(-.9, .6, .2 + .3*cos(sd)))));
+    d += (vnoise(q*9. + sd) - .5)*.05 + (vnoise(q*22. + sd*2.) - .5)*.02;   // rough chipped faces
+    gm = 7.;
+    float crack = abs(q.x + .08*sin(q.y*9. + sd) + .02) - .012;
+    if (crack < 0. && d < .01) gm = 8.;
+    return d;
+  }
   if (uKind > 3.5) {                      // GOLEM's missile pointing along +x: a steel body, an orange band, a red nose, four fins
     float d = sdCap(p, vec3(-.27, 0., 0.), vec3(.16, 0., 0.), .068); gm = 5.;
     float band = sdCylY(p.yxz - vec3(0., .1, 0.), .074, .025);
@@ -101,10 +114,11 @@ void main(){
   float sh = .1 + .62*key + .35*spec + .12*max(dot(n, -rd), 0.);
   if (m == 1.) sh = .35 + .45*key + .4*spec;   // spectral metal: brighter, glowing from inside
   if (m == 4.) sh = .75 + .25*spec;            // the eye
+  if (m == 8.) sh = .55 + .2*spec;             // the glowing crack
   o = vec4(clamp(sh, 0., 1.), m/16., t/7., halo);
 }`;
 
-// Materials: 1 spectral violet, 2 GOLEM armour, 3 dark frame, 4 red eye, 5 steel, 6 hot orange.
+// Materials: 1 spectral violet, 2 GOLEM armour, 3 dark frame, 4 red eye, 5 steel, 6 hot orange, 7 stone, 8 ice-blue glow.
 const PALETTES = [
   ["#1c0a3a", "#3a1a78", "#6232c8", "#9461f0", "#c9a8ff", "#f6ecff"],
   ["#141b20", "#24313a", "#3a4c56", "#57707a", "#7f99a1", "#b8ccd0"],
@@ -112,10 +126,12 @@ const PALETTES = [
   ["#3a0606", "#7a0d0d", "#c41a1a", "#ff3a3a", "#ff8a8a", "#ffe0e0"],
   ["#1a1d22", "#2e333b", "#4a525e", "#6e7887", "#a2acba", "#e2e8ef"],
   ["#3a1804", "#743007", "#b8540c", "#ec8a1c", "#ffc04a", "#fff0b8"],
+  ["#121318", "#20222a", "#333743", "#4b505e", "#6a7180", "#949cab"],
+  ["#1d4794", "#3274d0", "#5fa5ef", "#9fd2ff", "#e6f6ff", "#ffffff"],
 ];
 // glow colours: [violet halo x3, red eye x3]
 const GLOW = ["#5a24a8", "#8a4dff", "#d6bcff", "#7a0d0d", "#ff3a3a", "#ffb0b0"];
-const KINDS = { link: [0, 22, 0.62], drone: [1, 44, 1.1], hook: [2, 30, 0.8], shard: [3, 22, 0.55], missile: [4, 26, 0.85] };   // id, frame px, view
+const KINDS = { link: [0, 22, 0.62], drone: [1, 44, 1.1], hook: [2, 30, 0.8], shard: [3, 22, 0.55], missile: [4, 26, 0.85], rock: [5, 56, 1.25] };   // id, frame px, view
 
 let cache = null;
 // The sprite sheets: sheets[kind][variant][angle] = a canvas.
@@ -128,11 +144,11 @@ export function propSprites() {
   catch { return (cache = null); }
   for (const [name, [id, size, view]] of Object.entries(KINDS)) {
     gl.resize(size, size);
-    const variants = name === "link" ? [0, Math.PI / 2] : name === "drone" ? [0, 1] : [0];
-    cache[name] = variants.map((v) => Array.from({ length: 16 }, (_, a) => {
+    const variants = name === "link" ? [0, Math.PI / 2] : name === "drone" ? [0, 1] : name === "rock" ? [0, 1, 2, 3, 4, 5] : [0];
+    cache[name] = variants.map((v) => Array.from({ length: name === "rock" ? 1 : 16 }, (_, a) => {
       // links and drones turn in the picture plane by angle; drones also face their heading
       const ang = name === "drone" ? 0 : (a / 16) * Math.PI * (name === "link" ? 1 : 2);
-      const u = { uKind: id, uAng: -ang, uTwist: name === "link" ? v : name === "drone" ? (a / 16) * Math.PI * 2 : 0, uFrame: name === "drone" ? v : 0, uView: view };
+      const u = { uKind: id, uAng: -ang, uTwist: name === "link" ? v : name === "drone" ? (a / 16) * Math.PI * 2 : 0, uFrame: name === "drone" || name === "rock" ? v : 0, uView: view };
       gl.draw(u, { uTime: 0, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: 0, uPlume: [0, 0, 0, 0] });
       const f = document.createElement("canvas"); f.width = size; f.height = size;
       f.getContext("2d").drawImage(c, 0, 0);
