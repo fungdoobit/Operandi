@@ -1,0 +1,196 @@
+// NOVA in hi-bit pixel art (same renderer as GOLEM). A living shadow with
+// blank glowing eyes, wrapped in a dithered purple magic haze. Three body
+// shapes are on trial (Isaac picks one):
+//   0 "flame"   - a shadow head crowned with flame horns; the body thins into smoke
+//   1 "eclipse" - a shadow teardrop in front of a burning eclipse corona; the tail crumbles to dust
+//   2 "wraith"  - a hooded shadow with a ragged void cape and obsidian shards in orbit
+import { PixelGL } from "./pixel-gl.js";
+
+// Materials: 1 shadow, 2 void (deeper shadow), 3 eyes, 4 magic (purple fire), 5 obsidian.
+const PALETTES = [
+  ["#06040a", "#0d0917", "#171028", "#24183c", "#382558", "#583a88"],
+  ["#020104", "#05030a", "#0a0614", "#120a21", "#1c1031", "#2a1846"],
+  ["#8f86b8", "#b8b0dc", "#d8d2f0", "#ece8fa", "#f8f6ff", "#ffffff"],
+  ["#2e0f5c", "#4f1f98", "#7838d0", "#a066f0", "#cba2ff", "#f3e6ff"],
+  ["#0a0710", "#161024", "#241a3a", "#3a2a5c", "#6a4fa0", "#c3a8ff"],
+];
+// Glow halos: eyes (pale lavender), then magic haze (deep to light violet).
+const GLOW = ["#5b4c92", "#a99ee0", "#f2eeff", "#2c1258", "#5a2aa6", "#9a62ea"];
+const EXTRA = ["#c9b8f0", "#ffffff", "#030206"];
+export const NOVA_KINDS = ["flame", "eclipse", "wraith"];
+
+const model = (kind) => `
+#define KIND ${kind}
+uniform vec2 uRes; uniform float uTime, uYaw, uView, uBlink, uBob, uSway;
+float gm; float gEye; float gMagic;
+void U(inout float d, float nd, float m){ if (nd < d) { d = nd; gm = m; } }
+float sdEll(vec3 p, vec3 r){ float k0 = length(p/r), k1 = length(p/(r*r)); return k0*(k0 - 1.)/k1; }
+float fbm(vec3 p){ return vnoise(p)*.6 + vnoise(p*2.1 + 4.)*.3 + vnoise(p*4.3 + 9.)*.1; }
+
+void eyes(inout float d, vec3 p, vec3 a, vec3 b, vec3 r){
+  vec3 rb = vec3(r.x, r.y*uBlink, r.z);
+  float e = min(sdEll(p - a, rb), sdEll(p - b, rb*vec3(1.08, 1.04, 1.)));
+  U(d, e, 3.); gEye = min(gEye, e);
+}
+// A flame horn: a thick base blended into the head, a licking tip that ends in purple fire.
+float horn(inout float body, inout float d, vec3 p, vec3 a, vec3 b, vec3 c, float r, float ph){
+  vec3 bw = b + vec3(sin(uTime*3.1 + ph)*.03, 0., 0.);
+  vec3 cw = c + vec3(sin(uTime*4.7 + ph)*.07, sin(uTime*6.3 + ph*1.7)*.05, 0.);
+  body = smin(body, sdCapT(p, a, mix(a, bw, .6), r, r*.75), .1);
+  // the horn is shadow at the root and burns into purple fire towards the tip
+  float fire = min(sdCapT(p, mix(a, bw, .45), bw, r*.8, r*.6), sdCapT(p, bw, cw, r*.6, .0));
+  U(d, fire, 4.); gMagic = min(gMagic, fire);
+  return body;
+}
+
+float map(vec3 p){
+  gm = 0.; gEye = 1e5; gMagic = 1e5;
+  float d = 1e5;
+  p.y -= uBob;
+  p.xz = R(uYaw) * p.xz;
+  if (sdBox(p - vec3(0., .1, 0.), vec3(1.5, 1.7, 1.2)) > .3) return 1.;
+  float body;
+#if KIND == 0
+  // head with four flame horns
+  body = sdEll(p - vec3(0., .35, 0.), vec3(.56, .5, .46));
+  body = horn(body, d, p, vec3(-.36, .62, .05), vec3(-.5, .9, .08), vec3(-.4, 1.16, .1), .1, 0.);
+  body = horn(body, d, p, vec3(-.13, .74, .05), vec3(-.16, 1.06, .1), vec3(.02, 1.42, .12), .12, 1.7);
+  body = horn(body, d, p, vec3(.15, .74, .05), vec3(.24, 1.04, .1), vec3(.14, 1.36, .12), .12, 3.1);
+  body = horn(body, d, p, vec3(.38, .58, .05), vec3(.62, .76, .08), vec3(.7, 1.0, .1), .09, 4.4);
+  // the body below thins into rising smoke
+  vec3 s = p; s.x += sin(s.y*2.6 + uTime*1.5)*.09*max(-s.y + .1, 0.) + uSway*max(-s.y, 0.);
+  s.x -= .22*pow(max(-s.y, 0.), 2.);
+  float smoke = sdCapT(s, vec3(0., -.05, 0.), vec3(.04, -1.0, .08), .3, .02);
+  smoke += (fbm(s*5. + vec3(0., uTime*1.4, 0.)) - .5)*.2*clamp(-s.y + .15, 0., 1.);
+  body = smin(body, smoke, .12);
+  U(d, body, 1.);
+  eyes(d, p, vec3(-.2, .36, -.39), vec3(.17, .37, -.37), vec3(.1, .18, .06));
+#elif KIND == 1
+  // teardrop body
+  float sw = sin(uTime*1.3)*.16 + uSway;
+  vec3 s = p;
+  body = length(s - vec3(0., .35, 0.)) - .48;
+  float tail = sdCapT(s, vec3(0., .2, 0.), vec3(sw, -1.05, 0.), .42, .02);
+  tail += (fbm(s*6. + vec3(0., uTime*1.1, 0.)) - .5)*.16*clamp(-s.y - .2, 0., 1.);
+  body = smin(body, tail, .16);
+  U(d, body, 1.);
+  // dust crumbling off the tail tip
+  for (int k = 0; k < 7; k++) {
+    float fk = float(k), ph = fract(uTime*.38 + fk/7.);
+    vec3 c = s - (vec3(sw, -1.02, 0.) + vec3((hash1(fk) - .5)*.7*ph, -ph*.7, (hash1(fk + 3.) - .5)*.3));
+    c.xy = R(ph*4. + fk) * c.xy;
+    U(d, sdBox(c, vec3(.05*(1. - ph*.7))), 1.);
+  }
+  // the eclipse corona behind the head: a ring and flickering rays of purple fire
+  vec3 c = p - vec3(0., .35, .32);
+  float ring = sdTorZ(c, .6, .04);
+  float n = 20., sec = 6.2831853/n, a = atan(c.y, c.x);
+  float id = floor((a + sec*.5)/sec), an = mod(a + sec*.5, sec) - sec*.5;
+  float len = .16 + .16*hash1(id) + .07*sin(uTime*3.3 + id*2.1);
+  vec3 rp = vec3(cos(an)*length(c.xy), sin(an)*length(c.xy), c.z);
+  ring = min(ring, sdCapT(rp, vec3(.6, 0., 0.), vec3(.6 + len, 0., 0.), .045, .0));
+  U(d, ring, 4.); gMagic = min(gMagic, ring);
+  eyes(d, p, vec3(-.18, .37, -.41), vec3(.17, .37, -.41), vec3(.1, .18, .06));
+#else
+  // hooded wraith: a void face in a deep hood, a ragged cape, shoulder spikes, orbiting shards
+  vec3 h = p; h.z -= (h.y - .4)*(h.y - .4)*.45;
+  float hood = sdCapT(h, vec3(0., .42, .06), vec3(.02, 1.08, .38), .5, .05);
+  hood = max(hood, -(length(p - vec3(0., .52, -.38)) - .4));
+  vec3 s = p; s.x += sin(s.y*2.2 + uTime*1.4)*.07*max(.4 - s.y, 0.) + uSway*max(-s.y, 0.) - .2*pow(max(.4 - s.y, 0.), 2.);
+  float ry = mix(.36, .78, clamp((.38 - s.y)/1.4, 0., 1.));
+  float cape = (length(vec2(s.x, s.z*1.35)) - ry)*.7;
+  float jag = .34*abs(sin(s.x*7.5 + uTime*1.1)) + .1*sin(s.x*19. - uTime*2.);
+  cape = max(cape, max(s.y - .42, (-.92 + jag) - s.y));
+  body = smin(hood, cape, .1);
+  body = min(body, sdCapT(vec3(abs(p.x), p.yz), vec3(.36, .36, .02), vec3(.62, .6, .14), .1, .0));
+  U(d, body, 1.);
+  U(d, length(p - vec3(0., .52, .02)) - .32, 2.);
+  for (int k = 0; k < 3; k++) {
+    float fk = float(k), an = uTime*.8 + fk*2.094;
+    vec3 c = p - vec3(cos(an)*1.05, .15 + sin(an*1.3 + fk)*.22, sin(an)*.55);
+    c.xy = R(uTime*1.7 + fk) * c.xy; c.xz = R(uTime*1.1) * c.xz;
+    float o = sdOct(c*vec3(1., .6, 1.), .1);
+    U(d, o, 5.); gMagic = min(gMagic, o + .02);
+  }
+  eyes(d, p, vec3(-.11, .54, -.27), vec3(.11, .54, -.27), vec3(.065, .1, .04));
+#endif
+  return d;
+}
+
+vec3 nrm(vec3 p){
+  const vec2 k = vec2(1., -1.)*.002;
+  return normalize(k.xyy*map(p + k.xyy) + k.yyx*map(p + k.yyx) + k.yxy*map(p + k.yxy) + k.xxx*map(p + k.xxx));
+}
+
+out vec4 o;
+void main(){
+  vec2 uv = (gl_FragCoord.xy - .5*uRes) / uRes.y * uView;
+  vec3 ro = vec3(uv.x, uv.y + .1, -5.), rd = vec3(0., 0., 1.);
+  float t = 0., m = 0., minD = 1e5, minEye = 1e5, minMagic = 1e5;
+  for (int i = 0; i < 110; i++) {
+    float d = map(ro + rd*t);
+    minD = min(minD, d); minEye = min(minEye, gEye); minMagic = min(minMagic, gMagic);
+    if (d < .003) { m = gm; break; }
+    t += d*.65;
+    if (t > 10.) break;
+  }
+  float eyeGlow = exp(-max(minEye, 0.)*13.)*.55;
+  float magic = exp(-max(minMagic, 0.)*16.)*.6;
+  if (m == 0.) {
+    // the purple haze: thick near his body, broken up by drifting noise
+    vec2 q = uv*3.2 + vec2(0., -uTime*.55);
+    float n = fbm(vec3(q, uTime*.25));
+    float gas = exp(-max(minD, 0.)*5.)*(.2 + .95*n);
+    // a few star specks drifting up through the haze
+    vec2 cell = floor(vec2(gl_FragCoord.x, gl_FragCoord.y - uTime*14.)/2.);
+    if (hash1(cell.x*17.3 + cell.y*91.7) > .993 && gas > .18) gas = 1.;
+    o = vec4(max(gas, magic), 0., 1., eyeGlow); return;
+  }
+  vec3 p = ro + rd*t;
+  map(p); m = gm;
+  vec3 n = nrm(p);
+  vec3 L = normalize(vec3(-.5, .7, -.6));
+  float key = max(dot(n, L), 0.);
+  float rim = pow(1. - max(dot(n, -rd), 0.), 2.4);
+  float back = max(dot(n, normalize(vec3(.7, .3, .5))), 0.);
+  float sh;
+  if (m == 3.) sh = .86 + .14*key;
+  else if (m == 4.) sh = .55 + .35*key + .15*sin(uTime*9. + p.y*14.);
+  else if (m == 5.) sh = .12 + .4*key + .45*pow(max(dot(reflect(-L, n), -rd), 0.), 10.) + .35*rim;
+  else if (m == 2.) sh = .05 + .2*rim;
+  else {
+    // shadow: almost black, a cold key light and a purple rim so the form still reads
+    sh = .05 + .2*key + .55*rim*(.4 + .6*back);
+    sh += .3*exp(-max(gEye, 0.)*10.);                // the eyes light the face around them
+  }
+  o = vec4(clamp(sh, 0., 1.), m/16., t/10., eyeGlow);
+}`;
+
+export class PixelNova {
+  // host: element the canvas goes in. w,h: art pixels. px: screen px per art pixel.
+  constructor(host, { kind = "flame", w = 200, h = 230, px = 2, view = 3.4 } = {}) {
+    this.canvas = document.createElement("canvas");
+    this.canvas.className = "px-nova";
+    Object.assign(this.canvas.style, { width: w * px + "px", height: h * px + "px", imageRendering: "pixelated", display: "block" });
+    host.appendChild(this.canvas);
+    this.canvas.width = w; this.canvas.height = h;
+    this.gl = new PixelGL(this.canvas, { model: model(NOVA_KINDS.indexOf(kind)), palettes: PALETTES, glow: GLOW, extra: EXTRA });
+    this.view = view; this.yaw = 0.25; this.sway = 0;
+    this.t0 = performance.now() - Math.random() * 4000;
+    this.nextBlink = 2 + Math.random() * 3;
+    this.loop = this.loop.bind(this);
+    requestAnimationFrame(this.loop);
+  }
+  loop(now) {
+    if (!this.canvas.isConnected) return;
+    const s = (now - this.t0) / 1000;
+    // blink every few seconds
+    if (s > this.nextBlink + 0.16) this.nextBlink = s + 2.5 + Math.random() * 3;
+    const blink = s > this.nextBlink ? 0.1 : 1;
+    this.gl.draw(
+      { uTime: s, uYaw: this.yaw, uView: this.view, uBlink: blink, uBob: Math.sin(s * 1.5) * 0.05, uSway: this.sway },
+      { uTime: s, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0.7 - Math.sin(s * 1.5) * 0.2, uShadowX: 0.5, uPlume: [0, 0, 0, 0] },
+    );
+    requestAnimationFrame(this.loop);
+  }
+}
