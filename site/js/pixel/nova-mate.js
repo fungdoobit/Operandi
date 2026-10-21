@@ -112,10 +112,12 @@ export class NovaMate {
     finally { this.playing = false; }
   }
 
-  // A burst of magic and flying shards at a point in his space.
-  burst(at, ms = 520) {
+  // A star-flash at a point in his space, with shards streaking out of it
+  // (implode = false) or being sucked into it (implode = true).
+  burst(at, ms = 560, implode = false) {
     this.nova.idle.burstAt = at;
-    return this.anim(ms, (e) => { this.nova.idle.burst = e >= 1 ? 0 : e; }, "out");
+    this.nova.idle.implode = implode ? 1 : 0;
+    return this.anim(ms, (e) => { this.nova.idle.burst = e >= 1 ? 0 : e; }, implode ? "lin" : "out");
   }
 
   // He crushes his dust ring into a burst, and planets, a black hole and asteroids
@@ -128,7 +130,7 @@ export class NovaMate {
     await this.anim(750, (e) => { I.ringR = 1 - 0.75 * e; I.ringK = 1 - 0.35 * e; I.spin = spin0 + 5 * e; }, "in");
     I.ringK = 0;
     sound.sfx("ringBurst");
-    this.burst([0, 0.15, 0]);
+    this.burst([0, 0.15, -0.6]);   // in front of him, so the flash is not hidden by his body
     sound.sfx("novaSummon");
     this.setMood("happy");
     await this.anim(950, (e) => { I.orb = e; I.orbR = 0.2 + 0.8 * e; }, "out");
@@ -186,9 +188,13 @@ export class NovaMate {
     await this.anim(800, (e) => { I.bucketAt = lerp3(HOLD, PORTAL, e); I.bucket = 1 - Math.max(0, e - 0.4) / 0.6; }, "io");
     I.bucket = 0;
     await this.anim(200, (e) => { I.tk = 1 - e; }, "in");
+    // the vortex spins shut back into the slash it came from, which pinches to a point and flashes out
     sound.sfx("portalClose");
-    await this.anim(380, (e) => { I.portal = 1 - e; }, "in");
+    await this.anim(420, (e) => { I.portal = 1 - e; I.tear = e; }, "in");
     I.portal = 0;
-    await this.burst(PORTAL, 450);
+    this.burst(PORTAL, 520, true);
+    await this.anim(160, (e) => { I.tear = 1 - e; }, "in");
+    I.tear = 0;
+    await this.wait(380);
   }
 }

@@ -29,7 +29,7 @@ uniform vec2 uRes; uniform float uTime, uYaw, uView, uBlink, uBob, uSway, uMood,
 // idles: orrery strength, portal open, bucket risen, head chomp; a flying kernel (xyz, size)
 uniform float uOrb, uPortal, uBucket, uChomp; uniform vec4 uKern;
 // orrery: orbit size, his dust ring (presence, radius, extra spin), a shake; a magic burst (size 0..1) at uBurstAt
-uniform float uOrbR, uRingK, uRingR, uRingSpin, uShake, uBurst; uniform vec3 uBurstAt;
+uniform float uOrbR, uRingK, uRingR, uRingSpin, uShake, uBurst, uImplode; uniform vec3 uBurstAt;
 // snack time: the tear before the portal opens, telekinesis beam strength, where the bucket is
 uniform float uTear, uTK; uniform vec3 uBucketAt;
 float gm; float gEye; float gMagic;
@@ -276,16 +276,28 @@ float map(vec3 p){
   }
   corona(d, p, c, .56);
   headEyes(d, p, c, .4, .92);
-  // a burst of purple magic and flying shards (the ring crushed, the portal collapsing)
+  // A star-flash (a sharp four-point glint, white-hot) with shards streaking out of it
+  // (the ring crushed) or sucked into it (the portal snapping shut). No sphere.
   if (uBurst > 0.) {
     vec3 q = p - uBurstAt;
-    float shell = abs(length(q) - (.12 + 1.05*uBurst)) - .03*(1. - uBurst);
-    U(d, shell, 4.); gMagic = min(gMagic, shell);
-    for (int k = 0; k < 8; k++) {
-      float fk = float(k), a = fk*.785 + hash1(fk)*.5;
-      vec3 sq = q - vec3(cos(a), sin(a), (hash1(fk + 2.) - .5)*.6)*(.15 + 1.2*uBurst);
-      sq.xy = R(uTime*6. + fk)*sq.xy;
-      U(d, sdOct(sq, .07*(1. - uBurst)), 5.);
+    float f = uBurst < .2 ? uBurst/.2 : pow((1. - uBurst)/.8, 2.);   // snaps out, then fades
+    float L = .62*f, w = .05*f;
+    float star = min(min(sdCapT(q, vec3(0.), vec3(L, 0., 0.), w, 0.), sdCapT(q, vec3(0.), vec3(-L, 0., 0.), w, 0.)),
+                     min(sdCapT(q, vec3(0.), vec3(0., L*1.25, 0.), w, 0.), sdCapT(q, vec3(0.), vec3(0., -L*1.25, 0.), w, 0.)));
+    star = min(star, min(sdCapT(q, vec3(0.), vec3(.7, .7, 0.)*L*.38, w*.7, 0.), sdCapT(q, vec3(0.), vec3(-.7, -.7, 0.)*L*.38, w*.7, 0.)));
+    star = min(star, min(sdCapT(q, vec3(0.), vec3(-.7, .7, 0.)*L*.38, w*.7, 0.), sdCapT(q, vec3(0.), vec3(.7, -.7, 0.)*L*.38, w*.7, 0.)));
+    U(d, star, 3.); gEye = min(gEye, star);
+    for (int k = 0; k < 9; k++) {
+      float fk = float(k), a = fk*.698 + hash1(fk)*.4;
+      vec3 dir = normalize(vec3(cos(a), sin(a), (hash1(fk + 2.) - .5)*.5));
+      float reach = .2 + (1.1 + .3*hash1(fk + 5.))*mix(uBurst, 1. - uBurst, uImplode);
+      vec3 at = dir*reach;
+      // a purple streak trailing behind each shard
+      vec3 tail = at + dir*(uImplode > .5 ? .35 : -.35)*(1. - uBurst*.6);
+      float streak = sdCapT(q, tail, at, .0, .028*(1. - uBurst*.7));
+      U(d, streak, 4.); gMagic = min(gMagic, streak);
+      vec3 sq = q - at; sq.xy = R(uTime*7. + fk)*sq.xy;
+      U(d, sdOct(sq, .065*(1. - uBurst*.6)), 8.);
     }
   }
   // ---- idle 1, the orrery: planets, a black hole and asteroids circle him ----
@@ -507,7 +519,7 @@ export class PixelNova {
     this.gl = new PixelGL(this.canvas, { model: model(NOVA_KINDS.indexOf(kind)), palettes: PALETTES, glow: GLOW, extra: EXTRA });
     this.view = view; this.yaw = 0.25; this.sway = 0; this.lift = 0;
     // idle state, tweened by NovaMate: orrery, portal, bucket, chomp, a kernel in flight
-    this.idle = { orb: 0, orbR: 1, ringK: 1, ringR: 1, spin: 0, shake: 0, burst: 0, burstAt: [0, 0, 0],
+    this.idle = { orb: 0, orbR: 1, ringK: 1, ringR: 1, spin: 0, shake: 0, burst: 0, burstAt: [0, 0, 0], implode: 0,
       tear: 0, portal: 0, tk: 0, bucket: 0, bucketAt: [1.04, 0.2, 0.05], chomp: 0, kern: [0, 0, 0, 0] };
     this.half = half; this.shadow = shadow;
     this.setMood("idle");
@@ -538,7 +550,7 @@ export class PixelNova {
       { uTime: s, uYaw: this.yaw, uView: this.view, uBlink: this.m.id === 4 ? 1 : blink, uBob: this.bob(s) + this.lift, uSway: this.sway, uMood: this.m.id, uEnergy: this.m.energy,
         uOrb: this.idle.orb, uPortal: this.idle.portal, uBucket: this.idle.bucket, uChomp: this.idle.chomp, uKern: this.idle.kern,
         uOrbR: this.idle.orbR, uRingK: this.idle.ringK, uRingR: this.idle.ringR, uRingSpin: this.idle.spin, uShake: this.idle.shake,
-        uBurst: this.idle.burst, uBurstAt: this.idle.burstAt, uTear: this.idle.tear, uTK: this.idle.tk, uBucketAt: this.idle.bucketAt },
+        uBurst: this.idle.burst, uBurstAt: this.idle.burstAt, uImplode: this.idle.implode, uTear: this.idle.tear, uTK: this.idle.tk, uBucketAt: this.idle.bucketAt },
       { uTime: s, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: this.shadow ? 0.7 - this.bob(s) * 4 : 0, uShadowX: 0.5, uPlume: [0, 0, 0, 0] },
     );
     requestAnimationFrame(this.loop);
