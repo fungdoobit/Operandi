@@ -274,7 +274,7 @@ async function eruption(s) {
       for (let y = floor; y > top; y -= 9) {
         const u = (floor - y) / (floor + 40);
         const x = cx + Math.sin(y * 0.045 + t * 0.02) * 9 + Math.sin(y * 0.11 - t * 0.03) * 5;
-        pen.puff("heat", x, y, (30 + u * 26) * (1 - die * 0.6), (1.02 - u * 0.4) * (1 - die));
+        pen.puff("heat", x, y, (30 + u * 26) * (1 - die * 0.6), (0.52 - u * 0.2) * (1 - die));   // overlapping puffs add up, so each is faint
         if (die > 0) pen.puff("smoke", x + rand(-6, 6), y - die * 40, 22 + u * 20, die * 0.9 * (1.3 - die), clamp01(die - 0.3));
       }
       for (const r of rings) { const a = clamp01((t - r.t) / 520); if (a < 1) pen.oval("heat", cx, r.y - a * 80, 44 + a * 100, (44 + a * 100) * 0.24, 1.15 * (1 - a), 0.7); }
