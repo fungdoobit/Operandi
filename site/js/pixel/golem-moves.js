@@ -170,6 +170,8 @@ async function typoSwarm(ctx, name) {
     for (let i = 0; i < 7; i++) fx.wait(i * 300).then(() => { fx.drops(fx.at(dot.figure, { fy: 0.45 }), theme, 4, { power: 0.7 }); fx.shake(4); });
   };
   const letters = ["p", "r", "i", "n", "t", "(", '"', ":", ")", "'", ";", "#", "=", "{", "}", "f"];
+  // the whole cloud of wings, from the first launch until they finish biting
+  sound.sfx("swarm", { ms: 3900 });
   for (let w = 0; w < 3; w++) {
     g.to({ tilt: 0.5, bob: 0.1 }, 50, "out").then(() => g.to({ tilt: 0.38, bob: 0.16 }, 220, "out"));
     fx.shake(12); fx.flash(0.14, PINK); fx.punch(0.025, core());

@@ -13,6 +13,17 @@ const DEFAULTS = { music: true, musicVol: 0.6, sfx: true, sfxVol: 0.8 };
 const load = () => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch { return { ...DEFAULTS }; } };
 const midi = (n) => 440 * 2 ** ((n - 69) / 12);
 
+// Half a second of silence as a WAV file (for the iPad media-playback trick).
+function silentWav() {
+  const rate = 8000, n = rate / 2, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const str = (o, x) => [...x].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVE"); str(12, "fmt "); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate, true);
+  v.setUint16(32, 1, true); v.setUint16(34, 8, true); str(36, "data"); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+}
+
 class Sound {
   constructor() {
     this.settings = load();
@@ -23,8 +34,8 @@ class Sound {
     this.listeners = new Set();
     // Browsers only allow sound after the person interacts with the page.
     const unlock = () => this.unlock();
-    addEventListener("pointerdown", unlock, { passive: true });
-    addEventListener("keydown", unlock);
+    // (iPad Safari only counts touchend and click as permission, not pointerdown.)
+    for (const ev of ["pointerdown", "touchend", "click", "keydown"]) addEventListener(ev, unlock, { passive: true });
   }
 
   get ready() { return !!this.ctx && this.ctx.state === "running"; }
@@ -54,7 +65,19 @@ class Sound {
       c.onstatechange = () => { if (c.state === "running") { this.listeners.forEach((f) => f()); if (this.song && !this.timer) this.startSong(this.song); } };
       if (this.song) this.startSong(this.song);
     }
-    if (this.ctx.state === "suspended") this.ctx.resume();
+    if (this.ctx.state !== "running") this.ctx.resume();
+    // iPad/iPhone: play one silent sample inside the tap to fully wake the audio,
+    // and play the page's sound as media so the silent switch doesn't mute it.
+    try {
+      const b = this.ctx.createBuffer(1, 1, 22050), src = this.ctx.createBufferSource();
+      src.buffer = b; src.connect(this.ctx.destination); src.start(0);
+      if (navigator.audioSession) navigator.audioSession.type = "playback";
+      if (!this.mediaKick) {
+        this.mediaKick = new Audio(silentWav());
+        this.mediaKick.loop = true; this.mediaKick.setAttribute("playsinline", "");
+      }
+      this.mediaKick.play().catch(() => {});
+    } catch {}
   }
 
   // ---- Settings ----
@@ -120,6 +143,46 @@ class Sound {
     s.start(t, Math.random() * 1.5); s.stop(t + dur + 0.1);
   }
 
+  // Water rocking about: noise through a filter that wobbles up and down.
+  slosh(t, dur, peak, { f = 700, rate = 9, depth = 450, q = 3 } = {}) {
+    const c = this.ctx, s = c.createBufferSource(), lp = c.createBiquadFilter(), bp = c.createBiquadFilter(), g = c.createGain();
+    const lfo = c.createOscillator(), lg = c.createGain();
+    s.buffer = this.noiseBuf; s.loop = true;
+    lp.type = "lowpass"; lp.frequency.value = 2200;
+    bp.type = "bandpass"; bp.Q.value = q; bp.frequency.setValueAtTime(f, t);
+    lfo.frequency.value = rate; lg.gain.value = depth; lfo.connect(lg); lg.connect(bp.frequency);
+    this.env(g, t, peak, dur, 0.02);
+    s.connect(lp); lp.connect(bp); bp.connect(g); g.connect(this.sfxBus);
+    s.start(t, Math.random()); s.stop(t + dur + 0.1); lfo.start(t); lfo.stop(t + dur + 0.1);
+  }
+  // A cloud of wings: detuned buzzing voices, each fluttering at its own wingbeat,
+  // plus a papery flutter on top. It swells in, holds, and fades.
+  swarm(t, dur, peak) {
+    const c = this.ctx, bus = c.createGain(), bp = c.createBiquadFilter();
+    bp.type = "bandpass"; bp.frequency.value = 900; bp.Q.value = 0.8;
+    bus.gain.setValueAtTime(0.0001, t);
+    bus.gain.exponentialRampToValueAtTime(peak * 0.6, t + Math.min(0.5, dur * 0.2));
+    bus.gain.exponentialRampToValueAtTime(peak, t + dur * 0.7);
+    bus.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    bus.connect(bp); bp.connect(this.sfxBus);
+    const end = t + dur + 0.1;
+    for (let i = 0; i < 9; i++) {
+      const o = c.createOscillator(), amp = c.createGain(), wing = c.createOscillator(), wg = c.createGain(), drift = c.createOscillator(), dg = c.createGain();
+      o.type = i % 2 ? "sawtooth" : "square"; o.frequency.value = 130 + Math.random() * 190;
+      drift.frequency.value = 0.5 + Math.random() * 2; dg.gain.value = 12 + Math.random() * 20; drift.connect(dg); dg.connect(o.frequency);
+      wing.frequency.value = 35 + Math.random() * 55; wg.gain.value = 0.5; amp.gain.value = 0.5; wing.connect(wg); wg.connect(amp.gain);
+      const v = c.createGain(); v.gain.value = 0.12;
+      o.connect(amp); amp.connect(v); v.connect(bus);
+      for (const n of [o, wing, drift]) { n.start(t); n.stop(end); }
+    }
+    const s = c.createBufferSource(), f = c.createBiquadFilter(), am = c.createGain(), flap = c.createOscillator(), fg = c.createGain();
+    s.buffer = this.noiseBuf; s.loop = true; f.type = "bandpass"; f.frequency.value = 2600; f.Q.value = 1.5;
+    flap.frequency.value = 22; fg.gain.value = 0.5; am.gain.value = 0.5; flap.connect(fg); fg.connect(am.gain);
+    const nv = c.createGain(); nv.gain.value = 0.5;
+    s.connect(f); f.connect(am); am.connect(nv); nv.connect(bus);
+    s.start(t); s.stop(end); flap.start(t); flap.stop(end);
+  }
+
   // ---- Effects ----
   // name: which sound. o: { size: 0.5..2, theme: "water"|"fire", ms: length }
   sfx(name, o = {}) {
@@ -159,7 +222,7 @@ class Sound {
     if (this.nextAt < c.currentTime - 0.2) this.nextAt = c.currentTime + 0.05;   // after a pause, don't play a backlog
     while (this.nextAt < c.currentTime + 0.12) {
       // it speeds up as things get desperate: 148 to 166 BPM
-      const bpm = 148 + 18 * this.intensity, sixteenth = 60 / bpm / 4;
+      const bpm = 160 + 18 * this.intensity, sixteenth = 60 / bpm / 4;
       this.playStep(this.step, this.nextAt, sixteenth);
       this.step = (this.step + 1) % (SONG.length * 16);
       this.nextAt += sixteenth;
@@ -167,17 +230,26 @@ class Sound {
   }
 
   // One 16th-note step of the battle theme. Layers come in with the danger:
-  //   always: syncopated drums, a 16th-note bass ostinato that never lets up, the lead
-  //   > 0.4: an arpeggio over the chord and 16th hats
+  //   always: syncopated drums, a 16th-note bass ostinato and a root-fifth tremolo that
+  //           never let up, the lead, and a rising sweep into each 8-bar section
+  //   > 0.4: an arpeggio, distorted chord stabs, 16th hats, tom fills
   //   > 0.7: the lead up an octave, double kicks, snare rolls into each 4-bar phrase
   //   your teammate below 1/3 HP: a warning alarm pulsing over the top
   playStep(step, t, len) {
     const bar = Math.floor(step / 16), s = step % 16, B = SONG[bar], out = this.musicBus;
     const lvl = this.intensity, mid = lvl > 0.4, hot = lvl > 0.7, low = this.danger.me > 0.66;
-    // drums
-    const kick = [0, 3, 8, 11].includes(s) || (hot && [6, 14].includes(s));
-    if (kick) { this.tone("sine", 160, 38, t, 0.17, 0.95, { to: out }); this.noise(t, 0.02, 0.25, { type: "lowpass", f0: 3000, to: out }); }
-    if (s === 4 || s === 12) { this.noise(t, 0.14, 0.5, { type: "bandpass", f0: 1800, q: 0.7, to: out }); this.tone("triangle", 220, 140, t, 0.08, 0.25, { to: out }); }
+    // drums: syncopated kicks that get busier with the danger, a cracking snare
+    const kick = [0, 3, 8, 11].includes(s) || (mid && s === 14) || (hot && [2, 6, 10].includes(s));
+    if (kick) { this.tone("sine", 170, 36, t, 0.18, 1, { to: out }); this.noise(t, 0.02, 0.3, { type: "lowpass", f0: 3000, to: out }); }
+    if (s === 4 || s === 12) {
+      this.noise(t, 0.16, 0.55, { type: "bandpass", f0: 1800, q: 0.7, to: out });
+      this.noise(t, 0.1, 0.25, { type: "highpass", f0: 5000, to: out });
+      this.tone("triangle", 240, 140, t, 0.09, 0.3, { to: out });
+    }
+    // tom fill into each 4-bar phrase
+    if (mid && bar % 4 === 3 && s >= 12) this.tone("triangle", [210, 175, 145, 115][s - 12], 70, t, 0.14, 0.5, { to: out });
+    // a rising sweep into each 8-bar section
+    if (bar % 8 === 7 && s === 0) this.noise(t, len * 16, 0.14, { type: "highpass", f0: 400, f1: 9000, attack: len * 14, to: out });
     const roll = hot && bar % 4 === 3 && s >= 12;
     if (roll) this.noise(t, 0.06, 0.32, { type: "bandpass", f0: 2000, q: 0.8, to: out });
     if (mid || s % 2 === 0) this.noise(t, 0.025, s % 4 === 2 ? 0.16 : 0.08, { type: "highpass", f0: 7500, to: out });
@@ -193,7 +265,13 @@ class Sound {
         this.pulse("square", n + (hot ? 12 : 0), t, len * 2 * hold * 0.92, hot ? 0.12 : 0.15, out, 0.125);
       }
     }
-    if (mid) { const ch = CHORDS[B.chord]; this.pulse("square", ch[s % ch.length] + 12, t, len * 0.7, hot ? 0.07 : 0.05, out, 0.25); }
+    // the second voice: a relentless 16th-note tremolo between root and fifth
+    // (the classic boss-battle drive), opening into a full arpeggio as it heats up
+    const ch = CHORDS[B.chord];
+    if (mid) this.pulse("square", ch[s % ch.length] + 12, t, len * 0.7, hot ? 0.07 : 0.055, out, 0.25);
+    else this.pulse("square", ch[s % 2 ? 2 : 0] + 12, t, len * 0.6, 0.045, out, 0.25);
+    // distorted chord stabs on the off-beats
+    if (mid && [0, 3, 6, 10].includes(s)) for (const n of ch.slice(0, 3)) this.tone("sawtooth", midi(n - 12), midi(n - 12), t, len * 1.4, hot ? 0.05 : 0.035, { to: out, dist: true });
     // the alarm when your teammate is in trouble
     if (low && (s === 0 || s === 8)) { this.pulse("square", 91, t, len * 3, 0.06, out, 0.5); this.pulse("square", 90, t + len * 3, len * 3, 0.06, out, 0.5); }
   }
@@ -354,11 +432,14 @@ const SFX = {
     for (let i = 0; i < 6; i++) this.noise(t + d + i * 0.05, 0.04, 0.2, { type: "highpass", f0: 2500 });
   },
   cannon(t, k) {
-    // a cannon round: a deep boom, a mechanical clack, the shell's whistle
-    this.tone("sine", 140, 35, t, 0.4, 0.95 * k, { room: 0.35 });
-    this.noise(t, 0.25, 0.6 * k, { type: "lowpass", f0: 3500, f1: 300, dist: true });
-    this.tone("square", 900, 400, t, 0.03, 0.12);
-    this.tone("sine", 2200, 900, t + 0.04, 0.25, 0.05);
+    // a cannon blast: a sub-bass boom that drops through the floor, a distorted
+    // blast of air, a hard crack, and a long rumbling tail
+    this.tone("sine", 110, 22, t, 1.1, 1, { room: 0.5, glide: 0.5 });
+    this.tone("sine", 55, 30, t, 0.9, 0.7);
+    this.noise(t, 0.6, 0.85 * k, { type: "lowpass", f0: 5000, f1: 150, dist: true, room: 0.6 });
+    this.noise(t, 0.04, 0.6, { type: "highpass", f0: 2500 });
+    this.tone("square", 180, 45, t, 0.18, 0.25, { dist: true });
+    this.noise(t + 0.1, 1.2, 0.3, { type: "lowpass", f0: 400, f1: 80, room: 0.5 });   // the rumble rolling away
   },
   zap(t) { for (let i = 0; i < 3; i++) this.tone("square", 900 + Math.random() * 1600, 300, t + i * 0.025, 0.04, 0.07); },
   debris(t) { this.tone("square", 500 + Math.random() * 700, 180, t, 0.06, 0.06); this.noise(t, 0.05, 0.15, { type: "highpass", f0: 4000 }); },
@@ -386,7 +467,7 @@ const SFX = {
     this.tone("square", 160, 1000, t, 0.2, 0.12); this.noise(t, 0.25, 0.4, { type: "bandpass", f0: 500, f1: 3500, q: 1 });
     this.tone("sine", 110, 40, t, 0.25, 0.6, { room: 0.3 });
   },
-  buzz(t) { for (let i = 0; i < 3; i++) { const f = 190 + Math.random() * 90; this.tone("sawtooth", f, f * 1.05, t + i * 0.02, 0.2, 0.04, { vibrato: [60, 20] }); } },
+  swarm(t, k, o) { this.swarm(t, (o.ms || 3000) / 1000, 0.35 * k); },
   bite(t) { this.noise(t, 0.08, 0.4, { type: "bandpass", f0: 1200, q: 3, dist: true }); this.tone("square", 300, 120, t, 0.06, 0.1); },
   glitch(t) {
     for (let i = 0; i < 4; i++) this.tone("square", 80 + Math.random() * 1600, 80 + Math.random() * 1600, t + i * 0.03, 0.03, 0.09);
@@ -401,12 +482,26 @@ const SFX = {
   },
 
   // ---- Your roaming teammate (quiet: they play outside battles too) ----
-  hop(t, k, o) { if (o.fire) this.noise(t, 0.04, 0.05, { type: "highpass", f0: 3500 }); else this.tone("sine", 260, 420, t, 0.07, 0.06); },
-  pickup(t, k, o) { this.tone("sine", 240, 760, t, 0.18, 0.14); if (o.fire) this.noise(t, 0.15, 0.08, { type: "highpass", f0: 3000 }); },
+  // DOT is liquid: he sloshes when he hops, glugs when picked up, splats when dropped.
+  // (PYRO crackles instead.)
+  hop(t, k, o) {
+    if (o.fire) { this.noise(t, 0.06, 0.06, { type: "highpass", f0: 3500 }); return; }
+    this.slosh(t, 0.22, 0.12, { f: 500 + Math.random() * 200, rate: 10 + Math.random() * 4, depth: 300 });
+    this.tone("sine", 140, 95, t, 0.1, 0.07, { vibrato: [18, 12] });
+  },
+  pickup(t, k, o) {
+    if (o.fire) { this.noise(t, 0.2, 0.12, { type: "highpass", f0: 3000 }); this.tone("sine", 200, 500, t, 0.2, 0.1); return; }
+    // the goo stretching up: a rising glug and water swilling around
+    this.tone("sine", 160, 420, t, 0.28, 0.18, { vibrato: [14, 25] });
+    this.slosh(t + 0.05, 0.45, 0.2, { f: 650, rate: 7, depth: 500 });
+  },
   plop(t, k, o) {
-    if (o.fire) { this.noise(t, 0.2, 0.2, { type: "lowpass", f0: 2000, f1: 300 }); this.tone("sine", 160, 60, t, 0.15, 0.3); return; }
-    this.tone("sine", 180, 70, t, 0.16, 0.35); this.noise(t, 0.18, 0.2, { type: "bandpass", f0: 1400, f1: 500, q: 1 });
-    for (let i = 0; i < 3; i++) { const f = 600 + Math.random() * 600; this.tone("sine", f, f * 1.8, t + 0.06 + i * 0.04, 0.05, 0.05); }
+    if (o.fire) { this.noise(t, 0.25, 0.25, { type: "lowpass", f0: 2200, f1: 300 }); this.tone("sine", 160, 60, t, 0.18, 0.3); return; }
+    // a wet splat, then the water settling with a slosh and a few bubbles
+    this.tone("sine", 150, 55, t, 0.2, 0.45);
+    this.noise(t, 0.16, 0.3, { type: "bandpass", f0: 1300, f1: 450, q: 1.2 });
+    this.slosh(t + 0.08, 0.6, 0.22, { f: 550, rate: 6, depth: 380 });
+    for (let i = 0; i < 4; i++) { const f = 500 + Math.random() * 700; this.tone("sine", f, f * 1.8, t + 0.15 + i * 0.07, 0.05, 0.05); }
   },
 };
 
@@ -435,5 +530,4 @@ export function wireBattleSounds(fx, theme) {
   on("crack", () => sound.sfx("rumble", { size: 1 }));
   on("groundWave", () => sound.sfx("rumble", { size: 0.7 }));
   on("title", () => sound.sfx("stinger"));
-  on("bug", () => sound.sfx("buzz"));
 }
