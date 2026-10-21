@@ -10,192 +10,173 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
 h1 { font-size: 22px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 18px; font-size: 14px; }
 h2 { font-size: 16px; margin: 18px 0 8px; }
 .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.panel { border-radius: 14px; border: 1px solid #262c38; display: flex; align-items: flex-end; justify-content: center; gap: 30px; padding: 22px 10px 16px; }
+.panel { border-radius: 14px; border: 1px solid #262c38; display: flex; align-items: flex-end; justify-content: center; gap: 40px; padding: 30px 10px 20px; }
 .panel.light { background: #f4f2ee; }
 .panel.dark { background: radial-gradient(ellipse at 50% 30%, #1d2330, #12151c 70%); }
 .panel svg { overflow: visible; }
-.big { width: 230px; } .small { width: 90px; }
-.moods { flex-wrap: wrap; gap: 18px; }
-.moods figure { margin: 0; text-align: center; } .moods svg { width: 120px; }
-.moods figcaption { font-size: 13px; color: #9aa3b5; margin-top: 4px; }
+.big { width: 200px; } .small { width: 76px; }
+.moods { flex-wrap: wrap; gap: 30px; }
+.moods figure { margin: 0; text-align: center; } .moods svg { width: 100px; }
+.moods figcaption { font-size: 13px; color: #9aa3b5; margin-top: 10px; }
 @media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <main>
-  <h1>NOVA: void ghost</h1>
-  <p>A ball of deep space wrapped in cosmic gas, with star pupils, a fang grin, wispy hands (for summoning and popcorn), a pet moon and two obsidian shards orbiting him. Shown big and at roaming size, on the lesson and battle backgrounds, then his moods.</p>
+  <h1>NOVA: shadow form</h1>
+  <p>A living shadow: a flame-spiked head, two glowing eyes and smoky tendrils instead of a body, wrapped in drifting purple magic gas with star specks. Shown big and at roaming size, on the lesson and battle backgrounds, then his moods.</p>
   <div class="row">
-    <div class="panel light"><svg class="big" data-m="idle" viewBox="0 0 240 240"></svg><svg class="small" data-m="idle" viewBox="0 0 240 240"></svg></div>
-    <div class="panel dark"><svg class="big" data-m="idle" viewBox="0 0 240 240"></svg><svg class="small" data-m="idle" viewBox="0 0 240 240"></svg></div>
+    <div class="panel light"><svg class="big" data-m="idle" viewBox="0 0 360 480"></svg><svg class="small" data-m="idle" viewBox="0 0 360 480"></svg></div>
+    <div class="panel dark"><svg class="big" data-m="idle" viewBox="0 0 360 480"></svg><svg class="small" data-m="idle" viewBox="0 0 360 480"></svg></div>
   </div>
   <h2>Moods</h2>
   <div class="panel dark moods">
-    <figure><svg data-m="idle" viewBox="0 0 240 240"></svg><figcaption>idle (mischief)</figcaption></figure>
-    <figure><svg data-m="happy" viewBox="0 0 240 240"></svg><figcaption>happy</figcaption></figure>
-    <figure><svg data-m="angry" viewBox="0 0 240 240"></svg><figcaption>angry (battle)</figcaption></figure>
-    <figure><svg data-m="sad" viewBox="0 0 240 240"></svg><figcaption>sad</figcaption></figure>
-    <figure><svg data-m="sleepy" viewBox="0 0 240 240"></svg><figcaption>sleepy</figcaption></figure>
+    <figure><svg data-m="idle" viewBox="0 0 360 480"></svg><figcaption>idle</figcaption></figure>
+    <figure><svg data-m="happy" viewBox="0 0 360 480"></svg><figcaption>happy</figcaption></figure>
+    <figure><svg data-m="angry" viewBox="0 0 360 480"></svg><figcaption>angry (battle)</figcaption></figure>
+    <figure><svg data-m="sad" viewBox="0 0 360 480"></svg><figcaption>sad</figcaption></figure>
+    <figure><svg data-m="sleepy" viewBox="0 0 360 480"></svg><figcaption>sleepy</figcaption></figure>
   </div>
 </main>
 <script>
-const INK = "#0b0618", CX = 120, CY = 118, R = 50;
+const SHADOW = "#0a0612";
 let uid = 0;
 const rnd = (a, b) => a + Math.random() * (b - a);
-const star4 = (x, y, r) => `M${x} ${y - r} Q${x} ${y} ${x + r} ${y} Q${x} ${y} ${x} ${y + r} Q${x} ${y} ${x - r} ${y} Q${x} ${y} ${x} ${y - r}Z`;
+const f1 = (n) => n.toFixed(1);
 
 // Smooth closed curve through points (Catmull-Rom turned into cubic Béziers).
 function closedCurve(pts) {
-  const n = pts.length; let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  const n = pts.length; let d = `M${f1(pts[0][0])} ${f1(pts[0][1])}`;
   for (let i = 0; i < n; i++) {
     const [p0, p1, p2, p3] = [pts[(i - 1 + n) % n], pts[i], pts[(i + 1) % n], pts[(i + 2) % n]];
-    d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)},${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)},${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+    d += `C${f1(p1[0] + (p2[0] - p0[0]) / 6)} ${f1(p1[1] + (p2[1] - p0[1]) / 6)},${f1(p2[0] - (p3[0] - p1[0]) / 6)} ${f1(p2[1] - (p3[1] - p1[1]) / 6)},${f1(p2[0])} ${f1(p2[1])}`;
   }
   return d + "Z";
 }
-// The gas cloud: a wobbly ring of radius r around him, lumps drifting over time.
-function gas(r, t, seed) {
+// Purple magic gas: a lumpy cloud around (cx, cy) whose lumps drift over time.
+function gas(cx, cy, rx, ry, t, seed) {
   const pts = [];
-  for (let i = 0; i < 40; i++) {
-    const a = (i / 40) * Math.PI * 2;
-    const k = r + 9 * Math.sin(3 * a + t * 1.1 + seed) + 6 * Math.sin(5 * a - t * 1.7 + seed * 2) + 3.5 * Math.sin(9 * a + t * 2.6);
-    pts.push([CX + Math.cos(a) * k, CY + Math.sin(a) * k * 0.92]);
+  for (let i = 0; i < 90; i++) {
+    const a = (i / 90) * Math.PI * 2;
+    const k = 1 + 0.1 * Math.sin(3 * a + t * 0.9 + seed) + 0.09 * Math.sin(7 * a - t * 1.4 + seed * 2) + 0.07 * Math.sin(13 * a + t * 2.2 + seed) + 0.04 * Math.sin(19 * a - t * 3 + seed);
+    pts.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]);
   }
   return closedCurve(pts);
 }
 
-// Face per mood. Eyes are filled white shapes, except closed/happy ones drawn as lines.
-const FACES = {
-  idle: {
-    eyes: `<path d="M77 100 L113 117 Q115 140 97 141 Q78 141 77 122Z"/><path d="M163 100 L127 117 Q125 140 143 141 Q162 141 163 122Z"/>`,
-    pupils: [[101, 127], [139, 127]],
-    mouth: `<path class="mouth" d="M96 151 Q120 160 146 148 Q138 172 119 172 Q102 172 96 151Z"/><path class="fang" d="M104 154 L112 156 L107 164Z"/><path class="fang" d="M135 154 L141 152 L139 160Z"/>`,
-  },
-  happy: {
-    lines: `<path d="M80 130 Q95 104 112 128"/><path d="M128 128 Q145 104 160 130"/>`,
-    mouth: `<path class="mouth" d="M92 146 Q120 156 148 146 Q142 178 120 178 Q98 178 92 146Z"/><path class="tongue" d="M108 170 Q120 162 132 170 Q126 177 120 177 Q113 177 108 170Z"/><path class="fang" d="M101 149 L109 151 L104 159Z"/>`,
-  },
-  angry: {
-    eyes: `<path d="M75 94 L115 120 Q115 140 98 141 Q78 141 76 120Z"/><path d="M165 94 L125 120 Q125 140 142 141 Q162 141 164 120Z"/>`,
-    pupils: [[103, 131], [137, 131]],
-    mouth: `<path class="mouth" d="M98 154 L142 150 Q136 168 120 168 Q104 168 98 154Z"/><path class="fang" d="M104 155 L112 155 L108 164Z"/><path class="fang" d="M128 153 L136 152 L132 161Z"/>`,
-  },
-  sad: {
-    eyes: `<path d="M79 118 L111 104 Q115 138 97 140 Q79 140 79 124Z"/><path d="M161 118 L129 104 Q125 138 143 140 Q161 140 161 124Z"/>`,
-    pupils: [[96, 128], [144, 128]],
-    mouth: `<path class="mouth" d="M104 164 Q120 150 136 164 Q120 160 104 164Z"/>`,
-  },
-  sleepy: {
-    lines: `<path d="M82 126 Q96 136 110 126"/><path d="M130 126 Q144 136 158 126"/>`,
-    mouth: `<path class="mouth" d="M112 156 Q120 152 128 156 Q126 164 120 164 Q114 164 112 156Z"/>`,
-    zzz: true,
-  },
+// Head outline, traced from the reference: [x, y, flicker] — spike tips flicker like flames.
+const HEAD = [
+  [62, 238, 0], [28, 204, 0], [16, 146, 0], [20, 96, 0], [30, 52, 1], [50, 82, 0], [72, 62, 0], [100, 14, 1],
+  [110, 52, 0], [132, 64, 0], [166, 58, 0], [192, 8, 1], [202, 50, 0], [222, 74, 0], [252, 60, 1], [240, 104, 0],
+  [234, 152, 0], [220, 194, 0], [182, 224, 0], [134, 240, 0],
+];
+// Tendrils: base, bend, tip, width at the base.
+const TENDRILS = [
+  { b: [96, 226], c: [76, 340], e: [128, 450], w: 40, ph: 0 },
+  { b: [128, 230], c: [150, 360], e: [216, 470], w: 36, ph: 1.4 },
+  { b: [156, 218], c: [236, 262], e: [326, 300], w: 30, ph: 2.6 },
+  { b: [150, 234], c: [232, 300], e: [290, 338], w: 22, ph: 3.7 },
+];
+// A tapered, waving tendril as a closed outline.
+function tendril(T, t, amp) {
+  const L = [], Rt = [];
+  for (let i = 0; i <= 18; i++) {
+    const s = i / 18, u = 1 - s;
+    const x = u * u * T.b[0] + 2 * u * s * T.c[0] + s * s * T.e[0];
+    const y = u * u * T.b[1] + 2 * u * s * T.c[1] + s * s * T.e[1];
+    const dx = 2 * u * (T.c[0] - T.b[0]) + 2 * s * (T.e[0] - T.c[0]), dy = 2 * u * (T.c[1] - T.b[1]) + 2 * s * (T.e[1] - T.c[1]);
+    const len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+    const sway = amp * s * Math.sin(Math.PI * 2 * (s * 1.1 - t * 0.55) + T.ph);
+    const w = (T.w * Math.pow(1 - s, 0.75) + 6) / 2;
+    L.push([x + nx * (sway + w), y + ny * (sway + w)]); Rt.push([x + nx * (sway - w), y + ny * (sway - w)]);
+  }
+  return "M" + L.map((p) => p.map(f1).join(" ")).join("L") + "L" + Rt.reverse().map((p) => p.map(f1).join(" ")).join("L") + "Z";
+}
+
+const EYES = [{ cx: 46, cy: 150, rx: 20, ry: 35, rot: -6 }, { cx: 118, cy: 152, rx: 22, ry: 36, rot: -4 }];
+// Lids are shadow-coloured shapes laid over the eyes to change their shape per mood.
+const LIDS = {
+  idle: "",
+  angry: `<path d="M18 100 L76 100 L76 150 L18 122Z"/><path d="M90 100 L150 100 L150 124 L90 152Z"/>`,
+  sad: `<path d="M18 100 L76 100 L76 122 L18 150Z"/><path d="M90 100 L150 100 L150 152 L90 124Z"/>`,
+  happy: `<ellipse cx="46" cy="182" rx="26" ry="30"/><ellipse cx="118" cy="184" rx="28" ry="31"/>`,
 };
 
 function nova(svg, mood) {
-  const id = "n" + uid++, F = FACES[mood];
+  const id = "n" + uid++;
   const angry = mood === "angry", sleepy = mood === "sleepy";
-  const gasA = angry ? "#ff5fb4" : "#c07bff", gasB = angry ? "#8a1f6e" : "#5b2fae";
-  const stars = Array.from({ length: 12 }, () => { const a = rnd(0, 6.28), r = Math.sqrt(Math.random()) * (R - 6); return { x: CX + Math.cos(a) * r, y: CY + Math.sin(a) * r, r: rnd(0.5, 1.5), p: rnd(0, 6) }; });
-  const specks = Array.from({ length: 10 }, () => ({ a: rnd(0, 6.28), r: rnd(58, 78), p: rnd(0, 6) }));
-  const puffs = Array.from({ length: 6 }, (_, i) => ({ a: (i / 6) * 6.28 + rnd(-0.4, 0.4), off: i / 6, s: rnd(5, 9) }));
-  const eyes = F.eyes ? `<g class="eyes">
-      <g fill="none" stroke="#b98cff" stroke-width="7" opacity=".45" stroke-linejoin="round">${F.eyes}</g>
-      <g fill="#f6f1ff" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round">${F.eyes}</g>
-      ${F.pupils.map(([x, y]) => `<path class="pupil" data-x="${x}" data-y="${y}" fill="${INK}"/>`).join("")}
-    </g>` : `<g fill="none" stroke="#f1e8ff" stroke-width="6" stroke-linecap="round">${F.lines}</g>`;
-  const hand = (side) => `<g class="hand ${side}"><path class="wisp" fill="url(#${id}w${side})"/>
-      <g class="palm"><ellipse rx="9" ry="8" fill="#d8b8ff" stroke="${INK}" stroke-width="2.5"/>
-      <g fill="#d8b8ff" stroke="${INK}" stroke-width="2.2"><ellipse cx="-6" cy="-8" rx="3" ry="4.5" transform="rotate(-25 -6 -8)"/><ellipse cx="0" cy="-10" rx="3" ry="5"/><ellipse cx="6" cy="-8" rx="3" ry="4.5" transform="rotate(25 6 -8)"/></g>
-      <ellipse rx="7.2" ry="6.2" fill="#d8b8ff"/><ellipse cx="-2" cy="-2" rx="3" ry="2" fill="#fff" opacity=".7"/></g></g>`;
+  const gasLight = angry ? "#ff78c8" : "#b48ae8", gasDeep = angry ? "#b0247e" : "#6b3fc0";
+  const specks = Array.from({ length: 16 }, () => ({ x: rnd(-20, 360), y: rnd(-10, 470), r: rnd(1, 2.4), p: rnd(0, 6) }));
+  // Outer lobes ring the head and trail down round the tendrils; the core lobes sit behind him.
+  const lobes = Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2 + rnd(-0.15, 0.15);
+    return { x: 160 + Math.cos(a) * 140, y: 225 + Math.sin(a) * 200, r: rnd(42, 66), sp: rnd(0.6, 1.1), p: rnd(0, 6) };
+  }).concat([[150, 200, 120], [190, 330, 95], [110, 120, 90]].map(([x, y, r]) => ({ x, y, r, sp: rnd(0.5, 0.8), p: rnd(0, 6) })));
+  const core = [[130, 140, 70], [180, 230, 60], [200, 330, 55], [90, 260, 45]].map(([x, y, r]) => ({ x, y, r, sp: rnd(0.5, 0.9), p: rnd(0, 6) }));
+  const puffs = Array.from({ length: 7 }, (_, i) => ({ a: (i / 7) * 6.28 + rnd(-0.3, 0.3), off: i / 7, s: rnd(10, 18) }));
+  const eyeShapes = (extra = "") => EYES.map((e) => `<ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx + extra}" ry="${e.ry + extra}" transform="rotate(${e.rot} ${e.cx} ${e.cy})"/>`).join("");
+  const eyes = sleepy
+    ? `<g stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none" filter="url(#${id}soft)"><path d="M28 154 Q46 164 64 154"/><path d="M99 156 Q118 166 137 156"/></g>`
+    : `<g class="eyes"><g fill="#fff" opacity=".55" filter="url(#${id}glow)">${eyeShapes(5)}</g>
+        <g fill="#f1eef6" filter="url(#${id}soft)">${eyeShapes()}</g></g>
+       <g fill="${SHADOW}" filter="url(#${id}soft)">${LIDS[mood]}</g>`;
   svg.innerHTML = `<defs>
-      <radialGradient id="${id}g" cx=".5" cy=".5" r=".5"><stop offset=".45" stop-color="${gasA}" stop-opacity=".95"/><stop offset=".8" stop-color="${gasB}" stop-opacity=".75"/><stop offset="1" stop-color="${gasB}" stop-opacity=".35"/></radialGradient>
-      <radialGradient id="${id}o" cx=".5" cy=".5" r=".5"><stop offset=".55" stop-color="${gasA}" stop-opacity=".45"/><stop offset="1" stop-color="${gasA}" stop-opacity="0"/></radialGradient>
-      <radialGradient id="${id}s" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#3a2766"/><stop offset=".55" stop-color="#160c2e"/><stop offset="1" stop-color="#05020d"/></radialGradient>
-      <radialGradient id="${id}n" cx=".72" cy=".75" r=".5"><stop offset="0" stop-color="#d24bff" stop-opacity=".45"/><stop offset="1" stop-color="#d24bff" stop-opacity="0"/></radialGradient>
-      <radialGradient id="${id}m" cx=".35" cy=".35" r=".7"><stop offset="0" stop-color="#fffbe8"/><stop offset=".7" stop-color="#e3dcff"/><stop offset="1" stop-color="#a99be0"/></radialGradient>
-      <linearGradient id="${id}wr" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b98cff" stop-opacity="0"/><stop offset="1" stop-color="#b98cff" stop-opacity=".9"/></linearGradient>
-      <linearGradient id="${id}wl" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#b98cff" stop-opacity="0"/><stop offset="1" stop-color="#b98cff" stop-opacity=".9"/></linearGradient>
-      <clipPath id="${id}c"><circle cx="${CX}" cy="${CY}" r="${R}"/></clipPath>
+      <filter id="${id}blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4.2"/></filter>
+      <filter id="${id}soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.6"/></filter>
+      <filter id="${id}glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="7"/></filter>
+      <filter id="${id}gas" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
+      <radialGradient id="${id}g" cx=".45" cy=".4" r=".6"><stop offset="0" stop-color="${gasDeep}" stop-opacity=".9"/><stop offset=".7" stop-color="${gasLight}" stop-opacity=".75"/><stop offset="1" stop-color="${gasLight}" stop-opacity=".45"/></radialGradient>
     </defs>
-    <ellipse class="shadow" cx="${CX}" cy="226" rx="44" ry="6" fill="#000" opacity=".16"/>
+    <ellipse class="shadow" cx="160" cy="490" rx="70" ry="9" fill="#000" opacity=".14"/>
     <g class="body">
-      <g class="behind"></g>
-      <path class="gasO" fill="url(#${id}o)"/>
-      <path class="gasI" fill="url(#${id}g)"/>
-      ${puffs.map((_, i) => `<circle class="puff" data-i="${i}" fill="${gasA}"/>`).join("")}
-      ${specks.map((_, i) => `<circle class="speck" data-i="${i}" r="1.1" fill="#fff"/>`).join("")}
-      <circle cx="${CX}" cy="${CY}" r="${R}" fill="url(#${id}s)" stroke="${INK}" stroke-width="3"/>
-      <g clip-path="url(#${id}c)">
-        <circle cx="${CX}" cy="${CY}" r="${R}" fill="url(#${id}n)"/>
-        ${stars.map((s, i) => `<circle class="star" data-i="${i}" cx="${s.x.toFixed(1)}" cy="${s.y.toFixed(1)}" r="${s.r.toFixed(2)}" fill="#fff"/>`).join("")}
+      <g filter="url(#${id}gas)">
+        <g class="lobesO" fill="${gasLight}" opacity=".5">${lobes.map(() => "<circle/>").join("")}</g>
+        <g class="lobesI" fill="${gasDeep}" opacity=".55">${core.map(() => "<circle/>").join("")}</g>
       </g>
-      <path d="M${CX - 34} ${CY - 30} A${R - 7} ${R - 7} 0 0 1 ${CX + 6} ${CY - R + 7}" fill="none" stroke="#8d74d6" stroke-width="3" stroke-linecap="round" opacity=".55"/>
-      <path d="M${CX + 30} ${CY + 38} A${R - 3} ${R - 3} 0 0 0 ${CX + 46} ${CY + 14}" fill="none" stroke="#e08bff" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
-      <g class="face">${eyes}<g fill="#5a1747" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round">${F.mouth}</g></g>
-      ${hand("l")}${hand("r")}
-      <g class="front"></g>
-      ${F.zzz ? `<text class="zzz" font-family="system-ui" font-weight="800" font-size="20" fill="#d8b8ff" stroke="${INK}" stroke-width="1" x="176" y="68">z</text>` : ""}
+      ${puffs.map(() => `<circle class="puff" fill="${gasLight}" filter="url(#${id}soft)"/>`).join("")}
+      ${specks.map(() => `<circle class="speck" fill="#fff"/>`).join("")}
+      <g class="shade" fill="${SHADOW}" filter="url(#${id}blur)">
+        ${TENDRILS.map(() => `<path class="tendril"/>`).join("")}
+        <path class="head"/>
+      </g>
+      <g class="rim" fill="none" stroke="${gasLight}" stroke-width="3" opacity=".35" filter="url(#${id}soft)"><path class="headRim"/></g>
+      <g class="face">${eyes}</g>
+      ${sleepy ? `<text class="zzz" font-family="system-ui" font-weight="800" font-size="34" fill="${gasLight}" x="236" y="40">z</text>` : ""}
     </g>`;
-  svg.querySelectorAll(".tongue").forEach((e) => e.setAttribute("fill", "#e66aa8"));
-  svg.querySelectorAll(".fang").forEach((e) => e.setAttribute("fill", "#fff"));
   const q = (s) => svg.querySelector(s), qa = (s) => svg.querySelectorAll(s);
-  const behind = q(".behind"), front = q(".front");
-  // Orbiters: a pet moon and two obsidian shards on a tilted orbit; behind him on the far side.
-  const orbiters = [
-    { a: 0, draw: `<circle r="8.5" fill="url(#${id}m)" stroke="${INK}" stroke-width="2.2"/><circle cx="2.5" cy="2" r="1.8" fill="#b4a8e6"/><circle cx="-3" cy="-2.5" r="1.2" fill="#b4a8e6"/>` },
-    { a: 2.3, draw: `<path d="M0 -9 L5 -1 L1 9 L-5 1Z" fill="#1d1233" stroke="${INK}" stroke-width="2"/><path d="M0 -9 L5 -1 L1 1Z" fill="#7a55c9"/>` },
-    { a: 4.1, draw: `<path d="M0 -6 L4 0 L0 6 L-3 0Z" fill="#1d1233" stroke="${INK}" stroke-width="1.8"/><path d="M0 -6 L4 0 L0 0Z" fill="#9b78e8"/>` },
-  ].map((o) => { const g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.innerHTML = o.draw; return { ...o, g }; });
-  const RX = 96, RY = 44, TILT = -0.18;
-
-  const speed = sleepy ? 0.45 : angry ? 1.6 : 1;
+  const speed = sleepy ? 0.45 : angry ? 1.7 : 1;
   return (t) => {
     const ts = t * speed;
-    const bob = Math.sin(t * (sleepy ? 1 : 1.6)) * 5;
-    q(".body").setAttribute("transform", `translate(0 ${bob.toFixed(2)})`);
-    q(".shadow").setAttribute("rx", (44 - bob * 1.2).toFixed(1));
-    q(".gasO").setAttribute("d", gas(84, ts, 1.3));
-    q(".gasI").setAttribute("d", gas(68, ts * 1.2, 0));
-    // Puffs break off the cloud edge, drift out and fade.
+    const bob = Math.sin(t * (sleepy ? 1 : 1.5)) * 9, tilt = Math.sin(t * 0.8) * 3;
+    q(".body").setAttribute("transform", `translate(0 ${f1(bob)}) rotate(${f1(tilt)} 130 150)`);
+    q(".shadow").setAttribute("rx", f1(70 - bob));
+    // Gas: one cloud round the head, one stretched round the tendrils, a faint outer haze.
+    // Gas: round lobes that swell, shrink and drift, like Gastly's cloud.
+    const lobe = (c, L) => {
+      c.setAttribute("cx", f1(L.x + Math.sin(ts * L.sp + L.p) * 10)); c.setAttribute("cy", f1(L.y + Math.cos(ts * L.sp * 0.8 + L.p) * 10));
+      c.setAttribute("r", f1(L.r * (1 + 0.14 * Math.sin(ts * L.sp * 1.3 + L.p * 2))));
+    };
+    qa(".lobesO circle").forEach((c, i) => lobe(c, lobes[i]));
+    qa(".lobesI circle").forEach((c, i) => lobe(c, core[i]));
     qa(".puff").forEach((c, i) => {
-      const p = puffs[i], k = (ts * 0.35 + p.off) % 1, rr = 74 + k * 26;
-      c.setAttribute("cx", (CX + Math.cos(p.a + k * 0.6) * rr).toFixed(1));
-      c.setAttribute("cy", (CY + Math.sin(p.a + k * 0.6) * rr * 0.92).toFixed(1));
-      c.setAttribute("r", (p.s * (1 - k * 0.6)).toFixed(1));
-      c.setAttribute("opacity", (0.6 * (1 - k)).toFixed(2));
+      const p = puffs[i], k = (ts * 0.3 + p.off) % 1, rr = 150 + k * 60;
+      c.setAttribute("cx", f1(150 + Math.cos(p.a + k * 0.5) * rr)); c.setAttribute("cy", f1(220 + Math.sin(p.a + k * 0.5) * rr * 1.25));
+      c.setAttribute("r", f1(p.s * (1 - k * 0.6))); c.setAttribute("opacity", ((1 - k) * 0.55).toFixed(2));
     });
     qa(".speck").forEach((c, i) => {
-      const s = specks[i], a = s.a + ts * 0.15;
-      c.setAttribute("cx", (CX + Math.cos(a) * s.r).toFixed(1)); c.setAttribute("cy", (CY + Math.sin(a) * s.r * 0.92).toFixed(1));
-      c.setAttribute("opacity", (0.35 + 0.65 * Math.abs(Math.sin(t * 1.7 + s.p))).toFixed(2));
+      const s = specks[i], y = ((s.y - ts * 14) % 480 + 480) % 480;
+      c.setAttribute("cx", f1(s.x + Math.sin(t + s.p) * 6)); c.setAttribute("cy", f1(y)); c.setAttribute("r", s.r);
+      c.setAttribute("opacity", (0.25 + 0.75 * Math.abs(Math.sin(t * 1.6 + s.p))).toFixed(2));
     });
-    qa(".star").forEach((c, i) => c.setAttribute("opacity", (0.3 + 0.7 * Math.abs(Math.sin(t * 1.3 + stars[i].p))).toFixed(2)));
-    // Star pupils glance around now and then.
-    const gx = Math.sin(t * 0.7) > 0.6 ? 3 : Math.sin(t * 0.7) < -0.6 ? -3 : 0, gy = Math.sin(t * 0.43) * 1.2;
-    qa(".pupil").forEach((p) => p.setAttribute("d", star4(+p.dataset.x + gx, +p.dataset.y + gy, 5.5)));
-    // Blink: squash the eyes about their middle.
+    // Head: the spike tips flicker like flames.
+    const head = HEAD.map(([x, y, fl], i) => fl ? [x + Math.sin(ts * 3.1 + i) * 5, y + Math.sin(ts * 4.3 + i * 2) * 6] : [x, y]);
+    const hd = closedCurve(head);
+    q(".head").setAttribute("d", hd); q(".headRim").setAttribute("d", hd);
+    qa(".tendril").forEach((p, i) => p.setAttribute("d", tendril(TENDRILS[i], ts, angry ? 22 : 16)));
     const e = q(".eyes");
-    if (e) { const b = t % 4.2 < 0.13 ? 0.1 : 1; e.setAttribute("transform", `translate(0 ${128 * (1 - b)}) scale(1 ${b})`); }
-    // Wispy hands: a tail of gas back to the cloud, palm bobbing.
-    for (const side of ["l", "r"]) {
-      const s = side === "l" ? -1 : 1, ph = side === "l" ? 0 : 1.7;
-      const hx = CX + s * (78 + Math.sin(t * 1.4 + ph) * 4), hy = CY + 34 + Math.sin(t * 2 + ph) * 5;
-      q(`.hand.${side} .palm`).setAttribute("transform", `translate(${hx.toFixed(1)} ${hy.toFixed(1)}) rotate(${s * 18 + Math.sin(t * 2 + ph) * 8}) scale(${s} 1)`);
-      const bx = CX + s * 48, by = CY + 26, w = Math.sin(t * 3 + ph) * 4;
-      q(`.hand.${side} .wisp`).setAttribute("d", `M${bx} ${by - 8} Q${(bx + hx) / 2} ${by - 2 + w} ${hx} ${hy - 7} L${hx} ${hy + 7} Q${(bx + hx) / 2} ${by + 12 + w} ${bx} ${by + 8}Z`);
-    }
-    for (const o of orbiters) {
-      const a = o.a + ts * 0.7, x = Math.cos(a) * RX, y = Math.sin(a) * RY;
-      const px = CX + x * Math.cos(TILT) - y * Math.sin(TILT), py = CY + 14 + x * Math.sin(TILT) + y * Math.cos(TILT);
-      const near = Math.sin(a) > 0, sc = 0.85 + 0.25 * Math.sin(a);
-      o.g.setAttribute("transform", `translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${((a * 40) % 360).toFixed(1)}) scale(${sc.toFixed(2)})`);
-      o.g.setAttribute("opacity", near ? 1 : 0.7);
-      const parent = near ? front : behind;
-      if (o.g.parentNode !== parent) parent.appendChild(o.g);
-    }
+    if (e) { const b = t % 4.4 < 0.14 ? 0.1 : 1; e.setAttribute("transform", `translate(0 ${f1(150 * (1 - b))}) scale(1 ${b})`); }
     const z = q(".zzz");
-    if (z) { const k = (t * 0.5) % 1; z.setAttribute("transform", `translate(${k * 14} ${-k * 26})`); z.setAttribute("opacity", (1 - k).toFixed(2)); }
+    if (z) { const k = (t * 0.45) % 1; z.setAttribute("transform", `translate(${f1(k * 30)} ${f1(-k * 40)})`); z.setAttribute("opacity", (1 - k).toFixed(2)); }
   };
 }
 
