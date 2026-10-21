@@ -599,7 +599,7 @@ function drawChain(g, a, b, k, t, taut = 0, wobble = 1) {
 }
 // A mini drone: a little disc with a red eye and a blur of rotor.
 function drawDrone(g, d, t) {
-  g.save(); g.translate(d.x, d.y); g.rotate(Math.sin(t * 0.02 + d.seed) * 0.15);
+  g.save(); g.translate(d.x, d.y); g.rotate(Math.sin(t * 0.02 + d.seed) * 0.15); g.scale(1.9, 1.9);
   g.fillStyle = "#3c4250"; g.fillRect(-9, -3, 18, 6);
   g.fillStyle = "#6b7484"; g.fillRect(-9, -3, 18, 2);
   g.fillStyle = "#9aa3b5"; g.fillRect(-12 + ((t / 30) | 0) % 3 * 2, -6, 8, 1); g.fillRect(4 - ((t / 30) | 0) % 3 * 2, -6, 8, 1);
@@ -612,9 +612,9 @@ async function spectralChains(s) {
   const settle = castPose(mate, { lift: 0.1, energy: 3 });
   sound.sfx("ghostWind", { ms: 4200 });
   fx.darken(0.5, 400); fx.letterbox(true);
-  fx.focus(1.08, { x: cx, y: (core.y + floor) / 2 - 30 }, 600);
+  fx.focus(1.04, { x: cx, y: (core.y + floor) / 2 - 50 }, 600);
   // two portals, one above him and one on the floor below
-  const top = portal(s, px, { x: cx, y: Math.max(36, core.y - 150), rx: 130, ry: 24 });
+  const top = portal(s, px, { x: cx, y: Math.max(84, core.y - 112), rx: 130, ry: 24 });   // low enough to stay in shot
   const bot = portal(s, px, { x: cx, y: floor + 2, rx: 140, ry: 26 }, { hum: false });
   gatherMotes(pxTop, () => s.mateC(), 400, { n: 18, r: 90 });
   await fx.wait(250);
@@ -663,7 +663,7 @@ async function spectralChains(s) {
   mate.nova.idle.shake = 0.6;
   sound.sfx("whispers", { ms: 1600 }); sound.sfx("roar");
   await pxTop.add({ dur: 220, draw(g, k) { taut = ease.out(k); } });
-  fx.focus(1.14, core, 500); fx.slowmo(0.5, 900);
+  fx.focus(1.08, { x: core.x, y: core.y - 20 }, 500); fx.slowmo(0.5, 900);
   for (let i = 0; i < 4; i++) {
     s.golem.to({ tilt: i % 2 ? 0.14 : -0.14, lean: i % 2 ? -0.08 : 0.08, bob: 0.03 * (i % 2 ? 1 : -1) }, 120, "io");
     s.golem.fxv.glitch = 0.8; s.golem.to({ glitch: 0.2 }, 180, "lin", s.golem.fxv);
@@ -694,8 +694,9 @@ async function spectralChains(s) {
     sound.sfx("miniLaser");
     await pxTop.add({ dur: 110, draw(g, k) {   // the laser
       glow(g, hitAt.x, hitAt.y, 10, "#ff3a3a", 0.8);
-      g.strokeStyle = "#ff4a4a"; g.lineWidth = 3; g.beginPath(); g.moveTo(d.x, d.y + 1); g.lineTo(hitAt.x, hitAt.y); g.stroke();
-      g.strokeStyle = "#ffffff"; g.lineWidth = 1; g.stroke();
+      glow(g, d.x, d.y + 2, 14, "#ff3a3a", 0.9);
+      g.strokeStyle = "#ff2a2a"; g.lineWidth = 6; g.beginPath(); g.moveTo(d.x, d.y + 2); g.lineTo(hitAt.x, hitAt.y); g.stroke();
+      g.strokeStyle = "#ffd0d0"; g.lineWidth = 2; g.stroke();
     } });
     sound.sfx("chainSnap"); fx.shake(9);
     flashAt(pxTop, hitAt, 26, 200);
