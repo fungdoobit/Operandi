@@ -8,7 +8,7 @@
 //   hook:  a three-pronged grappling hook (steel and orange), 16 angles
 //   shard: the chain's spear tip, a violet crystal, 16 angles
 //   missile: GOLEM's missile (steel, orange band, red nose, fins), 16 angles
-//   rock:  a slab of floor for GOLEM's slam (jagged stone, an ice-blue crack), 6 shapes
+//   rock:  a slab of floor for GOLEM's slam (jagged stone, an ice-blue crack), 10 shapes, each leaning its own way
 import { PixelGL } from "./pixel-gl.js";
 
 const MODEL = `
@@ -61,8 +61,8 @@ float map(vec3 p){
   }
   if (uKind > 4.5) {                      // a slab of floor bursting up (GOLEM's slam): jagged stone, a sharp top, an ice-blue crack
     float sd = uFrame*13.7;
-    vec3 q = p; q.xz = R(.5 + sd) * q.xz; q.xy = R(.12*sin(sd*3.)) * q.xy;
-    float d = sdBox(q, vec3(.23 + .05*sin(sd), .5, .17 + .04*cos(sd*2.)));
+    vec3 q = p; q.xz = R(.5 + sd) * q.xz; q.xy = R(.34*sin(sd*3.)) * q.xy;   // each shape leans its own way
+    float d = sdBox(q, vec3(.2 + .09*fract(sd*.37), .5, .15 + .06*fract(sd*.71)));
     d = max(d, dot(q - vec3(0., .5, 0.), normalize(vec3(.55*sin(sd*5.), 1., .3))));   // the slanted broken top
     d = max(d, dot(q - vec3(0., .38, 0.), normalize(vec3(-.9, .6, .2 + .3*cos(sd)))));
     d += (vnoise(q*9. + sd) - .5)*.05 + (vnoise(q*22. + sd*2.) - .5)*.02;   // rough chipped faces
@@ -144,7 +144,7 @@ export function propSprites() {
   catch { return (cache = null); }
   for (const [name, [id, size, view]] of Object.entries(KINDS)) {
     gl.resize(size, size);
-    const variants = name === "link" ? [0, Math.PI / 2] : name === "drone" ? [0, 1] : name === "rock" ? [0, 1, 2, 3, 4, 5] : [0];
+    const variants = name === "link" ? [0, Math.PI / 2] : name === "drone" ? [0, 1] : name === "rock" ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] : [0];
     cache[name] = variants.map((v) => Array.from({ length: name === "rock" ? 1 : 16 }, (_, a) => {
       // links and drones turn in the picture plane by angle; drones also face their heading
       const ang = name === "drone" ? 0 : (a / 16) * Math.PI * (name === "link" ? 1 : 2);

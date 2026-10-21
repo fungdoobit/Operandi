@@ -74,9 +74,9 @@ const PALETTES = [
 ];
 // id, canvas px, view (sets the planet's size in its canvas), halo colours
 const KINDS = {
-  venus: [0, 64, 2.35, ["#6a5a2a", "#b89a50", "#f0dc9a"]],
-  mars: [1, 58, 2.35, ["#5a1a0a", "#a8401c", "#f08a5a"]],
-  uranus: [2, 128, 4.6, ["#0d4a5c", "#34a2b4", "#b8f0f4"]],
+  venus: [0, 100, 2.35, ["#6a5a2a", "#b89a50", "#f0dc9a"]],
+  mars: [1, 92, 2.35, ["#5a1a0a", "#a8401c", "#f08a5a"]],
+  uranus: [2, 190, 4.6, ["#0d4a5c", "#34a2b4", "#b8f0f4"]],
   jupiter: [3, 240, 2.25, ["#5c2a0c", "#c9703a", "#ffd8a0"]],
 };
 
