@@ -533,7 +533,8 @@ async function spectralChains(s) {
   // chains burst out and lash round him
   const tg = [["claw", [0, -0.35, -0.2]], ["cannon", [0, -0.45, -0.2]], [null, [-0.45, 0.05, -0.5]], [null, [0.45, 0.0, -0.5]]];
   const chains = tg.map(([part, L], i) => ({ part, L, a: i * Math.PI / 2 + 0.6, ext: 0, wrap: 0, delay: i * 70 }));
-  const anchor = (ch) => ({ x: cx + Math.cos(ch.a) * R * 0.8, y: floor + 2 + Math.sin(ch.a) * R * 0.19 });
+  // each chain comes up out of the circle right under what it grabs, so none cross
+  const anchor = (ch) => { const t = target(ch), x = Math.max(cx - R * 0.8, Math.min(cx + R * 0.8, t.x + (ch.a % 2 ? 10 : -10))); return { x, y: floor + 2 + R * 0.12 }; };
   const target = (ch) => (ch.part ? s.Pt(ch.L, ch.part) : s.Pt(ch.L));
   let taut = 0, broken = 0;
   pxTop.add({ dur: 2200, draw(g, k, t) {
