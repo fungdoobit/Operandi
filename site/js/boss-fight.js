@@ -23,6 +23,12 @@ export const BATTLE_CSS = `
 .bmate { position: absolute; }
 .bmate .dot-bubble { display: none; }
 .hibit { filter: url(#hibit); }
+/* Your teammate is small next to GOLEM, so a 2-px grid would wipe out his face:
+   he keeps the pixel-art look (banded colours, hard edges) at full detail. */
+.hibit-fine { filter: url(#hibitFine); }
+/* Bolder face lines so his eyes and mouth read at this size. */
+.bmate .eye-white, .bmate .eye-angry { stroke-width: 6; }
+.bmate .eye-line, .bmate .dot-mouth { stroke-width: 6; }
 .bhp { position: absolute; top: calc(12px * var(--k, 1)); width: 40%; font: 600 max(11px, calc(13px * var(--k, 1))) var(--font-body, sans-serif); display: flex; flex-direction: column; gap: calc(5px * var(--k, 1)); z-index: 22; }
 .bhp.foe { text-align: right; }
 .bhp .row { display: flex; justify-content: space-between; } .bhp.foe .row { flex-direction: row-reverse; }
@@ -44,7 +50,8 @@ export const BATTLE_CSS = `
 `;
 
 // The two SVG filters: #pixelate (any HTML into big blocks, for the entry
-// transition) and #hibit (effects and the teammate onto a fine 2-px grid).
+// transition), #hibit (effects onto a fine 2-px grid) and #hibitFine (the
+// teammate: banded colours and hard edges, no grid).
 function ensureFilters() {
   if (document.getElementById("hibit")) return;
   const d = document.createElement("div");
@@ -63,6 +70,12 @@ function ensureFilters() {
       <feComponentTransfer>
         <feFuncR type="discrete" tableValues="0 .15 .3 .45 .6 .75 .9 1" /><feFuncG type="discrete" tableValues="0 .15 .3 .45 .6 .75 .9 1" />
         <feFuncB type="discrete" tableValues="0 .15 .3 .45 .6 .75 .9 1" /><feFuncA type="discrete" tableValues="0 .5 1 1" />
+      </feComponentTransfer>
+    </filter>
+    <filter id="hibitFine" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="discrete" tableValues="0 .12 .25 .37 .5 .62 .75 .87 1" /><feFuncG type="discrete" tableValues="0 .12 .25 .37 .5 .62 .75 .87 1" />
+        <feFuncB type="discrete" tableValues="0 .12 .25 .37 .5 .62 .75 .87 1" /><feFuncA type="discrete" tableValues="0 1 1 1" />
       </feComponentTransfer>
     </filter></svg>`;
   document.body.append(d.firstElementChild);
@@ -93,7 +106,7 @@ export class BattleStage {
     if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS; document.head.append(st); }
     const who = skin === "pyro" ? "PYRO" : "DOT";
     host.innerHTML = `<div class="bstage" role="img" aria-label="Boss battle: ${who} against ${esc(name)}">
-      <div class="bworld"><div class="bfloor"></div><div class="bfoe"></div><div class="bmate hibit"></div></div>
+      <div class="bworld"><div class="bfloor"></div><div class="bfoe"></div><div class="bmate hibit-fine"></div></div>
       <div class="bhp me ${skin === "pyro" ? "fire" : ""}"><div class="row"><span>${who}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
       <div class="bhp foe"><div class="row"><span>${esc(name)}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
     </div>`;
