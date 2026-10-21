@@ -654,31 +654,31 @@ async function eclipseLance(s) {
 }
 
 // ---- Event Horizon (ultimate II) ----
-// A black hole opens above him, its burning disc spinning. Debris spirals in
-// and he's dragged up off the floor, crushed, until it collapses into a
+// A black hole opens in front of him, its burning disc spinning. Debris spirals
+// in and he's dragged up off the floor toward it, crushed, until it collapses into a
 // star-flash and drops him.
 async function eventHorizon(s) {
   const { fx, px, toon, pxTop, mate, foeEl } = s;
-  const core = s.golemC(), bh = { x: core.x - 20, y: Math.max(64, core.y - 160) };
+  const core = s.golemC(), bh = { x: core.x - Math.min(220, fx.w * 0.17), y: Math.max(110, core.y - 40) };   // in the open air in front of him
   fx.letterbox(true); fx.darken(0.85, 600);
   fx.title("EVENT HORIZON", "NOVA · ultimate II");
   const settle = castPose(mate, { lift: 0.14, energy: 3.2, ms: 600 });
   sound.sfx("blackhole"); sound.sfx("voidCharge");
-  fx.focus(1.06, { x: bh.x, y: (bh.y + core.y) / 2 }, 800);
+  fx.focus(1.06, { x: (bh.x + core.x) / 2, y: bh.y }, 800);
   let size = 0, collapse = 0;
   const scale = () => size * (1 - collapse);
   toon.add({ dur: 4200, draw(pen, k, t) {
     const sc = scale(); if (sc <= 0) return;
     for (let i = 0; i < 34; i++) {   // the accretion disc, tilted, burning
-      const a = (i / 34) * Math.PI * 2 + t * 0.004, rx = 96 * sc, ry = 20 * sc;
+      const a = (i / 34) * Math.PI * 2 + t * 0.004, rx = 110 * sc, ry = 24 * sc;
       pen.puff("heat", bh.x + Math.cos(a) * rx, bh.y + Math.sin(a) * ry, (8 + 3 * Math.sin(i * 1.7 + t * 0.01)) * sc, 0.75 + 0.3 * Math.sin(a));
     }
-    pen.puff("void", bh.x, bh.y, 34 * sc, 1.35);
-    pen.puff("void", bh.x, bh.y, 70 * sc, 0.3);
+    pen.puff("void", bh.x, bh.y, 40 * sc, 1.35);
+    pen.puff("void", bh.x, bh.y, 84 * sc, 0.3);
   } });
   pxTop.add({ dur: 4200, draw(g, k, t) {   // the photon ring bending over the top
     const sc = scale(); if (sc <= 0) return;
-    g.strokeStyle = "#ffb040"; g.lineWidth = 4 * sc; g.beginPath(); g.ellipse(bh.x, bh.y - 2, 30 * sc, 26 * sc, 0, Math.PI * 1.05, Math.PI * 1.95); g.stroke();
+    g.strokeStyle = "#ffb040"; g.lineWidth = 4 * sc; g.beginPath(); g.ellipse(bh.x, bh.y - 2, 36 * sc, 31 * sc, 0, Math.PI * 1.05, Math.PI * 1.95); g.stroke();
     g.strokeStyle = "#fff3c4"; g.lineWidth = 1.6 * sc; g.stroke();
   } });
   const rocks = Array.from({ length: 34 }, (_, i) => ({ a: rand(0, Math.PI * 2), r: rand(160, 320), s: rand(3, 7), delay: rand(0, 1800), sp: rand(0.8, 1.4) }));
@@ -694,7 +694,7 @@ async function eventHorizon(s) {
   // he's dragged up off the floor, crushed
   const home = foeEl._pos || { x: 0, y: 0, r: 0 };
   s.golem.to({ thrust: 2, flare: 1.2, tilt: 0.18, lean: -0.08 }, 600, "io");
-  fx.move(foeEl, { x: home.x - 10, y: home.y - 64 }, 1200, "inOut");
+  fx.move(foeEl, { x: home.x - 70, y: home.y - 40 }, 1200, "inOut");
   for (let i = 0; i < 4; i++) {
     await fx.wait(300);
     fx.hitstop(40); fx.shake(10 + i * 3); sound.sfx("hit", { size: 0.6 });
