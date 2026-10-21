@@ -55,26 +55,31 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
   .rail { overflow-y: auto; }
 }
 
-/* Top bar */
-.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); background: var(--surface); border-bottom: 1px solid var(--line); }
+/* Logo and stats (in the course list) */
 .mark { font-family: var(--font-mono); font-weight: 600; font-size: 18px; letter-spacing: -0.02em; white-space: nowrap; color: inherit; text-decoration: none; }
 .mark .dot { color: var(--dot); text-shadow: 0 0 8px #7fdcff; }
-.track { flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.track-steps, .track-bar { display: flex; gap: 4px; }
-.step { flex: 1; min-width: 0; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.step.reached { color: var(--ink); }
-.step.current { color: var(--accent); font-weight: 600; }
-.seg { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
-.seg > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .6s ease; }
-.stats { display: flex; gap: 18px; align-items: center; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
 .stat { display: flex; flex-direction: column; line-height: 1.15; }
 .stat b { font-family: var(--font-display); font-size: 20px; font-weight: 700; }
-.stat b.inv { font-family: var(--font-mono); font-size: 15px; padding-top: 4px; }
 .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
 .stat.bits b { color: var(--gold); }
 .stat.bits b::before { content: "◆ "; font-size: 14px; }
 .account { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 600; }
+
+/* Top of the course list: logo, level, Bits and streak (there's no top bar). */
+.rail-head { display: flex; flex-direction: column; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.rail-head .mark { margin-left: 46px; line-height: 36px; }
+.lvl-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.lvl-row b { color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; }
+.lvl-row span { color: var(--muted); font-size: 12px; }
+.lvl-bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 5px; }
+.lvl-bar > i { display: block; height: 100%; background: var(--accent); transition: width .6s ease; }
+.rail-stats { display: flex; gap: 18px; font-variant-numeric: tabular-nums; }
+/* The ☰ button floats in the top-left corner over everything. */
+.rail-toggle { position: fixed; z-index: 31; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); box-shadow: 0 2px 8px #0002; }
+/* With the list away, leave room for the button above the instructions; in a fight it sits on the battle band. */
+.app.rail-closed .body:not(.boss-mode) .brief { padding-top: 64px; }
+.body.boss-mode .arena { padding-left: 60px; padding-right: 60px; }
 
 /* Main grid. Areas: the course list (rail), instructions (brief), editor
    (work), and in a boss fight the battle band (arena) across the top. */
@@ -84,13 +89,13 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
 .body.no-work { grid-template-columns: var(--rail-w) minmax(0, 1fr); grid-template-areas: "rail brief"; }
 .body.boss-mode { grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "rail arena arena" "rail brief work"; }
 .rail { grid-area: rail; } .brief { grid-area: brief; } .work { grid-area: work; } .arena { grid-area: arena; }
-.arena { background: #0d0f14; padding: 10px; height: clamp(200px, 36vh, 640px); min-width: 0; }
-@media (max-height: 820px) { .arena { height: clamp(190px, 30vh, 640px); } }
+.arena { background: #0d0f14; padding: 10px; height: clamp(220px, 40vh, 640px); min-width: 0; }
+@media (max-height: 820px) { .arena { height: clamp(200px, 36vh, 640px); } }
 /* In a fight the editor and the Output/Tests panel share what's left below the
    battle, so the output never gets pushed off the bottom of the screen. */
 .body.boss-mode .work { overflow-y: auto; }
-.body.boss-mode .editor { flex: 1 1 0; min-height: 110px; }
-.body.boss-mode .panel { flex: 1 1 0; min-height: 90px; }
+.body.boss-mode .editor { flex: 3 1 0; min-height: 110px; }
+.body.boss-mode .panel { flex: 2 1 0; min-height: 90px; }
 
 /* The course list can be put away. Wide screens: it collapses. Up to 1400px
    (iPad and smaller): it's hidden until opened, then slides in over the page. */
@@ -103,6 +108,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
   .body.no-work { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brief"; }
   .body.boss-mode { grid-template-areas: "arena arena" "brief work"; }
   .app .rail { display: none; }
+  .body:not(.boss-mode) .brief { padding-top: 64px; }
   .app.rail-open .rail { display: flex; position: fixed; z-index: 30; left: 0; top: 0; bottom: 0; width: min(300px, 86vw); overflow-y: auto; box-shadow: 0 0 40px #0005; padding-top: max(20px, env(safe-area-inset-top)); }
 }
 
@@ -112,7 +118,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus
 @media (min-width: 2800px) { .app { --ui-zoom: 1.5; } }
 @media (min-width: 3300px) { .app { --ui-zoom: 1.7; } }
 @media (min-width: 1900px) {
-  .top, .rail, .brief, .work { zoom: var(--ui-zoom); }
+  .rail, .brief, .work, .rail-toggle { zoom: var(--ui-zoom); }
   .body { --rail-w: calc(230px * var(--ui-zoom)); }
   .arena { height: clamp(250px, 42vh, 900px); }
   .brief-inner { max-width: 84ch; }
@@ -272,7 +278,6 @@ textarea.code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
 @media (max-width: 720px) {
   .brief { padding: 20px max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left)); }
   .brief h1 { font-size: 28px; }
-  .stats { gap: 12px; }
 }
 
 /* Lesson sections: tabs under the lesson title. */

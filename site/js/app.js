@@ -939,24 +939,17 @@ function renderBossPanel(kind, reward) {
 
 /* ---------- Top bar and rail ---------- */
 
+// The level, Bits and streak at the top of the course list.
 function renderTop() {
-  const st = S(), li = levelFor(modulesDone());
-  $("trackSteps").innerHTML = LEVELS.map((l, k) => `<span class="step ${k <= li ? "reached" : ""} ${k === li ? "current" : ""}" title="${l.name}: ${l.modules} module${l.modules === 1 ? "" : "s"} done">${l.name}</span>`).join("");
-  const doneLessons = lessonsDoneCount();
-  $("trackBar").innerHTML = LEVELS.map((l, k) => {
-    const next = LEVELS[k + 1];
-    let pct = k < li ? 100 : 0;
-    if (k === li && next) {
-      // Progress inside the current level: modules done plus lessons into the next module.
-      const span = next.modules - l.modules;
-      const partial = modulesDone() - l.modules + (doneLessons % ALL_LESSONS.length) / Math.max(1, ALL_LESSONS.length);
-      pct = Math.min(100, (partial / span) * 100);
-    }
-    if (k === li && !next) pct = 100;
-    return `<span class="seg"><i style="width:${pct}%"></i></span>`;
-  }).join("");
+  const st = S(), li = levelFor(modulesDone()), l = LEVELS[li], next = LEVELS[li + 1];
+  // Progress inside the current level: modules done plus lessons into the next module.
+  let pct = 100;
+  if (next) {
+    const partial = modulesDone() - l.modules + (lessonsDoneCount() % ALL_LESSONS.length) / Math.max(1, ALL_LESSONS.length);
+    pct = Math.min(100, (partial / (next.modules - l.modules)) * 100);
+  }
+  $("lvl").innerHTML = `<div class="lvl-row"><b>${l.name}</b><span>${next ? `next: ${next.name}` : "top level"}</span></div><div class="lvl-bar" title="Levels: ${LEVELS.map((x) => x.name).join(" → ")}"><i style="width:${pct}%"></i></div>`;
   $("bitsVal").textContent = st.bits;
-  $("invVal").textContent = `${st.items.hint}·${st.items.peek}·${st.items.solution}`;
   $("streakVal").textContent = store.streakNow();
   $("hintCount").textContent = st.items.hint;
   $("peekCount").textContent = st.items.peek;

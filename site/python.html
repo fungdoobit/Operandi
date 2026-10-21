@@ -13,24 +13,21 @@
 </head>
 <body>
 <div class="app">
-  <header class="top">
-    <button class="rail-toggle" id="railToggle" type="button" aria-controls="rail" aria-expanded="true" title="Show or hide the course list">☰</button>
-    <a class="mark" href="./" title="Home">operandi<span class="dot">.</span>code</a>
-    <div class="track" aria-label="Level">
-      <div class="track-steps" id="trackSteps"></div>
-      <div class="track-bar" id="trackBar"></div>
-    </div>
-    <div class="stats">
-      <div class="stat bits" title="Bits: Operandi's in-game currency"><b id="bitsVal">0</b><span>Bits</span></div>
-      <div class="stat" title="Hints / peeks / solutions you own"><b class="inv" id="invVal">15·15·5</b><span>Hint · Peek · Sol</span></div>
-      <div class="stat"><b id="streakVal">0</b><span>Day streak</span></div>
-      <div class="account" id="account"></div>
-    </div>
-  </header>
+  <!-- No top bar: the ☰ button floats in the corner; logo, level, Bits and
+       streak live at the top of the course list. -->
+  <button class="rail-toggle" id="railToggle" type="button" aria-controls="rail" aria-expanded="true" title="Show or hide the course list">☰</button>
 
   <div class="body">
     <section class="arena" id="arena" aria-label="Boss battle" hidden></section>
     <nav class="rail" id="rail" aria-label="Course">
+      <div class="rail-head">
+        <a class="mark" href="./" title="Home">operandi<span class="dot">.</span>code</a>
+        <div class="lvl" id="lvl" aria-label="Level"></div>
+        <div class="rail-stats">
+          <div class="stat bits" title="Bits: Operandi's in-game currency"><b id="bitsVal">0</b><span>Bits</span></div>
+          <div class="stat"><b id="streakVal">0</b><span>Day streak</span></div>
+        </div>
+      </div>
       <div id="moduleList"></div>
       <div class="rail-group">
         <h4>More</h4>
@@ -40,6 +37,7 @@
           <li><button class="rail-item" data-view="faq"><span class="n">?</span><span class="t">FAQ &amp; glossary<span class="sub">Always free</span></span></button></li>
         </ol>
       </div>
+      <div class="account" id="account"></div>
       <p class="save-state" id="saveState"></p>
     </nav>
 
