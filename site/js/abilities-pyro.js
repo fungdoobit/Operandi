@@ -142,12 +142,13 @@ function fireShot(toon, from, to, ms, { r = 12, arc = 0, smoke = true } = {}) {
       const last = trail[trail.length - 1], p = pos(ease.in(u) * 0.5 + u * 0.5);
       const n = last ? Math.max(1, Math.floor(Math.hypot(p.x - last.x, p.y - last.y) / 6)) : 1;
       for (let i = 1; i <= n; i++) trail.push({ x: last ? lerp(last.x, p.x, i / n) : p.x, y: last ? lerp(last.y, p.y, i / n) : p.y, t, j: rand(-1, 1) });
-      pen.puff("heat", p.x, p.y, r * 1.6, 1.25);
+      pen.puff("heat", p.x, p.y, r * 2, 1.3); pen.puff("heat", p.x, p.y, r * 3.2, 0.45);
     }
-    for (const q of trail) {
-      const age = (t - q.t) / 380; if (age > 1.6) continue;
-      if (age < 1) pen.puff("heat", q.x - age * 6, q.y + q.j * age * 8 - age * 10, r * (1.2 - age * 0.6), 1.05 - age * 1.05);
-      if (smoke && age > 0.5) pen.puff("smoke", q.x - 8, q.y - age * 22, r * (0.6 + age * 0.7), (age - 0.5) * 1.6 * (1.6 - age), clamp01(age - 0.9));
+    const life = Math.min(380, ms * 0.55 + 40);   // a short tail on a quick shot, a long one on a comet
+    for (const [i, q] of trail.entries()) {
+      const age = (t - q.t) / life; if (age > 1.6) continue;
+      if (age < 1) pen.puff("heat", q.x - age * 6, q.y + q.j * age * 10 - age * 12, r * (1.5 - age * 0.9), 1.1 - age * 1.1);
+      if (smoke && age > 0.5 && i % 2) pen.puff("smoke", q.x - 8, q.y - age * 22, r * (0.6 + age * 0.7), (age - 0.5) * 1.6 * (1.6 - age), clamp01(age - 0.9));
     }
   } });
   return toon.wait(ms);
