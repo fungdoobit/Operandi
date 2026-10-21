@@ -90,7 +90,7 @@ print(f"Total: {price * qty:.2f}")</pre>
 <script type="module">
 import { PixelGolem } from "./js/pixel/golem-px.js";
 import { PixelBoss } from "./js/pixel/golem-boss.js";
-import { golemAttack, golemIntro } from "./js/pixel/golem-moves.js";
+import { golemAttack, golemIntro, golemSpecial } from "./js/pixel/golem-moves.js";
 import * as M from "./js/battle-moves.js";
 import { Dot, DOT_CSS } from "./js/dot.js";
 import { BattleFX } from "./js/battle-fx.js";
@@ -151,7 +151,7 @@ const actions = {
   slam: () => golemAttack(ctx, "slam"),
   barrage: () => golemAttack(ctx, "barrage"),
   laser: () => golemAttack(ctx, "laser"),
-  ...Object.fromEntries(Object.entries(SPECIAL).map(([k, name]) => [k, () => M.bossSpecial(ctx, k, name)])),
+  ...Object.fromEntries(Object.entries(SPECIAL).map(([k, name]) => [k, () => golemSpecial(ctx, k, name)])),
   all: async () => {
     const pause = () => fx.wait(450);
     await actions.firewall(); await pause();

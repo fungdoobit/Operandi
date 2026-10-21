@@ -886,8 +886,22 @@ async function bossTurn(passed, mark, r) {
   renderBossBody();
   loadEditor();
   prepareTask();
+  if (special === "typos" || special === "glitch") corruptEditor(special);
   if (special === "firewall") battle.say(`The Firewall halves your next hit. Only a crit breaks straight through: 10/10 on the first submit, with no hints or peeks.`, { title: `${name} raised a Firewall`, mood: "worried" });
   else if (special) battle.say(task.specialNote, { title: special === "typos" ? "Typo Swarm!" : "Glitch Text!", mood: "worried" });
+}
+
+// The special lands in your code: the editor jolts and flashes as the corrupted starter arrives.
+function corruptEditor(kind) {
+  const c = kind === "typos" ? "255,77,126" : "95,227,255";
+  document.querySelector(".editor").animate([
+    { transform: "none", boxShadow: `inset 0 0 0 0 rgba(${c},0)` },
+    { transform: "translateX(-8px)", boxShadow: `inset 0 0 0 3px rgba(${c},.9)`, filter: "hue-rotate(40deg) saturate(2)" },
+    { transform: "translateX(6px) skewX(-2deg)", filter: "invert(.12)" },
+    { transform: "translateX(-4px)", boxShadow: `inset 0 0 0 2px rgba(${c},.6)` },
+    { transform: "translateX(2px)", filter: "none" },
+    { transform: "none", boxShadow: `inset 0 0 0 0 rgba(${c},0)` },
+  ], { duration: 650, easing: "ease-out" });
 }
 
 // Rewards for a win: Bits (first try or retry), the module, the level.

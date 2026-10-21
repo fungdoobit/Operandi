@@ -7,7 +7,7 @@ import { Dot } from "./dot.js";
 import * as M from "./battle-moves.js";
 import { PixelGolem } from "./pixel/golem-px.js";
 import { PixelBoss } from "./pixel/golem-boss.js";
-import { golemAttack, golemIntro } from "./pixel/golem-moves.js";
+import { golemAttack, golemIntro, golemSpecial } from "./pixel/golem-moves.js";
 import { SPECIALS } from "./boss-rules.js";
 import { BOSS } from "./economy.js";
 
@@ -214,7 +214,7 @@ export class BattleStage {
     this.golem.fxv.glitch = 1; this.golem.to({ glitch: 0 }, 500, "lin", this.golem.fxv);
   }
 
-  special(kind) { return M.bossSpecial(this.ctx, kind, SPECIALS[kind]); }
+  special(kind) { return golemSpecial(this.ctx, kind, SPECIALS[kind]); }
   // Put a standing Firewall back after a reload.
   restoreDome() { this.boss.buildDome(); }
   victory() { return M.bossDefeat(this.ctx); }

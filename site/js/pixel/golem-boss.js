@@ -9,7 +9,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const svg = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent?.append(e); return e; };
 
 // Missile-pod holes on his deck, in body space (mirrored left and right).
-const PODS = [[-0.09, 0.2], [0.11, 0.2], [0.01, -0.02]].flatMap(([hx, hz]) => [1, -1].map((sg) => [sg * 1.22 * (0.72 + hx), 0.44, 0.03 + hz]));
+export const PODS = [[-0.09, 0.2], [0.11, 0.2], [0.01, -0.02]].flatMap(([hx, hz]) => [1, -1].map((sg) => [sg * 1.22 * (0.72 + hx), 0.44, 0.03 + hz]));
 
 export class PixelBoss {
   constructor({ golem, fx, figure }) {

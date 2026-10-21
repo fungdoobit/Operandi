@@ -566,7 +566,8 @@ export class BattleFX {
   }
 
   // Energy streaking IN to a point: the charge-up before a big attack.
-  converge(c, { color = "#ff9a3c", n = 22, ms = 700, radius = 170 } = {}) {
+  // glow: the theme of the glow that swells at the centre (null for none).
+  converge(c, { color = "#ff9a3c", n = 22, ms = 700, radius = 170, glow = "fire" } = {}) {
     for (let i = 0; i < n; i++) {
       const a = rand(0, Math.PI * 2), r0 = rand(radius * 0.6, radius), delay = rand(0, ms * 0.6);
       const ln = el("line", { stroke: pick([color, "#fff1d0"]), "stroke-width": rand(1.5, 3), "stroke-linecap": "round", opacity: 0 }, this.g);
@@ -578,7 +579,7 @@ export class BattleFX {
         ln.setAttribute("opacity", g <= 0 ? 0 : Math.min(1, g * 4).toFixed(2));
       } });
     }
-    return this.glowBurst(c, "fire", 50, ms);
+    return glow ? this.glowBurst(c, glow, 50, ms) : null;
   }
 
   // A beam from `from` through `to`: it snaps open, crackles at full width with a
