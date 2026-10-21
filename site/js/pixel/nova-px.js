@@ -551,7 +551,7 @@ export class PixelNova {
         uOrb: this.idle.orb, uPortal: this.idle.portal, uBucket: this.idle.bucket, uChomp: this.idle.chomp, uKern: this.idle.kern,
         uOrbR: this.idle.orbR, uRingK: this.idle.ringK, uRingR: this.idle.ringR, uRingSpin: this.idle.spin, uShake: this.idle.shake,
         uBurst: this.idle.burst, uBurstAt: this.idle.burstAt, uImplode: this.idle.implode, uTear: this.idle.tear, uTK: this.idle.tk, uBucketAt: this.idle.bucketAt },
-      { uTime: s, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: this.shadow ? 0.7 - this.bob(s) * 4 : 0, uShadowX: 0.5, uPlume: [0, 0, 0, 0] },
+      { uTime: s, uFlash: this.flash || 0, uBlock: 1, uGlitch: 0, uShadow: this.shadow ? 0.7 - this.bob(s) * 4 : 0, uShadowX: 0.5, uPlume: [0, 0, 0, 0] },
     );
     requestAnimationFrame(this.loop);
   }

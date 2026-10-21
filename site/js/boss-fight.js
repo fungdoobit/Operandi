@@ -11,6 +11,9 @@ import { golemAttack, golemIntro, golemSpecial } from "./pixel/golem-moves.js";
 import { SPECIALS } from "./boss-rules.js";
 import { BOSS } from "./economy.js";
 import { FoundryBG } from "./pixel/arena-bg.js";
+import { PixelFX } from "./pixel/pixel-fx.js";
+import { NovaFighter } from "./pixel/nova-mate.js";
+import { kitFor } from "./abilities.js";
 import { sound, wireBattleSounds } from "./sound.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -39,6 +42,7 @@ export const BATTLE_CSS = `
 .bhp .fill { height: 100%; width: 100%; border-radius: 99px; transition: width .5s cubic-bezier(.3,1.2,.5,1); }
 .bhp.me .fill { background: linear-gradient(90deg, #5bb7e4, #b3ebfc); }
 .bhp.me.fire .fill { background: linear-gradient(90deg, #ff7a2f, #ffd28a); }
+.bhp.me.void .fill { background: linear-gradient(90deg, #6a35c8, #cba2ff); }
 .bhp.foe .fill { background: linear-gradient(90deg, #ff9a3c, #ffd28a); margin-left: auto; }
 .bsound { position: absolute; z-index: 23; left: 50%; bottom: 10px; transform: translateX(-50%); border: 1px solid #ffffff40; background: #0d0f14cc; color: #fff; border-radius: 99px; padding: 6px 14px; font: 600 13px var(--font-body, sans-serif); }
 .bnum { position: absolute; z-index: 21; pointer-events: none; transform: translate(-50%, -50%); font: 800 calc(24px * var(--k, 1)) var(--font-display, sans-serif); color: #fff;
@@ -90,13 +94,12 @@ export async function pixelateOut(el, ms = 650) {
 export class BattleStage {
   // host: where the stage goes. sayHost: where your teammate's messages go.
   constructor(host, sayHost, { skin = "dot", accessories = [], name = "GOLEM" } = {}) {
-    if (skin === "nova") skin = "dot";   // NOVA has no battle moves yet: DOT fights for him
     ensureFilters();
     if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS; document.head.append(st); }
-    const who = skin === "pyro" ? "PYRO" : "DOT";
+    const who = { pyro: "PYRO", nova: "NOVA" }[skin] || "DOT";
     host.innerHTML = `<div class="bstage" role="img" aria-label="Boss battle: ${who} against ${esc(name)}">
       <div class="bworld"><div class="bfloor"></div><div class="bfoe"></div><div class="bmate"></div></div>
-      <div class="bhp me ${skin === "pyro" ? "fire" : ""}"><div class="row"><span>${who}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
+      <div class="bhp me ${skin === "pyro" ? "fire" : skin === "nova" ? "void" : ""}"><div class="row"><span>${who}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
       <div class="bhp foe"><div class="row"><span>${esc(name)}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
     </div>`;
     this.sayHost = sayHost;
@@ -106,9 +109,12 @@ export class BattleStage {
     this.fx = new BattleFX(this.stage, world, { floor: 0.8 });
     this.golem = new PixelGolem(foeEl, { px: 1 });
     this.boss = new PixelBoss({ golem: this.golem, fx: this.fx, figure: foeEl });
-    this.dot = new Dot(mateEl, { facing: "right", battle: true, skin });
+    // NOVA fights as her pixel self (NovaFighter); DOT and PYRO share dot.js
+    this.dot = skin === "nova" ? new NovaFighter(mateEl) : new Dot(mateEl, { facing: "right", battle: true, skin });
     this.dot.setAccessory(accessories);
-    this.ctx = { fx: this.fx, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: skin === "pyro" ? "fire" : "water" };
+    this.px = new PixelFX(world);   // hi-bit effects for the abilities (pixel/pixel-fx.js)
+    this.kit = kitFor(skin);
+    this.ctx = { fx: this.fx, px: this.px, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
     sound.music("battle");
@@ -144,7 +150,7 @@ export class BattleStage {
     Object.assign(this.stage.querySelector(".bhp.foe").style, { right: right + "px", width: mid - 20 - right + "px" });
     this.stage.style.setProperty("--k", k.toFixed(3));   // text on the stage scales too
     this.mateEl.style.bottom = 0.2 * H - 6 * k + "px";
-    this.dot.figure.style.width = 65 * k + "px";
+    if (this.dot.resize) this.dot.resize(72 * k); else this.dot.figure.style.width = 65 * k + "px";
   }
 
   hp(me, foe) {
@@ -188,7 +194,7 @@ export class BattleStage {
   async attack(strike, onImpact) {
     const crit = strike.result === "crit";
     let landed = false;
-    await M.teammateAttack(this.ctx, { crit, onHit: (n) => {
+    const onHit = (n) => {
       const final = !crit || n === 2;
       const dome = this.boss.dome.childElementCount > 0;
       let result;
@@ -202,7 +208,17 @@ export class BattleStage {
         onImpact?.();
       }
       return result;
-    } });
+    };
+    // PYRO and NOVA have their own ability kits (abilities.js); DOT keeps his water moves.
+    if (this.kit) await this.ability(this.kit[0], onHit);
+    else await M.teammateAttack(this.ctx, { crit, onHit });
+  }
+
+  // Play one ability from the teammate's kit.
+  async ability(a, onHit = () => "hit") {
+    const { fx, px, golem, dot } = this.ctx;
+    await a.run({ ...this.ctx, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
+      mateC: () => fx.at(dot.figure, { fy: 0.55 }), golemC: () => fx.fromPage(golem.point("core")), onHit, px });
   }
 
   // GOLEM's turn: after a miss (the MISS label first), or striking back after your hit.

@@ -398,7 +398,7 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 - Background: "Sunken Foundry" (recommended, fits GOLEM's mech, ice and glitch), or a frozen crystal cavern, or a void wasteland under an eclipse sky?
 - OK to review after the first three abilities before building the rest?
 
-## Addendum J: mana and ability cards in boss fights (Isaac's idea 2026-10-21, draft, awaiting "go")
+## Addendum J: mana and ability cards in boss fights (Isaac's idea 2026-10-21; his answers in, numbers awaiting OK)
 
 **Problem.** In a boss fight a pass just triggers a random move. Isaac wants fights to reward flawless code and give the learner real choices.
 
@@ -425,3 +425,19 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 1. No tips on tries 1-2: boss fights only (recommended, since lessons are where a beginner learns), or everywhere?
 2. Mana: spend it or lose it each turn (recommended), or save up across turns?
 3. Does a flawless pass on the second try still give the full 10 mana? Today the mark only drops at 4+ attempts. Recommended: first try only gets 10; second try at most 8.
+
+**Isaac's decisions (2026-10-21).**
+- No tips on tries 1 and 2: **boss fights only**.
+- Mana **saves up** across turns (capped at 30 so it can't snowball forever), and ultimates cost **more than 10**, so they take saving.
+- **Only a first-try flawless pass gives 10.** Second try: at most 8. Later tries: the mark minus 2 (minimum 4). Each hint −2, each peek −3, a solution 0; any help means no crit.
+- Cards: **hover lifts, left click flips** to the explanation, **right click casts**. On iPad (no right click): tap flips, press and hold casts.
+
+**Rebalanced tiers (proposed, to tune with real play):**
+| tier | mana | cooldown | damage |
+|---|---|---|---|
+| basic strike | 0 | none | 10 |
+| light | 4 | none | 16 |
+| medium (2 per kit) | 7 | 2 turns | 24 |
+| heavy | 11 | 3 turns | 34 |
+| ultimate | 15 | 5 turns | 48 |
+| ultimate II | 20 | 6 turns | 60 |

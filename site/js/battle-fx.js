@@ -25,6 +25,7 @@ export const THEMES = {
   // like classic 2D anime water effects).
   water: { deep: "#3a76a2", mid: "#9ccbdc", light: "#e3f4fa", foam: "#ffffff", glow: "#a9dcef" },
   fire: { deep: "#c8321b", mid: "#ff7a2f", light: "#ffd28a", foam: "#fff3c4", glow: "#ff9a3c" },
+  void: { deep: "#3b1a78", mid: "#8a5cf0", light: "#d6c2ff", foam: "#f3eaff", glow: "#a57cff" },   // NOVA
   // White water: the foam on a wave's crest and a splash's edges (and fire's hot core).
   foam: { deep: "#9ccbdc", mid: "#f6fcfe", light: "#ffffff", foam: "#ffffff", glow: "#ffffff" },
   fireFoam: { deep: "#ff9a3c", mid: "#fff1c9", light: "#ffffff", foam: "#ffffff", glow: "#fff3c4" },

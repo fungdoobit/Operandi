@@ -519,6 +519,39 @@ const SFX = {
     for (let i = 0; i < 4; i++) { const f = 500 + Math.random() * 700; this.tone("sine", f, f * 1.8, t + 0.15 + i * 0.07, 0.05, 0.05); }
   },
 
+  // ---- Abilities (Addendum I) ----
+  // NOVA: dark power streaming in, the rune circle tearing, hands bursting out, the crush
+  voidCharge(t) {
+    this.tone("sine", 70, 140, t, 0.6, 0.25, { attack: 0.3, room: 0.4 });
+    this.noise(t, 0.6, 0.18, { type: "bandpass", f0: 400, f1: 1800, q: 3, attack: 0.3 });
+  },
+  voidTear(t) {
+    this.noise(t, 0.25, 0.4, { type: "highpass", f0: 1500, f1: 5000 });
+    this.tone("sawtooth", 160, 60, t, 0.3, 0.08, { dist: true });
+    this.tone("sine", 55, 40, t, 0.6, 0.35, { room: 0.4 });
+  },
+  handsBurst(t) {
+    for (let i = 0; i < 10; i++) this.noise(t + i * 0.035, 0.12, 0.18, { type: "bandpass", f0: 500 + Math.random() * 900, f1: 200, q: 2 });
+    this.tone("sine", 90, 45, t, 0.5, 0.35, { room: 0.35 });
+  },
+  voidCrush(t) {
+    this.tone("sine", 120, 30, t, 0.8, 0.6, { room: 0.5 });
+    this.noise(t, 0.2, 0.5, { type: "bandpass", f0: 2600, q: 0.8 });
+    this.noise(t, 0.5, 0.35, { type: "lowpass", f0: 1800, f1: 150, dist: true });
+    for (let i = 0; i < 6; i++) this.noise(t + 0.05 + Math.random() * 0.3, 0.04, 0.12, { type: "highpass", f0: 3000 });
+  },
+  // PYRO: a blade of fire roaring into life
+  flameIgnite(t) {
+    this.noise(t, 0.45, 0.3, { type: "bandpass", f0: 300, f1: 1400, q: 1.2, attack: 0.1 });
+    this.noise(t + 0.1, 0.4, 0.15, { type: "highpass", f0: 2500 });
+    this.tone("sine", 80, 160, t, 0.4, 0.2);
+  },
+  // GOLEM: each missile leaving its pod
+  missileLaunch(t) {
+    this.noise(t, 0.35, 0.22, { type: "bandpass", f0: 900, f1: 2600, q: 1.5 });
+    this.tone("square", 140, 70, t, 0.1, 0.05, { dist: true });
+  },
+
   // ---- NOVA's idles (space magic) ----
   // The orrery: a deep swell, a shimmering minor chord and a rising rush of air.
   novaSummon(t) {

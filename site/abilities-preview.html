@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battle abilities</title>
+<style>
+body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: #0f1116; color: #e9ecf2; }
+main { max-width: 1400px; margin: 0 auto; padding: 18px 16px 40px; }
+h1 { font-size: 20px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 12px; font-size: 14px; }
+#arena { height: 440px; border-radius: 12px; overflow: hidden; position: relative; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.bar a, .bar button { font: 600 14px system-ui; border: 1px solid #3a4150; background: #1a1f29; color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; text-decoration: none; }
+.bar a.on { background: #3a2a62; border-color: #7838d0; }
+#say { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Battle abilities (PRD Addendum I, first three)</h1>
+  <p>The quality bar: NOVA's Grasp of the Void, PYRO's Flame Sword and GOLEM's Missile Swarm, in the Sunken Foundry. Pick a teammate, then play the moves.</p>
+  <div class="bar"><a href="?skin=nova">NOVA</a><a href="?skin=pyro">PYRO</a><a href="?skin=dot">DOT</a></div>
+  <div id="arena"></div><div id="say"></div>
+  <div class="bar"><button id="mine">Teammate ability</button><button id="missiles">GOLEM: Missile Swarm</button></div>
+</main>
+<script type="module">
+import { BattleStage } from "./js/boss-fight.js";
+import { DOT_CSS } from "./js/dot.js";
+import { NOVA_CSS } from "./js/pixel/nova-mate.js";
+import { golemAttack } from "./js/pixel/golem-moves.js";
+const st = document.createElement("style"); st.textContent = DOT_CSS + NOVA_CSS; document.head.append(st);
+const skin = new URLSearchParams(location.search).get("skin") || "nova";
+document.querySelectorAll(".bar a").forEach((a) => a.classList.toggle("on", a.href.endsWith(skin)));
+const battle = new BattleStage(document.getElementById("arena"), document.getElementById("say"), { skin });
+let busy = false;
+const run = async (fn) => { if (busy) return; busy = true; try { await fn(); } finally { busy = false; } };
+window.__mine = () => run(() => battle.kit ? battle.ability(battle.kit[0]) : battle.attack({ result: "hit", dmg: 20 }));
+window.__missiles = () => run(() => golemAttack(battle.ctx, "missiles", { onHit() {} }));
+document.getElementById("mine").onclick = window.__mine;
+document.getElementById("missiles").onclick = window.__missiles;
+</script>
+</body>
+</html>

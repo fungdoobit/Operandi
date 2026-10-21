@@ -4,11 +4,14 @@
 import { teammateHurt, bossSpecial } from "../battle-moves.js";
 import { PODS } from "./golem-boss.js";
 import { sound } from "../sound.js";
+import { ease, lerp, glow, ribbon } from "./pixel-fx.js";
 
-const MOVES = ["slam", "barrage", "laser"];
+const MOVES = ["slam", "barrage", "laser", "missiles"];
 let last = null;
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const rand = (a, b) => a + Math.random() * (b - a);
 
-// ctx: { fx, dot, mateEl, theme, golem }
+// ctx: { fx, px, dot, mateEl, theme, golem }
 export async function golemAttack(ctx, kind, { onHit } = {}) {
   if (!kind) {
     const options = MOVES.filter((m) => m !== last);
@@ -84,6 +87,60 @@ const ATTACKS = {
       await fx.wait(lastShot ? 520 : 200);
     }
     g.to({ charge: 0 }, 250);
+  },
+
+  // Missile swarm (Addendum I): his pod hatches glow, he braces, and a volley of
+  // missiles climbs out of the pods with smoke trails, arcs over and carpets the
+  // floor round the teammate; the last one lands on them.
+  async missiles(s) {
+    const { fx, g, px, dot } = s;
+    const pod = (i) => fx.fromPage(g.pagePoint(PODS[i % PODS.length]));
+    fx.focus(1.05, s.mid(), 500);
+    sound.sfx("servo", { ms: 420 });
+    await g.to({ lean: -0.12, tilt: -0.2, bob: 0.06, flare: 0.6, thrust: 1.2 }, 420, "out");
+    // the hatches heat up
+    px.add({ dur: 600, draw(gc, k) { for (let i = 0; i < PODS.length; i++) { const p = pod(i); glow(gc, p.x, p.y, 22 * k, "#ff6a2a", 0.7); gc.fillStyle = "#ffd27a"; gc.fillRect(p.x - 3, p.y - 3, 6, 6); } } });
+    await fx.wait(520);
+    fx.focus(1, null, 400);
+    const n = 9, flights = [];
+    for (let i = 0; i < n; i++) {
+      const lastOne = i === n - 1;
+      fx.wait(i * 110).then(() => {
+        const from = pod(i), to0 = s.dotC();
+        const to = lastOne ? to0 : { x: to0.x + rand(-140, 140), y: fx.floorY - 4 };
+        const peak = { x: (from.x + to.x) / 2 + rand(-60, 60), y: Math.min(from.y, to.y) - rand(120, 190) };
+        const trail = [];
+        sound.sfx("missileLaunch");
+        fx.shake(4); g.to({ lunge: -0.03 }, 60, "out").then(() => g.to({ lunge: 0 }, 160));
+        const dur = 620 + rand(0, 120);
+        flights.push(px.add({ dur: dur + 500, draw(gc, k, t) {
+          const u = clamp01(t / dur), e = ease.in(u) * 0.55 + u * 0.45;
+          const x = (1 - e) ** 2 * from.x + 2 * (1 - e) * e * peak.x + e * e * to.x, y = (1 - e) ** 2 * from.y + 2 * (1 - e) * e * peak.y + e * e * to.y;
+          if (u < 1) trail.push({ x, y, t });
+          for (const p of trail) {   // smoke puffs that swell and fade
+            const age = (t - p.t) / 500; if (age > 1) continue;
+            gc.globalAlpha = 0.55 * (1 - age); gc.fillStyle = age < 0.15 ? "#ffd27a" : "#9aa0ad";
+            gc.beginPath(); gc.arc(p.x, p.y, 3 + age * 9, 0, Math.PI * 2); gc.fill();
+          }
+          gc.globalAlpha = 1;
+          if (u < 1) {
+            const prev = trail[trail.length - 2] || { x: from.x, y: from.y }, a = Math.atan2(y - prev.y, x - prev.x);
+            ribbon(gc, [[x - Math.cos(a) * 16, y - Math.sin(a) * 16], [x, y]], 7, 6, "#c9d3dc");     // body
+            ribbon(gc, [[x - Math.cos(a) * 2, y - Math.sin(a) * 2], [x + Math.cos(a) * 5, y + Math.sin(a) * 5]], 6, 0, "#ff5a3a");   // nose
+            glow(gc, x - Math.cos(a) * 18, y - Math.sin(a) * 18, 10, "#ffb040", 0.8);           // exhaust
+          }
+        } }));
+        fx.wait(dur).then(() => {
+          fx.explosion({ x: to.x, y: to.y - 10 }, { size: lastOne ? 1.1 : 0.6 });
+          fx.dust(to.x, 4, 0.8);
+          sound.sfx("explosion", { size: lastOne ? 1 : 0.5 });
+          if (lastOne) s.hurt({ crit: false });
+          else { fx.hitstop(30); fx.shake(7); dot.nudge(rand(-6, 6), 0.5); }
+        });
+      });
+    }
+    await fx.wait(n * 110 + 900);
+    await Promise.all(flights);
   },
 
   // Core laser: the screen darkens, he rises and spreads his arms while energy

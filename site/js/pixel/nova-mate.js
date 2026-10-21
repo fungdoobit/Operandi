@@ -33,7 +33,7 @@ export class NovaMate {
     // The canvas is bigger than the figure so the planets and the portal have room.
     const W = 160, H = 170;
     this.nova = new PixelNova(this.figure, { kind: "mooncloak", w: W, h: H, px: k, view: 4.79, half: true, shadow: false });   // view 4.79 (was 5.03): 5% bigger, Isaac 2026-10-21
-    Object.assign(this.nova.canvas.style, { left: (size - W * k) / 2 + "px", top: (115 * k - H * k) / 2 + "px" });
+    this.resize(size);
     this.tweens = [];
     this.last = null;
     this.swayV = 0; this.yawT = 0.25;
@@ -42,6 +42,13 @@ export class NovaMate {
     this.fast = fast;
     this.lastIdle = null;
     if (idles) this.schedule(fast ? 4000 : 12000);
+  }
+
+  // Show her at a new size (the battle stage scales with its height).
+  resize(size) {
+    const k = size / 96, W = this.nova.canvas.width, H = this.nova.canvas.height;
+    this.figure.style.width = size + "px"; this.figure.style.height = 115 * k + "px";
+    Object.assign(this.nova.canvas.style, { width: W * k + "px", height: H * k + "px", left: (size - W * k) / 2 + "px", top: (115 * k - H * k) / 2 + "px" });
   }
 
   // ----- per frame: tweens, sway spring, turning -----
@@ -204,4 +211,33 @@ export class NovaMate {
     I.tear = 0;
     await this.wait(380);
   }
+}
+
+// NOVA on the battle stage (PRD Addendum I): she faces GOLEM with her angry eyes,
+// and reacts to hits like DOT does (hurt, swarmed, knocked out, winning).
+export class NovaFighter extends NovaMate {
+  constructor(container, { size = 72 } = {}) {
+    super(container, { size, idles: false });
+    this.battle = true;
+    this.nova.half = false;   // full frame rate in a fight
+    this.face("right");
+    this.timers = [];
+    this.setMood("idle");
+  }
+  setMood(mood, o) { super.setMood(mood === "idle" ? "angry" : mood, o); }
+  clearTimers() { this.timers.forEach(clearTimeout); this.timers = []; }
+  later(ms, fn) { this.timers.push(setTimeout(fn, ms)); }
+  hurt({ crit = false } = {}) {
+    this.clearTimers();
+    this.nova.flash = 1; this.anim(crit ? 260 : 180, (e) => { this.nova.flash = 1 - e; }, "lin");
+    this.anim(380, (e) => { this.nova.idle.shake = (1 - e) * (crit ? 1 : 0.6); }, "lin").then(() => { this.nova.idle.shake = 0; });
+    this.setMood("sad", { revertAfter: 1100 });
+  }
+  swarmed(ms = 1500) {
+    this.clearTimers();
+    this.setMood("sad");
+    this.anim(ms, (e) => { this.nova.idle.shake = 0.5 * Math.sin(e * Math.PI); }, "lin").then(() => { this.nova.idle.shake = 0; this.setMood("idle"); });
+  }
+  ko() { this.clearTimers(); this.setMood("sad"); this.anim(900, (e) => { this.nova.lift = -0.25 * e; }, "out"); }
+  win() { this.clearTimers(); this.setMood("happy"); }
 }
