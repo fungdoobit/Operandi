@@ -615,17 +615,55 @@ function drawCoil(gFront, gBack, S, B, axis, k, t) {
   }
   void loops;
 }
-// Branching cracks of light spreading over his hull while they haul.
+// Fissures of light splitting his hull while they haul: tapered wedges (wide
+// and white-hot in the middle, narrowing to sharp points), forking as they
+// grow, with light leaking out of them in short rays.
+function makeCracks() {
+  const out = [];
+  const grow = (x, y, a, len, w, depth) => {
+    const pts = [[x, y]];
+    for (let k = 0; k < len; k++) { a += rand(-0.45, 0.45); x += Math.cos(a) * rand(7, 12); y += Math.sin(a) * rand(4, 7); pts.push([x, y]); }
+    out.push({ pts, w, depth });
+    if (depth < 2) for (let k = 2; k < pts.length - 1; k += 3) if (Math.random() < 0.6) grow(pts[k][0], pts[k][1], a + rand(0.5, 1.1) * (Math.random() < 0.5 ? -1 : 1), Math.floor(len * 0.45), w * 0.5, depth + 1);
+  };
+  for (let i = 0; i < 6; i++) grow(rand(-4, 4), rand(-3, 3), (i / 6) * Math.PI * 2 + rand(-0.25, 0.25), 8, 7, 0);
+  return out;
+}
+function wedge(g, at, pts, n, w) {   // a tapered polygon along pts[0..n]
+  const L = [], Rt = [];
+  for (let i = 0; i <= n; i++) {
+    const p = pts[i], q = pts[Math.min(i + 1, n)], o = pts[Math.max(i - 1, 0)];
+    let dx = q[0] - o[0], dy = q[1] - o[1]; const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
+    const ww = w * (1 - i / n) ** 0.9 / 2;
+    L.push([at.x + p[0] - dy * ww, at.y + p[1] + dx * ww]); Rt.push([at.x + p[0] + dy * ww, at.y + p[1] - dx * ww]);
+  }
+  g.beginPath(); g.moveTo(L[0][0], L[0][1]);
+  for (const p of L) g.lineTo(p[0], p[1]);
+  for (const p of Rt.reverse()) g.lineTo(p[0], p[1]);
+  g.closePath(); g.fill();
+}
 function drawCracks(g, cracks, at, k, t) {
   if (k <= 0) return;
-  for (const c of cracks) {
-    const n = Math.floor(c.length * k);
-    if (n < 2) continue;
-    g.strokeStyle = "#a066f0"; g.lineWidth = 4; g.beginPath();
-    c.slice(0, n).forEach(([x, y], i) => (i ? g.lineTo(at.x + x, at.y + y) : g.moveTo(at.x + x, at.y + y))); g.stroke();
-    g.strokeStyle = "#ffffff"; g.lineWidth = 1.5; g.stroke();
+  const pulse = 0.85 + 0.15 * Math.sin(t * 0.05);
+  glow(g, at.x, at.y, 90 * k, "#7838d0", 0.55 * k * pulse);
+  for (const pass of [0, 1, 2]) for (const c of cracks) {
+    const kk = clamp01(k * 1.6 - c.depth * 0.35), n = Math.floor((c.pts.length - 1) * kk);
+    if (n < 1) continue;
+    const w = c.w * (0.6 + 0.4 * kk);
+    if (pass === 0) { g.fillStyle = "#3a1466"; wedge(g, at, c.pts, n, w + 4); }        // the dark broken edge
+    else if (pass === 1) { g.fillStyle = "#a066f0"; wedge(g, at, c.pts, n, w); }       // violet light inside
+    else { g.fillStyle = "#ffffff"; wedge(g, at, c.pts, n, w * 0.42); }                 // white-hot core
   }
-  glow(g, at.x, at.y, 70 * k, "#cba2ff", 0.4 * k * (0.8 + 0.2 * Math.sin(t * 0.05)));
+  // light leaking out in short rays from the main fissures
+  g.fillStyle = "#e8d4ff";
+  for (const c of cracks) {
+    if (c.depth) continue;
+    for (let i = 1; i < Math.floor((c.pts.length - 1) * k); i += 2) {
+      const [x, y] = c.pts[i], [x2, y2] = c.pts[i + 1] || c.pts[i], a = Math.atan2(y2 - y, x2 - x) + Math.PI / 2 * (i % 4 === 1 ? 1 : -1), L = (6 + 6 * Math.sin(t * 0.04 + i)) * k;
+      g.globalAlpha = 0.7 * pulse; g.fillRect(at.x + x + Math.cos(a) * L - 1, at.y + y + Math.sin(a) * L - 1, 2, 2);
+    }
+  }
+  g.globalAlpha = 1;
 }
 async function spectralChains(s) {
   const { fx, px, pxTop, spr, sprBack, toon, mate } = s;
@@ -652,7 +690,7 @@ async function spectralChains(s) {
   const axisOf = (ch) => { if (!ch.part) return 0; const a = s.Pt([ch.L[0], ch.L[1] + 0.12, ch.L[2]], ch.part), b = s.Pt([ch.L[0], ch.L[1] - 0.12, ch.L[2]], ch.part); return Math.atan2(b.y - a.y, b.x - a.x); };
   const anchor = (ch) => { const P = ch.side === "top" ? top.P : bot.P, t = target(ch); return { x: Math.max(P.x - P.rx * 0.75, Math.min(P.x + P.rx * 0.75, t.x)), y: P.y }; };
   let taut = 0, rip = 0, pulses = 0;
-  const cracks = Array.from({ length: 7 }, (_, i) => { const a = (i / 7) * Math.PI * 2 + rand(-0.3, 0.3), pts = [[0, 0]]; for (let k = 0; k < 9; k++) { const [x, y] = pts[pts.length - 1]; pts.push([x + Math.cos(a) * rand(8, 16) + rand(-6, 6), y + Math.sin(a) * rand(4, 9) + rand(-4, 4)]); } return pts; });
+  const cracks = makeCracks();
   const drawAll = (gF, gB, t) => {
     for (const ch of chains) {
       if (ch.ext <= 0 || ch.gone >= 1) continue;
@@ -904,8 +942,8 @@ function drawCable(g, a, b, sag, t, taut) {
     pts.push([x, y]);
   }
   const line = (w, c) => { g.strokeStyle = c; g.lineWidth = w; g.lineCap = "round"; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); };
-  line(5, "#1a1d22"); line(3, "#4a525e");
-  g.strokeStyle = "#cfd6e2"; g.lineWidth = 1.2;   // the braid: little bright twists along it
+  line(8, "#0b0d10"); line(6, "#4a525e"); line(2.5, "#a2acba");
+  g.strokeStyle = "#e2e8ef"; g.lineWidth = 1.6;   // the braid: little bright twists along it
   for (let i = 0; i < pts.length - 1; i++) {
     const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], mx = (x0 + x1) / 2, my = (y0 + y1) / 2, a = Math.atan2(y1 - y0, x1 - x0) + 0.9;
     g.beginPath(); g.moveTo(mx - Math.cos(a) * 1.6, my - Math.sin(a) * 1.6); g.lineTo(mx + Math.cos(a) * 1.6, my + Math.sin(a) * 1.6); g.stroke();
@@ -913,7 +951,7 @@ function drawCable(g, a, b, sag, t, taut) {
   return pts;
 }
 async function eventHorizon(s) {
-  const { fx, px, toon, pxTop, spr, mate, foeEl, boss } = s;
+  const { fx, px, toon, toonBack, pxTop, pxBack, spr, mate, foeEl, boss } = s;
   const S = propSprites();
   const core = s.golemC(), floor = fx.floorY, bh = { x: core.x - Math.min(330, fx.w * 0.26), y: Math.min(floor - 110, Math.max(core.y + 10, 150)) };
   const home = foeEl._pos || { x: 0, y: 0, r: 0 };
@@ -924,17 +962,28 @@ async function eventHorizon(s) {
   fx.focus(1.06, { x: (bh.x + core.x) / 2, y: bh.y }, 800);
   let size = 0, grow = 1, collapse = 0;
   const sc = () => size * grow * (1 - collapse);
-  toon.add({ dur: 11000, draw(pen, k, t, a) {
-    const Sz = sc(); if (Sz <= 0) { if (collapse >= 1) a.t = a.dur; return; }
+  // The hole and the far half of its disc sit BEHIND him; the near half of the
+  // disc passes in FRONT, so he's pulled through the ring into the dark.
+  const disc = (pen, t, near) => {
+    const Sz = sc();
     for (let i = 0; i < 48; i++) {   // the accretion disc, tilted, burning hotter on the side turning toward us
-      const ang = (i / 48) * Math.PI * 2 + t * 0.005, rx = 160 * Sz, ry = 30 * Sz;
-      pen.puff("heat", bh.x + Math.cos(ang) * rx, bh.y + Math.sin(ang) * ry, (9 + 3 * Math.sin(i * 1.7 + t * 0.01)) * Sz, 0.5 + 0.5 * (0.5 + 0.5 * Math.cos(ang)));
+      const ang = (i / 48) * Math.PI * 2 + t * 0.005;
+      if ((Math.sin(ang) > 0) !== near) continue;
+      pen.puff("heat", bh.x + Math.cos(ang) * 160 * Sz, bh.y + Math.sin(ang) * 30 * Sz, (9 + 3 * Math.sin(i * 1.7 + t * 0.01)) * Sz, 0.5 + 0.5 * (0.5 + 0.5 * Math.cos(ang)));
     }
-    for (let i = 0; i < 24; i++) { const ang = (i / 24) * Math.PI * 2 + t * 0.009; pen.puff("heat", bh.x + Math.cos(ang) * 86 * Sz, bh.y + Math.sin(ang) * 17 * Sz, 7 * Sz, 0.95); }
+    for (let i = 0; i < 24; i++) { const ang = (i / 24) * Math.PI * 2 + t * 0.009; if ((Math.sin(ang) > 0) !== near) continue; pen.puff("heat", bh.x + Math.cos(ang) * 86 * Sz, bh.y + Math.sin(ang) * 17 * Sz, 7 * Sz, 0.95); }
+  };
+  (toonBack || toon).add({ dur: 11000, draw(pen, k, t, a) {
+    const Sz = sc(); if (Sz <= 0) { if (collapse >= 1) a.t = a.dur; return; }
+    disc(pen, t, false);
     pen.puff("void", bh.x, bh.y, 58 * Sz, 1.45);
     pen.puff("void", bh.x, bh.y, 110 * Sz, 0.3);
   } });
-  pxTop.add({ dur: 11000, draw(g, k, t, a) {   // the photon ring bent over and under the hole; light streaking in
+  toon.add({ dur: 11000, draw(pen, k, t, a) {
+    const Sz = sc(); if (Sz <= 0) { if (collapse >= 1) a.t = a.dur; return; }
+    disc(pen, t, true);
+  } });
+  (pxBack || pxTop).add({ dur: 11000, draw(g, k, t, a) {   // the photon ring bent over and under the hole; light streaking in
     const Sz = sc(); if (Sz <= 0) { if (collapse >= 1) a.t = a.dur; return; }
     for (const [a0, a1, w] of [[Math.PI * 1.02, Math.PI * 1.98, 5], [Math.PI * 0.12, Math.PI * 0.88, 3]]) {
       g.strokeStyle = "#ffb040"; g.lineWidth = w * Sz; g.beginPath(); g.ellipse(bh.x, bh.y, 54 * Sz, 50 * Sz, 0, a0, a1); g.stroke();
@@ -956,7 +1005,7 @@ async function eventHorizon(s) {
       g.fillStyle = r.s > 6 ? "#5d6270" : "#8c92a0"; g.fillRect(bh.x + Math.cos(ang) * d - sz / 2, bh.y + Math.sin(ang) * d * 0.55 - sz / 2, sz, sz);
     }
   } });
-  await toon.add({ dur: 800, draw(pen, k) { size = ease.back(k); } });
+  await (toonBack || toon).add({ dur: 800, draw(pen, k) { size = ease.back(k); } });
   bigHit(fx, bh, { stop: 80, shake: 16, punch: 0.03, invert: false });
   // the pull tears his Firewall apart first
   if (boss.dome.childElementCount) {
@@ -967,13 +1016,15 @@ async function eventHorizon(s) {
     fx.title("FIREWALL TORN", "");
     await fx.wait(500);
   }
-  // he's dragged in: stretched toward the hole, thrusters fighting it, pieces tearing off
+  // he's dragged in: shrinking into the distance and darkening as the hole swallows him,
+  // thrusters fighting it, pieces of him tearing off
   sound.sfx("ghostWind", { ms: 2600 }); sound.sfx("whispers", { ms: 2600 });
   const cl = s.golem.localPoint([0, -0.1, -0.6]);
   foeEl.style.transformOrigin = `${cl.x}px ${cl.y}px`;
   const toX = bh.x - core.x, toY = bh.y - core.y;
   let pull = 0, shedding = true;
-  const stretch = (p) => { foeEl.style.scale = `${1 + p * 0.55} ${1 - p * 0.3}`; };
+  // no stretching (Isaac 2026-10-21): an even shrink, as if falling away into the hole, and the dark taking him
+  const stretch = (p) => { foeEl.style.scale = String(1 - p * 0.62); foeEl.style.filter = `brightness(${(1 - p * 0.8).toFixed(2)}) saturate(${(1 - p * 0.5).toFixed(2)})`; };
   const BODY = [[[-0.6, 0.2, -0.5]], [[0.6, 0.2, -0.5]], [[0, 0.4, -0.3]], [[-0.3, -0.3, -0.55]], [[0, -0.35, -0.2], "claw"], [[0, -0.8, -0.1], "claw"], [[0, -0.5, -0.2], "cannon"], [[0.4, 0.1, -0.5]]];
   const bits = [];
   pxTop.add({ dur: 6000, draw(g, k, t, a) {   // his armour, ice and sparks streaming into the hole
@@ -991,8 +1042,8 @@ async function eventHorizon(s) {
   } });
   s.golem.to({ thrust: 2.8, flare: 1.6, lean: -0.14, tilt: 0.1 }, 400, "out");
   const drag = pxTop.add({ dur: 1900, draw(g, k) {
-    pull = ease.in(k) * 0.74; grow = 1 + 0.25 * k;
-    fx.place(foeEl, { x: home.x + toX * pull + Math.sin(k * 70) * 4 * k, y: home.y + toY * pull });
+    pull = ease.in(k) * 0.9; grow = 1 + 0.2 * k;
+    fx.place(foeEl, { x: home.x + toX * pull + Math.sin(k * 70) * 3 * k, y: home.y + toY * pull, r: Math.sin(k * 9) * 4 * k });
     stretch(pull);
     s.golem.pose.ca = -0.85 + Math.sin(k * 30) * 0.35; s.golem.pose.cg = 0.5 + 0.5 * Math.sin(k * 23);   // the claw flailing
   } });
@@ -1003,7 +1054,7 @@ async function eventHorizon(s) {
     if (i === 0) s.onHit(1);
   }
   await drag;
-  // half swallowed: he swings his cannon round and fires a grappling hook into the floor behind him
+  // nearly swallowed: he swings his cannon round and fires a grappling hook into the floor behind him
   fx.slowmo(0.35, 700);
   fx.focus(1.12, { x: (bh.x + core.x) / 2 + 80, y: (bh.y + floor) / 2 }, 300);
   sound.sfx("servo", { ms: 260 });
@@ -1034,7 +1085,7 @@ async function eventHorizon(s) {
     const h = hookPos(), m = muzzle();
     // in flight it points where it's going; once in, it points away from the cable
     const ang = hooked || ret > 0 ? Math.atan2(anchorAt.y - m.y, anchorAt.x - m.x) : Math.atan2(anchorAt.y - m0.y + Math.cos(hook * Math.PI) * -157, anchorAt.x - m0.x);
-    stamp(g, S.hook[0], h.x, h.y, ang, 1.3);
+    stamp(g, S.hook[0], h.x, h.y, ang, 1.6);
   } });
   await pxTop.add({ dur: 300, draw(g, k) { hook = ease.out(k); } });
   hooked = true;
@@ -1056,7 +1107,7 @@ async function eventHorizon(s) {
     fx.place(foeEl, { x: lerp(start.x, home.x, e) + Math.sin(k * 50) * 3 * (1 - k), y: lerp(start.y, home.y, e) });
     stretch(p0 * (1 - e));
   } });
-  foeEl.style.scale = ""; foeEl.style.transformOrigin = "";
+  foeEl.style.scale = ""; foeEl.style.transformOrigin = ""; foeEl.style.filter = "";
   fx.place(foeEl, { x: home.x, y: home.y });
   fx.shake(20); fx.dust(s.golemC().x, 12, 1.4); sound.sfx("impact", { size: 1.2 });
   // the hook rips out of the floor and reels back into his cannon
@@ -1068,7 +1119,7 @@ async function eventHorizon(s) {
   mate.setMood("sad", { revertAfter: 900 });
   // robbed of its meal, the black hole collapses and blows
   sound.sfx("laserCharge", { ms: 300 });
-  await toon.add({ dur: 300, draw(pen, k) { collapse = ease.in(k); } });
+  await (toonBack || toon).add({ dur: 300, draw(pen, k) { collapse = ease.in(k); } });
   sound.sfx("explosion", { size: 1.8 }); sound.sfx("ghostWail", { size: 1.5 });
   bigHit(fx, bh, { stop: 240, shake: 38, punch: 0.08 });
   flashAt(pxTop, bh, 190, 460); shards(pxTop, bh, 34, 2.2);
