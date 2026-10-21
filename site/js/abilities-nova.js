@@ -662,7 +662,7 @@ async function eclipseLance(s) {
 // star-flash and drops him.
 async function eventHorizon(s) {
   const { fx, px, toon, pxTop, mate, foeEl } = s;
-  const core = s.golemC(), bh = { x: core.x - Math.min(220, fx.w * 0.17), y: Math.max(110, core.y - 40) };   // in the open air in front of him
+  const core = s.golemC(), bh = { x: core.x - Math.min(320, fx.w * 0.25), y: Math.max(110, core.y - 30) };   // in the open air in front of him
   fx.letterbox(true); fx.darken(0.85, 600);
   fx.title("EVENT HORIZON", "NOVA · ultimate II");
   const settle = castPose(mate, { lift: 0.14, energy: 3.2, ms: 600 });
