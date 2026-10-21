@@ -3,46 +3,46 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NOVA concept</title>
+<title>NOVA concepts</title>
 <style>
 body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: #0f1116; color: #e9ecf2; }
-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+main { max-width: 1150px; margin: 0 auto; padding: 24px 16px 60px; }
 h1 { font-size: 22px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 18px; font-size: 14px; }
-h2 { font-size: 16px; margin: 18px 0 8px; }
-.row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.panel { border-radius: 14px; border: 1px solid #262c38; display: flex; align-items: flex-end; justify-content: center; gap: 60px; padding: 70px 10px 50px; }
+.row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.col h2 { font-size: 16px; margin: 0 0 4px; } .col p { font-size: 13px; margin: 0 0 10px; min-height: 54px; }
+.panel { border-radius: 14px; border: 1px solid #262c38; display: flex; align-items: flex-end; justify-content: center; gap: 26px; padding: 40px 8px 28px; margin-bottom: 12px; }
 .panel.light { background: #f4f2ee; }
 .panel.dark { background: radial-gradient(ellipse at 50% 30%, #1d2330, #12151c 70%); }
 .panel svg { overflow: visible; }
-.big { width: 200px; } .small { width: 76px; }
-.moods { flex-wrap: wrap; gap: 50px; }
-.moods figure { margin: 0; text-align: center; } .moods svg { width: 100px; }
-.moods figcaption { font-size: 13px; color: #9aa3b5; margin-top: 10px; }
-@media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
+.big { width: 190px; } .small { width: 70px; }
+@media (max-width: 860px) { .row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <main>
-  <h1>NOVA: shadow form</h1>
-  <p>A living shadow: a flame-horned head and two glowing eyes on a shadow cloak whose hem breaks into curling tendrils, wrapped in a blotchy purple magic haze (like Gastly's gas) with star specks. Shown big and at roaming size, on the lesson and battle backgrounds, then his moods.</p>
+  <h1>NOVA: three original directions</h1>
+  <p>Same trope (a living shadow with blank white eyes in purple magic gas), three different silhouettes. Each is shown big and at roaming size on the battle and lesson backgrounds.</p>
   <div class="row">
-    <div class="panel light"><svg class="big" data-m="idle" viewBox="0 0 360 480"></svg><svg class="small" data-m="idle" viewBox="0 0 360 480"></svg></div>
-    <div class="panel dark"><svg class="big" data-m="idle" viewBox="0 0 360 480"></svg><svg class="small" data-m="idle" viewBox="0 0 360 480"></svg></div>
-  </div>
-  <h2>Moods</h2>
-  <div class="panel dark moods">
-    <figure><svg data-m="idle" viewBox="0 0 360 480"></svg><figcaption>idle</figcaption></figure>
-    <figure><svg data-m="happy" viewBox="0 0 360 480"></svg><figcaption>happy</figcaption></figure>
-    <figure><svg data-m="angry" viewBox="0 0 360 480"></svg><figcaption>angry (battle)</figcaption></figure>
-    <figure><svg data-m="sad" viewBox="0 0 360 480"></svg><figcaption>sad</figcaption></figure>
-    <figure><svg data-m="sleepy" viewBox="0 0 360 480"></svg><figcaption>sleepy</figcaption></figure>
+    <div class="col"><h2>A · Comet</h2><p>A round shadow head whose back streams into a comet tail of shadow flame, shedding sparks. Always looks like he's mid-flight.</p>
+      <div class="panel dark"><svg class="big" data-k="comet" viewBox="0 0 300 300"></svg><svg class="small" data-k="comet" viewBox="0 0 300 300"></svg></div>
+      <div class="panel light"><svg class="big" data-k="comet" viewBox="0 0 300 300"></svg><svg class="small" data-k="comet" viewBox="0 0 300 300"></svg></div>
+    </div>
+    <div class="col"><h2>B · Eclipse</h2><p>A shadow teardrop with a glowing solar-eclipse corona behind his head. His tail tip crumbles into drifting dust.</p>
+      <div class="panel dark"><svg class="big" data-k="eclipse" viewBox="0 0 300 300"></svg><svg class="small" data-k="eclipse" viewBox="0 0 300 300"></svg></div>
+      <div class="panel light"><svg class="big" data-k="eclipse" viewBox="0 0 300 300"></svg><svg class="small" data-k="eclipse" viewBox="0 0 300 300"></svg></div>
+    </div>
+    <div class="col"><h2>C · Void hood</h2><p>A tall shadow hood whose tip curls like a crescent moon. Inside is pure void; the hem breaks into shards that float away.</p>
+      <div class="panel dark"><svg class="big" data-k="hood" viewBox="0 0 300 300"></svg><svg class="small" data-k="hood" viewBox="0 0 300 300"></svg></div>
+      <div class="panel light"><svg class="big" data-k="hood" viewBox="0 0 300 300"></svg><svg class="small" data-k="hood" viewBox="0 0 300 300"></svg></div>
+    </div>
   </div>
 </main>
 <script>
-const SHADOW = "#050308";
+const SHADOW = "#050308", GAS_A = "#a27ad6", GAS_B = "#8a5cc8";
 let uid = 0;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const f1 = (n) => n.toFixed(1);
+const star4 = (x, y, r) => `M${f1(x)} ${f1(y - r)}Q${f1(x)} ${f1(y)} ${f1(x + r)} ${f1(y)}Q${f1(x)} ${f1(y)} ${f1(x)} ${f1(y + r)}Q${f1(x)} ${f1(y)} ${f1(x - r)} ${f1(y)}Q${f1(x)} ${f1(y)} ${f1(x)} ${f1(y - r)}Z`;
 
 // Smooth closed curve through points (Catmull-Rom turned into cubic Béziers).
 function closedCurve(pts) {
@@ -53,133 +53,127 @@ function closedCurve(pts) {
   }
   return d + "Z";
 }
+// Outline points [x, y, flicker]: flicker > 0 makes that point lick like a flame.
+const flick = (pts, t, amp) => pts.map(([x, y, fl = 0], i) => fl ? [x + Math.sin(t * 3.1 + i * 1.7) * amp * fl, y + Math.sin(t * 4.2 + i * 2.3) * amp * fl] : [x, y]);
 
-// Head, traced from the first reference: [x, y, flicker]. Horn tips flicker like flames;
-// the points beside a tip waver a little so the horn licks like a flame.
-const HEAD = [
-  [74, 244, 0], [38, 218, 0], [20, 178, 0], [16, 134, 0], [18, 104, 0],
-  [12, 74, 0.4], [18, 46, 0.7], [30, 20, 1], [34, 46, 0.6], [44, 70, 0.3], [54, 86, 0],           // small left flame
-  [62, 70, 0.3], [68, 44, 0.6], [84, 22, 0.8], [112, 2, 1], [100, 24, 0.7], [96, 48, 0.5], [104, 68, 0.3], [116, 80, 0],  // big flame, licking right
-  [138, 82, 0], [158, 76, 0],
-  [164, 56, 0.3], [168, 32, 0.6], [182, 12, 0.8], [190, -8, 1], [198, 18, 0.7], [200, 48, 0.4], [208, 80, 0],            // tall flame
-  [222, 88, 0.3], [236, 72, 0.6], [246, 56, 0.8], [266, 44, 1], [256, 64, 0.6], [246, 88, 0.3], [240, 110, 0],          // side flame
-  [238, 144, 0], [228, 186, 0], [208, 220, 0], [172, 244, 0], [124, 254, 0],
-];
-// The shadow cloak: narrow at the neck, flaring out; its hem breaks into tendrils.
-const CLOAK = [
-  [100, 236], [80, 262], [58, 298], [34, 334], [24, 352], [62, 362], [100, 368], [140, 370],
-  [180, 370], [220, 366], [258, 358], [298, 346], [290, 318], [262, 284], [222, 254], [180, 236],
-];
-// Hem tendrils: base, two bends, tip, base width. The outer ones curl back up.
-const TENDRILS = [
-  { p: [[34, 336], [6, 372], [-26, 380], [-30, 344]], w: 30, ph: 0 },
-  { p: [[64, 352], [40, 400], [16, 420], [28, 452]], w: 30, ph: 0.8 },
-  { p: [[100, 360], [88, 410], [114, 438], [92, 470]], w: 30, ph: 1.6 },
-  { p: [[140, 364], [152, 412], [128, 440], [150, 474]], w: 30, ph: 2.4 },
-  { p: [[182, 364], [192, 418], [224, 430], [212, 468]], w: 30, ph: 3.2 },
-  { p: [[222, 358], [254, 398], [276, 418], [266, 454]], w: 28, ph: 4.0 },
-  { p: [[262, 350], [302, 376], [334, 386], [346, 418]], w: 26, ph: 4.8 },
-  { p: [[294, 336], [330, 348], [356, 338], [360, 304]], w: 24, ph: 5.6 },
-];
-function tendril(T, t, amp) {
-  const L = [], Rt = [], [b, c1, c2, e] = T.p;
-  for (let i = 0; i <= 20; i++) {
-    const s = i / 20, u = 1 - s;
-    const x = u ** 3 * b[0] + 3 * u * u * s * c1[0] + 3 * u * s * s * c2[0] + s ** 3 * e[0];
-    const y = u ** 3 * b[1] + 3 * u * u * s * c1[1] + 3 * u * s * s * c2[1] + s ** 3 * e[1];
-    const dx = 3 * u * u * (c1[0] - b[0]) + 6 * u * s * (c2[0] - c1[0]) + 3 * s * s * (e[0] - c2[0]);
-    const dy = 3 * u * u * (c1[1] - b[1]) + 6 * u * s * (c2[1] - c1[1]) + 3 * s * s * (e[1] - c2[1]);
-    const len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
-    const sway = amp * s * Math.sin(Math.PI * 2 * (s * 0.8 - t * 0.5) + T.ph);
-    const w = (3 + (T.w - 3) * Math.pow(1 - s, 0.8)) / 2;
-    L.push([x + nx * (sway + w), y + ny * (sway + w)]); Rt.push([x + nx * (sway - w), y + ny * (sway - w)]);
-  }
-  return closedCurve(L.concat(Rt.reverse()));
-}
-
-const EYES = [{ cx: 46, cy: 148, rx: 16, ry: 32, rot: -4 }, { cx: 116, cy: 152, rx: 20, ry: 32, rot: -3 }];
-// Lids are shadow shapes laid over the eyes to change their shape per mood.
-const LIDS = {
-  idle: "",
-  angry: `<path d="M18 100 L76 100 L76 148 L18 122Z"/><path d="M90 100 L150 100 L150 124 L90 150Z"/>`,
-  sad: `<path d="M18 100 L76 100 L76 122 L18 148Z"/><path d="M90 100 L150 100 L150 150 L90 124Z"/>`,
-  happy: `<ellipse cx="46" cy="180" rx="24" ry="30"/><ellipse cx="116" cy="184" rx="28" ry="31"/>`,
+const KINDS = {
+  // A: round head streaming back into a comet tail with three flame tips.
+  comet: {
+    eyes: [[104, 172, 11, 19], [144, 174, 12, 20]],
+    body: (t) => closedCurve(flick([
+      [128, 238], [92, 230], [70, 204], [64, 170], [72, 138], [94, 114], [120, 102, 0.3], [152, 80, 0.5], [192, 56, 0.7],
+      [244, 26, 1], [218, 62, 0.6], [262, 64, 1], [226, 90, 0.6], [270, 112, 1], [222, 124, 0.5], [200, 150, 0.2], [192, 190], [176, 222], [154, 236],
+    ], t, 7)),
+    sparkFrom: [[244, 26], [262, 64], [270, 112]], sparkDir: [1, -0.25],
+  },
+  // B: teardrop with an eclipse corona; the tail tip sways and crumbles to dust.
+  eclipse: {
+    eyes: [[132, 128, 11, 19], [170, 128, 12, 20]],
+    body: (t) => {
+      const pts = [];
+      for (let i = 0; i <= 14; i++) { const a = Math.PI * (1.12 - i * (1.24 / 14)); pts.push([150 + Math.cos(a) * 54, 126 - Math.sin(a) * 54]); }
+      const sway = Math.sin(t * 1.3) * 16;
+      pts.push([186, 196], [166 + sway * 0.5, 236], [150 + sway, 272], [136 + sway * 0.5, 236], [114, 196]);
+      return closedCurve(pts);
+    },
+    corona: true, dustFrom: (t) => [150 + Math.sin(t * 1.3) * 16, 268],
+  },
+  // C: tall hood whose tip curls into a crescent; void opening; shards off the hem.
+  hood: {
+    eyes: [[128, 160, 10, 17], [164, 160, 11, 18]],
+    body: (t) => closedCurve(flick([
+      [150, 268], [104, 266], [64, 254, 0.4], [70, 226], [72, 176], [80, 128], [98, 88], [126, 60], [162, 42], [200, 34, 0.2],
+      [234, 40, 0.4], [258, 62, 0.7], [262, 92, 1], [248, 72, 0.6], [228, 60, 0.3], [208, 64], [216, 100], [226, 160], [234, 222], [248, 254, 0.4], [200, 268],
+    ], t, 4)),
+    opening: true, shardsFrom: [62, 244, 236],
+  },
 };
 
-function nova(svg, mood) {
-  const id = "n" + uid++;
-  const angry = mood === "angry", sleepy = mood === "sleepy";
-  const gasA = angry ? "#e070b8" : "#a27ad6", gasB = angry ? "#c24c98" : "#8a5cc8";
-  const specks = Array.from({ length: 12 }, () => ({ x: rnd(0, 330), y: rnd(0, 470), r: rnd(1, 2.2), p: rnd(0, 6) }));
-  const blots = Array.from({ length: 6 }, (_, i) => ({ a: (i / 6) * 6.28 + rnd(-0.3, 0.3), off: i / 6, s: rnd(12, 24) }));
-  const eyeShapes = (extra = 0) => EYES.map((e) => `<ellipse cx="${e.cx}" cy="${e.cy}" rx="${e.rx + extra}" ry="${e.ry + extra}" transform="rotate(${e.rot} ${e.cx} ${e.cy})"/>`).join("");
-  const eyes = sleepy
-    ? `<g stroke="#eee" stroke-width="7" stroke-linecap="round" fill="none" filter="url(#${id}soft)"><path d="M30 156 Q46 164 62 156"/><path d="M98 158 Q116 166 134 158"/></g>`
-    : `<g class="eyes"><g fill="#fff" opacity=".6" filter="url(#${id}glow)">${eyeShapes(4)}</g>
-        <g fill="#e8e8ec" filter="url(#${id}soft)">${eyeShapes()}</g>
-        <g fill="${SHADOW}" filter="url(#${id}soft)">${LIDS[mood]}</g></g>`;
-  // The shadow silhouette (head + tendrils) is reused by the gas layers through <use>.
-  const sil = (cls) => `<use href="#${id}head" class="${cls}"/><use href="#${id}cloak" class="${cls}"/>${TENDRILS.map((_, i) => `<use href="#${id}t${i}" class="${cls}"/>`).join("")}`;
+function nova(svg, kind) {
+  const K = KINDS[kind], id = "n" + uid++;
+  const sparks = Array.from({ length: 9 }, (_, i) => ({ off: i / 9, src: i % 3, j: rnd(-14, 14), s: rnd(3, 6) }));
+  const dust = Array.from({ length: 12 }, (_, i) => ({ off: i / 12, dx: rnd(-26, 26), s: rnd(2.5, 5.5), sq: i % 2 }));
+  const shards = Array.from({ length: 10 }, (_, i) => ({ off: i / 10, x: rnd(0, 1), dx: rnd(-18, 18), s: rnd(3, 7), r: rnd(0, 90) }));
+  const specks = Array.from({ length: 9 }, () => ({ x: rnd(30, 270), y: rnd(10, 290), r: rnd(0.9, 1.8), p: rnd(0, 6) }));
+  const eyeShapes = (grow = 0) => K.eyes.map(([x, y, rx, ry]) => `<ellipse cx="${x}" cy="${y}" rx="${rx + grow}" ry="${ry + grow}"/>`).join("");
   svg.innerHTML = `<defs>
-      <filter id="${id}head-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"/></filter>
-      <filter id="${id}smoke" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3"/></filter>
-      <filter id="${id}soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.8"/></filter>
-      <filter id="${id}glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="7"/></filter>
-      <!-- Watercolour gas: the halo's edge is pushed around by noise, so it goes blotchy like Gastly's -->
-      <filter id="${id}wash" x="-30%" y="-30%" width="160%" height="160%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="3" seed="${uid * 7}" result="n"/>
-        <feDisplacementMap in="SourceGraphic" in2="n" scale="70" xChannelSelector="R" yChannelSelector="G"/>
+      <filter id="${id}soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.6"/></filter>
+      <filter id="${id}body" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2"/></filter>
+      <filter id="${id}glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="6"/></filter>
+      <filter id="${id}wash" x="-40%" y="-40%" width="180%" height="180%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.016" numOctaves="3" seed="${uid * 7}" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="46" xChannelSelector="R" yChannelSelector="G"/>
         <feGaussianBlur stdDeviation="1.4"/>
       </filter>
-      <linearGradient id="${id}fg" x1="0" y1="0" x2="1" y2="1"><stop offset=".45" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity=".45"/></linearGradient>
-      <mask id="${id}fade" maskUnits="userSpaceOnUse" x="-100" y="-100" width="560" height="700"><rect x="-100" y="-100" width="560" height="700" fill="url(#${id}fg)"/></mask>
-      <path id="${id}head"/><path id="${id}cloak"/>
-      ${TENDRILS.map((_, i) => `<path id="${id}t${i}"/>`).join("")}
+      <path id="${id}b"/>
     </defs>
-    <ellipse class="shadow" cx="170" cy="492" rx="70" ry="9" fill="#000" opacity=".12"/>
-    <g class="body">
+    <ellipse class="shadow" cx="150" cy="296" rx="52" ry="7" fill="#000" opacity=".12"/>
+    <g class="all">
       <g filter="url(#${id}wash)">
-        <g fill="${gasA}" stroke="${gasA}" stroke-width="100" stroke-linejoin="round" opacity=".34">${sil("")}</g>
-        <g fill="${gasB}" stroke="${gasB}" stroke-width="46" stroke-linejoin="round" opacity=".38">${sil("")}</g>
-        ${blots.map(() => `<circle class="blot" fill="${gasA}"/>`).join("")}
+        <use href="#${id}b" fill="${GAS_A}" stroke="${GAS_A}" stroke-width="66" stroke-linejoin="round" opacity=".32"/>
+        <use href="#${id}b" fill="${GAS_B}" stroke="${GAS_B}" stroke-width="28" stroke-linejoin="round" opacity=".38"/>
       </g>
       ${specks.map(() => `<circle class="speck" fill="#fff"/>`).join("")}
-      <g fill="${SHADOW}" filter="url(#${id}smoke)"><use href="#${id}cloak"/>${TENDRILS.map((_, i) => `<use href="#${id}t${i}"/>`).join("")}</g>
-      <g fill="${SHADOW}" filter="url(#${id}head-blur)"><use href="#${id}head"/></g>
-      <g class="face">${eyes}</g>
-      ${sleepy ? `<text class="zzz" font-family="system-ui" font-weight="800" font-size="34" fill="${gasA}" x="240" y="40">z</text>` : ""}
+      ${K.corona ? `<g filter="url(#${id}glow)"><path class="corona" fill="#e7dcff" opacity=".9"/></g><path class="corona" fill="#f6f1ff" opacity=".85"/>` : ""}
+      <use href="#${id}b" fill="${SHADOW}" filter="url(#${id}body)"/>
+      ${K.opening ? `<ellipse cx="148" cy="164" rx="46" ry="54" fill="#000" stroke="#6a45b0" stroke-width="3" opacity=".9" filter="url(#${id}soft)"/>` : ""}
+      ${sparks.map(() => `<path class="spark" fill="${kind === "comet" ? "#e8dcff" : "#fff"}"/>`).join("")}
+      ${K.dustFrom ? dust.map((d) => d.sq ? `<rect class="dust" fill="${SHADOW}"/>` : `<circle class="dust" fill="${SHADOW}"/>`).join("") : ""}
+      ${K.shardsFrom ? shards.map(() => `<path class="shard" fill="${SHADOW}" stroke="#7a55c9" stroke-width="1"/>`).join("") : ""}
+      <g class="eyes"><g fill="#fff" opacity=".6" filter="url(#${id}glow)">${eyeShapes(4)}</g><g fill="#eeecf2" filter="url(#${id}soft)">${eyeShapes()}</g></g>
     </g>`;
   const q = (s) => svg.querySelector(s), qa = (s) => svg.querySelectorAll(s);
-  const headEl = q(`#${id}head`), cloakEl = q(`#${id}cloak`), tEls = TENDRILS.map((_, i) => q(`#${id}t${i}`));
-  const speed = sleepy ? 0.45 : angry ? 1.7 : 1;
+  const bodyEl = q(`#${id}b`);
   return (t) => {
-    const ts = t * speed;
-    const bob = Math.sin(t * (sleepy ? 1 : 1.5)) * 9, tilt = Math.sin(t * 0.8) * 2.5;
-    q(".body").setAttribute("transform", `translate(0 ${f1(bob)}) rotate(${f1(tilt)} 150 200)`);
-    q(".shadow").setAttribute("rx", f1(70 - bob));
-    headEl.setAttribute("d", closedCurve(HEAD.map(([x, y, fl], i) => fl ? [x + Math.sin(ts * 3.1 + i) * 5 * fl, y + Math.sin(ts * 4.3 + i * 2) * 6 * fl] : [x, y])));
-    // The cloak ripples: its lower edge sways more than the neck.
-    cloakEl.setAttribute("d", closedCurve(CLOAK.map(([x, y], i) => { const k = Math.max(0, (y - 236) / 134); return [x + Math.sin(ts * 1.6 + i * 0.9) * 6 * k, y + Math.sin(ts * 2 + i * 1.3) * 4 * k]; })));
-    tEls.forEach((p, i) => p.setAttribute("d", tendril(TENDRILS[i], ts, angry ? 20 : 14)));
-    // Loose blots of gas break away from his edge and fade.
-    qa(".blot").forEach((c, i) => {
-      const b = blots[i], k = (ts * 0.22 + b.off) % 1, rr = 200 + k * 70;
-      c.setAttribute("cx", f1(150 + Math.cos(b.a) * rr * 0.95)); c.setAttribute("cy", f1(230 + Math.sin(b.a) * rr * 1.2));
-      c.setAttribute("r", f1(b.s * (1 - k * 0.5))); c.setAttribute("opacity", ((1 - k) * 0.5).toFixed(2));
-    });
+    const bob = Math.sin(t * 1.5) * 7;
+    q(".all").setAttribute("transform", `translate(0 ${f1(bob)})`);
+    q(".shadow").setAttribute("rx", f1(52 - bob));
+    bodyEl.setAttribute("d", K.body(t));
+    const e = q(".eyes"), b = t % 4.4 < 0.14 ? 0.1 : 1, ey = K.eyes[0][1];
+    e.setAttribute("transform", `translate(0 ${f1(ey * (1 - b))}) scale(1 ${b})`);
     qa(".speck").forEach((c, i) => {
-      const s = specks[i], y = ((s.y - ts * 12) % 480 + 480) % 480;
-      c.setAttribute("cx", f1(s.x + Math.sin(t + s.p) * 5)); c.setAttribute("cy", f1(y)); c.setAttribute("r", s.r);
+      const s = specks[i], y = ((s.y - t * 10) % 300 + 300) % 300;
+      c.setAttribute("cx", f1(s.x)); c.setAttribute("cy", f1(y)); c.setAttribute("r", s.r);
       c.setAttribute("opacity", (0.2 + 0.6 * Math.abs(Math.sin(t * 1.6 + s.p))).toFixed(2));
     });
-    const e = q(".eyes");
-    if (e) { const b = t % 4.4 < 0.14 ? 0.1 : 1; e.setAttribute("transform", `translate(0 ${f1(150 * (1 - b))}) scale(1 ${b})`); }
-    const z = q(".zzz");
-    if (z) { const k = (t * 0.45) % 1; z.setAttribute("transform", `translate(${f1(k * 30)} ${f1(-k * 40)})`); z.setAttribute("opacity", (1 - k).toFixed(2)); }
+    // Comet: sparks peel off the flame tips and stream backwards.
+    if (K.sparkFrom) qa(".spark").forEach((c, i) => {
+      const s = sparks[i], k = (t * 0.6 + s.off) % 1, [sx, sy] = K.sparkFrom[s.src];
+      c.setAttribute("d", star4(sx + k * 60 * K.sparkDir[0], sy + k * 60 * K.sparkDir[1] + s.j * k, s.s * (1 - k)));
+      c.setAttribute("opacity", (1 - k).toFixed(2));
+    });
+    // Eclipse: the corona's rays flicker; dust crumbles off the tail tip.
+    if (K.corona) {
+      const pts = [];
+      for (let i = 0; i < 48; i++) {
+        const a = (i / 48) * Math.PI * 2, ray = i % 2 ? 0 : 10 + 9 * Math.abs(Math.sin(t * 2.3 + i * 1.9));
+        pts.push([150 + Math.cos(a) * (60 + ray), 126 + Math.sin(a) * (60 + ray)]);
+      }
+      const d = closedCurve(pts); qa(".corona").forEach((c) => c.setAttribute("d", d));
+    }
+    if (K.dustFrom) {
+      const [dx0, dy0] = K.dustFrom(t);
+      qa(".dust").forEach((c, i) => {
+        const d = dust[i], k = (t * 0.45 + d.off) % 1, x = dx0 + d.dx * k, y = dy0 + k * 34, s = d.s * (1 - k * 0.6);
+        if (d.sq) { c.setAttribute("x", f1(x - s / 2)); c.setAttribute("y", f1(y - s / 2)); c.setAttribute("width", f1(s)); c.setAttribute("height", f1(s)); }
+        else { c.setAttribute("cx", f1(x)); c.setAttribute("cy", f1(y)); c.setAttribute("r", f1(s / 2)); }
+        c.setAttribute("opacity", (1 - k).toFixed(2));
+      });
+    }
+    // Hood: dark shards break off the hem and float away.
+    if (K.shardsFrom) {
+      const [x0, y0, x1] = K.shardsFrom;
+      qa(".shard").forEach((c, i) => {
+        const s = shards[i], k = (t * 0.35 + s.off) % 1, x = x0 + (x1 - x0) * s.x + s.dx * k, y = y0 + 22 - k * 10 + k * k * 30;
+        c.setAttribute("d", `M${f1(x)} ${f1(y - s.s)}L${f1(x + s.s * 0.6)} ${f1(y)}L${f1(x)} ${f1(y + s.s)}L${f1(x - s.s * 0.6)} ${f1(y)}Z`);
+        c.setAttribute("transform", `rotate(${f1(s.r + t * 60)} ${f1(x)} ${f1(y)})`);
+        c.setAttribute("opacity", (1 - k).toFixed(2));
+      });
+    }
   };
 }
 
-const draws = [...document.querySelectorAll("svg[data-m]")].map((s) => nova(s, s.dataset.m));
+const draws = [...document.querySelectorAll("svg[data-k]")].map((s) => nova(s, s.dataset.k));
 const t0 = performance.now();
 (function loop(now) { const t = (now - t0) / 1000; draws.forEach((d) => d(t)); requestAnimationFrame(loop); })(t0);
 </script>
