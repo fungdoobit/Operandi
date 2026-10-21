@@ -755,12 +755,12 @@ async function eclipseLance(s) {
   // rune circles stacked along the line of fire, and the beam's white core, helix and rings
   pxTop.add({ dur: 4200, draw(g, k, t) {
     if (circles > 0) for (let n = 0; n < 3; n++) {
-      const d = 40 + n * 46, cx = e.x + aim.x * d, cy = e.y + aim.y * d, r = (34 - n * 7) * ease.back(clamp01(circles * 1.6 - n * 0.3));
+      const d = 50 + n * 62, cx = e.x + aim.x * d, cy = e.y + aim.y * d, r = (62 - n * 12) * ease.back(clamp01(circles * 1.6 - n * 0.3));
       if (r <= 0) continue;
       g.save(); g.translate(cx, cy); g.rotate(ang); g.scale(0.28, 1);
       g.strokeStyle = n % 2 ? "#cba2ff" : "#a066f0"; g.lineWidth = 4; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke();
       g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r * 0.72, 0, Math.PI * 2); g.stroke();
-      for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 + t * 0.004 * (n % 2 ? -1 : 1); g.fillStyle = i % 2 ? "#ffffff" : "#cba2ff"; g.fillRect(Math.cos(a) * r * 0.86 - 3, Math.sin(a) * r * 0.86 - 3, 6, 6); }
+      for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 + t * 0.004 * (n % 2 ? -1 : 1); g.fillStyle = i % 2 ? "#ffffff" : "#cba2ff"; g.fillRect(Math.cos(a) * r * 0.86 - 4, Math.sin(a) * r * 0.86 - 4, 8, 8); }
       g.restore();
     }
     if (beam > 0) {
