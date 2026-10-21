@@ -35,6 +35,8 @@ const battle = new BattleStage(document.getElementById("arena"), document.getEle
 let busy = false;
 const run = async (fn) => { if (busy) return; busy = true; try { await fn(); } finally { busy = false; } };
 window.__mine = () => run(() => battle.kit ? battle.ability(battle.kit[0]) : battle.attack({ result: "hit", dmg: 20 }));
+import { explode } from "./js/pixel/toon-fx.js";
+window.__boom = () => run(async () => { const c = battle.ctx.fx.fromPage(battle.golem.point("core")); await explode(battle.toon, c.x, c.y, { size: 1.4 }); });
 window.__missiles = () => run(() => golemAttack(battle.ctx, "missiles", { onHit() {} }));
 document.getElementById("mine").onclick = window.__mine;
 document.getElementById("missiles").onclick = window.__missiles;

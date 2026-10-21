@@ -12,6 +12,7 @@ import { SPECIALS } from "./boss-rules.js";
 import { BOSS } from "./economy.js";
 import { FoundryBG } from "./pixel/arena-bg.js";
 import { PixelFX } from "./pixel/pixel-fx.js";
+import { ToonFX } from "./pixel/toon-fx.js";
 import { NovaFighter } from "./pixel/nova-mate.js";
 import { kitFor } from "./abilities.js";
 import { sound, wireBattleSounds } from "./sound.js";
@@ -114,8 +115,9 @@ export class BattleStage {
     this.dot.setAccessory(accessories);
     this.px = new PixelFX(world);   // hi-bit effects for the abilities (pixel/pixel-fx.js)
     this.pxBack = new PixelFX(world, { z: 0, before: foeEl });   // a layer behind the fighters (the far side of a portal...)
+    this.toon = new ToonFX(world);   // cel-shaded fire, smoke and shadow on the GPU (pixel/toon-fx.js)
     this.kit = kitFor(skin);
-    this.ctx = { fx: this.fx, px: this.px, pxBack: this.pxBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
+    this.ctx = { fx: this.fx, px: this.px, pxBack: this.pxBack, toon: this.toon, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
     sound.music("battle");

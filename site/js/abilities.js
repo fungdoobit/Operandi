@@ -4,11 +4,12 @@
 // then follow-through. Effects are drawn on the pixel FX layer (pixel/pixel-fx.js)
 // so they come out as hi-bit pixel art.
 //
-// s = { fx, px, mate, mateEl, golem, P(name), mateC(), golemC(), onHit(n) }
+// s = { fx, px, toon, mate, mateEl, golem, P(name), mateC(), golemC(), onHit(n) }
 //   onHit(1) is the first contact; a crit's finishing blow is onHit(2).
 // Costs, cooldowns and damage come with the ability cards (Addendum J).
 import { ease, lerp, ribbon, glow, starFlash } from "./pixel/pixel-fx.js";
 import { sound } from "./sound.js";
+import { explode } from "./pixel/toon-fx.js";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -17,100 +18,86 @@ const rand = (a, b) => a + Math.random() * (b - a);
 
 // ---- drawing the void portal and the shadow hands ----
 
-// The shadow hands follow Isaac's references (2026-10-21): solid black
-// silhouettes, thick and mostly straight forearms with drips and ragged tatters
-// hanging off them, broad palms, long fingers with knobbly knuckles tapering to
-// hooked points. A thin purple edge keeps them readable on the dark arena.
-const INK = "#07040c", EDGE = "#6a3cc0";
+// The shadow hands are painted into the void channel of the toon layer
+// (pixel/toon-fx.js), which turns them into living shadow: solid black with a
+// crawling edge, a purple rim of light, faint veins, and wisps rising off them.
+// The shapes follow Isaac's zombie-hand silhouettes: a gaunt forearm with a
+// knob of wrist bone, a narrow palm, very long bony fingers with swollen
+// knuckles, and claws hooking off the tips.
+const hash = (n) => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 
-// Shapes are drawn in two passes over ALL the arms: first everything a little
-// bigger in the edge colour, then everything in black on top, so the arms and
-// hands merge into one black mass with a purple outline (no lines inside).
-let inkPass = "ink";
-function inked(g, fn) { if (inkPass === "edge") { g.fillStyle = EDGE; fn(1.8); } else { g.fillStyle = INK; fn(0); } }
-
-// A thick forearm from base to wrist (a gentle bend), with drips and tatters.
-function drawArm(g, base, wrist, bend, w, alpha = 1, t = 0, seed = 0) {
+// A gaunt forearm from base to wrist (a gentle, lumpy bend), with strands
+// hanging off it and wisps of shadow peeling away and rising.
+function voidArm(pen, base, wrist, bend, w, amt, t, seed) {
   const dx = wrist[0] - base[0], dy = wrist[1] - base[1], len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
   const pts = [];
-  for (let i = 0; i <= 10; i++) { const u = i / 10, b = Math.sin(u * Math.PI) * bend * 0.35; pts.push([base[0] + dx * u + nx * b, base[1] + dy * u + ny * b]); }
-  g.globalAlpha = alpha;
-  inked(g, (e) => {
-    ribbon(g, pts, w * 1.25 + e * 2, w * 0.72 + e * 2, g.fillStyle);
-  });
-  // drips and ragged strands hanging off the forearm, swaying
-  for (let k = 0; k < 4; k++) {
-    const u = 0.25 + k * 0.17, p = pts[Math.round(u * 10)], side = k % 2 ? 1 : -1;
-    const sx = p[0] + nx * side * w * (0.55 - u * 0.15), sy = p[1] + ny * side * w * (0.55 - u * 0.15);
-    const L = 8 + ((seed * 7 + k * 5) % 11) + Math.sin(t * 0.008 + k + seed) * 3;
-    const sway = Math.sin(t * 0.006 + k * 2 + seed) * 2;
-    inked(g, (e) => { ribbon(g, [[sx, sy], [sx + sway * 0.5, sy + L * 0.6], [sx + sway, sy + L]], 3 + e, 0.5 + e, g.fillStyle); });
-    inked(g, (e) => { g.beginPath(); g.arc(sx + sway, sy + L, 1.6 + e, 0, Math.PI * 2); g.fill(); });   // the drop at the end
+  for (let i = 0; i <= 12; i++) {
+    const u = i / 12, b = Math.sin(u * Math.PI) * bend * 0.35 + Math.sin(u * 9 + seed * 3) * w * 0.07;
+    pts.push([base[0] + dx * u + nx * b, base[1] + dy * u + ny * b]);
   }
-  for (let k = 0; k < 3; k++) {   // tatters jutting from the edges
-    const u = 0.35 + k * 0.2, p = pts[Math.round(u * 10)], side = k % 2 ? -1 : 1, ww = w * (1.2 - u * 0.5) / 2;
-    const a = [p[0] + nx * side * ww, p[1] + ny * side * ww];
-    const tip = [a[0] + nx * side * 7 - dx / len * 6, a[1] + ny * side * 7 - dy / len * 6];
-    inked(g, (e) => { g.beginPath(); g.moveTo(a[0] - dx / len * (6 + e), a[1] - dy / len * (6 + e)); g.lineTo(tip[0] + nx * side * e, tip[1] + ny * side * e); g.lineTo(a[0] + dx / len * (4 + e), a[1] + dy / len * (4 + e)); g.fill(); });
+  pen.limb("void", pts, w, w * 0.6, amt);
+  for (let k = 0; k < 4; k++) {   // ragged strands hanging off the forearm, swaying
+    const p = pts[3 + k * 2], side = k % 2 ? 1 : -1, ww = w * (0.45 - k * 0.04);
+    const sx = p[0] + nx * side * ww, sy = p[1] + ny * side * ww, L = 9 + hash(seed + k) * 12, sway = Math.sin(t * 0.006 + k * 2 + seed) * 3;
+    pen.limb("void", [[sx, sy], [sx + nx * side * 4 + sway * 0.4, sy + L * 0.5], [sx + nx * side * 5 + sway, sy + L]], 3.4, 1, amt);
   }
-  g.globalAlpha = 1;
+  for (let k = 0; k < 6; k++) {   // wisps peeling off and rising
+    const u = (t * 0.0008 + k * 0.17 + seed * 0.13) % 1, p = pts[2 + ((k * 2) % 10)];
+    pen.puff("void", p[0] + Math.sin(t * 0.004 + k) * 6, p[1] - u * 46, 6 + u * 9, 0.44 * (1 - u) * amt);
+  }
   return pts;
 }
 
-// A broad clawed hand at the wrist, pointing along dir. curl 0 = splayed,
-// 1 = clenched into a grip; fingers twitch now and then while reaching.
-function drawHand(g, wrist, dir, size, curl, t, seed, flip = 1, alpha = 1) {
-  g.globalAlpha = alpha;
+// A bony clawed hand at the wrist, pointing along dir. size = wrist to
+// fingertip; curl 0 = splayed and reaching, 1 = clenched in a grip.
+function voidHand(pen, wrist, dir, S, curl, t, seed, flip, amt) {
   const cx = Math.cos(dir), cy = Math.sin(dir), px = -cy * flip, py = cx * flip;
-  const knuck = [wrist[0] + cx * size * 0.42, wrist[1] + cy * size * 0.42];
-  const twitch = (k) => (Math.sin(t * 0.045 + seed * 7 + k * 2) > 0.82 ? 0.45 : 0) * (1 - curl);
-  // fingers: base points spread along the knuckle line, three segments each
-  const fingers = [];
-  for (let f = 0; f < 5; f++) {
-    const thumb = f === 4;
-    let a = dir + (thumb ? 1.15 : (f - 1.5) * 0.26 * (1 - curl * 0.4)) * flip;
-    let p = thumb ? [wrist[0] + cx * size * 0.15 + px * size * 0.22, wrist[1] + cy * size * 0.15 + py * size * 0.22]
-      : [knuck[0] + px * (f - 1.5) * size * 0.13, knuck[1] + py * (f - 1.5) * size * 0.13];
-    const lens = (thumb ? [0.3, 0.26] : [0.36, 0.3, 0.26]).map((v) => v * size * (f === 0 ? 0.82 : f === 3 ? 0.9 : 1));
-    const segs = [];
-    for (let j = 0; j < lens.length; j++) {
-      a += (curl * 0.8 + twitch(f + j) + 0.12) * -flip * (thumb ? -0.7 : 1);
-      const q = [p[0] + Math.cos(a) * lens[j], p[1] + Math.sin(a) * lens[j]];
-      segs.push([p, q, size * (0.15 - j * 0.035) * (thumb ? 1.1 : 1)]);
-      p = q;
-    }
-    // the hooked point
-    const hook = [p[0] + Math.cos(a - 0.6 * flip) * size * 0.16, p[1] + Math.sin(a - 0.6 * flip) * size * 0.16];
-    fingers.push({ segs, tip: p, hook });
-  }
-  inked(g, (e) => {
-    const f = g.fillStyle;
-    // the palm: wide across the knuckles, narrowing to the wrist
-    ribbon(g, [wrist, [(wrist[0] + knuck[0]) / 2, (wrist[1] + knuck[1]) / 2], knuck], size * 0.5 + e * 2, size * 0.62 + e * 2, f);
-    for (const fg of fingers) {
-      for (const [p, q, w] of fg.segs) {
-        ribbon(g, [p, q], w + e * 2, w * 0.8 + e * 2, f);
-        g.beginPath(); g.arc(p[0], p[1], w * 0.62 + e, 0, Math.PI * 2); g.fill();   // knobbly knuckle
-      }
-      ribbon(g, [fg.tip, fg.hook], fg.segs[fg.segs.length - 1][2] * 0.8 + e * 2, 0, f);
-    }
+  const P = (a, l) => [wrist[0] + cx * a * S + px * l * S, wrist[1] + cy * a * S + py * l * S];
+  const dot = (p, r) => pen.fill("void", amt, (g) => g.arc(p[0], p[1], r, 0, Math.PI * 2));
+  // the palm: narrow at the wrist, a little wider across the knuckles
+  pen.fill("void", amt, (g) => {
+    [P(0, -0.12), P(0.05, -0.15), P(0.34, -0.2), P(0.39, -0.07), P(0.39, 0.07), P(0.34, 0.17), P(0.08, 0.16), P(0, 0.12)]
+      .forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+    g.closePath();
   });
-  g.globalAlpha = 1;
+  dot(P(0.03, -0.13), S * 0.07);   // a knob of wrist bone
+  const claw = (tip, a, w) => {    // a claw hooking off a fingertip
+    const a2 = a + flip * 0.55;
+    pen.limb("void", [tip, [tip[0] + Math.cos(a) * S * 0.08, tip[1] + Math.sin(a) * S * 0.08], [tip[0] + Math.cos(a) * S * 0.08 + Math.cos(a2) * S * 0.1, tip[1] + Math.sin(a) * S * 0.08 + Math.sin(a2) * S * 0.1]], w, 1, amt);
+  };
+  const fingers = [[0.35, -0.16, -0.42, 0.5], [0.39, -0.055, -0.13, 0.62], [0.39, 0.055, 0.12, 0.57], [0.34, 0.15, 0.38, 0.44]];
+  fingers.forEach(([fa, fl, spread, L], f) => {
+    const r = hash(seed * 7 + f), twitch = (Math.sin(t * 0.045 + seed * 7 + f * 2) > 0.8 ? 0.5 : 0) * (1 - curl);
+    let a = dir + (spread * (1 - curl * 0.5) + (r - 0.5) * 0.25) * flip, p = P(fa, fl);
+    const pts = [p];
+    [0.44, 0.31, 0.25].forEach((l, j) => {
+      // each joint bends toward the palm; some fingers are bent back at the first joint
+      const bend = j === 0 && r > 0.6 && curl < 0.5 ? -0.22 : 0.16 + curl * 0.95 + twitch * (j === 1 ? 1 : 0.4);
+      a += bend * flip;
+      p = [p[0] + Math.cos(a) * l * L * S, p[1] + Math.sin(a) * l * L * S];
+      pts.push(p);
+    });
+    pen.limb("void", pts, S * 0.085, S * 0.05, amt);
+    dot(pts[0], S * 0.058); dot(pts[1], S * 0.054); dot(pts[2], S * 0.046);   // swollen knuckles
+    claw(p, a, S * 0.05);
+  });
+  // the thumb, low on the palm
+  let a = dir + (1.05 - curl * 0.5) * flip, p = P(0.1, 0.16);
+  const th = [p];
+  for (const l of [0.27, 0.22]) { a -= (0.25 + curl * 0.6) * flip; p = [p[0] + Math.cos(a) * l * S, p[1] + Math.sin(a) * l * S]; th.push(p); }
+  pen.limb("void", th, S * 0.1, S * 0.06, amt);
+  dot(th[1], S * 0.06);
+  claw(p, a, S * 0.055);
 }
 
 // The black ooze the arms rise out of, with splashes thrown up as they erupt.
-function drawOoze(g, cx, cy, R, k, t) {
-  const r = R * 0.7 * ease.out(Math.min(1, k * 3));
-  g.fillStyle = INK; g.beginPath();
-  for (let i = 0; i <= 28; i++) {
-    const a = (i / 28) * Math.PI * 2, rr = r * (1 + 0.12 * Math.sin(a * 5 + t * 0.004) + 0.08 * Math.sin(a * 9));
-    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr * 0.2;
-    i ? g.lineTo(x, y) : g.moveTo(x, y);
-  }
-  g.fill();
+function voidOoze(pen, cx, cy, R, k, t, amt) {
+  const r = R * 0.8 * ease.out(Math.min(1, k * 3));
+  pen.oval("void", cx, cy, r, r * 0.2, 1.05 * amt);
+  for (let i = 0; i < 5; i++) pen.oval("void", cx + Math.sin(i * 2.1 + t * 0.002) * r * 0.6, cy + 2, r * 0.3, r * 0.08, 0.7 * amt);
   if (k < 0.4) for (let i = 0; i < 12; i++) {   // splashes as they break the surface
     const a = i * 0.52, u = k / 0.4, x = cx + Math.cos(a) * r * (0.4 + u * 0.6), y = cy - Math.sin(u * Math.PI) * (18 + (i % 4) * 8);
-    g.globalAlpha = 1 - u; g.beginPath(); g.arc(x, y, 3 + (i % 3), 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+    pen.puff("void", x, y, 5 + (i % 3) * 1.5, 1.1 * (1 - u));
   }
 }
 
@@ -220,36 +207,37 @@ async function graspOfTheVoid(s) {
   const hands = targets.map(([part, L], i) => ({
     part, L, base: [cx + (i / (targets.length - 1) - 0.5) * R * 1.1 + rand(-8, 8), cy + rand(-0.04, 0.08) * R],   // spread out, so each arm reads on its own
     bend: rand(18, 40) * (Math.random() < 0.5 ? -1 : 1),
-    delay: i * 55 + rand(0, 50), w: part ? rand(17, 20) : rand(15, 17), size: part ? 66 : rand(56, 60), seed: i, flip: Math.random() < 0.5 ? -1 : 1,
+    delay: i * 55 + rand(0, 50), w: part ? rand(14, 16) : rand(12, 14), size: part ? 74 : rand(62, 66), seed: i, flip: Math.random() < 0.5 ? -1 : 1,
   }));
   const writhers = Array.from({ length: 4 }, (_, i) => ({ base: [cx + rand(-0.85, 0.85) * R, cy + rand(0, 0.1) * R], h: rand(50, 90), seed: 20 + i, flip: i % 2 ? 1 : -1, delay: rand(0, 200) }));
   let grip = 0, shatter = 0;
-  const handsActor = px.add({ dur: 3200, z: 2, draw(g, k, t) {
-    for (inkPass of ["edge", "ink"]) {
-      drawOoze(g, cx, cy, R, k * 3.2 / 1, t);
-      for (const w of writhers) {   // small arms clawing the air at the rim
-        const rise = ease.out(clamp01((t - w.delay) / 300)) * (1 - shatter);
-        if (rise <= 0) continue;
-        const sway = Math.sin(t * 0.006 + w.seed) * 18;
-        const wrist = [w.base[0] + sway, w.base[1] - w.h * rise];
-        drawArm(g, w.base, wrist, 10 * w.flip, 15, 1 - shatter, t, w.seed);
-        drawHand(g, wrist, -Math.PI / 2 + sway * 0.01, 46, 0.25 + 0.25 * Math.sin(t * 0.01 + w.seed), t, w.seed, w.flip, 1 - shatter);
-      }
-      for (const h of hands) {
-        const reach = ease.out(clamp01((t - h.delay) / 260));
-        if (reach <= 0) continue;
-        const tgt = h.part ? s.Pt(h.L, h.part) : s.Pt(h.L);
-        // rise straight up out of the void first, then lunge for the target
-        const up = [h.base[0], h.base[1] - 70];
-        const lunge = clamp01((reach - 0.35) / 0.65);
-        let wrist = reach < 0.35 ? [h.base[0], lerp(h.base[1], up[1], reach / 0.35)] : [lerp(up[0], tgt.x, lunge), lerp(up[1], tgt.y, lunge)];
-        if (shatter > 0) wrist = [wrist[0] + Math.sin(t * 0.3 + h.seed) * 3, wrist[1] + shatter * 40];   // same in both passes
-        const pts = drawArm(g, h.base, wrist, h.bend * (1 - grip * 0.4), h.w, 1 - shatter, t, h.seed);
-        const last = pts[pts.length - 2], dir = Math.atan2(wrist[1] - last[1], wrist[0] - last[0]);
-        drawHand(g, wrist, dir, h.size, Math.max(grip, lunge > 0.95 ? 0.35 : 0), t, h.seed, h.flip, 1 - shatter);
-      }
+  const handsActor = s.toon.add({ dur: 3200, draw(pen, k, t) {
+    const amt = 1 - shatter;
+    voidOoze(pen, cx, cy, R, k * 3.2, t, amt);
+    for (const w of writhers) {   // smaller arms clawing the air at the rim
+      const rise = ease.out(clamp01((t - w.delay) / 300));
+      if (rise <= 0) continue;
+      const sway = Math.sin(t * 0.006 + w.seed) * 18;
+      const wrist = [w.base[0] + sway, w.base[1] - w.h * rise];
+      voidArm(pen, w.base, wrist, 10 * w.flip, 11, amt, t, w.seed);
+      voidHand(pen, wrist, -Math.PI / 2 + sway * 0.01, 50, 0.2 + 0.3 * Math.sin(t * 0.01 + w.seed), t, w.seed, w.flip, amt);
     }
-    if (shatter > 0) for (let i = 0; i < 26; i++) {   // the arms bursting into shards and smoke
+    for (const h of hands) {
+      const reach = ease.out(clamp01((t - h.delay) / 260));
+      if (reach <= 0) continue;
+      const tgt = h.part ? s.Pt(h.L, h.part) : s.Pt(h.L);
+      // rise straight up out of the void first, then lunge for the target
+      const up = [h.base[0], h.base[1] - 70];
+      const lunge = clamp01((reach - 0.35) / 0.65);
+      let wrist = reach < 0.35 ? [h.base[0], lerp(h.base[1], up[1], reach / 0.35)] : [lerp(up[0], tgt.x, lunge), lerp(up[1], tgt.y, lunge)];
+      if (shatter > 0) wrist = [wrist[0] + Math.sin(t * 0.3 + h.seed) * 3, wrist[1] + shatter * 40];
+      const pts = voidArm(pen, h.base, wrist, h.bend * (1 - grip * 0.4), h.w, amt, t, h.seed);
+      const last = pts[pts.length - 2], dir = Math.atan2(wrist[1] - last[1], wrist[0] - last[0]);
+      voidHand(pen, wrist, dir, h.size, Math.max(grip, lunge > 0.95 ? 0.35 : 0), t, h.seed, h.flip, amt);
+    }
+  } });
+  px.add({ dur: 3200, z: 2, draw(g) {
+    if (shatter > 0) for (let i = 0; i < 26; i++) {   // the arms bursting into shards
       const a = i * 2.4, r = shatter * (60 + (i % 5) * 30);
       g.globalAlpha = 1 - shatter; g.fillStyle = i % 3 ? "#0d0717" : "#a066f0";
       g.fillRect(core0.x + Math.cos(a) * r, core0.y + 40 + Math.sin(a) * r * 0.6 - shatter * 30, 6, 4);
@@ -311,105 +299,132 @@ export const NOVA_KIT = [
 
 // ---------------------------------------------------------------- PYRO ----
 
-// A cel-shaded fire explosion: billowing puffs from a white-hot core out to deep
-// red, then black smoke rolling up (Isaac's fire references).
-function drawBlast(g, x, y, k, size, seeds) {
-  const grow = ease.out(clamp01(k / 0.35)), fade = 1 - clamp01((k - 0.35) / 0.65);
-  for (const sd of seeds) {   // smoke first, rising and swelling behind the fire
-    const sk = clamp01((k - 0.15) / 0.85), r = size * (0.25 + 0.35 * sk) * sd.r;
-    g.globalAlpha = 0.9 * (1 - sk); g.fillStyle = sd.dark ? "#1c1820" : "#2e2830";
-    g.beginPath(); g.arc(x + sd.x * size * (0.6 + sk), y + sd.y * size * (0.6 + sk) - sk * size * 0.5, r, 0, Math.PI * 2); g.fill();
-  }
-  g.globalAlpha = 1;
-  const layers = [["#a8201a", 1], ["#ff5a1f", 0.82], ["#ffb040", 0.62], ["#ffe9a6", 0.42], ["#ffffff", 0.22]];
-  for (const [col, sc] of layers) {
-    g.fillStyle = col;
-    for (const sd of seeds) {
-      const r = size * 0.42 * sd.r * sc * grow * (0.35 + 0.65 * fade);
-      if (r > 0.5) { g.beginPath(); g.arc(x + sd.x * size * 0.5 * grow, y + sd.y * size * 0.45 * grow, r, 0, Math.PI * 2); g.fill(); }
+// PYRO's fire is painted into the heat channel of the toon layer
+// (pixel/toon-fx.js): hard bands from white-hot to deep red, flames licking
+// upward, and the shared cel explosion (explode) on impact.
+
+// A ring of fire standing upright round PYRO (after Isaac's archer reference):
+// traced from the bottom up both sides (drawn 0..1), then blazing, flame
+// tongues licking outward and up; burst flings it apart.
+function fireRing(pen, c, rx, ry, drawn, power, burst, t) {
+  const N = 48;
+  for (let i = 0; i < N; i++) {
+    const side = i % 2 ? 1 : -1, v = Math.floor(i / 2) / (N / 2 - 1);   // 0 at the bottom, 1 at the top
+    if (v > drawn) continue;
+    const a = Math.PI / 2 + side * v * Math.PI, ex = Math.cos(a), ey = Math.sin(a);
+    const out = 1 + burst * 1.6, fl = 0.8 + 0.2 * Math.sin(t * 0.02 + i * 1.7);
+    const x = c.x + ex * rx * out, y = c.y + ey * ry * out, amt = (0.62 + power * 0.42) * (1 - burst);
+    pen.puff("heat", x, y, (8 + power * 4) * fl * (1 + burst * 0.6), amt);
+    if (i % 3 === 0) {   // a tongue licking outward and up
+      let dx = ex * 0.8, dy = ey * 0.8 - 0.9; const n = Math.hypot(dx, dy) || 1; dx /= n; dy /= n;
+      const L = (12 + 14 * Math.abs(Math.sin(t * 0.013 + i))) * (0.7 + power * 0.6) * (1 - burst * 0.5);
+      for (let j = 1; j <= 4; j++) pen.puff("heat", x + dx * L * j / 4 + Math.sin(t * 0.01 + i) * j, y + dy * L * j / 4, 7 - j * 1.2, amt * (1 - j * 0.12));
     }
+    if (Math.abs(v - drawn) < 0.05 && drawn < 1) pen.puff("heat", x, y, 14, 1.2);   // the white-hot leading tip
   }
 }
 
-// Comet Kick: he leaps, a spiralling fireball gathers in front of him, and he
-// kicks it into GOLEM, where it bursts into a fire explosion with rolling smoke.
-async function cometKick(s) {
-  const { fx, px, mate: dot, mateEl } = s;
+// Sunfire Halo: a ring of fire blazes up round PYRO, a sun gathers in his
+// hands, and he fires it: a roaring wave of fire that hits GOLEM in a huge cel
+// explosion, leaving the floor under him burning.
+async function sunfireHalo(s) {
+  const { fx, px, toon, mate: dot, mateEl } = s;
   const core = s.golemC(), home = mateEl._pos || { x: 0, y: 0, r: 0 };
+  const c0 = s.mateC(), ringC = { x: c0.x + 4, y: c0.y - 8 }, orb = { x: c0.x + 58, y: c0.y - 4 };
   dot.clearTimers?.(); dot.setMood("fierce");
-  // 1. leap: crouch, spring up, hang at the top
-  dot.sx.t = 1.28; dot.sy.t = 0.74; dot.lean.t = -0.12; dot.energy = 1.3;
+  // 1. the ring of fire traces itself round him
+  let drawn = 0, power = 0.3, burst = 0, orbR = 0, firing = false;
   sound.sfx("flameIgnite");
-  await fx.wait(220);
-  dot.sx.s = 0.8; dot.sy.s = 1.25; dot.sx.t = 1; dot.sy.t = 1;
-  fx.move(mateEl, { x: home.x + 30, y: home.y - 110 }, 300, "out");   // a real leap, high above the floor
-  fx.dust(s.mateC().x, 6, 1);
-  fx.focus(1.08, { x: s.mateC().x + 60, y: s.mateC().y - 60 }, 450);
-  await fx.wait(260);
-  fx.slowmo(0.35, 520);
-  // 2. the fireball gathers: embers spiral in, a ball of fire swells in front of him
-  let ball = 0, ballAt = null, flying = false;
-  const fireball = px.add({ dur: 1700, z: 3, draw(g, k, t) {
-    if (ball <= 0) return;
-    const c = s.mateC(), at = ballAt || { x: c.x + 62, y: c.y - 6 }, r = 44 * ball;
-    if (!flying) for (let i = 0; i < 14; i++) {   // embers spiralling in
-      const a = i * 0.9 + t * 0.012, d = r + 30 * (1 - ball) + (i % 4) * 6;
-      g.fillStyle = i % 2 ? "#ffd28a" : "#ff7a2f"; g.fillRect(at.x + Math.cos(a) * d - 2, at.y + Math.sin(a) * d - 2, 4, 4);
-    }
-    glow(g, at.x, at.y, r * 2.4, "#ff7a2f", 0.55);
-    for (const [col, sc] of [["#c8321b", 1], ["#ff7a2f", 0.78], ["#ffd28a", 0.52], ["#ffffff", 0.26]]) {
-      g.fillStyle = col; g.beginPath(); g.arc(at.x, at.y, r * sc, 0, Math.PI * 2); g.fill();
-    }
-    for (let i = 0; i < 4; i++) {   // flame licks swirling round it
-      const a = t * 0.02 + i * (Math.PI / 2);
-      ribbon(g, [[at.x + Math.cos(a) * r * 0.8, at.y + Math.sin(a) * r * 0.8], [at.x + Math.cos(a + 0.6) * r * 1.25, at.y + Math.sin(a + 0.6) * r * 1.25], [at.x + Math.cos(a + 1.1) * r * 1.4, at.y + Math.sin(a + 1.1) * r * 1.4]], r * 0.35, 0, i % 2 ? "#ff7a2f" : "#ffb040");
+  fx.darken(0.5, 500);
+  fx.focus(1.1, { x: c0.x + 50, y: c0.y - 20 }, 600);
+  dot.sx.t = 1.12; dot.sy.t = 0.9; dot.lean.t = -0.08; dot.energy = 1.3;
+  const ring = toon.add({ dur: 1500, draw(pen, k, t) {
+    fireRing(pen, ringC, 60, 84, drawn, power, burst, t);
+    for (let i = 0; i < 10; i++) {   // embers rising off the floor round him
+      const u = (t * 0.0012 + i * 0.1) % 1;
+      pen.puff("heat", ringC.x + Math.sin(i * 2.7) * 70, fx.floorY - u * 120, 3.2 * (1 - u), 1.1 * (1 - u) * (1 - burst));
     }
   } });
-  await px.add({ dur: 420, draw(g, k) { ball = ease.out(k); } });
-  // 3. the kick: a snap, a shock ring, and the comet flies
-  const from = { x: s.mateC().x + 62, y: s.mateC().y - 6 };
-  ballAt = { ...from }; flying = true;
-  dot.sx.s = 1.35; dot.sy.s = 0.75; dot.lean.t = 0.3;
-  fx.hitstop(70); fx.shake(10); fx.punch(0.03, from);
-  fx.ring(from, { color: "#fff3c4", size: 90, flat: 1, ms: 260, width: 5 });
-  sound.sfx("whoosh", { theme: "fire" });
-  fx.focus(1.02, { x: (from.x + core.x) / 2, y: core.y }, 300);
-  const trail = [];
-  px.add({ dur: 900, z: 2, draw(g, k, t) {   // the comet's tail: flame streaks and smoke puffs
-    if (flying) trail.push({ x: ballAt.x, y: ballAt.y, t });
-    for (const p of trail) {
-      const age = (t - p.t) / 420; if (age > 1) continue;
-      g.globalAlpha = 0.8 * (1 - age);
-      g.fillStyle = age < 0.25 ? "#ffd28a" : age < 0.5 ? "#ff7a2f" : "#3a3238";
-      g.beginPath(); g.arc(p.x - age * 10, p.y - age * 14, (1 - age * 0.5) * 18 * ball, 0, Math.PI * 2); g.fill();
+  await toon.add({ dur: 420, draw(pen, k) { drawn = ease.out(k); } });
+  // 2. a sun gathers in front of him: fire spirals in, the ring roars higher
+  sound.sfx("laserCharge", { ms: 520 });
+  fx.shake(4);
+  const sun = toon.add({ dur: 760, draw(pen, k, t) {
+    if (firing) return;
+    for (let i = 0; i < 9; i++) {   // fire spiralling into it
+      const u = (k * 2.2 + i / 9) % 1, a = i * 0.7 + u * 5, r = (1 - u) * 80 + orbR;
+      pen.puff("heat", orb.x + Math.cos(a) * r, orb.y + Math.sin(a) * r * 0.8, 5 + u * 4, 0.9);
     }
-    g.globalAlpha = 1;
+    pen.puff("heat", orb.x, orb.y, orbR * 1.6, 1.25);
+    pen.puff("heat", orb.x, orb.y, orbR * 2.6, 0.5);
   } });
-  await px.add({ dur: 260, draw(g, k) { const e = ease.in(k); ballAt.x = lerp(from.x, core.x, e); ballAt.y = lerp(from.y, core.y, e) - Math.sin(e * Math.PI) * 30; } });
-  // 4. impact: freeze, huge shake, punch, the explosion
-  flying = false; ball = 0;
+  await toon.add({ dur: 560, draw(pen, k) { orbR = 22 * ease.out(k); power = 0.3 + 0.7 * k; } });
+  // 3. FIRE: a white flash, the ring bursts, and a wave of fire roars across
+  firing = true;
+  fx.hitstop(80); fx.shake(16); fx.punch(0.04, orb); fx.flash(0.3, "#ffd28a");
+  sound.sfx("whoosh", { theme: "fire" }); sound.sfx("explosion", { size: 0.5 });
+  px.add({ dur: 240, z: 5, draw(g, k) { const f = k < 0.2 ? k / 0.2 : (1 - k) / 0.8; starFlash(g, orb.x, orb.y, 95 * f); } });
+  fx.ring(orb, { color: "#ffe2a0", size: 120, flat: 1, ms: 300, width: 6 });
+  toon.add({ dur: 300, draw(pen, k) { burst = ease.out(k); } });
+  dot.sx.s = 0.8; dot.sy.s = 1.22; dot.lean.t = -0.25;
+  fx.move(mateEl, { x: home.x - 18, y: home.y }, 90, "out").then(() => fx.move(mateEl, { x: home.x, y: home.y }, 360, "inOut"));
+  fx.focus(1.03, { x: (orb.x + core.x) / 2, y: core.y }, 260);
+  const head = { ...orb }, trail = [];
+  let flying = true;
+  const wave = toon.add({ dur: 1300, draw(pen, k, t) {
+    if (flying) {   // lay a dense trail behind the head
+      const last = trail[trail.length - 1] || { x: orb.x, y: orb.y };
+      const n = Math.max(1, Math.floor(Math.hypot(head.x - last.x, head.y - last.y) / 7));
+      for (let i = 1; i <= n; i++) trail.push({ x: lerp(last.x, head.x, i / n), y: lerp(last.y, head.y, i / n), t, j: rand(-1, 1) });
+    }
+    for (const [i, p] of trail.entries()) {
+      const age = (t - p.t) / 650; if (age > 1) continue;
+      const x = p.x - age * 14, y = p.y + p.j * age * 22 - age * 26;
+      pen.puff("heat", x, y, (20 + 26 * age) * (0.85 + 0.15 * Math.sin(i * 1.3)), 1.2 - age * 1.15);
+      if (i % 4 === 0 && age < 0.7) {   // deep red licks sweeping off the wave, up and back
+        const L = 30 + 30 * age, dir = p.j > 0 ? 1 : -1;
+        pen.limb("heat", [[x, y], [x - L * 0.4, y - dir * L * 0.35], [x - L * 0.9, y - dir * L * 0.6 - 10]], 10, 1, 0.32 * (1 - age));
+      }
+      if (age > 0.3) pen.puff("smoke", x - 6, y - 14 - age * 20, 14 + 22 * age, (age - 0.3) * 2.4 * (1 - age), clamp01((age - 0.5) * 2));
+    }
+    if (flying) { pen.puff("heat", head.x, head.y, 34, 1.3); pen.flame(head.x + 10, head.y + 6, 16, 36, 1, 0.5, 0.3); }
+  } });
+  await toon.add({ dur: 200, draw(pen, k) { const e = ease.in(k); head.x = lerp(orb.x, core.x - 10, e); head.y = lerp(orb.y, core.y, e) - Math.sin(e * Math.PI) * 16; } });
+  flying = false;
+  // 4. impact: freeze, the big shake and punch, a huge cel explosion
   sound.sfx("explosion", { size: 1.4 });
-  fx.hitstop(170); fx.shake(26); fx.punch(0.07, core); fx.flash(0.4, "#ffb040");
+  fx.hitstop(170); fx.shake(26); fx.punch(0.07, core); fx.flash(0.45, "#ffb040");
   s.onHit(1);
-  const seeds = Array.from({ length: 11 }, (_, i) => ({ x: Math.cos(i * 2.2) * (0.4 + (i % 3) * 0.25), y: Math.sin(i * 2.2) * (0.35 + (i % 2) * 0.2) - 0.1, r: 0.7 + (i % 4) * 0.15, dark: i % 2 }));
-  px.add({ dur: 1100, z: 4, draw(g, k) { drawBlast(g, core.x - 10, core.y, k, 150, seeds); } });
+  explode(toon, core.x - 10, core.y, { size: 1.7, dur: 1700 });
   fx.debris(core, 12, { power: 1.5, dir: 1 }); fx.sparks(core, 18, { power: 1.6, dir: 1 });
-  await fx.wait(240);
-  // a second blast as it detonates fully
+  const floor = fx.floorY;
+  const burn = toon.add({ dur: 1900, draw(pen, k, t) {   // the floor under him left burning
+    const fade = 1 - ease.in(k), rise = ease.out(Math.min(1, k * 4));
+    for (let i = 0; i < 9; i++) {
+      const x = core.x + (i - 4) * 24 + Math.sin(i * 3.1) * 6, h = (34 + 34 * Math.abs(Math.sin(t * 0.006 + i * 1.9))) * rise * fade;
+      pen.flame(x, floor + 4, 13, h, 0.95 * fade + 0.1, Math.sin(i * 1.7) * 0.25, Math.sin(t * 0.004 + i) * 0.35);
+    }
+    pen.oval("heat", core.x, floor + 6, 130 * rise, 12, 0.5 * fade);
+  } });
+  await fx.wait(260);
+  // a second and third blast as it detonates fully
   fx.hitstop(90); fx.shake(16); fx.punch(0.03, core);
+  sound.sfx("explosion", { size: 0.9 });
   s.onHit(2);
-  px.add({ dur: 800, z: 4, draw(g, k) { drawBlast(g, core.x + 30, core.y - 30, k, 90, seeds.slice(0, 7)); } });
-  // 5. he drops back down home
-  fx.move(mateEl, { x: home.x, y: home.y }, 420, "in").then(() => { fx.dust(s.mateC().x, 5, 0.8); dot.sx.s = 1.25; dot.sy.s = 0.8; });
-  await fx.wait(450);
-  fx.focus(1, null, 500);
-  dot.lean.t = 0; dot.setMood("idle");
-  await fireball;
+  explode(toon, core.x + 36, core.y - 34, { size: 0.9 });
+  await fx.wait(140);
+  explode(toon, core.x - 46, core.y + 24, { size: 0.75 });
+  fx.shake(10);
+  dot.lean.t = 0;
+  await fx.wait(500);
+  fx.darken(0, 500); fx.focus(1, null, 500);
+  dot.sx.t = 1; dot.sy.t = 1; dot.setMood("idle");
+  await Promise.all([ring, sun, wave, burn]);
 }
 
 export const PYRO_KIT = [
-  { id: "cometKick", name: "Comet Kick", tier: "medium", run: cometKick,
-    desc: "Leaps and kicks a spiralling fireball into the boss. It bursts into a fire explosion." },
+  { id: "sunfire", name: "Sunfire Halo", tier: "heavy", run: sunfireHalo,
+    desc: "A ring of fire blazes up round him. He gathers a sun and fires it: a wave of fire that bursts on the boss and leaves the floor burning." },
 ];
 
 // Run one of a teammate's abilities. Until the ability cards arrive

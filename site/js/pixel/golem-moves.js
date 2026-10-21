@@ -5,11 +5,14 @@ import { teammateHurt, bossSpecial } from "../battle-moves.js";
 import { PODS } from "./golem-boss.js";
 import { sound } from "../sound.js";
 import { ease, lerp, glow, ribbon } from "./pixel-fx.js";
+import { explode } from "./toon-fx.js";
 
 const MOVES = ["slam", "barrage", "laser", "missiles"];
 let last = null;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const rand = (a, b) => a + Math.random() * (b - a);
+// The shared cel explosion (toon-fx.js) when the stage has the toon layer.
+const boom = (s, c, { size = 1 } = {}) => (s.toon ? explode(s.toon, c.x, c.y, { size: size * 0.9 }) : s.fx.explosion(c, { size }));
 
 // ctx: { fx, px, dot, mateEl, theme, golem }
 export async function golemAttack(ctx, kind, { onHit } = {}) {
@@ -80,7 +83,7 @@ const ATTACKS = {
       fx.smoke(m, 2, 0.6);
       const target = s.dotC(), aim = { x: target.x + (i - 1) * 18, y: target.y + (i - 1) * 10 };
       fx.shot(m, aim, { ms: lastShot ? 300 : 240, size: lastShot ? 20 : 13, onArrive: () => {
-        fx.explosion(aim, { size: lastShot ? 1.1 : 0.6 });
+        boom(s, aim, { size: lastShot ? 1.1 : 0.6 });
         if (lastShot) s.hurt({ crit: false });
         else { fx.hitstop(40); fx.shake(6); dot.nudge(-8, 0.6); }
       } });
@@ -131,7 +134,7 @@ const ATTACKS = {
           }
         } }));
         fx.wait(dur).then(() => {
-          fx.explosion({ x: to.x, y: to.y - 10 }, { size: lastOne ? 1.1 : 0.6 });
+          boom(s, { x: to.x, y: to.y - 10 }, { size: lastOne ? 1.1 : 0.6 });
           fx.dust(to.x, 4, 0.8);
           sound.sfx("explosion", { size: lastOne ? 1 : 0.5 });
           if (lastOne) s.hurt({ crit: false });
@@ -158,7 +161,7 @@ const ATTACKS = {
     g.to({ tilt: -0.4, lunge: 0.12, lean: 0.06, flare: 2 }, 120, "out");
     fx.beam(s.P("core"), s.dotC(), { ms: 800, width: 38, onHit: () => s.hurt({ crit: true }) });
     for (let i = 0; i < 8; i++) fx.wait(i * 90).then(() => { fx.shake(8); g.pose.lunge += 0.012; });
-    fx.wait(200).then(() => { fx.crack(s.dotC().x, { width: 140 }); fx.explosion(s.dotC(), { size: 0.8 }); });
+    fx.wait(200).then(() => { fx.crack(s.dotC().x, { width: 140 }); boom(s, s.dotC(), { size: 0.8 }); });
     await fx.wait(900);
     fx.darken(0, 500);
   },
