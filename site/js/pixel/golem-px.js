@@ -266,7 +266,12 @@ export class PixelGolem {
   rest(ms = 600) { return this.to({ ...REST }, ms, "io"); }
   loop(now) {
     if (!this.canvas.isConnected) return; // removed from the page: stop
-    const raw = Math.min(now - this.last, 50); this.last = now;
+    const frame = now - this.last, raw = Math.min(frame, 50); this.last = now;
+    // If frames run slow (a weaker graphics chip), draw him every other frame:
+    // 30 fps pixel art still looks right and keeps the rest of the page smooth.
+    this.avg = (this.avg ?? 16) * 0.95 + Math.min(frame, 100) * 0.05;
+    if (this.avg > 24) this.half = true; else if (this.avg < 17) this.half = false;
+    this.skip = this.half && !this.skip;
     const dt = battleTime.step(now, raw);
     this.at += dt;
     this.tweens = this.tweens.filter((tw) => {
@@ -276,7 +281,7 @@ export class PixelGolem {
       if (tw.t >= tw.ms) { tw.done(); return false; }
       return true;
     });
-    this.render();
+    if (!this.skip) this.render();
     requestAnimationFrame(this.loop);
   }
   render() {

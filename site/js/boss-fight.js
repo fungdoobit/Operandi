@@ -22,10 +22,10 @@ export const BATTLE_CSS = `
 .bfoe { position: absolute; }
 .bmate { position: absolute; }
 .bmate .dot-bubble { display: none; }
-.hibit { filter: url(#hibit); }
-/* Your teammate is small next to GOLEM, so a 2-px grid would wipe out his face:
-   he keeps the pixel-art look (banded colours, hard edges) at full detail. */
-.hibit-fine { filter: url(#hibitFine); }
+/* Effects and the teammate: hard pixel edges, no anti-aliasing. (An SVG filter
+   gave a chunkier look, but browsers redo it on the CPU every frame: it made
+   Chrome lag and Safari drop or delay effects.) */
+.bstage .fx-layer, .bmate svg { shape-rendering: crispEdges; }
 /* Bolder face lines so his eyes and mouth read at this size. */
 .bmate .eye-white, .bmate .eye-angry { stroke-width: 6; }
 .bmate .eye-line, .bmate .dot-mouth { stroke-width: 6; }
@@ -49,11 +49,9 @@ export const BATTLE_CSS = `
 .bspecial { margin: 0 0 14px; padding: 10px 14px; border-radius: 10px; background: #2a1a12; color: #ffd6c2; border: 1px solid #ff6a3d; font-weight: 600; }
 `;
 
-// The two SVG filters: #pixelate (any HTML into big blocks, for the entry
-// transition), #hibit (effects onto a fine 2-px grid) and #hibitFine (the
-// teammate: banded colours and hard edges, no grid).
+// The #pixelate SVG filter (any HTML into big blocks), used once by the entry transition.
 function ensureFilters() {
-  if (document.getElementById("hibit")) return;
+  if (document.getElementById("pixelate")) return;
   const d = document.createElement("div");
   d.innerHTML = `<svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <filter id="pixelate" x="0" y="0" width="100%" height="100%">
@@ -63,20 +61,6 @@ function ensureFilters() {
       <feTile result="dots" />
       <feComposite in="soft" in2="dots" operator="in" />
       <feMorphology id="pxMorph" operator="dilate" radius="2" />
-    </filter>
-    <filter id="hibit" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
-      <feFlood x="1" y="1" width="1" height="1" /><feComposite width="2" height="2" /><feTile result="dots" />
-      <feComposite in="SourceGraphic" in2="dots" operator="in" /><feMorphology operator="dilate" radius="1" />
-      <feComponentTransfer>
-        <feFuncR type="discrete" tableValues="0 .15 .3 .45 .6 .75 .9 1" /><feFuncG type="discrete" tableValues="0 .15 .3 .45 .6 .75 .9 1" />
-        <feFuncB type="discrete" tableValues="0 .15 .3 .45 .6 .75 .9 1" /><feFuncA type="discrete" tableValues="0 .5 1 1" />
-      </feComponentTransfer>
-    </filter>
-    <filter id="hibitFine" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
-      <feComponentTransfer>
-        <feFuncR type="discrete" tableValues="0 .12 .25 .37 .5 .62 .75 .87 1" /><feFuncG type="discrete" tableValues="0 .12 .25 .37 .5 .62 .75 .87 1" />
-        <feFuncB type="discrete" tableValues="0 .12 .25 .37 .5 .62 .75 .87 1" /><feFuncA type="discrete" tableValues="0 1 1 1" />
-      </feComponentTransfer>
     </filter></svg>`;
   document.body.append(d.firstElementChild);
 }
@@ -106,7 +90,7 @@ export class BattleStage {
     if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS; document.head.append(st); }
     const who = skin === "pyro" ? "PYRO" : "DOT";
     host.innerHTML = `<div class="bstage" role="img" aria-label="Boss battle: ${who} against ${esc(name)}">
-      <div class="bworld"><div class="bfloor"></div><div class="bfoe"></div><div class="bmate hibit-fine"></div></div>
+      <div class="bworld"><div class="bfloor"></div><div class="bfoe"></div><div class="bmate"></div></div>
       <div class="bhp me ${skin === "pyro" ? "fire" : ""}"><div class="row"><span>${who}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
       <div class="bhp foe"><div class="row"><span>${esc(name)}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
     </div>`;
@@ -114,7 +98,6 @@ export class BattleStage {
     this.stage = host.querySelector(".bstage");
     const world = host.querySelector(".bworld"), foeEl = host.querySelector(".bfoe"), mateEl = host.querySelector(".bmate");
     this.fx = new BattleFX(this.stage, world, { floor: 0.8 });
-    this.fx.svg.classList.add("hibit");
     this.golem = new PixelGolem(foeEl, { px: 1 });
     this.boss = new PixelBoss({ golem: this.golem, fx: this.fx, figure: foeEl });
     this.dot = new Dot(mateEl, { facing: "right", battle: true, skin });
