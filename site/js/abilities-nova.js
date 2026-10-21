@@ -596,6 +596,8 @@ async function eclipseLance(s) {
   sound.sfx("voidCharge"); sound.sfx("laserCharge", { ms: 1100 });
   fx.focus(1.12, { x: e.x + 40, y: e.y }, 700);
   let open = 0, heat = 0, beam = 0, beamW = 0;
+  const L = Math.hypot(core.x - e.x, core.y - e.y) || 1, aim = { x: (core.x - e.x) / L, y: (core.y - e.y) / L };
+  const lanceEnd = (u) => ({ x: e.x + aim.x * (L + 400) * u, y: e.y + aim.y * (L + 400) * u });
   pxTop.add({ dur: 2600, draw(g, k, t) {   // the rune ring round the eclipse
     if (open <= 0) return;
     g.save(); g.translate(e.x, e.y); g.scale(0.34, 1);
@@ -608,12 +610,17 @@ async function eclipseLance(s) {
       for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2 + t * 0.002, rr = 22 * open + Math.sin(t * 0.02 + i * 2.3) * 3; pen.puff("heat", e.x + Math.cos(a) * rr, e.y + Math.sin(a) * rr, 6 + heat * 4, 0.55 + heat * 0.55); }
       pen.puff("void", e.x, e.y, 26 * open, 1.3);
     }
-    if (beam > 0) {   // the lance: black light with a white-hot core
-      const x1 = lerp(e.x, fx.w + 60, beam), wob = Math.sin(t * 0.09) * 2;
-      pen.limb("void", [[e.x, e.y], [(e.x + x1) / 2, e.y + wob], [x1, e.y]], 46 * beamW, 26 * beamW, 1.2);
-      pen.limb("heat", [[e.x, e.y], [x1, e.y]], 9 * beamW, 6 * beamW, 1.25);
-      for (let i = 0; i < 10; i++) { const x = lerp(e.x, x1, ((i + t * 0.004) % 10) / 10); pen.puff("void", x, e.y + Math.sin(i * 3 + t * 0.03) * 24 * beamW, 8, 0.5 * beamW); }
+    if (beam > 0) {   // the lance: a beam of black light aimed through his core
+      const end = lanceEnd(beam), wob = Math.sin(t * 0.09) * 2;
+      pen.limb("void", [[e.x, e.y], [(e.x + end.x) / 2 - aim.y * wob, (e.y + end.y) / 2 + aim.x * wob], [end.x, end.y]], 46 * beamW, 26 * beamW, 1.2);
+      for (let i = 0; i < 12; i++) { const u = ((i + t * 0.004) % 12) / 12, off = Math.sin(i * 3 + t * 0.03) * 26 * beamW; pen.puff("void", lerp(e.x, end.x, u) - aim.y * off, lerp(e.y, end.y, u) + aim.x * off, 8, 0.5 * beamW); }
     }
+  } });
+  pxTop.add({ dur: 2600, draw(g, k, t) {   // the lance's white-hot core, over the black
+    if (beam <= 0) return;
+    const end = lanceEnd(beam), w = beamW * (6 + Math.sin(t * 0.08) * 1.5);
+    g.strokeStyle = "#a066f0"; g.lineWidth = w + 6; g.beginPath(); g.moveTo(e.x, e.y); g.lineTo(end.x, end.y); g.stroke();
+    g.strokeStyle = "#ffffff"; g.lineWidth = w; g.stroke();
   } });
   await pxTop.add({ dur: 420, draw(g, k) { open = ease.back(k); } });
   gatherMotes(pxTop, e, 800, { n: 30, r: 170 });
@@ -634,7 +641,7 @@ async function eclipseLance(s) {
   s.onHit(1);
   await fx.wait(320);
   fx.shake(20); fx.hitstop(80); sound.sfx("explosion", { size: 0.9 });
-  explode(toon, core.x + 70, core.y - 10, { size: 1, kind: "void", dur: 1000 });
+  explode(toon, core.x + aim.x * 80, core.y + aim.y * 80, { size: 1, kind: "void", dur: 1000 });
   s.onHit(2);
   await toon.add({ dur: 260, draw(pen, k) { beamW = 1 - ease.in(k); } });
   beam = 0;
