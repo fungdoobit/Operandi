@@ -4,6 +4,7 @@
 // Exposes the same say/setMood/setAccessory calls as Dot, so the app can
 // treat it like any teammate.
 
+import { sound } from "./sound.js";
 import { Dot } from "./dot.js";
 
 const SPEED = 46;            // px per second while wandering
@@ -103,7 +104,9 @@ export class Pet {
           this.x += (dx / dist) * step;
           this.y += (dy / dist) * step;
           // A little hopping gait while he travels, with a jiggle.
+          const before = Math.floor(this.phase / Math.PI);
           this.phase += dt * 7;
+          if (Math.floor(this.phase / Math.PI) !== before && this.root.style.visibility !== "hidden") sound.sfx("hop", { theme: this.skin === "pyro" ? "fire" : "water" });   // each little landing
           bob = -Math.abs(Math.sin(this.phase)) * 5;
           this.dot.nudge((dx / dist) * 1.5, 0.012);
           // Face the way he's going (only when it's mostly sideways, so he doesn't flicker).
@@ -137,6 +140,7 @@ export class Pet {
     this.mode = "held";
     this.grabbed = { dx: e.clientX - this.x, dy: e.clientY - this.y, px: e.clientX };
     this.dot.pickUp();
+    sound.sfx("pickup", { theme: this.skin === "pyro" ? "fire" : "water" });
   }
 
   drag(e) {
@@ -156,6 +160,7 @@ export class Pet {
     this.mode = "parked";
     this.target = null;
     this.dot.drop();
+    sound.sfx("plop", { theme: this.skin === "pyro" ? "fire" : "water" });
     this.save();
     if (this.before === "roam" && this.voice) setTimeout(() => this.say(this.voice().parked().text, { mood: "happy" }), 900);
   }

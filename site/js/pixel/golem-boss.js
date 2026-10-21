@@ -86,6 +86,7 @@ export class PixelBoss {
   // He won: rears up, arms high, eye blazing.
   win() {
     const g = this.golem;
+    sound.sfx("roar");
     g.to({ flare: 2, tilt: 0.2, bob: 0.25, ca: 1.1, ce: 0.5, na: 1.1, ne: 0.5, thrust: 2 }, 450, "out")
       .then(() => this.fx.wait(1300)).then(() => g.rest(700));
   }

@@ -39,6 +39,7 @@ export const BATTLE_CSS = `
 .bhp.me .fill { background: linear-gradient(90deg, #5bb7e4, #b3ebfc); }
 .bhp.me.fire .fill { background: linear-gradient(90deg, #ff7a2f, #ffd28a); }
 .bhp.foe .fill { background: linear-gradient(90deg, #ff9a3c, #ffd28a); margin-left: auto; }
+.bsound { position: absolute; z-index: 23; left: 50%; bottom: 10px; transform: translateX(-50%); border: 1px solid #ffffff40; background: #0d0f14cc; color: #fff; border-radius: 99px; padding: 6px 14px; font: 600 13px var(--font-body, sans-serif); }
 .bnum { position: absolute; z-index: 21; pointer-events: none; transform: translate(-50%, -50%); font: 800 calc(24px * var(--k, 1)) var(--font-display, sans-serif); color: #fff;
   text-shadow: 0 2px 0 #0009, 0 0 12px #000a; white-space: nowrap; animation: bnum 1.1s cubic-bezier(.2,.9,.3,1) forwards; }
 .bnum.crit { font-size: calc(34px * var(--k, 1)); color: #ffd662; } .bnum.blocked { color: #ffb366; } .bnum.miss { color: #9ea6b5; font-size: calc(20px * var(--k, 1)); } .bnum.ouch { color: #ff7a7a; }
@@ -108,6 +109,15 @@ export class BattleStage {
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
     sound.music("battle");
+    // Browsers keep sound off until you tap the page. If you came straight
+    // here (a page load), offer a button for it.
+    if (!sound.ready) {
+      const b = document.createElement("button");
+      b.className = "bsound"; b.type = "button"; b.textContent = "🔊 Tap for sound";
+      b.addEventListener("click", () => sound.unlock());
+      this.stage.append(b);
+      sound.onReady(() => b.remove());
+    }
     this.foeEl = foeEl; this.mateEl = mateEl;
     // Everything was designed at a 440 px tall stage: scale GOLEM, your
     // teammate and their spots to the real height, so big screens get big fighters.
@@ -140,7 +150,7 @@ export class BattleStage {
       this.stage.querySelector(`.bhp.${cls} small`).textContent = `${v} / ${BOSS.hp}`;
     };
     set("me", me); set("foe", foe);
-    sound.setIntensity(1 - foe / BOSS.hp);   // the music gets heavier as he weakens
+    sound.setDanger(1 - foe / BOSS.hp, 1 - me / BOSS.hp);   // the music gets tenser as either side weakens
   }
 
   // A damage number popping up over someone ("-22", "CRIT -40", "MISS").

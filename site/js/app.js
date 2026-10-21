@@ -744,9 +744,10 @@ function openFaq(id) {
 // turn: a pass is your strike, a failed Submit is a miss and the boss hits back.
 let battle = null;
 
-function leaveBoss() {
+// keepMusic: we're going straight into another fight view, so the music carries on.
+function leaveBoss({ keepMusic = false } = {}) {
   battle = null;
-  sound.music(null);
+  if (!keepMusic) sound.music(null);
   $("arena").hidden = true;
   $("arena").replaceChildren();          // stops the battle's animation loops
   document.querySelector(".body").classList.remove("boss-mode");
@@ -790,12 +791,13 @@ function startFight(m) {
 async function openBoss(m = 1, { again = false } = {}) {
   if (busy || !bossUnlocked(m)) return;
   const entering = view.kind !== "boss" || again;
+  sound.music("battle");   // the music starts with the transition
   // The entry transition: the page breaks up into big blocks, then the arena resolves.
   if (entering && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     busy = true;
     try { await pixelateOut($("briefInner")); } finally { busy = false; $("briefInner").style.filter = ""; }
   }
-  leaveBoss();
+  leaveBoss({ keepMusic: true });
   view = { kind: "boss", module: m };
   let f = S().boss;
   if (!f || f.module !== m) { if (bossBeaten(m)) return renderBossPanel("beaten"); startFight(m); f = S().boss; }

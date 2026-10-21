@@ -34,6 +34,7 @@ const ATTACKS = {
   // streams into it, hangs for a beat, then smashes the floor in front of him.
   async slam(s) {
     const { fx, g } = s;
+    sound.sfx("servo", { ms: 520 });
     fx.focus(1.06, s.mid(), 600);
     g.to({ ca: 0.9, ce: 1.7, cp: -0.2, cg: 0.6, lean: 0.18, tilt: 0.22, bob: 0.06, lunge: 0.15, flare: 0.8, na: -0.5, ne: 0.6, thrust: 1.4 }, 520, "out");
     await fx.wait(260);
@@ -91,7 +92,8 @@ const ATTACKS = {
     const { fx, g } = s;
     fx.darken(0.6, 500); fx.focus(1.1, s.mid(), 900);
     g.to({ ca: 0.4, ce: 0.3, cp: 0, na: 0.4, ne: 0.3, np: 0.3, tilt: -0.3, bob: 0.3, flare: 1.6, thrust: 1.5 }, 700, "out");
-    fx.converge(s.P("core"), { color: "#ff6a2a", n: 34, ms: 1000, radius: 220 });
+    fx.converge(s.P("core"), { color: "#ff6a2a", n: 34, ms: 1000, radius: 220, sound: false });
+    sound.sfx("laserCharge", { ms: 1000 });
     fx.arcs(s.P("core"), 3, { radius: 90, color: "#ffb35c", ms: 900 });
     for (let i = 0; i < 5; i++) fx.wait(i * 180).then(() => fx.ring(s.P("core"), { color: "#ff9a3c", size: 140 - i * 20, ms: 260, width: 3 }));
     await fx.wait(1000);
@@ -115,6 +117,7 @@ export async function golemIntro(ctx) {
   await fx.wait(420);
   const at = fx.fromPage(golem.point("core"));
   fx.shake(16); fx.flash(0.2, "#ffd9a3");
+  sound.sfx("roar");
   for (let i = 0; i < 3; i++) fx.wait(i * 150).then(() => fx.ring(at, { color: "#ffb35c", size: 160 + i * 90, ms: 500, width: 4 }));
   fx.arcs(at, 5, { radius: 120, color: "#8fc8ff", ms: 600 });
   fx.title("GOLEM", "Boss 1");
@@ -186,6 +189,7 @@ async function typoSwarm(ctx, name) {
   await fx.wait(800);
   for (let k = 0; k < 5; k++) fx.wait(k * 260).then(() => {
     fx.hitstop(40); fx.shake(7); fx.flash(0.08, PINK);
+    sound.sfx("bite");
     fx.ring(dotC(), { color: PINK, size: 100, flat: 0.5, ms: 300, width: 3 });
   });
   await fx.wait(1500);
@@ -221,6 +225,7 @@ async function glitchText(ctx, name) {
   // Release.
   chroma(6);
   fx.flash(0.5, CYAN); fx.hitstop(120); fx.shake(22); fx.punch(0.05, core());
+  sound.sfx("screech");
   g.to({ tilt: -0.42, lunge: 0.12, flare: 2.6 }, 100, "out");
   fx.ring(core(), { color: CYAN, size: 220, ms: 420, width: 6 });
   let hit = false;
