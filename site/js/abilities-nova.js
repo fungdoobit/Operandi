@@ -587,7 +587,7 @@ async function voidOrb(s) {
 // across his hull. Then his pods burst open, drones fly out, lock on, and laser
 // the chains apart one by one.
 // Chains are made of real 3D links (props-px.js) on the sprite layers.
-function chainPath(A, B, ext, t, { whip = 0, taut = 0, seed = 0, step = 12 } = {}) {
+function chainPath(A, B, ext, t, { whip = 0, taut = 0, seed = 0, step = 13 } = {}) {
   const L0 = Math.hypot(B.x - A.x, B.y - A.y) || 1, ux = (B.x - A.x) / L0, uy = (B.y - A.y) / L0;
   const n = Math.max(2, Math.floor((L0 * ext) / step)), pts = [];
   for (let i = 0; i <= n; i++) {
@@ -601,14 +601,14 @@ function chainPath(A, B, ext, t, { whip = 0, taut = 0, seed = 0, step = 12 } = {
   return pts;
 }
 function drawLinks(g, S, pts, from = 0) {
-  for (let i = from; i < pts.length; i++) stamp(g, S.link[i % 2], pts[i].x, pts[i].y, pts[i].ang, 1, Math.PI);
+  for (let i = from; i < pts.length; i++) stamp(g, S.link[i % 2], pts[i].x, pts[i].y, pts[i].ang, 0.85, Math.PI);
 }
 // A coil of chain wound round an arm: the half behind the arm goes on the back
 // layer, the half in front on the front layer. axis = the arm's direction.
 function drawCoil(gFront, gBack, S, B, axis, k, t) {
-  const loops = 1.7 * k, N = Math.max(2, Math.floor(26 * k)), ax = Math.cos(axis), ay = Math.sin(axis);
+  const loops = 1.7 * k, N = Math.max(2, Math.floor(16 * k)), ax = Math.cos(axis), ay = Math.sin(axis);
   for (let i = 0; i < N; i++) {
-    const ph = (i / 26) * Math.PI * 2 * 1.7 + t * 0.002, s = (i / 26 - 0.5) * 34, r = 17;
+    const ph = (i / 16) * Math.PI * 2 * 1.5 + t * 0.002, s = (i / 16 - 0.5) * 30, r = 16;
     const x = B.x + ax * s - ay * Math.cos(ph) * r, y = B.y + ay * s + ax * Math.cos(ph) * r;
     const front = Math.sin(ph) > 0, ang = axis + Math.PI / 2 + (front ? 0.5 : -0.5);
     stamp(front ? gFront : gBack, S.link[i % 2], x, y, ang, 1, Math.PI);
@@ -698,7 +698,7 @@ async function spectralChains(s) {
   mate.nova.idle.shake = 0.6; pulses = 1;
   sound.sfx("whispers", { ms: 2200 }); sound.sfx("roar");
   await spr.add({ dur: 200, draw(g, k) { taut = ease.out(k); } });
-  fx.focus(1.18, { x: core.x, y: core.y - 10 }, 900); fx.slowmo(0.5, 1200);
+  fx.focus(1.1, { x: core.x, y: core.y - 10 }, 900); fx.slowmo(0.5, 1200);
   for (let i = 0; i < 4; i++) {
     s.golem.to({ tilt: i % 2 ? 0.16 : -0.16, lean: i % 2 ? -0.1 : 0.1, bob: 0.04 * (i % 2 ? 1 : -1), ca: -0.85 - 0.25 * (i % 2 ? 1 : -1), na: -0.85 + 0.25 * (i % 2 ? 1 : -1) }, 110, "io");
     s.golem.fxv.glitch = 0.9; s.golem.to({ glitch: 0.25 }, 180, "lin", s.golem.fxv);
@@ -713,10 +713,10 @@ async function spectralChains(s) {
   sound.sfx("servo", { ms: 300 }); sound.sfx("laserCharge", { ms: 300 });
   s.golem.to({ flare: 1.8, thrust: 1.4 }, 200, "out");
   const pods = [0, 1, 2, 3].map((i) => fx.fromPage(s.golem.pagePoint(PODS[i % PODS.length])));
-  fx.focus(1.22, { x: core.x, y: pods[0].y }, 260);
+  fx.focus(1.08, { x: core.x, y: pods[0].y + 30 }, 260);
   await fx.wait(220);
   sound.sfx("droneBuzz", { ms: 3600 }); sound.sfx("missileLaunch");
-  const drones = pods.map((p, i) => ({ i, x: p.x, y: p.y, vx: 0, on: true, aim: null, from: { ...p }, spot: { x: core.x + (i % 2 ? 1 : -1) * rand(110, 160), y: core.y + (i < 2 ? -80 : 30) + rand(-10, 10) } }));
+  const drones = pods.map((p, i) => ({ i, x: p.x, y: p.y, vx: 0, on: true, aim: null, from: { ...p }, spot: { x: core.x + (i % 2 ? 1 : -1) * rand(95, 130), y: core.y + (i < 2 ? -70 : 40) + rand(-10, 10) } }));
   for (const p of pods) { for (let j = 0; j < 4; j++) toon.add({ dur: 700, draw(pen, k) { pen.puff("smoke", p.x + rand(-6, 6), p.y - k * 30 - j * 6, 10 + k * 14, 0.9 * (1 - k), k * 0.8); } }); fx.sparks(p, 5, { colors: ["#ff6a3a", "#ffd27a"], power: 0.8 }); }
   fx.shake(10);
   const droneActor = spr.add({ dur: 9000, draw(g, k, t, a) {
@@ -742,7 +742,7 @@ async function spectralChains(s) {
     const ch = chains[cutOrder[n]], d = drones[n % drones.length], A = anchor(ch), B = target(ch), at = { x: lerp(A.x, B.x, 0.55), y: lerp(A.y, B.y, 0.55) };
     d.aim = at;
     const eye = () => ({ x: d.x + (at.x < d.x ? -10 : 10), y: d.y + 2 });
-    if (slow) { fx.slowmo(0.3, 900); fx.focus(1.25, { x: (d.x + at.x) / 2, y: (d.y + at.y) / 2 }, 250); }
+    if (slow) { fx.slowmo(0.3, 900); fx.focus(1.12, { x: (d.x + at.x) / 2, y: (d.y + at.y) / 2 }, 250); }
     sound.sfx("miniLaser", { size: 0.4 });
     await pxTop.add({ dur: slow ? 300 : 90, draw(g, k) {   // lock-on reticle closing in, and the charge
       const r = 26 * (1 - ease.out(k)) + 9;
