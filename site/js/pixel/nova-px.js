@@ -17,7 +17,7 @@ const PALETTES = [
 // Glow halos: eyes (pale lavender), then magic haze (deep to light violet).
 const GLOW = ["#5b4c92", "#a99ee0", "#f2eeff", "#2c1258", "#5a2aa6", "#9a62ea"];
 const EXTRA = ["#c9b8f0", "#ffffff", "#030206"];
-export const NOVA_KINDS = ["flame", "eclipse", "wraith", "moon", "imp", "darkflame", "cloak", "crystal", "veil"];
+export const NOVA_KINDS = ["flame", "eclipse", "wraith", "moon", "imp", "darkflame", "cloak", "crystal", "veil", "moonflame", "mooncloak", "flamecloak", "twinflame", "flamehood", "satellites"];
 
 const model = (kind) => `
 #define KIND ${kind}
@@ -58,6 +58,36 @@ void corona(inout float d, vec3 p, vec3 c0, float rr){
 void headEyes(inout float d, vec3 p, vec3 c, float r, float k){
   float z = -r*.86;
   eyes(d, p, c + vec3(-.18*k, .01, z), c + vec3(.17*k, .01, z), vec3(.1, .18, .06)*k);
+}
+
+// A tongue of shadow fire rising from base (height h, base radius r), purple at the tip.
+float flameT(inout float d, vec3 p, vec3 base, float h, float r, float ph, float lean){
+  vec3 f = p - base; float k = clamp(f.y/h, 0., 1.);
+  f.x -= sin(f.y*3.5/h - uTime*4. + ph)*.09*k + lean*k*k;
+  float fl = sdCapT(f, vec3(0.), vec3(0., h, .04), r, .0);
+  fl += (fbm(f*4.5 + vec3(ph, -uTime*2.2, 0.)) - .5)*.16*k;
+  float tip = sdCapT(f, vec3(0., h*.68, .04), vec3(0., h*1.04, .04), r*.32, .0);
+  U(d, tip, 4.); gMagic = min(gMagic, tip);
+  return fl;
+}
+// A tilted ring of obsidian dust around s (already relative to his centre).
+void dustRing(inout float d, vec3 s, float y, float rad, float tilt){
+  vec3 r = s - vec3(0., y, 0.); r.yz = R(tilt) * r.yz; r.xy = R(-.22) * r.xy;
+  float an = atan(r.y, r.x) + uTime*.4, ra = length(r.xy);
+  float seg = mod(an, .26) - .13;
+  U(d, sdBox(vec3(seg*ra, ra - rad, r.z), vec3(.045)), 5.);
+}
+// A short shadow cloak from y=top down to a ragged hem near y=bot.
+float cloakB(vec3 p, float top, float bot, float r0, float r1){
+  vec3 s = p; s.x += sin(s.y*2.4 + uTime*1.5)*.06*max(top - s.y, 0.) + uSway*max(-s.y, 0.) - .14*pow(max(top - s.y, 0.), 2.);
+  float ry = mix(r0, r1, clamp((top - s.y)/(top - bot), 0., 1.));
+  float c = (length(vec2(s.x, s.z*1.3)) - ry)*.7;
+  float jag = .22*abs(sin(s.x*8. + uTime*1.2)) + .06*sin(s.x*21. - uTime*2.3);
+  return max(c, max(s.y - top - .02, (bot + jag) - s.y));
+}
+// The black moon's underside: shadow flames licking up its lower half.
+float moonB(vec3 s, float r){
+  return length(s) - r + (fbm(s*5. + vec3(0., -uTime*1.6, 0.)) - .5)*.14*clamp(-s.y*1.6 + .1, 0., 1.);
 }
 
 float map(vec3 p){
@@ -137,7 +167,7 @@ float map(vec3 p){
   body = length(s) - .55;
   body += (fbm(s*5. + vec3(0., -uTime*1.6, 0.)) - .5)*.14*clamp(-s.y*1.6 + .1, 0., 1.);
   U(d, body, 1.);
-  vec3 r = s + vec3(0., .4, 0.); r.yz = R(1.3) * r.yz; r.xy = R(-.22) * r.xy;
+  vec3 r = s + vec3(0., .4, 0.); r.yz = R(-1.3) * r.yz; r.xy = R(-.22) * r.xy;
   float an = atan(r.y, r.x) + uTime*.4, ra = length(r.xy);
   float seg = mod(an, .26) - .13;
   vec3 rq = vec3(seg*ra, ra - .92, r.z);
@@ -201,6 +231,58 @@ float map(vec3 p){
   }
   corona(d, p, c, .64);
   eyes(d, p, c + vec3(-.14, -.02, -.4), c + vec3(.14, -.02, -.4), vec3(.075, .13, .07));
+#elif KIND == 9
+  // moon + flame: the black moon crowned with one tall tongue of shadow fire, dust ring below
+  vec3 c = vec3(0., .1, 0.);
+  body = smin(moonB(p - c, .5), flameT(d, p, c + vec3(0., .25, 0.), 1.15, .3, 0., .12), .1);
+  U(d, body, 1.);
+  dustRing(d, p - c, -.36, .86, -1.3);
+  corona(d, p, c, .6);
+  headEyes(d, p, c, .5, 1.);
+#elif KIND == 10
+  // cloaked moon: round head on the short cloak, a dust ring circling the cloak
+  vec3 c = vec3(0., .5, 0.);
+  body = smin(length(p - c) - .4, cloakB(p, .22, -.74, .22, .64), .1);
+  U(d, body, 1.);
+  dustRing(d, p, -.12, .82, -1.32);
+  corona(d, p, c, .56);
+  headEyes(d, p, c, .4, .92);
+#elif KIND == 11
+  // flame cloak: the cloaked one, with a tongue of shadow fire rising from his head
+  vec3 c = vec3(0., .46, 0.);
+  body = smin(length(p - c) - .4, cloakB(p, .2, -.76, .22, .62), .1);
+  body = smin(body, flameT(d, p, c + vec3(0., .18, 0.), .9, .24, 1.3, .1), .1);
+  U(d, body, 1.);
+  corona(d, p, c, .56);
+  headEyes(d, p, c, .4, .92);
+#elif KIND == 12
+  // twin flames: the black moon with two flame horns leaning outwards
+  vec3 c = vec3(0., .1, 0.);
+  body = moonB(p - c, .5);
+  body = smin(body, flameT(d, p, c + vec3(-.27, .28, 0.), .78, .17, 0., -.18), .08);
+  body = smin(body, flameT(d, p, c + vec3(.27, .28, 0.), .78, .17, 2.1, .18), .08);
+  U(d, body, 1.);
+  corona(d, p, c, .6);
+  headEyes(d, p, c, .5, 1.);
+#elif KIND == 13
+  // hooded flame: a cloak whose head draws up into one thick flame, like a hood of fire
+  vec3 c = vec3(0., .42, 0.);
+  body = smin(length(p - c) - .42, cloakB(p, .16, -.8, .24, .66), .1);
+  body = smin(body, flameT(d, p, c + vec3(0., .02, .02), 1.0, .4, .7, .2), .14);
+  U(d, body, 1.);
+  corona(d, p, c, .58);
+  headEyes(d, p, c, .42, .95);
+#elif KIND == 14
+  // moon with satellites: the black moon, two small shadow moons in orbit
+  vec3 c = vec3(0., .15, 0.);
+  body = moonB(p - c, .5);
+  for (int k = 0; k < 2; k++) {
+    float an = uTime*.9 + float(k)*3.14159;
+    body = min(body, length(p - c - vec3(cos(an)*.86, .12*sin(an*1.7), sin(an)*.5)) - .11);
+  }
+  U(d, body, 1.);
+  corona(d, p, c, .62);
+  headEyes(d, p, c, .5, 1.);
 #else
   // veil: a round head trailing a long shadow ribbon that ripples behind him
   vec3 c = vec3(0., .3, 0.);

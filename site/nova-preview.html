@@ -8,26 +8,32 @@
 body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: #0f1116; color: #e9ecf2; }
 main { max-width: 1360px; margin: 0 auto; padding: 24px 16px 60px; }
 h1 { font-size: 22px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 18px; font-size: 14px; }
-.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-.card h2 { font-size: 15px; margin: 0 0 4px; } .card p { font-size: 12.5px; margin: 0 0 8px; min-height: 48px; }
+h3 { font-size: 15px; margin: 22px 0 10px; color: #c9b8f0; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 4px; } .card p { font-size: 12.5px; margin: 0 0 8px; min-height: 34px; }
 .panel { border-radius: 14px; border: 1px solid #262c38; display: flex; align-items: flex-end; justify-content: center; gap: 12px; padding: 10px 6px; margin-bottom: 8px; overflow: hidden; }
 .panel.light { background: #f4f2ee; } .panel.dark { background: #12151c; }
-@media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <main>
-  <h1>NOVA: eclipse family</h1>
-  <p>All keep the eclipse corona, blank eyes and purple haze from B; only the body changes. Big on the battle background, roaming size on the lesson background.</p>
+  <h1>NOVA: round 3</h1>
+  <p>New designs mixing the three you picked (black moon, dark flame, cloaked). Big on the battle background, roaming size on the lesson background.</p>
   <div class="grid">
-    <div class="card" data-k="eclipse"><h2>B · Teardrop (last round)</h2><p>For comparison: the one you liked.</p></div>
-    <div class="card" data-k="moon"><h2>B1 · Black moon</h2><p>He is the eclipsed moon: a shadow sphere with shadow flames licking its underside and a tilted ring of obsidian dust.</p></div>
-    <div class="card" data-k="imp"><h2>B2 · Imp</h2><p>Round head with two swept-back horns, a small body that curls into a wisp.</p></div>
-    <div class="card" data-k="darkflame"><h2>B3 · Dark flame</h2><p>A round base rising into one tall licking tongue of shadow fire, purple at the tip.</p></div>
-    <div class="card" data-k="cloak"><h2>B4 · Cloaked</h2><p>Round head on a short shadow cloak with a ragged hem that drifts behind him.</p></div>
-    <div class="card" data-k="crystal"><h2>B5 · Crystal</h2><p>A faceted obsidian gem that slowly turns, a lower shard, and two small shards in orbit.</p></div>
-    <div class="card" data-k="veil"><h2>B6 · Veil</h2><p>Round head trailing a long shadow ribbon that ripples behind him like a scarf in the wind.</p></div>
+    <div class="card" data-k="moonflame"><h2>C1 · Moon flame</h2><p>The black moon crowned with one tall tongue of shadow fire, dust ring below. (B1 + B3)</p></div>
+    <div class="card" data-k="mooncloak"><h2>C2 · Cloaked moon</h2><p>The cloaked one with the black moon's dust ring circling his cloak. (B4 + B1)</p></div>
+    <div class="card" data-k="flamecloak"><h2>C3 · Flame cloak</h2><p>The cloaked one with a flame rising from his head. (B4 + B3)</p></div>
+    <div class="card" data-k="twinflame"><h2>C4 · Twin flames</h2><p>The black moon with two flame horns leaning outward.</p></div>
+    <div class="card" data-k="flamehood"><h2>C5 · Hooded flame</h2><p>A cloak whose head draws up into one thick flame, like a hood made of fire.</p></div>
+    <div class="card" data-k="satellites"><h2>C6 · Satellites</h2><p>The black moon with two small shadow moons orbiting him.</p></div>
+  </div>
+  <h3>Your picks from last round, for comparison</h3>
+  <div class="grid">
+    <div class="card" data-k="moon" data-only><h2>B1 · Black moon</h2></div>
+    <div class="card" data-k="darkflame" data-only><h2>B3 · Dark flame</h2></div>
+    <div class="card" data-k="cloak" data-only><h2>B4 · Cloaked</h2></div>
   </div>
 </main>
 <script type="module">
@@ -35,10 +41,12 @@ import { PixelNova } from "./js/pixel/nova-px.js";
 for (const card of document.querySelectorAll(".card[data-k]")) {
   const k = card.dataset.k;
   const dark = Object.assign(document.createElement("div"), { className: "panel dark" });
+  card.append(dark);
+  new PixelNova(dark, { kind: k, w: 150, h: 180, px: 2 });
+  if (card.hasAttribute("data-only")) continue;
   const light = Object.assign(document.createElement("div"), { className: "panel light" });
-  card.append(dark, light);
-  new PixelNova(dark, { kind: k, w: 150, h: 172, px: 2 });
-  new PixelNova(light, { kind: k, w: 96, h: 110, px: 1 });
+  card.append(light);
+  new PixelNova(light, { kind: k, w: 96, h: 115, px: 1 });
 }
 </script>
 </body>
