@@ -484,20 +484,14 @@ const SFX = {
   // ---- Your roaming teammate (quiet: they play outside battles too) ----
   // DOT is liquid: he sloshes when he hops, glugs when picked up, splats when dropped.
   // (PYRO crackles instead.)
-  // Each hop is a soft, wet "schlop": a low rounded tone through a filter that
-  // opens and closes like a mouth, sometimes with a tiny bubble. No hiss (noise
-  // read as wind, not slime). Quiet, with a soft start so nothing clicks.
+  // Each hop is a small jelly "blup": a clean tone that bends up and wobbles (the
+  // same ingredients as the pick-up and plop Isaac liked), over a faint wet swirl.
+  // Not a low buzz (that sounded rude) and not hiss (that sounded like wind).
   hop(t, k, o) {
-    const c = this.ctx;
     if (o.fire) { this.tone("sine", 900 + Math.random() * 400, 600, t, 0.05, 0.012, { attack: 0.01 }); return; }
-    const f = 75 + Math.random() * 35, osc = c.createOscillator(), lp = c.createBiquadFilter(), g = c.createGain();
-    osc.type = "sawtooth"; osc.frequency.setValueAtTime(f * 0.85, t); osc.frequency.linearRampToValueAtTime(f * 1.15, t + 0.08); osc.frequency.linearRampToValueAtTime(f, t + 0.2);
-    lp.type = "lowpass"; lp.Q.value = 7;
-    lp.frequency.setValueAtTime(220, t); lp.frequency.linearRampToValueAtTime(750 + Math.random() * 250, t + 0.07); lp.frequency.linearRampToValueAtTime(240, t + 0.2);
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.045, t + 0.025); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
-    osc.connect(lp); lp.connect(g); g.connect(this.sfxBus);
-    osc.start(t); osc.stop(t + 0.3);
-    if (Math.random() < 0.6) { const b = 380 + Math.random() * 300; this.tone("sine", b, b * 1.7, t + 0.08 + Math.random() * 0.06, 0.045, 0.018, { attack: 0.006 }); }
+    const f = 300 + Math.random() * 120;
+    this.tone("sine", f, f * 1.45, t, 0.12, 0.035, { attack: 0.012, glide: 0.07, vibrato: [22, 18] });
+    this.slosh(t, 0.18, 0.035, { f: 700, rate: 12, depth: 250 });
   },
   pickup(t, k, o) {
     if (o.fire) { this.noise(t, 0.2, 0.12, { type: "highpass", f0: 3000 }); this.tone("sine", 200, 500, t, 0.2, 0.1); return; }

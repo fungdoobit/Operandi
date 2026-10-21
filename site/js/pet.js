@@ -106,7 +106,7 @@ export class Pet {
           // A little hopping gait while he travels, with a jiggle.
           const before = Math.floor(this.phase / Math.PI);
           this.phase += dt * 7;
-          if (Math.floor(this.phase / Math.PI) !== before && this.root.style.visibility !== "hidden") sound.sfx("hop", { theme: this.skin === "pyro" ? "fire" : "water" });   // each little landing
+          if (Math.floor(this.phase / Math.PI) !== before && Math.floor(this.phase / Math.PI) % 2 === 0 && this.root.style.visibility !== "hidden") sound.sfx("hop", { theme: this.skin === "pyro" ? "fire" : "water" });   // every other landing
           bob = -Math.abs(Math.sin(this.phase)) * 5;
           this.dot.nudge((dx / dist) * 1.5, 0.012);
           // Face the way he's going (only when it's mostly sideways, so he doesn't flicker).
