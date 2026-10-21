@@ -198,7 +198,7 @@ async function emberShot(s) {
 function crescent(pen, m, R, amt, t, dir = 1) {
   for (let i = 0; i <= 18; i++) {
     const u = i / 18, a = (u - 0.5) * 2.3, thick = Math.cos((u - 0.5) * Math.PI);
-    pen.puff("heat", m.x + Math.cos(a) * R * dir, m.y + Math.sin(a) * R, 3 + 11 * thick, amt * (0.7 + 0.5 * thick));
+    pen.puff("heat", m.x + Math.cos(a) * R * dir, m.y + Math.sin(a) * R, 3 + 13 * thick, amt * (0.5 + 0.42 * thick));
   }
   for (let i = 0; i < 3; i++) {   // flames streaming back off its tips and middle
     const a = (i - 1) * 0.9, x = m.x + Math.cos(a) * R * dir, y = m.y + Math.sin(a) * R;
@@ -217,11 +217,15 @@ async function crescentWave(s) {
   const m = { x: c.x + 50, y }, x0 = m.x, x1 = core.x - 40, trail = [];
   let live = 1;
   const wave = toon.add({ dur: 900, draw(pen, k, t) {
-    if (live) { trail.push({ x: m.x, y: m.y, t }); crescent(pen, m, 46, 1.1, t); }
+    if (live) {
+      const last = trail[trail.length - 1], n = last ? Math.max(1, Math.floor((m.x - last.x) / 6)) : 1;
+      for (let i = 1; i <= n; i++) trail.push({ x: last ? lerp(last.x, m.x, i / n) : m.x, y: m.y, t, j: rand(-1, 1) });
+      crescent(pen, m, 58, 1.05, t);
+    }
     for (const p of trail) {
-      const age = (t - p.t) / 360; if (age > 1) continue;
-      pen.puff("heat", p.x - 30, p.y + rand(-14, 14) * age, 9 * (1 - age), 0.9 * (1 - age));
-      if (age > 0.4) pen.puff("smoke", p.x - 34, p.y - 16 - age * 18, 10 + 10 * age, (age - 0.4) * 1.6 * (1 - age), clamp01((age - 0.6) * 2));
+      const age = (t - p.t) / 300; if (age > 1) continue;
+      pen.puff("heat", p.x - 36, p.y + p.j * 26 * (0.4 + age), 14 * (1 - age), 0.85 * (1 - age));
+      if (age > 0.4) if (p.j > 0.3) pen.puff("smoke", p.x - 40, p.y - 16 - age * 18, 10 + 10 * age, (age - 0.4) * 1.6 * (1 - age), clamp01((age - 0.6) * 2));
     }
   } });
   await toon.add({ dur: 340, draw(pen, k) { m.x = lerp(x0, x1, ease.in(k) * 0.4 + k * 0.6); } });
@@ -231,7 +235,7 @@ async function crescentWave(s) {
   explode(toon, core.x - 20, y - 6, { size: 1, dur: 1300 });
   pxTop.add({ dur: 300, draw(g, k) {   // the slice left hanging in the air
     g.globalAlpha = 1 - k; g.strokeStyle = "#fff6d8"; g.lineWidth = 5 * (1 - k);
-    g.beginPath(); g.arc(core.x - 60, y - 6, 46, -1.1, 1.1); g.stroke(); g.globalAlpha = 1;
+    g.beginPath(); g.arc(core.x - 70, y - 6, 58, -1.1, 1.1); g.stroke(); g.globalAlpha = 1;
   } });
   s.onHit(1);
   await fx.wait(140);
