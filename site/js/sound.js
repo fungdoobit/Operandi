@@ -537,9 +537,9 @@ const SFX = {
   },
   // He crushes his dust ring: stone grinding inward, then a crack.
   crush(t) {
-    this.noise(t, 0.75, 0.22, { type: "bandpass", f0: 900, f1: 220, q: 2.5, attack: 0.3 });
-    this.tone("sawtooth", 70, 45, t, 0.75, 0.06, { attack: 0.3, dist: true });
-    for (let i = 0; i < 6; i++) this.noise(t + 0.15 + i * 0.09, 0.03, 0.12, { type: "highpass", f0: 2500 });
+    this.noise(t, 0.35, 0.2, { type: "bandpass", f0: 900, f1: 300, q: 2.5, attack: 0.15 });
+    this.tone("sawtooth", 70, 50, t, 0.35, 0.05, { attack: 0.15, dist: true });
+    for (let i = 0; i < 4; i++) this.noise(t + 0.05 + i * 0.07, 0.03, 0.1, { type: "highpass", f0: 2500 });
   },
   // ...and it bursts: a deep boom with a bright magic crack and the shards flying
   ringBurst(t) {
@@ -552,6 +552,12 @@ const SFX = {
   shakeOff(t) {
     for (let i = 0; i < 9; i++) this.noise(t + i * 0.07, 0.05, 0.14, { type: "bandpass", f0: 1400 + (i % 2) * 600, q: 2 });
     this.noise(t + 0.2, 0.55, 0.22, { type: "bandpass", f0: 600, f1: 3000, q: 1.2 });
+  },
+  // the dust ring flung outward: a spinning whoosh that opens up, and a falling shimmer
+  ringRelease(t) {
+    this.noise(t, 0.9, 0.16, { type: "bandpass", f0: 700, f1: 3200, q: 3 });
+    [1319, 1175, 880].forEach((f, i) => this.tone("triangle", f, f * 0.5, t + i * 0.1, 0.6, 0.04, { room: 0.5 }));
+    this.tone("sine", 82, 60, t, 0.4, 0.18);
   },
   // the dust ring spiralling back: a rising shimmer that settles
   ringReform(t) {
@@ -600,7 +606,7 @@ const SFX = {
     this.noise(t + 0.38, 0.1, 0.35, { type: "bandpass", f0: 3000, q: 0.9 });
   },
 };
-const NOVA_IDLE = new Set(["novaSummon", "blackhole", "novaUnsummon", "crush", "ringBurst", "shakeOff", "ringReform",
+const NOVA_IDLE = new Set(["novaSummon", "blackhole", "novaUnsummon", "crush", "ringBurst", "ringRelease", "shakeOff", "ringReform",
   "portalTear", "portal", "telekinesis", "bucketRise", "pop", "munch", "portalClose"]);
 
 export const sound = new Sound();

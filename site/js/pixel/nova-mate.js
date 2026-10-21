@@ -120,20 +120,27 @@ export class NovaMate {
     return this.anim(ms, (e) => { this.nova.idle.burst = e >= 1 ? 0 : e; }, implode ? "lin" : "out");
   }
 
-  // He crushes his dust ring into a burst, and planets, a black hole and asteroids
-  // fly out of it into orbit. Later he shakes them off and summons his ring back.
+  // He squeezes his dust ring and flings it spiralling outward, and planets, a black
+  // hole and asteroids grow in on its orbits. Later he shakes them off and his ring
+  // spirals back in.
   async orrery() {
     const I = this.nova.idle;
+    // a quick squeeze, then he flings the ring into a spin and it spirals outward,
+    // widening and fading, while the planets grow in on the same orbits
+    // (the mirror of the ring coming back at the end, which Isaac loved)
     this.setMood("angry");
     sound.sfx("crush");
     const spin0 = I.spin;
-    await this.anim(750, (e) => { I.ringR = 1 - 0.75 * e; I.ringK = 1 - 0.35 * e; I.spin = spin0 + 5 * e; }, "in");
-    I.ringK = 0;
-    sound.sfx("ringBurst");
-    this.burst([0, 0.15, -0.6]);   // in front of him, so the flash is not hidden by his body
-    sound.sfx("novaSummon");
+    await this.anim(320, (e) => { I.ringR = 1 - 0.18 * e; I.spin = spin0 + 1.2 * e; }, "in");
     this.setMood("happy");
-    await this.anim(950, (e) => { I.orb = e; I.orbR = 0.2 + 0.8 * e; }, "out");
+    sound.sfx("ringRelease");
+    setTimeout(() => sound.sfx("novaSummon"), 350);
+    const spinOut = I.spin;
+    await this.anim(1100, (e) => {
+      I.ringR = 0.82 + 1.4 * e; I.ringK = 1 - e; I.spin = spinOut + 7 * e;
+      I.orb = Math.max(0, (e - 0.25) / 0.75); I.orbR = 0.75 + 0.25 * e;
+    }, "out");
+    I.ringK = 0; I.ringR = 1; I.orb = 1; I.orbR = 1;
     setTimeout(() => sound.sfx("blackhole"), 700);
     await this.wait(3800);
     // shake them off: everything is flung outward and fades
