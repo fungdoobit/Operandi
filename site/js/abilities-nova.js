@@ -486,6 +486,7 @@ async function wraithFlock(s) {
 function drawOrbFx(g, at, R, t, power = 1) {
   if (R <= 0.5) return;
   glow(g, at.x, at.y, R * 3.2, "#7838d0", 0.55 * power);
+  g.fillStyle = "#05010c"; g.beginPath(); g.arc(at.x, at.y, R, 0, Math.PI * 2); g.fill();   // the core stays pitch black
   // a rim of light round the black core, brightest on top
   g.lineWidth = Math.max(1.5, R * 0.16); g.strokeStyle = "#a066f0"; g.beginPath(); g.arc(at.x, at.y, R * 1.05, 0, Math.PI * 2); g.stroke();
   g.lineWidth = Math.max(1, R * 0.08); g.strokeStyle = "#f3e6ff"; g.beginPath(); g.arc(at.x, at.y, R * 1.02, Math.PI * 1.05, Math.PI * 1.75); g.stroke();
@@ -533,7 +534,7 @@ async function voidOrb(s) {
   } });
   const orbTop = pxTop.add({ dur: 3400, draw(g, k, t) { drawOrbFx(g, at, R * (1 - collapse), t, vortex ? 1.4 : 1); } });
   sound.sfx("darkChoir", { ms: 800 });
-  await toon.add({ dur: 760, draw(pen, k) { R = 22 * ease.out(k); } });
+  await toon.add({ dur: 760, draw(pen, k) { R = 27 * ease.out(k); } });
   // hurl it
   sound.sfx("whoosh", { theme: "void" }); sound.sfx("ghostFly");
   fx.hitstop(70); fx.shake(14); impactFrame(fx, { ms: 50 });
