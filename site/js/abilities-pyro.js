@@ -451,15 +451,18 @@ async function infernoLine(s) {
       pen.flame(x, floor + 4, 15 - u * 6, h, 1.15 - u * 0.75, -0.25, Math.sin(x * 0.13 + t * 0.01) * 0.3);
       if (u > 0.4) pen.puff("smoke", x - 10, floor - h - 10, 18 + u * 10, (u - 0.4) * 1.2, clamp01(u - 0.6));
     }
-    if (tornado > 0) {   // the flame tornado: a helix of fire widening upward
-      const H = 300 * tornado * (1 - blow);
-      for (let i = 0; i < 46; i++) {
-        const u = i / 46, y = floor - u * H, r = (22 + u * 72) * tornado, a = u * 11 - t * 0.016;
-        pen.puff("heat", cx + Math.cos(a) * r, y, (12 + u * 10) * (1 - blow), (1.2 - u * 0.45) * (1 - blow));
-        pen.puff("heat", cx + Math.cos(a + Math.PI) * r * 0.7, y + 6, (8 + u * 6) * (1 - blow), (0.9 - u * 0.4) * (1 - blow));
+    if (tornado > 0) {   // the flame tornado: a funnel of fire widening upward, strands swirling round it
+      const H = 300 * tornado * (1 - blow), f = 1 - blow;
+      for (let i = 0; i < 26; i++) {
+        const u = i / 26, y = floor - u * H, r = (16 + u * 84) * tornado, sway = Math.sin(t * 0.006 + u * 3) * 10 * u;
+        pen.oval("heat", cx + sway, y, r, r * 0.3, (0.5 - u * 0.12) * f);
       }
-      pen.limb("heat", [[cx, floor], [cx + Math.sin(t * 0.01) * 10, floor - H * 0.5], [cx, floor - H]], 18 * (1 - blow), 30 * (1 - blow), 0.85 * (1 - blow));
-      for (let i = 0; i < 5; i++) pen.puff("smoke", cx + Math.sin(t * 0.004 + i) * 60, floor - H - 10 - i * 10, 30, 0.7 * (1 - blow), 0.3);
+      for (let k2 = 0; k2 < 3; k2++) for (let i = 0; i < 34; i++) {
+        const u = i / 34, y = floor - u * H, r = (18 + u * 80) * tornado, a = u * 9 - t * 0.018 + k2 * 2.1;
+        if (Math.sin(a) < -0.2) continue;   // the strand is round the back of the funnel
+        pen.puff("heat", cx + Math.sin(t * 0.006 + u * 3) * 10 * u + Math.cos(a) * r, y + Math.sin(a) * r * 0.3, (7 + u * 8) * f, (1 - u * 0.35) * f);
+      }
+      for (let i = 0; i < 6; i++) pen.puff("smoke", cx + Math.sin(t * 0.004 + i * 1.3) * 70, floor - H - i * 8, 30, 0.75 * f, 0.3);
     }
   } });
   sound.sfx("whoosh", { theme: "fire" });
