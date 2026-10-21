@@ -443,7 +443,7 @@ async function voidOrb(s) {
     for (let a = 0; a < 4; a++) {
       const pts = [];
       for (let j = 0; j <= 14; j++) { const u = j / 14, ang = a * Math.PI / 2 + u * 3.2 + turn, r = lerp(r0, r1, u); pts.push([p.x + Math.cos(ang) * r, p.y + Math.sin(ang) * r * 0.8]); }
-      pen.limb("void", pts, 7, 2, amt);
+      pen.limb("void", pts, 13, 4, amt);
     }
   };
   const orb = toon.add({ dur: 2900, draw(pen, k, t) {
@@ -452,7 +452,7 @@ async function voidOrb(s) {
     if (R > 0 && !vortex) arms(pen, at, R * 2.6, R * 0.6, -spin, 0.75);
     if (vortex > 0) {
       const sc = vortex * (1 - collapse);
-      arms(pen, at, 95 * sc, 12 * sc, -spin * 2.2, 1);
+      arms(pen, at, 110 * sc, 12 * sc, -spin * 2.2, 1.1);
       arms(pen, at, 60 * sc, 8 * sc, -spin * 2.2 + 0.8, 0.5);
     }
   } });

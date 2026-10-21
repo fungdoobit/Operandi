@@ -286,7 +286,7 @@ export function explode(toon, x, y, { size = 1, kind = "fire", dur = 1500, up = 
       if (grow <= 0) continue;
       const px = x + p.dx * R * grow, py = y + p.dy * R * grow - rise * 0.6 + R * 0.08, r = p.r * R * (0.55 + 0.45 * grow) * (1 + u * 0.35);
       if (kind === "void") {   // shadow: puffs that hollow out into rings and strands, with a haze round them
-        pen.puff("void", px, py, r, 1.25 * (1 - Math.max(0, u - 0.45) / 0.55), Math.min(0.95, Math.max(0, (u - 0.12) / 0.45)));
+        pen.puff("void", px, py, r * (1 - u * 0.3), Math.max(0, 1.3 - u * 1.7), Math.min(0.9, Math.max(0, (u - 0.1) / 0.4)));
         pen.puff("void", px, py, r * 1.5, 0.32 * (1 - u));
       } else pen.puff(ch, px, py, r, Math.max(0, 1.02 - u * 1.4));
     }
