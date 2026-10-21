@@ -192,6 +192,7 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Preview: `site/abilities-preview.html?skin=nova|pyro|dot` (a button per ability, "Card hand"; `&crit` plays them as crits).
   - Videos: `previews/abilities-nova-v3.mp4`, `abilities-pyro-v3.mp4` (all 7 cards each, in order), `previews/cards-v1.png`. End-to-end test in the course passed (miss with no tips, second-try pass = 8 mana, hand back after reload, a 4-mana card did 16).
   - Waiting on: Isaac's review of the 12 new abilities and the cards; then sounds polish, iPad performance, balance from real play.
+  - 2026-10-21 (Isaac, on the live Vercel site): the Firewall dome was cut off on its right side: its canvas (`golem-boss.js`) only had 160 art px of room round GOLEM. Now 320, and `domeShape()` caps the dome to its canvas. A thin white line (2 px) now separates the battle band from the lesson (`.body.boss-mode .arena` border in `app.css`).
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).
 - [ ] v1: Isaac's first real use inside claude.ai is still unconfirmed.

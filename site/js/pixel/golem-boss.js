@@ -27,7 +27,7 @@ export class PixelBoss {
     // over his, so its pixels line up with his.
     const cv = golem.canvas;
     this.dc = document.createElement("canvas");
-    this.pad = 160;   // art pixels of room around his canvas: the dome is wider than he is
+    this.pad = 320;   // art pixels of room around his canvas: the dome is wider than he is, more so with his arms out
     this.dc.width = cv.width + this.pad * 2; this.dc.height = cv.height + this.pad;
     Object.assign(this.dc.style, { position: "absolute", imageRendering: "pixelated", pointerEvents: "none" });
     figure.append(this.dc);
@@ -100,7 +100,9 @@ export class PixelBoss {
     const g = this.golem, H = g.canvas.height, P = this.pad, at = (L, part) => { const [x, y] = g.toCanvas(L, part); return { x: x + P, y: H - y + P }; };
     const cx = at([0, -0.84, 0]).x, cy = H * (1 - 0.045) + P, top = at([0, 0.8, 0.5]).y;
     const reach = Math.max(Math.abs(at([-0.06, -1.5, -0.05], "claw").x - cx), Math.abs(at([0.5, -1.08, -0.14], "cannon").x - cx));
-    return { cx, cy, rx: reach * 1.05, ry: (cy - top) * 1.1 };
+    // never wider or taller than its canvas, or its edge gets cut off
+    const rx = Math.min(reach * 1.05, cx - 4, this.dc.width - cx - 4), ry = Math.min((cy - top) * 1.1, cy - 4);
+    return { cx, cy, rx, ry };
   }
   buildDome() {
     const D = (this.D = this.domeShape()), { cx, cy, rx, ry } = D, r = 12, w = r * Math.sqrt(3), now = this.fx.time;
