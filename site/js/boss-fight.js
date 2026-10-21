@@ -89,6 +89,7 @@ export async function pixelateOut(el, ms = 650) {
 export class BattleStage {
   // host: where the stage goes. sayHost: where your teammate's messages go.
   constructor(host, sayHost, { skin = "dot", accessories = [], name = "GOLEM" } = {}) {
+    if (skin === "nova") skin = "dot";   // NOVA has no battle moves yet: DOT fights for him
     ensureFilters();
     if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS; document.head.append(st); }
     const who = skin === "pyro" ? "PYRO" : "DOT";

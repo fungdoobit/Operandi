@@ -10,6 +10,7 @@ import { BattleStage, pixelateOut } from "./boss-fight.js";
 import { sound } from "./sound.js";
 import { newFight, difficultyFor, strikeFor, nextSpecial, specialApplies, applySpecial } from "./boss-rules.js";
 import { Pet } from "./pet.js";
+import { NovaMate, NOVA_CSS } from "./pixel/nova-mate.js";
 import { VOICES } from "../content/voices.js";
 import { startCloud, cloudConfigured } from "./cloud.js";
 import { rng, newSeed } from "./rng.js";
@@ -25,10 +26,10 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const store = new Store();
 const S = () => store.state;
 
-/* ---------- Your teammate (DOT or PYRO) ---------- */
+/* ---------- Your teammate (DOT, PYRO or NOVA) ---------- */
 
 const dotStyle = document.createElement("style");
-dotStyle.textContent = DOT_CSS;
+dotStyle.textContent = DOT_CSS + NOVA_CSS;
 document.head.append(dotStyle);
 const V = () => VOICES[S().equipped.teammate] || VOICES.dot;
 const wearing = () => WEAR_SLOTS.map((slot) => S().equipped[slot]).filter(Boolean);
@@ -664,7 +665,8 @@ function renderShop() {
   };
   const pyro = SHOP.find((e) => e.id === "pyro");
   const teamCard = (id, name, desc) => {
-    const owned = id === "dot" || st.owned[id];
+    // NOVA is free while Isaac tests him; the real unlock (GOLEM first try, or 1,500 Bits) comes later
+    const owned = id === "dot" || id === "nova" || st.owned[id];
     const btn = !owned
       ? `<button class="btn primary" data-buy="${id}" ${st.bits < pyro.price ? "disabled" : ""}>Buy for ◆ ${pyro.price}</button>`
       : team === id ? `<span class="owned">With you now</span>` : `<button class="btn" data-team="${id}">Switch to ${name}</button>`;
@@ -676,13 +678,14 @@ function renderShop() {
     <div class="team-grid">
       ${teamCard("dot", "DOT", "Digital Operandi Teammate. Calm, patient, a little goopy.")}
       ${teamCard("pyro", "PYRO", "PYthon Runtime Operative. Fiery, energetic, very competitive.")}
+      ${teamCard("nova", "NOVA", "GOLEM's exclusive companion: a living shadow from his core. Free while you test him; later he's won by beating GOLEM first try, or 1,500 Bits.")}
     </div>
     <h3>Help items</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "item").map(card).join("")}</div>
     <h3>Looks</h3><p class="empty">Wear one hat, one pair of glasses, one moustache and one prop at the same time. Your teammate shows them off while roaming.</p>
     <div class="shop-grid">${SHOP.filter((e) => e.kind === "dot").map(card).join("")}</div>
     <h3>Editor themes</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "theme").map(card).join("")}</div>`;
-  for (const id of ["dot", "pyro"]) {
-    const d = new Dot($("team-" + id), { size: 96, skin: id });
+  for (const id of ["dot", "pyro", "nova"]) {
+    const d = id === "nova" ? new NovaMate($("team-" + id), { size: 96, idles: false }) : new Dot($("team-" + id), { size: 96, skin: id });
     d.setAccessory(wearing());
     d.setMood(team === id ? "happy" : "idle");
   }
@@ -1033,7 +1036,7 @@ function wireSettings() {
   // a short test sound when you let go of the effects slider
   $("setSfxVol").addEventListener("change", () => sound.sfx("hit"));
   // your teammate's own sounds, each with its own volume (under the effects volume)
-  const team = () => (S().equipped.teammate === "pyro" ? "fire" : "water");
+  const team = () => ({ pyro: "fire", nova: "void" })[S().equipped.teammate] || "water";
   for (const [id, key, test] of [["setRoamVol", "roamVol", "hop"], ["setGrabVol", "grabVol", "plop"]]) {
     $(id).value = Math.round(s[key] * 100);
     $(id).addEventListener("input", () => sound.set({ [key]: $(id).value / 100 }));
@@ -1103,7 +1106,8 @@ async function initCloud() {
 // For trying things out on a real device:
 //   ?test=boss   load a save with Module 1's lessons done and GOLEM ready to fight
 //   ?test=reset  wipe everything back to the very beginning
-// Both ask first. The link is cleaned from the address bar either way.
+//   ?test=nova   switch your teammate to NOVA, with his idles every 8-12 s instead of 20-40 s
+// boss and reset ask first. The link is cleaned from the address bar either way.
 let bootBoss = false;
 const testMode = new URLSearchParams(location.search).get("test");
 if (testMode) {
@@ -1118,6 +1122,11 @@ if (testMode) {
     Object.assign(S(), { modulesDone: {}, boss: null, bossWins: {}, bossFights: {}, seenIntro: true, testMode: true });
     store.save();
     bootBoss = true;
+  }
+  if (testMode === "nova") {
+    store.equip("teammate", "nova");
+    Pet.fastIdles = true;
+    window.operandiPet = dot;   // for trying idles by hand: operandiPet.dot.idle("orrery")
   }
   if (testMode === "reset" && confirm("Reset ALL your progress to the very beginning?\n\nBits, items, lessons, Shop purchases, boss fights and saved code are all wiped. This can't be undone.")) {
     store.reset();

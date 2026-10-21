@@ -1,5 +1,7 @@
 // What each teammate says at the big moments. DOT is calm, patient and kind.
 // PYRO (PYthon Runtime Operative) is energetic, fired-up and a bit competitive.
+// NOVA (GOLEM's exclusive reward) is a quiet cosmic shadow: few words, dry
+// humour, talks in space terms, and is always one idle away from a popcorn break.
 // Error explanations and hints are shared (content/help.js); only the
 // personality lines differ. Each entry returns { title?, text }.
 
@@ -35,5 +37,21 @@ export const VOICES = {
     parked: () => ({ text: "Holding this spot! Double-click me to set me loose again." }),
     switchIn: () => ({ title: "PYRO's here!", text: "Fired up and ready! Let's crush some Python!" }),
     keepTrying: () => ({ text: "That's the spirit! One small change at a time, then hit Submit." }),
+  },
+  nova: {
+    name: "NOVA",
+    welcome: (it) => ({ title: "NOVA has arrived", text: `I am NOVA. I came out of GOLEM's core, and now I orbit you. You have ${it.hint} hints, ${it.peek} peeks and ${it.solution} solutions. Read the lesson, then write your code on the right.` }),
+    lessonIntro: (n, title) => ({ text: `Lesson ${n}: ${title}. Try the examples with Run example. Then the task. I'll be watching. Quietly.` }),
+    outputMatches: () => ({ title: "Aligned", text: "Your output lines up with the expected output, like planets. Press Submit to get it marked." }),
+    passed: (mark) => ({ title: `Passed. ${mark}/10`, text: mark === 10 ? "Not a single star out of place." : "It works. The universe approves." }),
+    notYet: () => ({ title: "Not yet" }),
+    idle: () => ({ title: "Still in orbit?", text: "You've drifted. Read the task again, line by line, or press Run to see where you are." }),
+    practice: (allDone) => ({ text: allDone ? "Pick a difficulty. Easy is a moon. Medium is a planet. Hard is a black hole." : "Practice what you know. More challenges appear as you finish lessons." }),
+    challenge: (diff, title) => ({ text: `${diff} challenge: ${title}. Read the steps, then bend it to your will.` }),
+    bought: (name) => ({ text: `${name}. A fine choice. Press Use to put it on.` }),
+    roamFree: () => ({ text: "Drifting again. Grab me and drop me anywhere if I'm in your way." }),
+    parked: () => ({ text: "I'll hold this orbit. Double-click me to let me drift." }),
+    switchIn: () => ({ title: "NOVA", text: "The eclipse is over. I'm here. Let's write some code." }),
+    keepTrying: () => ({ text: "Good. One small change at a time. Even stars form slowly." }),
   },
 };

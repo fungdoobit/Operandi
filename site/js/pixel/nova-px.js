@@ -6,13 +6,16 @@
 //   2 "wraith"  - a hooded shadow with a ragged void cape and obsidian shards in orbit
 import { PixelGL } from "./pixel-gl.js";
 
-// Materials: 1 shadow, 2 void (deeper shadow), 3 eyes, 4 magic (purple fire), 5 obsidian.
+// Materials: 1 shadow, 2 void (deeper shadow), 3 eyes, 4 magic (purple fire), 5 obsidian,
+// 6 red (a planet, bucket stripes), 7 cream (a planet, popcorn).
 const PALETTES = [
   ["#06040a", "#0d0917", "#171028", "#24183c", "#382558", "#583a88"],
   ["#020104", "#05030a", "#0a0614", "#120a21", "#1c1031", "#2a1846"],
   ["#8f86b8", "#b8b0dc", "#d8d2f0", "#ece8fa", "#f8f6ff", "#ffffff"],
   ["#2e0f5c", "#4f1f98", "#7838d0", "#a066f0", "#cba2ff", "#f3e6ff"],
   ["#0a0710", "#161024", "#241a3a", "#3a2a5c", "#6a4fa0", "#c3a8ff"],
+  ["#3a0a10", "#6e1420", "#a8202e", "#d83a3e", "#f26a5e", "#ffb0a0"],
+  ["#4a3a22", "#7a6440", "#b49a66", "#e0c890", "#f6e6b8", "#fffbea"],
 ];
 // Glow halos: eyes (pale lavender), then magic haze (deep to light violet).
 const GLOW = ["#5b4c92", "#a99ee0", "#f2eeff", "#2c1258", "#5a2aa6", "#9a62ea"];
@@ -22,6 +25,8 @@ export const NOVA_KINDS = ["flame", "eclipse", "wraith", "moon", "imp", "darkfla
 const model = (kind) => `
 #define KIND ${kind}
 uniform vec2 uRes; uniform float uTime, uYaw, uView, uBlink, uBob, uSway, uMood, uEnergy;
+// idles: orrery strength, portal open, bucket risen, head chomp; a flying kernel (xyz, size)
+uniform float uOrb, uPortal, uBucket, uChomp; uniform vec4 uKern;
 float gm; float gEye; float gMagic;
 void U(inout float d, float nd, float m){ if (nd < d) { d = nd; gm = m; } }
 float sdEll(vec3 p, vec3 r){ float k0 = length(p/r), k1 = length(p/(r*r)); return k0*(k0 - 1.)/k1; }
@@ -106,7 +111,8 @@ float map(vec3 p){
   float d = 1e5;
   p.y -= uBob;
   p.xz = R(uYaw) * p.xz;
-  if (sdBox(p - vec3(0., .2, 0.), vec3(1.6, 1.8, 1.3)) > .3) return 1.;
+  float big = max(uOrb, uPortal);
+  if (sdBox(p - vec3(0., .2, 0.), vec3(1.6 + big*.3, 1.8, 1.3 + big*.5)) > .3) return 1.;
   float body;
 #if KIND == 0
   // head with four flame horns
@@ -253,11 +259,55 @@ float map(vec3 p){
 #elif KIND == 10
   // cloaked moon: round head on the short cloak, a dust ring circling the cloak
   vec3 c = vec3(0., .5, 0.);
-  body = smin(length(p - c) - .4, cloakB(p, .22, -.74, .22, .64), .1);
+  body = smin(length((p - c)*vec3(1., 1. + .2*uChomp, 1.)) - .4, cloakB(p, .22, -.74, .22, .64), .1);
   U(d, body, 1.);
   dustRing(d, p, -.12, .82, -1.32);
   corona(d, p, c, .56);
   headEyes(d, p, c, .4, .92);
+  // ---- idle 1, the orrery: planets, a black hole and asteroids circle him ----
+  if (uOrb > 0.) {
+    vec3 o = p - vec3(0., .2, 0.);
+    o.yz = R(.35) * o.yz;                     // tip the orbits toward us
+    for (int k = 0; k < 3; k++) {
+      float fk = float(k), an = uTime*(.9 - fk*.2) + fk*2.1, rad = .95 + fk*.22;
+      vec3 q = o - vec3(cos(an)*rad, 0., sin(an)*rad);
+      float sz = (k == 0 ? .13 : k == 1 ? .1 : .08)*uOrb;
+      U(d, length(q) - sz, k == 1 ? 7. : 6.);
+      if (k == 0) { vec3 rq = q; rq.yz = R(1.2)*rq.yz; U(d, sdTorZ(rq, sz*1.75, .014*uOrb), 7.); }   // a ringed planet
+    }
+    float an = uTime*.6 + 4.2;
+    vec3 q = o - vec3(cos(an)*1.34, .05, sin(an)*1.34);
+    U(d, length(q) - .1*uOrb, 2.);                                  // the black hole
+    vec3 aq = q; aq.yz = R(1.3)*aq.yz;
+    float disc = sdTorZ(aq, .18*uOrb, .03*uOrb);                     // its burning accretion disc
+    U(d, disc, 4.); gMagic = min(gMagic, disc);
+    for (int k = 0; k < 5; k++) {
+      float fk = float(k), a2 = uTime*(1.3 + hash1(fk)*.5) + fk*1.26, rad = .8 + hash1(fk + 7.)*.62;
+      vec3 a = o - vec3(cos(a2)*rad, (hash1(fk + 3.) - .5)*.25, sin(a2)*rad);
+      a.xy = R(uTime*2. + fk)*a.xy; a.yz = R(uTime*1.3)*a.yz;
+      U(d, sdOct(a*vec3(1., .7, 1.2), .055*uOrb), 5.);              // asteroids
+    }
+  }
+  // ---- idle 2, snack time: a black-hole portal opens and a popcorn bucket rises out ----
+  if (uPortal > 0.) {
+    vec3 q = p - vec3(.98, -.45, -.05);
+    float ring = sdTorZ(vec3(q.x, q.z*1.4, q.y), .3*uPortal, .035*uPortal);
+    U(d, ring, 4.); gMagic = min(gMagic, ring);
+    U(d, max(length(vec2(q.x, q.z*1.4)) - .29*uPortal, abs(q.y) - .008), 2.);
+    if (uBucket > 0.) {
+      vec3 b = q - vec3(0., -.44 + .66*uBucket, 0.);
+      float h = .19, rr = mix(.14, .19, clamp((b.y + h)/(2.*h), 0., 1.));
+      float bucket = max(max(length(b.xz) - rr, abs(b.y) - h), -q.y);   // nothing shows below the portal
+      float stripe = step(.5, fract(atan(b.z, b.x)*1.2732 + .25));
+      U(d, bucket, stripe > .5 ? 6. : 7.);
+      for (int k = 0; k < 7; k++) {
+        float fk = float(k);
+        vec3 c2 = b - vec3(cos(fk*1.9)*.09*step(.5, fk), h + .03 + hash1(fk)*.05, sin(fk*1.9)*.09*step(.5, fk));
+        U(d, max(length(c2) - .06, -q.y), 7.);
+      }
+    }
+  }
+  if (uKern.w > 0.) U(d, length(p - uKern.xyz) - .055*uKern.w, 7.);
 #elif KIND == 11
   // flame cloak: the cloaked one, with a tongue of shadow fire rising from his head
   vec3 c = vec3(0., .46, 0.);
@@ -354,6 +404,7 @@ void main(){
   else if (m == 4.) sh = .55 + .35*key + .15*sin(uTime*9. + p.y*14.);
   else if (m == 5.) sh = .12 + .4*key + .45*pow(max(dot(reflect(-L, n), -rd), 0.), 10.) + .35*rim;
   else if (m == 2.) sh = .05 + .2*rim;
+  else if (m >= 6.) sh = .14 + .62*key + .22*rim;
   else {
     // shadow: almost black, a cold key light and a purple rim so the form still reads
     sh = .05 + .2*key + .55*rim*(.4 + .6*back);
@@ -372,14 +423,17 @@ export const NOVA_MOODS = {
 
 export class PixelNova {
   // host: element the canvas goes in. w,h: art pixels. px: screen px per art pixel.
-  constructor(host, { kind = "flame", w = 200, h = 230, px = 2, view = 3.4 } = {}) {
+  constructor(host, { kind = "flame", w = 200, h = 230, px = 2, view = 3.4, half = false, shadow = true } = {}) {
     this.canvas = document.createElement("canvas");
     this.canvas.className = "px-nova";
     Object.assign(this.canvas.style, { width: w * px + "px", height: h * px + "px", imageRendering: "pixelated", display: "block" });
     host.appendChild(this.canvas);
     this.canvas.width = w; this.canvas.height = h;
     this.gl = new PixelGL(this.canvas, { model: model(NOVA_KINDS.indexOf(kind)), palettes: PALETTES, glow: GLOW, extra: EXTRA });
-    this.view = view; this.yaw = 0.25; this.sway = 0;
+    this.view = view; this.yaw = 0.25; this.sway = 0; this.lift = 0;
+    // idle state, tweened by NovaMate: orrery, portal, bucket, chomp, a kernel in flight
+    this.idle = { orb: 0, portal: 0, bucket: 0, chomp: 0, kern: [0, 0, 0, 0] };
+    this.half = half; this.shadow = shadow;
     this.setMood("idle");
     this.t0 = performance.now() - Math.random() * 4000;
     this.nextBlink = 2 + Math.random() * 3;
@@ -398,12 +452,16 @@ export class PixelNova {
   loop(now) {
     if (!this.canvas.isConnected) return;
     const s = (now - this.t0) / 1000;
+    this.onFrame?.(s);
+    // roaming: draw at 30 fps (pixel art reads fine, and it halves the GPU work)
+    if (this.half && (this.skip = !this.skip)) { requestAnimationFrame(this.loop); return; }
     // blink every few seconds
     if (s > this.nextBlink + 0.16) this.nextBlink = s + 2.5 + Math.random() * 3;
     const blink = s > this.nextBlink ? 0.1 : 1;
     this.gl.draw(
-      { uTime: s, uYaw: this.yaw, uView: this.view, uBlink: this.m.id === 4 ? 1 : blink, uBob: this.bob(s), uSway: this.sway, uMood: this.m.id, uEnergy: this.m.energy },
-      { uTime: s, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0.7 - this.bob(s) * 4, uShadowX: 0.5, uPlume: [0, 0, 0, 0] },
+      { uTime: s, uYaw: this.yaw, uView: this.view, uBlink: this.m.id === 4 ? 1 : blink, uBob: this.bob(s) + this.lift, uSway: this.sway, uMood: this.m.id, uEnergy: this.m.energy,
+        uOrb: this.idle.orb, uPortal: this.idle.portal, uBucket: this.idle.bucket, uChomp: this.idle.chomp, uKern: this.idle.kern },
+      { uTime: s, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: this.shadow ? 0.7 - this.bob(s) * 4 : 0, uShadowX: 0.5, uPlume: [0, 0, 0, 0] },
     );
     requestAnimationFrame(this.loop);
   }

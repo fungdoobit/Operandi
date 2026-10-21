@@ -4,6 +4,7 @@
 // Moods change the face; say() shows a speech bubble.
 
 import { battleTime } from "./battle-time.js";
+import { Pixelizer } from "./pixel/pixelize.js";
 const INK = "#16304a";
 
 // Body outline as cubic segments: [start, c1, c2, end, c1, c2, end, ...].
@@ -238,7 +239,7 @@ function svg(id, skin) {
 
 export const DOT_CSS = `
 .dot-wrap { display: flex; align-items: flex-end; gap: 10px; }
-.dot-figure { width: 96px; flex: none; touch-action: none; }
+.dot-figure { width: 96px; flex: none; touch-action: none; position: relative; }
 .dot-svg { width: 100%; height: auto; overflow: visible; display: block; }
 .dot-shadow { fill: #000; opacity: 0.16; transform-origin: 94px 169px; transition: transform .25s, opacity .25s; }
 .dot-hop { transform-origin: 96px 164px; }
@@ -353,7 +354,7 @@ export const DOT_CSS = `
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export class Dot {
-  constructor(container, { size, skin = "dot", facing = "left", battle = false } = {}) {
+  constructor(container, { size, skin = "dot", facing = "left", battle = false, pixel = true } = {}) {
     const id = ++uid;
     if (!SKINS[skin]) skin = "dot";
     this.skin = skin;
@@ -392,6 +393,8 @@ export class Dot {
     this.start = performance.now();
     this.frame = this.frame.bind(this);
     requestAnimationFrame(this.frame);
+    // Hi-bit pixel art like GOLEM and NOVA: the SVG is redrawn as pixels (pixel/pixelize.js).
+    if (pixel) this.px = new Pixelizer(container.querySelector(".dot-svg"), this.figure, { ink: skin === "pyro" ? "#2a0c04" : "#0b1a2a", glow: SKINS[skin].glow });
   }
 
   // One animation frame: wobble the outline and settle the springs.

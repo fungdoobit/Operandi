@@ -84,7 +84,7 @@ void main(){
     // Ground shadow under the floating body, dithered at the edge.
     vec2 s = (uv - vec2(uShadowX, .045)) / vec2(.26, .028);
     float sh = 1. - length(s);
-    if (sh*uShadow + (d-.5)*.5 > .15) { o = vec4(0.,0.,0.,.45); return; }
+    if (uShadow > 0. && sh*uShadow + (d-.5)*.5 > .15) { o = vec4(0.,0.,0.,.45); return; }
     o = vec4(0.); return;
   }
   float sh = t.r;

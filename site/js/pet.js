@@ -1,4 +1,4 @@
-// Your teammate (DOT or PYRO) as a little companion that roams the whole
+// Your teammate (DOT, PYRO or NOVA) as a little companion that roams the whole
 // screen. Pick him up with the mouse or a finger, drop him anywhere and he
 // plops down and stays parked there. Double-click to let him roam again.
 // Exposes the same say/setMood/setAccessory calls as Dot, so the app can
@@ -6,6 +6,7 @@
 
 import { sound } from "./sound.js";
 import { Dot } from "./dot.js";
+import { NovaMate } from "./pixel/nova-mate.js";
 
 const SPEED = 46;            // px per second while wandering
 const MARGIN = 8;
@@ -35,7 +36,8 @@ export class Pet {
 
   build(skin) {
     this.skin = skin;
-    this.dot = new Dot(this.root, { skin });
+    // NOVA is pixel art with his own idles (pixel/nova-mate.js); DOT and PYRO share dot.js
+    this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles }) : new Dot(this.root, { skin });
     this.dot.setAccessory(this.accessories);
     this.dot.onSay = (hasActions) => {
       this.speaking = true;
@@ -53,6 +55,8 @@ export class Pet {
     fig.addEventListener("pointercancel", (e) => this.release(e));
     fig.addEventListener("dblclick", () => this.roam());
   }
+
+  get theme() { return this.skin === "pyro" ? "fire" : this.skin === "nova" ? "void" : "water"; }
 
   // ----- Same calls as Dot -----
   get figure() { return this.dot.figure; }
@@ -106,8 +110,9 @@ export class Pet {
           // A little hopping gait while he travels, with a jiggle.
           const before = Math.floor(this.phase / Math.PI);
           this.phase += dt * 7;
-          if (Math.floor(this.phase / Math.PI) !== before && Math.floor(this.phase / Math.PI) % 2 === 0 && this.root.style.visibility !== "hidden") sound.sfx("hop", { theme: this.skin === "pyro" ? "fire" : "water" });   // every other landing
-          bob = -Math.abs(Math.sin(this.phase)) * 5;
+          const floats = this.skin === "nova";   // NOVA glides; DOT and PYRO hop
+          if (!floats && Math.floor(this.phase / Math.PI) !== before && Math.floor(this.phase / Math.PI) % 2 === 0 && this.root.style.visibility !== "hidden") sound.sfx("hop", { theme: this.theme });   // every other landing
+          bob = floats ? 0 : -Math.abs(Math.sin(this.phase)) * 5;
           this.dot.nudge((dx / dist) * 1.5, 0.012);
           // Face the way he's going (only when it's mostly sideways, so he doesn't flicker).
           if (Math.abs(dx / dist) > 0.25) this.dot.face(dx > 0 ? "right" : "left");
@@ -140,7 +145,7 @@ export class Pet {
     this.mode = "held";
     this.grabbed = { dx: e.clientX - this.x, dy: e.clientY - this.y, px: e.clientX };
     this.dot.pickUp();
-    sound.sfx("pickup", { theme: this.skin === "pyro" ? "fire" : "water" });
+    sound.sfx("pickup", { theme: this.theme });
   }
 
   drag(e) {
@@ -160,7 +165,7 @@ export class Pet {
     this.mode = "parked";
     this.target = null;
     this.dot.drop();
-    sound.sfx("plop", { theme: this.skin === "pyro" ? "fire" : "water" });
+    sound.sfx("plop", { theme: this.theme });
     this.save();
     if (this.before === "roam" && this.voice) setTimeout(() => this.say(this.voice().parked().text, { mood: "happy" }), 900);
   }

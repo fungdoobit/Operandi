@@ -190,7 +190,7 @@ class Sound {
   }
 
   // ---- Effects ----
-  // name: which sound. o: { size: 0.5..2, theme: "water"|"fire", ms: length }
+  // name: which sound. o: { size: 0.5..2, theme: "water"|"fire"|"void", ms: length }
   sfx(name, o = {}) {
     if (!this.ready || !this.settings.sfx) return;
     const now = this.ctx.currentTime;
@@ -198,8 +198,9 @@ class Sound {
     if (now - (this.last[name] || 0) < gap) return;
     this.last[name] = now;
     const S = SFX[name];
-    this.bus = name === "hop" ? this.roamBus : name === "pickup" || name === "plop" ? this.grabBus : this.sfxBus;
-    if (S) S.call(this, now + 0.005, o.size ?? 1, { ...o, fire: o.theme === "fire" });
+    // your teammate's sounds follow the roaming and pick-up volumes (NOVA's idles count as roaming)
+    this.bus = name === "hop" || NOVA_IDLE.has(name) ? this.roamBus : name === "pickup" || name === "plop" ? this.grabBus : this.sfxBus;
+    if (S) S.call(this, now + 0.005, o.size ?? 1, { ...o, fire: o.theme === "fire", void: o.theme === "void" });
     this.bus = this.sfxBus;
   }
 
@@ -502,12 +503,14 @@ const SFX = {
     this.slosh(t, 0.18, 0.035, { f: 700, rate: 12, depth: 250 });
   },
   pickup(t, k, o) {
+    if (o.void) { this.tone("sine", 300, 900, t, 0.35, 0.08, { vibrato: [8, 15], room: 0.4 }); this.noise(t, 0.3, 0.05, { type: "highpass", f0: 3000 }); return; }
     if (o.fire) { this.noise(t, 0.2, 0.12, { type: "highpass", f0: 3000 }); this.tone("sine", 200, 500, t, 0.2, 0.1); return; }
     // the goo stretching up: a rising glug and water swilling around
     this.tone("sine", 160, 420, t, 0.28, 0.18, { vibrato: [14, 25] });
     this.slosh(t + 0.05, 0.45, 0.2, { f: 650, rate: 7, depth: 500 });
   },
   plop(t, k, o) {
+    if (o.void) { this.tone("sine", 120, 50, t, 0.3, 0.3, { room: 0.3 }); this.tone("triangle", 1200, 800, t, 0.4, 0.04, { room: 0.5 }); return; }
     if (o.fire) { this.noise(t, 0.25, 0.25, { type: "lowpass", f0: 2200, f1: 300 }); this.tone("sine", 160, 60, t, 0.18, 0.3); return; }
     // a wet splat, then the water settling with a slosh and a few bubbles
     this.tone("sine", 150, 55, t, 0.2, 0.45);
@@ -515,7 +518,50 @@ const SFX = {
     this.slosh(t + 0.08, 0.6, 0.22, { f: 550, rate: 6, depth: 380 });
     for (let i = 0; i < 4; i++) { const f = 500 + Math.random() * 700; this.tone("sine", f, f * 1.8, t + 0.15 + i * 0.07, 0.05, 0.05); }
   },
+
+  // ---- NOVA's idles (space magic) ----
+  // The orrery: a deep swell, a shimmering minor chord and a rising rush of air.
+  novaSummon(t) {
+    this.tone("sine", 55, 82, t, 1.6, 0.35, { attack: 0.4, room: 0.4 });
+    [587, 698, 880, 1319].forEach((f, i) => this.tone("triangle", f, f, t + 0.1 + i * 0.09, 2.6, 0.045, { attack: 0.15, vibrato: [5, 6], room: 0.6 }));
+    this.noise(t, 1.1, 0.14, { type: "highpass", f0: 400, f1: 4000, room: 0.4, attack: 0.3 });
+  },
+  // the black hole passing: a heavy, falling "whoom"
+  blackhole(t) {
+    this.tone("sine", 90, 35, t, 1.4, 0.4, { attack: 0.2, room: 0.4 });
+    this.noise(t, 1.2, 0.22, { type: "lowpass", f0: 1200, f1: 150, attack: 0.25 });
+  },
+  novaUnsummon(t) {
+    this.tone("triangle", 1319, 440, t, 0.7, 0.06, { room: 0.5 });
+    this.tone("sine", 82, 45, t, 0.8, 0.2, { room: 0.3 });
+  },
+  // Snack time: a swirling portal, the bucket rising, pops, munching, the portal imploding.
+  portal(t) {
+    this.noise(t, 0.7, 0.3, { type: "bandpass", f0: 300, f1: 2500, q: 4, room: 0.4 });
+    this.tone("sine", 70, 140, t, 0.6, 0.3, { room: 0.3 });
+    for (let i = 0; i < 4; i++) { const f = 1400 + Math.random() * 1200; this.tone("triangle", f, f * 1.3, t + 0.2 + i * 0.08, 0.12, 0.03, { room: 0.5 }); }
+  },
+  bucketRise(t) {
+    this.tone("sine", 220, 440, t, 0.4, 0.1);
+    this.noise(t, 0.3, 0.1, { type: "bandpass", f0: 800, f1: 1600 });
+  },
+  pop(t) {
+    this.noise(t, 0.04, 0.5, { type: "bandpass", f0: 1800, q: 3 });
+    this.tone("triangle", 900, 500, t, 0.05, 0.12);
+  },
+  munch(t) {
+    for (let i = 0; i < 3; i++) {
+      this.noise(t + i * 0.11, 0.05, 0.35, { type: "bandpass", f0: 1200 + Math.random() * 800, q: 1.5 });
+      this.noise(t + i * 0.11, 0.06, 0.2, { type: "lowpass", f0: 700 });
+    }
+  },
+  portalClose(t) {
+    this.noise(t, 0.5, 0.3, { type: "bandpass", f0: 2500, f1: 250, q: 3, room: 0.3 });
+    this.tone("sine", 140, 45, t, 0.5, 0.35, { room: 0.3 });
+    this.tone("sine", 60, 40, t + 0.45, 0.15, 0.3);
+  },
 };
+const NOVA_IDLE = new Set(["novaSummon", "blackhole", "novaUnsummon", "portal", "bucketRise", "pop", "munch", "portalClose"]);
 
 export const sound = new Sound();
 
