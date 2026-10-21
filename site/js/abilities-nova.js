@@ -383,11 +383,14 @@ async function wraithFlock(s) {
   fx.focus(1.05, { x: (c.x + core.x) / 2, y: core.y - 30 }, 500);
   await fx.wait(260);
   const bez = (P, u) => { const v = 1 - u; return { x: v * v * v * P[0].x + 3 * v * v * u * P[1].x + 3 * v * u * u * P[2].x + u * u * u * P[3].x, y: v * v * v * P[0].y + 3 * v * v * u * P[1].y + 3 * v * u * u * P[2].y + u * u * u * P[3].y }; };
-  const wraiths = Array.from({ length: N }, (_, i) => {
-    const P = [{ x: c.x - 4, y: c.y + 12 }, { x: c.x - 70 + rand(-30, 30), y: c.y - 150 + rand(-30, 30) }, { x: core.x - 200 + rand(-40, 40), y: core.y - 110 + rand(-50, 60) }, { x: core.x + 170, y: core.y + rand(-80, 50) }];
+  const order = [3, 0, 5, 2, 6, 1, 4];   // launch order, so neighbours don't leave together
+  const wraiths = Array.from({ length: N }, (_, j) => {
+    const i = order[j];
+    const lane = (i / (N - 1) - 0.5) * 2;   // fan the flock out so they don't fly single file
+    const P = [{ x: c.x - 4, y: c.y + 12 }, { x: c.x - 40 + rand(-50, 50), y: c.y - 120 + lane * 90 + rand(-20, 20) }, { x: core.x - 220 + rand(-60, 60), y: core.y - 40 + lane * 120 + rand(-20, 20) }, { x: core.x + 170, y: core.y + lane * 70 }];
     let best = 0, bd = 1e9;   // where it passes closest to his core: that's its hit
     for (let k = 0; k <= 60; k++) { const p = bez(P, k / 60), d = Math.hypot(p.x - core.x, p.y - core.y); if (d < bd) { bd = d; best = k / 60; } }
-    return { P, delay: i * 95, sz: rand(14, 18), seed: i * 1.7, hitU: best };
+    return { P, delay: j * 95, sz: rand(14, 18), seed: i * 1.7, hitU: best };
   });
   const at = (w, u) => { const p = bez(w.P, clamp01(u)), q = bez(w.P, clamp01(u + 0.01)), dx = q.x - p.x, dy = q.y - p.y, n = Math.hypot(dx, dy) || 1, wob = Math.sin(u * 14 + w.seed) * 9; return { x: p.x - dy / n * wob, y: p.y + dx / n * wob, dx: dx / n, dy: dy / n }; };
   const uOf = (w, t) => (t - w.delay) / dur;
