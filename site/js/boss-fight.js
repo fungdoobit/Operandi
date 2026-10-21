@@ -10,6 +10,7 @@ import { PixelBoss } from "./pixel/golem-boss.js";
 import { golemAttack, golemIntro, golemSpecial } from "./pixel/golem-moves.js";
 import { SPECIALS } from "./boss-rules.js";
 import { BOSS } from "./economy.js";
+import { FoundryBG } from "./pixel/arena-bg.js";
 import { sound, wireBattleSounds } from "./sound.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -17,9 +18,9 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 export const BATTLE_CSS = `
 /* The stage fills the whole battle band, edge to edge. */
 .bstage { position: relative; height: 100%; width: 100%; overflow: hidden;
-  background: radial-gradient(ellipse at 70% 35%, #1d2330, #12151c 70%); color: #e9ecf2; }
+  background: #06070c; color: #e9ecf2; }   /* only shows at the edges when the camera shakes */
 .bworld { position: absolute; inset: 0; will-change: transform; }
-.bfloor { position: absolute; left: 0; right: 0; top: 80%; bottom: 0; background: linear-gradient(#171b24, #0e1015); border-top: 1px solid #2c3442; }
+.bfloor { display: none; }   /* the arena background draws the floor now */
 .bfoe { position: absolute; }
 .bmate { position: absolute; }
 .bmate .dot-bubble { display: none; }
@@ -101,6 +102,7 @@ export class BattleStage {
     this.sayHost = sayHost;
     this.stage = host.querySelector(".bstage");
     const world = host.querySelector(".bworld"), foeEl = host.querySelector(".bfoe"), mateEl = host.querySelector(".bmate");
+    this.bg = new FoundryBG(world);   // the Sunken Foundry (pixel/arena-bg.js); it shakes with the camera
     this.fx = new BattleFX(this.stage, world, { floor: 0.8 });
     this.golem = new PixelGolem(foeEl, { px: 1 });
     this.boss = new PixelBoss({ golem: this.golem, fx: this.fx, figure: foeEl });

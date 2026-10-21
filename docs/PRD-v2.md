@@ -397,3 +397,31 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 - Isaac called NOVA "her". Switch NOVA to she/her everywhere (voice lines, notes)?
 - Background: "Sunken Foundry" (recommended, fits GOLEM's mech, ice and glitch), or a frozen crystal cavern, or a void wasteland under an eclipse sky?
 - OK to review after the first three abilities before building the rest?
+
+## Addendum J: mana and ability cards in boss fights (Isaac's idea 2026-10-21, draft, awaiting "go")
+
+**Problem.** In a boss fight a pass just triggers a random move. Isaac wants fights to reward flawless code and give the learner real choices.
+
+**Proposal.**
+- **Mana from each pass:** a flawless pass gives 10 mana, a weaker pass less (the mark: 6 to 9). Each hint used costs 2 mana and each peek 3; a used solution gives 0 (only the free basic strike). Any help also means no crit.
+- **Spend it now:** mana is spent on that turn's ability; whatever is left over is lost (so the ultimate really needs a flawless pass). *(alternative: bank it up to 10)*
+- **Ability cards:** each teammate has a hand of their abilities as poker-style cards with pixel art from the ability, a mana cost gem and a cooldown counter. Hover lifts a card; left click flips it to show what it does (damage, cost, cooldown, effect) with a **Cast** button on the back. A free **basic strike** (no cost, no cooldown) is always there, so a pass is never wasted.
+- **Tiers** (numbers to tune with real play):
+  | tier | mana | cooldown | damage |
+  |---|---|---|---|
+  | basic strike | 0 | none | 10 |
+  | light ability | 3 | none | 15 |
+  | medium ability (2 per kit) | 5-6 | 2 turns | 22-26 |
+  | heavy ability | 8 | 3 turns | 32 |
+  | ultimate (2 per kit) | 10 | 5 turns | 45 |
+  Each 6-ability kit from Addendum I is sorted into these tiers (for NOVA: Wraith Flock light, Void Orb and Spectral Chains medium, Grasp of the Void heavy, Eclipse Lance and Event Horizon ultimate; PYRO and GOLEM likewise).
+- **Turn flow:** submit → pass → the card hand slides up with your mana shown → pick a card → the ability plays → GOLEM strikes back (as now, except after an ultimate). A failed submit is still GOLEM's free hit.
+- **No tips on the first two tries** of a boss challenge: the teammate stays quiet, and Feedback only says how many tests passed plus Python's own error message (no explanation, no typo spotting, no output-difference help). From the third try the usual free help comes back. Hints and peeks can still be bought at any time; they cost mana and remove the crit.
+- This changes the "always free: error explanations, typo detection, output-difference help" rule, **for boss fights only**. Lessons and practice keep all free help.
+
+**Out of scope.** Changing marking itself; new bosses; card collecting or trading.
+
+**Open questions.**
+1. No tips on tries 1-2: boss fights only (recommended, since lessons are where a beginner learns), or everywhere?
+2. Mana: spend it or lose it each turn (recommended), or save up across turns?
+3. Does a flawless pass on the second try still give the full 10 mana? Today the mark only drops at 4+ attempts. Recommended: first try only gets 10; second try at most 8.

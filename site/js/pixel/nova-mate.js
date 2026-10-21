@@ -1,9 +1,9 @@
 // NOVA as a teammate: the pixel-art NOVA (nova-px.js) behind the same calls as
 // Dot (say, setMood, pickUp, drop, face, nudge...), so the roaming pet (pet.js)
-// and the Shop can use him like DOT or PYRO.
-// Every 20-40 s, when nobody needs him, he does one of two idles (never the same
-// twice in a row): he crushes his dust ring and summons an orrery of planets, a
-// black hole and asteroids in its place, or he tears a portal open and pulls a
+// and the Shop can use her like DOT or PYRO.
+// Every 20-40 s, when nobody needs her, she does one of two idles (never the same
+// twice in a row): she crushes her dust ring and summons an orrery of planets, a
+// black hole and asteroids in its place, or she tears a portal open and pulls a
 // bucket of popcorn out with telekinesis.
 // Battle moves come later; in a fight the battle still uses DOT's moves.
 import { PixelNova } from "./nova-px.js";
@@ -19,7 +19,7 @@ export const NOVA_CSS = `
 const MOOD = { happy: "happy", celebrate: "happy", sad: "sad", ko: "sad", sleepy: "sleepy", angry: "angry", fierce: "angry" };
 const EASE = { out: (t) => 1 - (1 - t) ** 3, in: (t) => t * t * t, io: (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2), lin: (t) => t };
 // Where things are in NOVA's own space (keep in step with the shader): the portal,
-// where the bucket hangs beside his head while he eats, and the front of his head.
+// where the bucket hangs beside her head while she eats, and the front of her head.
 const PORTAL = [1.04, 0.2, 0.05], HOLD = [0.8, 0.4, -0.25], FACE = [0, 0.48, -0.3];
 const lerp3 = (a, b, e) => a.map((v, i) => v + (b[i] - v) * e);
 
@@ -112,7 +112,7 @@ export class NovaMate {
     finally { this.playing = false; }
   }
 
-  // A star-flash at a point in his space, with shards streaking out of it
+  // A star-flash at a point in her space, with shards streaking out of it
   // (implode = false) or being sucked into it (implode = true).
   burst(at, ms = 560, implode = false) {
     this.nova.idle.burstAt = at;
@@ -120,12 +120,12 @@ export class NovaMate {
     return this.anim(ms, (e) => { this.nova.idle.burst = e >= 1 ? 0 : e; }, implode ? "lin" : "out");
   }
 
-  // He squeezes his dust ring and flings it spiralling outward, and planets, a black
-  // hole and asteroids grow in on its orbits. Later he shakes them off and his ring
+  // She squeezes her dust ring and flings it spiralling outward, and planets, a black
+  // hole and asteroids grow in on its orbits. Later she shakes them off and her ring
   // spirals back in.
   async orrery() {
     const I = this.nova.idle;
-    // a quick squeeze, then he flings the ring into a spin and it spirals outward,
+    // a quick squeeze, then she flings the ring into a spin and it spirals outward,
     // widening and fading, while the planets grow in on the same orbits
     // (the mirror of the ring coming back at the end, which Isaac loved)
     this.setMood("angry");
@@ -156,7 +156,7 @@ export class NovaMate {
     this.setMood("idle");
   }
 
-  // He rips a portal open in the air, pulls a bucket of popcorn out with purple
+  // She rips a portal open in the air, pulls a bucket of popcorn out with purple
   // telekinesis, eats a few, sends it back, and the portal collapses.
   async popcorn() {
     const I = this.nova.idle;
@@ -178,7 +178,7 @@ export class NovaMate {
       await this.wait(300);
       const from = [HOLD[0] + (Math.random() - 0.5) * 0.1, HOLD[1] + 0.26, HOLD[2]];
       sound.sfx("pop");
-      // the piece floats up out of the bucket and over into his face
+      // the piece floats up out of the bucket and over into her face
       await this.anim(520, (e) => {
         const k = lerp3(from, FACE, e);
         this.nova.idle.kern = [k[0], k[1] + Math.sin(e * Math.PI) * 0.22, k[2], 1];
