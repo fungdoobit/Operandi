@@ -1,8 +1,9 @@
 // The ability card hand in boss fights (PRD Addendum J). After a pass the
 // teammate's cards fan out over the bottom of the battle:
 //   - hover lifts a card
-//   - left click (or tap) flips it to read what it does
-//   - right click (or press and hold on a touch screen, or its Cast button) casts it
+//   - left click casts it (Isaac 2026-10-21; it was the other way round at first)
+//   - right click flips it to read what it does (the back has a Cast button too)
+//   - touch screens: a tap flips, press and hold casts
 // Each card shows its art (painted with the battle's cel-effects shader), its
 // mana cost, tier and damage, and a cooldown counter when it's resting.
 import { TIERS, MANA, BOSS } from "./economy.js";
@@ -81,7 +82,7 @@ export function pickCard(anchor, kit, f, { theme = "void", crit = false, gain = 
   const hand = document.createElement("div");
   hand.className = "bhand";
   const n = kit.length;
-  hand.innerHTML = `<div class="hbar"><span>Mana <b>${f.mana}</b> / ${MANA.cap}${gain ? ` <span class="how">(+${gain})</span>` : ""}</span>${crit ? `<span class="crit">Flawless: your ability crits ×${BOSS.critTimes}</span>` : ""}<span class="how">${touchy() ? "Tap to read · hold to cast" : "Left-click to read · right-click to cast"}</span></div>
+  hand.innerHTML = `<div class="hbar"><span>Mana <b>${f.mana}</b> / ${MANA.cap}${gain ? ` <span class="how">(+${gain})</span>` : ""}</span>${crit ? `<span class="crit">Flawless: your ability crits ×${BOSS.critTimes}</span>` : ""}<span class="how">${touchy() ? "Tap to read · hold to cast" : "Click to cast · right-click to read"}</span></div>
     <div class="row">${kit.map((c, i) => {
       const t = TIERS[c.tier], why = cantCast(f, c), cd = f.cd?.[c.id] || 0, mid = (n - 1) / 2, d = i - mid;
       return `<div class="bcard${why ? " off" : ""}${cd ? " cooling" : ""}" tabindex="0" data-i="${i}" style="--c1:${c1};--c2:${c2};--c3:${c3};--c4:${c4};--rot:${(d * 3.2).toFixed(1)}deg;--dy:${(Math.abs(d) ** 1.6 * 5).toFixed(0)}px;--delay:${(i * 0.05).toFixed(2)}s;--hold:450ms" aria-label="${esc(c.name)}, ${t.label}, ${t.mana} mana, ${t.dmg} damage${why ? `. ${why}` : ""}">
@@ -93,7 +94,7 @@ export function pickCard(anchor, kit, f, { theme = "void", crit = false, gain = 
             <div class="stats"><span>Damage</span><span>${t.dmg}${crit ? ` (crit ${Math.round(t.dmg * BOSS.critTimes)})` : ""}</span><span>Mana</span><span>${t.mana || "free"}</span><span>Cooldown</span><span>${t.cd ? `${t.cd} turn${t.cd === 1 ? "" : "s"}` : "none"}</span></div>
             <p>${esc(c.desc)}</p>
             <button class="cast" type="button" ${why ? "disabled" : ""}>${why ? esc(why) : "Cast"}</button>
-            <small>${touchy() ? "or press and hold the card" : "or right-click the card"}</small></div>
+            <small>${touchy() ? "or press and hold the card" : "or left-click the card"}</small></div>
         </div><div class="hold"></div></div>`;
     }).join("")}</div>`;
   document.body.append(hand);
@@ -120,17 +121,18 @@ export function pickCard(anchor, kit, f, { theme = "void", crit = false, gain = 
       resolve(card);
     };
     for (const el of cards) {
-      let hold = null, held = false;
+      let hold = null, held = false, touch = false;
       el.addEventListener("click", (e) => {
         if (held) { held = false; return; }
         if (e.target.closest(".cast")) return cast(el);
-        flip(el);
+        if (touch) flip(el); else cast(el);   // a mouse click casts; a tap only flips (holding casts)
       });
-      el.addEventListener("contextmenu", (e) => { e.preventDefault(); cast(el); });
+      el.addEventListener("contextmenu", (e) => { e.preventDefault(); if (!touch) flip(el); });
       el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(el); } });
       // Touch: press and hold to cast (a quick tap flips, through "click").
       el.addEventListener("pointerdown", (e) => {
-        if (e.pointerType !== "touch" || e.target.closest(".cast")) return;
+        touch = e.pointerType === "touch";
+        if (!touch || e.target.closest(".cast")) return;
         el.classList.add("holding");
         hold = setTimeout(() => { held = true; el.classList.remove("holding"); cast(el); }, 450);
       });

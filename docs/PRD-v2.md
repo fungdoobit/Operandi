@@ -451,4 +451,5 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
   - DOT keeps his water moves as cards: Water Blade (basic), Hydro Volley (light), Tidal Dive (medium), Crossing Blades (heavy), Tidal Wave (ultimate). No ultimate II yet.
 - A pass is saved with its mana before the hand opens (`fight.hand`), so closing the page mid-choice brings the hand back.
 - Card art is painted with the battle's cel-effects shader (`toonStill` in `toon-fx.js`).
+- 2026-10-21, Isaac: **left click casts, right click flips** (the reverse of his first answer). Touch stays: tap flips, hold casts.
 - The old mark-based damage (15 to 25, crit 40) is gone: damage comes from the card, the mark decides the mana.

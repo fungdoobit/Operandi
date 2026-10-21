@@ -101,7 +101,7 @@ export class PixelBoss {
     const cx = at([0, -0.84, 0]).x, cy = H * (1 - 0.045) + P, top = at([0, 0.8, 0.5]).y;
     const reach = Math.max(Math.abs(at([-0.06, -1.5, -0.05], "claw").x - cx), Math.abs(at([0.5, -1.08, -0.14], "cannon").x - cx));
     // never wider or taller than its canvas, or its edge gets cut off
-    const rx = Math.min(reach * 1.05, cx - 4, this.dc.width - cx - 4), ry = Math.min((cy - top) * 1.1, cy - 4);
+    const rx = Math.min(reach * 1.22 + 10, cx - 4, this.dc.width - cx - 4), ry = Math.min((cy - top) * 1.1, cy - 4);
     return { cx, cy, rx, ry };
   }
   buildDome() {

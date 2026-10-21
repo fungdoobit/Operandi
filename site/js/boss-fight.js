@@ -19,6 +19,7 @@ import { pickCard, CARDS_CSS } from "./cards.js";
 import { MANA } from "./economy.js";
 import { sound, wireBattleSounds } from "./sound.js";
 
+const GOLEM_W = 512, GOLEM_EXTRA = (GOLEM_W - 416) / 2;   // the extra width on each side of him, in art px
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 export const BATTLE_CSS = `
@@ -114,7 +115,8 @@ export class BattleStage {
     const world = host.querySelector(".bworld"), foeEl = host.querySelector(".bfoe"), mateEl = host.querySelector(".bmate");
     this.bg = new FoundryBG(world);   // the Sunken Foundry (pixel/arena-bg.js); it shakes with the camera
     this.fx = new BattleFX(this.stage, world, { floor: 0.8 });
-    this.golem = new PixelGolem(foeEl, { px: 1 });
+    // 512 art px wide (default 416): room for his arms when they swing out, so they don't run off his canvas
+    this.golem = new PixelGolem(foeEl, { px: 1, w: GOLEM_W });
     this.boss = new PixelBoss({ golem: this.golem, fx: this.fx, figure: foeEl });
     // NOVA fights as her pixel self (NovaFighter); DOT and PYRO share dot.js
     this.dot = skin === "nova" ? new NovaFighter(mateEl) : new Dot(mateEl, { facing: "right", battle: true, skin });
@@ -148,11 +150,11 @@ export class BattleStage {
     const H = this.stage.clientHeight;
     if (!H) return;
     const k = H / 440, W = this.stage.clientWidth;
-    // The fighters stay in a fight zone in the middle (at most 2.4× as wide as
+    // The fighters stay in a fight zone in the middle (at most 3.6× as wide as
     // tall), so on wide screens they don't end up miles apart.
-    const zone = Math.min(W, H * 2.4), edge = (W - zone) / 2;
+    const zone = Math.min(W, H * 3.6), edge = (W - zone) / 2;
     this.golem.setPx(k);
-    Object.assign(this.foeEl.style, { right: edge + 6 * k + "px", bottom: 0.2 * H - 17 * k + "px" });
+    Object.assign(this.foeEl.style, { right: edge + (6 - GOLEM_EXTRA) * k + "px", bottom: 0.2 * H - 17 * k + "px" });
     this.mateEl.style.left = edge + zone * 0.06 + "px";
     // HP bars line up with the zone, clear of the ☰ button in the corner.
     const left = Math.max(64, edge + 14 * k), right = Math.max(14, edge + 14 * k), mid = W / 2;
