@@ -40,7 +40,7 @@ void main(){
   // ---- fire ----
   vec2 wf = vec2(fbm(q*.045+vec2(0.,-t*2.4)), fbm(q*.045+vec2(5.2,-t*2.4))) - .5;
   float heat = F(p + wf*vec2(9.,13.)*uS).r;
-  float hn = heat + (vn(q*.09+vec2(0.,-t*3.2))-.5)*.2*smoothstep(0.,.35,heat);
+  float hn = heat + (vn(q*.09+vec2(0.,-t*3.2))-.5)*.2*smoothstep(0.,.35,heat)*(1.-.6*smoothstep(.6,1.,heat));
   float gw = 0.;                          // wide heat, for the glow and smoke rims
   for (int i = 0; i < 8; i++){ float a = float(i)*.785; gw += F(p + vec2(cos(a),sin(a))*10.*uS).r; }
   gw = gw/8.;
@@ -72,7 +72,7 @@ void main(){
     vw = vw/8.;
     vec3 c = hex(8.,4.,14.);
     float vein = abs(fbm(q*.07+vec2(0.,-t*.6))-.5);
-    if (vein < .022) c = hex(44.,18.,80.);              // faint veins crawling inside
+    if (vein < .012) c = hex(34.,14.,62.);              // faint veins crawling inside
     if (vw < .66) c = hex(122.,62.,224.);
     if (vv < .57 || vw < .5) c = hex(214.,180.,255.);   // the bright edge
     col = vec4(c, 1.);
@@ -227,7 +227,7 @@ export function explode(toon, x, y, { size = 1, kind = "fire", dur = 1500, up = 
     const a = i * 2.39996 + Math.random() * 0.5, d = i === 0 ? 0 : 0.3 + Math.random() * 0.6;
     return { dx: Math.cos(a) * d, dy: Math.sin(a) * d * 0.85 - 0.1, r: 0.38 + Math.random() * 0.26, delay: i * 0.008 };
   });
-  const spots = puffs.map((p, i) => ({ dx: p.dx * 1.05 + (Math.random() - 0.5) * 0.3, dy: p.dy - 0.15, r: p.r * (0.55 + Math.random() * 0.3), delay: 0.07 + i * 0.012 }));
+  const spots = puffs.map((p, i) => ({ dx: p.dx * 1.05 + (Math.random() - 0.5) * 0.3, dy: p.dy - 0.15, r: p.r * (0.45 + Math.random() * 0.3), delay: 0.1 + i * 0.012 }));
   const embers = Array.from({ length: 9 }, (_, i) => ({ a: -Math.PI / 2 + (i / 8 - 0.5) * 3.4 + Math.random() * 0.3, v: 2.2 + Math.random() * 1.6, r: 2.5 + Math.random() * 2 }));
   const ch = kind === "void" ? "void" : "heat";
   return toon.add({ dur, draw(pen, k) {
@@ -241,7 +241,7 @@ export function explode(toon, x, y, { size = 1, kind = "fire", dur = 1500, up = 
     for (const p of puffs) {
       const u = Math.max(0, k - p.delay), grow = 1 - (1 - Math.min(1, u / 0.16)) ** 3;
       if (grow <= 0) continue;
-      const heat = kind === "void" ? 1.15 - Math.max(0, u - 0.25) * 1.9 : 1.2 - u * 1.5;
+      const heat = kind === "void" ? 1.15 - Math.max(0, u - 0.25) * 1.9 : 1.02 - u * 1.4;
       pen.puff(ch, x + p.dx * R * grow, y + p.dy * R * grow - rise * 0.6 + R * 0.08, p.r * R * (0.55 + 0.45 * grow) * (1 + u * 0.35), Math.max(0, heat));
     }
     if (kind === "void") return;
@@ -249,8 +249,8 @@ export function explode(toon, x, y, { size = 1, kind = "fire", dur = 1500, up = 
     for (const p of spots) {
       const u = Math.max(0, k - p.delay), grow = Math.min(1, u / 0.35);
       if (grow <= 0) continue;
-      const amt = Math.min(1, u / 0.06) * (1 - Math.max(0, (u - 0.45) / 0.5));
-      const hollow = Math.min(0.92, Math.max(0, (u - 0.32) / 0.45));
+      const amt = Math.min(1, u / 0.06) * (1 - Math.max(0, (u - 0.3) / 0.5));
+      const hollow = Math.min(0.95, Math.max(0, (u - 0.22) / 0.4));
       pen.puff("smoke", x + p.dx * R * (0.9 + u * 0.5), y + p.dy * R * (0.9 + u * 0.4) - rise, p.r * R * (0.5 + 0.75 * grow), amt, hollow);
     }
     // chunks of fire flung out, falling

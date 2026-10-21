@@ -32,10 +32,12 @@ function voidArm(pen, base, wrist, bend, w, amt, t, seed) {
   const dx = wrist[0] - base[0], dy = wrist[1] - base[1], len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
   const pts = [];
   for (let i = 0; i <= 12; i++) {
-    const u = i / 12, b = Math.sin(u * Math.PI) * bend * 0.35 + Math.sin(u * 9 + seed * 3) * w * 0.07;
+    const u = i / 12, b = Math.sin(u * Math.PI) * bend * 0.5 + Math.sin(u * Math.PI * 2) * bend * 0.22 + Math.sin(u * 9 + seed * 3) * w * 0.08;
     pts.push([base[0] + dx * u + nx * b, base[1] + dy * u + ny * b]);
   }
   pen.limb("void", pts, w, w * 0.6, amt);
+  const el = pts[7];   // a bony elbow knob
+  pen.fill("void", amt, (g) => g.arc(el[0] + nx * w * 0.2, el[1] + ny * w * 0.2, w * 0.5, 0, Math.PI * 2));
   for (let k = 0; k < 4; k++) {   // ragged strands hanging off the forearm, swaying
     const p = pts[3 + k * 2], side = k % 2 ? 1 : -1, ww = w * (0.45 - k * 0.04);
     const sx = p[0] + nx * side * ww, sy = p[1] + ny * side * ww, L = 9 + hash(seed + k) * 12, sway = Math.sin(t * 0.006 + k * 2 + seed) * 3;
@@ -68,11 +70,11 @@ function voidHand(pen, wrist, dir, S, curl, t, seed, flip, amt) {
   const fingers = [[0.35, -0.16, -0.42, 0.5], [0.39, -0.055, -0.13, 0.62], [0.39, 0.055, 0.12, 0.57], [0.34, 0.15, 0.38, 0.44]];
   fingers.forEach(([fa, fl, spread, L], f) => {
     const r = hash(seed * 7 + f), twitch = (Math.sin(t * 0.045 + seed * 7 + f * 2) > 0.8 ? 0.5 : 0) * (1 - curl);
-    let a = dir + (spread * (1 - curl * 0.5) + (r - 0.5) * 0.25) * flip, p = P(fa, fl);
+    let a = dir + (spread * (1 - curl * 0.15) + (r - 0.5) * 0.25) * flip, p = P(fa, fl);
     const pts = [p];
     [0.44, 0.31, 0.25].forEach((l, j) => {
       // each joint bends toward the palm; some fingers are bent back at the first joint
-      const bend = j === 0 && r > 0.6 && curl < 0.5 ? -0.22 : 0.16 + curl * 0.95 + twitch * (j === 1 ? 1 : 0.4);
+      const bend = j === 0 && r > 0.6 && curl < 0.3 ? -0.22 : 0.16 + curl * (j === 0 ? 0.25 : 0.75) + twitch * (j === 1 ? 1 : 0.4);
       a += bend * flip;
       p = [p[0] + Math.cos(a) * l * L * S, p[1] + Math.sin(a) * l * L * S];
       pts.push(p);
@@ -233,7 +235,7 @@ async function graspOfTheVoid(s) {
       if (shatter > 0) wrist = [wrist[0] + Math.sin(t * 0.3 + h.seed) * 3, wrist[1] + shatter * 40];
       const pts = voidArm(pen, h.base, wrist, h.bend * (1 - grip * 0.4), h.w, amt, t, h.seed);
       const last = pts[pts.length - 2], dir = Math.atan2(wrist[1] - last[1], wrist[0] - last[0]);
-      voidHand(pen, wrist, dir, h.size, Math.max(grip, lunge > 0.95 ? 0.35 : 0), t, h.seed, h.flip, amt);
+      voidHand(pen, wrist, dir, h.size, Math.max(grip * 0.8, lunge > 0.95 ? 0.3 : 0), t, h.seed, h.flip, amt);
     }
   } });
   px.add({ dur: 3200, z: 2, draw(g) {
@@ -375,19 +377,25 @@ async function sunfireHalo(s) {
     if (flying) {   // lay a dense trail behind the head
       const last = trail[trail.length - 1] || { x: orb.x, y: orb.y };
       const n = Math.max(1, Math.floor(Math.hypot(head.x - last.x, head.y - last.y) / 7));
-      for (let i = 1; i <= n; i++) trail.push({ x: lerp(last.x, head.x, i / n), y: lerp(last.y, head.y, i / n), t, j: rand(-1, 1) });
+      for (let i = 1; i <= n; i++) {
+        const x = lerp(last.x, head.x, i / n), u = clamp01((x - orb.x) / (core.x - orb.x));
+        trail.push({ x, y: lerp(last.y, head.y, i / n) + rand(-1, 1) * (4 + 10 * u), t, j: rand(-1, 1), u, r: rand(0.7, 1.3) });
+      }
     }
     for (const [i, p] of trail.entries()) {
-      const age = (t - p.t) / 650; if (age > 1) continue;
-      const x = p.x - age * 14, y = p.y + p.j * age * 22 - age * 26;
-      pen.puff("heat", x, y, (20 + 26 * age) * (0.85 + 0.15 * Math.sin(i * 1.3)), 1.2 - age * 1.15);
-      if (i % 4 === 0 && age < 0.7) {   // deep red licks sweeping off the wave, up and back
-        const L = 30 + 30 * age, dir = p.j > 0 ? 1 : -1;
-        pen.limb("heat", [[x, y], [x - L * 0.4, y - dir * L * 0.35], [x - L * 0.9, y - dir * L * 0.6 - 10]], 10, 1, 0.32 * (1 - age));
+      const age = (t - p.t) / (420 + 380 * p.u); if (age > 1) continue;   // the tail burns out first
+      const x = p.x - age * 14, y = p.y + p.j * age * 26 - age * 30;
+      pen.puff("heat", x, y, (10 + 26 * p.u + 22 * age) * p.r, 0.78 + 0.3 * p.u - age * 0.95);
+      if (i % 3 === 0 && age < 0.75) {   // deep red licks sweeping off the wave, up and back
+        const L = (24 + 40 * p.u) * (0.6 + age), dir = p.j > 0 ? 1 : -1;
+        pen.limb("heat", [[x, y], [x - L * 0.4, y - dir * L * 0.35], [x - L * 0.9, y - dir * L * 0.7 - 10]], 9 + 8 * p.u, 1, 0.34 * (1 - age));
       }
       if (age > 0.3) pen.puff("smoke", x - 6, y - 14 - age * 20, 14 + 22 * age, (age - 0.3) * 2.4 * (1 - age), clamp01((age - 0.5) * 2));
     }
-    if (flying) { pen.puff("heat", head.x, head.y, 34, 1.3); pen.flame(head.x + 10, head.y + 6, 16, 36, 1, 0.5, 0.3); }
+    if (flying) {   // the head: a roaring fireball with flames streaming back off it
+      pen.puff("heat", head.x, head.y, 40, 1.25);
+      for (let i = 0; i < 5; i++) { const a = Math.PI + (i - 2) * 0.45; pen.limb("heat", [[head.x, head.y], [head.x + Math.cos(a) * 40, head.y + Math.sin(a) * 30 - 8], [head.x + Math.cos(a) * 70, head.y + Math.sin(a) * 44 - 22]], 16, 2, 0.55); }
+    }
   } });
   await toon.add({ dur: 200, draw(pen, k) { const e = ease.in(k); head.x = lerp(orb.x, core.x - 10, e); head.y = lerp(orb.y, core.y, e) - Math.sin(e * Math.PI) * 16; } });
   flying = false;
@@ -400,9 +408,11 @@ async function sunfireHalo(s) {
   const floor = fx.floorY;
   const burn = toon.add({ dur: 1900, draw(pen, k, t) {   // the floor under him left burning
     const fade = 1 - ease.in(k), rise = ease.out(Math.min(1, k * 4));
-    for (let i = 0; i < 9; i++) {
-      const x = core.x + (i - 4) * 24 + Math.sin(i * 3.1) * 6, h = (34 + 34 * Math.abs(Math.sin(t * 0.006 + i * 1.9))) * rise * fade;
-      pen.flame(x, floor + 4, 13, h, 0.95 * fade + 0.1, Math.sin(i * 1.7) * 0.25, Math.sin(t * 0.004 + i) * 0.35);
+    for (let i = 0; i < 7; i++) {
+      const big = i % 3 === 1, on = ease.out(clamp01((t - i * 70) / 260));
+      const x = core.x + (i - 3) * 30 + Math.sin(i * 3.1) * 10;
+      const h = (big ? 70 : 34) * (0.7 + 0.3 * Math.abs(Math.sin(t * 0.005 + i * 1.9))) * on * fade;
+      pen.flame(x, floor + 4, big ? 19 : 12, h, 0.95 * fade + 0.12, Math.sin(i * 1.7) * 0.3, Math.sin(t * 0.004 + i * 2) * 0.55);
     }
     pen.oval("heat", core.x, floor + 6, 130 * rise, 12, 0.5 * fade);
   } });
