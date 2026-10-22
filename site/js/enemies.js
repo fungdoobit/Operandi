@@ -60,7 +60,7 @@ export const enemiesIn = (biome) => Object.keys(ENEMIES).filter((k) => ENEMIES[k
 // Enemies checked in battle and cleared for the course. The others show only
 // in the preview pages until they're verified (models still being built can't
 // break a lesson on the live site).
-export const READY = new Set(["mushroom"]);
+export const READY = new Set(["mushroom", "wasp", "treant", "spirit", "goblin"]);
 
 // (Only ready enemies whose model exists; Rotcap if none.)
 export function enemyFor(module, seed, wave = 0) {
