@@ -26,15 +26,22 @@ float map(vec3 p){
   float d = 1e5;
   // the whole body tips forward on the strike and back on the wind-up, pivoting at the feet
   vec3 q = p; q.xy = R(-.35*ATK + .22*WIND) * q.xy;
-  // root legs, stepping
+  // stumpy legs (Isaac 2026-10-22): short thick stumps on round, flat feet with knobbly toes, stepping
   for (int s = -1; s <= 1; s += 2) {
-    float fs = float(s), ph = WALK*6.283 + fs*1.57;
-    vec3 l = q - vec3(.04*sin(ph), 0., .14*fs);
-    U(d, sdCapT(l, vec3(0., .26, 0.), vec3(-.06 + .05*sin(ph), .03, 0.), .1, .07), 5., l);
-    U(d, sdCapT(l, vec3(-.06 + .05*sin(ph), .03, 0.), vec3(-.2 + .05*sin(ph), .02, -.03), .06, .02), 5., l);   // toe root
+    float fs = float(s), ph = WALK*6.283 + fs*1.57, lift = max(0., sin(ph))*.05;
+    vec3 l = q - vec3(.03*cos(ph), lift, .14*fs);
+    U(d, sdCapT(l, vec3(0., .42, 0.), vec3(-.02, .1, 0.), .13, .11) + .015*vnoise(l*16.), 2., l);   // the stump, the stem's colour
+    vec3 f = l - vec3(-.05, .055, 0.);
+    float foot = (length(f/vec3(.2, .08, .15)) - 1.)*.075;
+    foot = max(foot, -f.y - .05);                                       // flat underneath
+    U(d, foot + .008*vnoise(f*22.), 5., f);
+    for (int k = -1; k <= 1; k++) {                                     // three stubby toes
+      vec3 tq = f - vec3(-.17, -.02, .07*float(k));
+      U(d, length(tq/vec3(1., .8, 1.)) - .045, 5., tq);
+    }
   }
   // gnarled stem with a jagged grin
-  float stem = sdCapT(q, vec3(0., .22, 0.), vec3(-.05, .92, 0.), .3, .22);
+  float stem = sdCapT(q, vec3(0., .44, 0.), vec3(-.05, .92, 0.), .28, .22);   // ends above the legs
   stem += .03*vnoise(q*11.) + .012*vnoise(q*30.);
   vec3 mq = q - vec3(-.27, .52, -.06);
   float zig = .025*abs(fract(mq.z*14.) - .5)*2.;

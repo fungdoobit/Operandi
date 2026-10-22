@@ -190,7 +190,7 @@ export const bear = {
     core: [0, 1.15, 0], head: [-0.62, 1.62, 0], feet: [0, 0, 0], muzzle: [-0.92, 1.55, 0],
     weapon: (P) => {
       const w = P.wind || 0, a = P.atk || 0, mix = (x, y, k) => x + (y - x) * k;
-      return [mix(mix(-0.72, -0.25, w), -1.05, a), mix(mix(0.55, 2.2, w), 0.45, a), -0.42];
+      return [mix(mix(-0.72, -0.6, w), -1.05, a), mix(mix(0.55, 2.0, w), 0.45, a), mix(-0.45, -0.9, w)];
     },
   },
   idle: (t) => ({ bob: Math.sin(t * 1.6) * 0.012, lean: Math.sin(t * 0.8) * 0.02 }),
@@ -274,12 +274,12 @@ float map(vec3 p){
   for (int s = -1; s <= 1; s += 2) {
     float fs = float(s);
     vec3 sh = vec3(-.1, .98, .37*fs);
-    vec3 el = mix(mix(vec3(-.36, .6, .46*fs), vec3(-.3, 1.22, .5*fs), WIND), vec3(-.56, .86, .44*fs), ATK);
-    vec3 pw = mix(mix(vec3(-.44, .24, .42*fs), vec3(-.46, 1.5, .44*fs), WIND), vec3(-.86, .56, .36*fs), ATK);
+    vec3 el = mix(mix(vec3(-.36, .6, .46*fs), vec3(-.22, 1.12, .7*fs), WIND), vec3(-.56, .86, .44*fs), ATK);
+    vec3 pw = mix(mix(vec3(-.44, .24, .42*fs), vec3(-.5, 1.32, .86*fs), WIND), vec3(-.86, .56, .36*fs), ATK);
     float arm = smin(sdCapT(q, sh, el, .21, .15), sdCapT(q, el, pw, .15, .12), .06);
     arm = smin(arm, ell(q - pw, vec3(.16, .12, .16)), .05);
     U(d, arm + fur(q), 1., q);
-    vec3 cd = normalize(pw - el);
+    vec3 cd = normalize(mix(normalize(pw - el), vec3(-1., -.5, 0.), .85*WIND));   // raised claws hook forward
     for (int c = -1; c <= 1; c++) {
       vec3 cb = pw + cd*.1 + vec3(-.03, 0., .075*float(c));
       vec3 cm = cb + cd*.15 + vec3(-.05, .0, .01*float(c));

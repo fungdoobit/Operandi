@@ -880,34 +880,76 @@ async function eclipseLance(s) {
 // a huge portal opens right above him, taking everything she has, and Jupiter
 // comes down out of it onto his raised hands. He holds it, crushed down, and
 // forces it slowly back up into the portal, which slams shut.
-// A planet breaking apart: the picture cut into jagged wedges that fly off,
-// tumbling, falling and burning (raw sprite layer). imgs are drawn stacked.
-function breakApart(spr, toon, imgs, at, sc, { n = 8, power = 1, ang = 0, spin = 5, heat = true } = {}) {
-  const w = imgs[0].width * sc, pieces = [];
-  for (let i = 0; i < n; i++) {
-    const a0 = (i / n) * Math.PI * 2 + rand(-0.15, 0.15), a1 = ((i + 1) / n) * Math.PI * 2 + rand(-0.15, 0.15), mid = (a0 + a1) / 2;
-    const ix = rand(-0.12, 0.12) * w, iy = rand(-0.12, 0.12) * w, far = w;   // the inner corner, off centre, so no two are alike
-    const poly = [[ix, iy], [Math.cos(a0) * far, Math.sin(a0) * far], [Math.cos(mid) * far * 1.1, Math.sin(mid) * far * 1.1], [Math.cos(a1) * far, Math.sin(a1) * far]];
-    // they fly mostly on along its path and up, spreading out
-    const v = rand(110, 260) * power, vx = Math.cos(mid) * v + Math.cos(ang) * 90 * power, vy = Math.sin(mid) * v * 0.8 - rand(60, 140) * power;
-    pieces.push({ poly, cx: Math.cos(mid) * w * 0.22, cy: Math.sin(mid) * w * 0.22, vx, vy, w: rand(-spin, spin) });
-  }
-  const pos = (p, u) => ({ x: at.x + p.cx + p.vx * u, y: at.y + p.cy + p.vy * u + 420 * u * u });
-  spr.add({ dur: 1100, draw(g, k, t) {
-    const u = t / 1000;
-    g.save(); g.imageSmoothingEnabled = false; g.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3;
+// A planet breaking apart (Isaac 2026-10-22: the pie-slice wedges looked
+// poor). The picture is cut into irregular rock chunks (Voronoi cells round
+// random points, so no two are alike); glowing cracks race across it for a
+// frozen moment first, then the chunks fly apart tumbling, their broken edges
+// molten, burning up and smoking as they fall. imgs are drawn stacked.
+function voronoi(n, R, cover) {
+  const seeds = Array.from({ length: n }, (_, i) => { const a = i * 2.39996 + rand(-0.4, 0.4), r = R * Math.sqrt((i + 0.5) / n) * rand(0.75, 1); return [Math.cos(a) * r, Math.sin(a) * r]; });
+  const base = Array.from({ length: 20 }, (_, i) => { const a = (i / 20) * Math.PI * 2; return [Math.cos(a) * cover, Math.sin(a) * cover]; });
+  return seeds.map((p) => {
+    let poly = base;
+    for (const q of seeds) {
+      if (q === p) continue;
+      const nx = q[0] - p[0], ny = q[1] - p[1], mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+      const side = (v) => (v[0] - mx) * nx + (v[1] - my) * ny;   // <= 0: nearer p
+      const out = [];
+      for (let i = 0; i < poly.length; i++) {
+        const A = poly[i], B = poly[(i + 1) % poly.length], sa = side(A), sb = side(B);
+        if (sa <= 0) out.push(A);
+        if ((sa < 0) !== (sb < 0)) { const t = sa / (sa - sb); out.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); }
+      }
+      poly = out;
+    }
+    const cx = poly.reduce((u, v) => u + v[0], 0) / poly.length, cy = poly.reduce((u, v) => u + v[1], 0) / poly.length;
+    // roughen the edges a little so they read as broken rock
+    poly = poly.flatMap((v, i) => { const w = poly[(i + 1) % poly.length], m = [(v[0] + w[0]) / 2, (v[1] + w[1]) / 2], d = Math.hypot(w[0] - v[0], w[1] - v[1]); return [v, [m[0] + rand(-0.12, 0.12) * d, m[1] + rand(-0.12, 0.12) * d]]; });
+    return { poly, cx, cy, size: Math.sqrt(Math.abs(poly.reduce((u, v, i) => { const w = poly[(i + 1) % poly.length]; return u + v[0] * w[1] - w[0] * v[1]; }, 0)) / 2) };
+  });
+}
+function breakApart(spr, toon, imgs, at, sc, { n = 14, power = 1, ang = 0, spin = 4, heat = true, crack = 110, R } = {}) {
+  const w = imgs[0].width * sc, rad = R ? R * sc : w * 0.36;
+  const pieces = voronoi(n, rad, R ? rad * 1.08 : w * 0.72).map((c) => {
+    const d = Math.hypot(c.cx, c.cy) || 1, dx = c.cx / d, dy = c.cy / d, v = rand(90, 220) * power * (1.4 - Math.min(1, c.size / rad));
+    return { ...c, vx: dx * v + Math.cos(ang) * 120 * power, vy: dy * v * 0.8 - rand(40, 120) * power + Math.sin(ang) * 40, w: rand(-spin, spin), burn: rand(0.6, 1) };
+  });
+  const pos = (p, u) => ({ x: at.x + p.cx + p.vx * u, y: at.y + p.cy + p.vy * u + 380 * u * u });
+  const poly = (g, P) => { g.beginPath(); P.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); };
+  // the cracks: the whole planet, frozen for a moment, glowing seams racing across it
+  spr.add({ dur: crack, draw(g, k) {
+    g.save(); g.imageSmoothingEnabled = false; g.translate(at.x, at.y);
+    for (const f of imgs) g.drawImage(f, -w / 2, -w / 2, w, w);
+    g.lineJoin = "round";
+    for (const p of pieces) { g.save(); poly(g, p.poly); g.strokeStyle = "#ff8a2a"; g.lineWidth = 3; g.globalAlpha = Math.min(1, k * 2.5); g.stroke(); g.strokeStyle = "#fff3c4"; g.lineWidth = 1; g.stroke(); g.restore(); }
+    g.restore();
+  } });
+  spr.add({ dur: crack + 1200, draw(g, k, t) {
+    const u = Math.max(0, t - crack) / 1000; if (t < crack) return;
+    const fade = u < 0.75 ? 1 : Math.max(0, 1 - (u - 0.75) / 0.45);
+    g.save(); g.imageSmoothingEnabled = false;
     for (const p of pieces) {
-      const q = pos(p, u), s = 1 - k * 0.35;
-      g.save(); g.translate(q.x, q.y); g.rotate(p.w * u); g.scale(s, s); g.translate(-p.cx, -p.cy);
-      g.beginPath(); p.poly.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.clip();
+      const q = pos(p, u), s = 1 - Math.min(0.55, u * 0.5 * p.burn);
+      g.save(); g.globalAlpha = fade; g.translate(q.x, q.y); g.rotate(p.w * u); g.scale(s, s); g.translate(-p.cx, -p.cy);
+      poly(g, p.poly); g.save(); g.clip();
       for (const f of imgs) g.drawImage(f, -w / 2, -w / 2, w, w);
+      // the broken faces glow hot, cooling as they fly
+      const hot = Math.max(0, 1 - u * 1.2);
+      g.globalCompositeOperation = "source-atop"; g.fillStyle = `rgba(255,120,40,${(0.35 * hot).toFixed(2)})`; g.fillRect(-w, -w, 2 * w, 2 * w);
+      g.restore();
+      g.lineJoin = "round"; g.strokeStyle = `rgba(255,${Math.round(150 + 90 * hot)},${Math.round(60 + 140 * hot)},${(0.9 * hot + 0.1).toFixed(2)})`; g.lineWidth = 2; g.stroke();
       g.restore();
     }
     g.restore();
   } });
-  if (heat) toon.add({ dur: 1100, draw(pen, k, t) {   // each chunk burns as it falls
-    const u = t / 1000;
-    for (const p of pieces) { const q = pos(p, u); pen.puff("heat", q.x, q.y, w * 0.13 * (1 - k * 0.6), 1.1 * (1 - k)); if (k > 0.3) pen.puff("smoke", q.x - p.vx * 0.04, q.y + 6, w * 0.12, (k - 0.3) * (1 - k) * 2.4, 0.3); }
+  if (heat) toon.add({ dur: crack + 1300, draw(pen, k, t) {   // each chunk burns as it falls, trailing smoke
+    if (t < crack) { pen.puff("heat", at.x, at.y, rad * 0.9 * (t / crack), 0.6); return; }
+    const u = (t - crack) / 1000;
+    for (const p of pieces) {
+      const q = pos(p, u), r = Math.max(2, p.size * 0.45 * (1 - u * 0.5));
+      if (u < 0.9) pen.puff("heat", q.x - p.vx * 0.025, q.y - p.vy * 0.025, r, (1.05 - u) * p.burn);
+      if (u > 0.15) pen.puff("smoke", q.x - p.vx * 0.06, q.y - p.vy * 0.06 + 4, r * 1.3, Math.min(1, (u - 0.15) * 2) * (1.2 - u) * 0.9, Math.max(0, u - 0.6));
+    }
   } });
 }
 function drawPlanet(g, frames, at, t, { scale = 1, clipY = null, spin = 8, squash = 0 } = {}) {
@@ -1022,8 +1064,8 @@ async function planetfall(s) {
     sound.sfx("explosion", { size: isU ? 1.7 : 1.35 }); sound.sfx("slamImpact"); if (isU) sound.sfx("shatter");
     bigHit(fx, to, { stop: isU ? 260 : 170, shake: isU ? 36 : 28, punch: isU ? 0.08 : 0.06, flash: "#ffd9a3" });
     live = false;
-    breakApart(spr, toon, lastImgs.slice(isU ? 1 : 0, isU ? 2 : 1), at, sc, { n: isU ? 9 : 8, power: 1, ang });
-    if (isU) breakApart(spr, toon, [lastImgs[0], lastImgs[2]], at, sc, { n: 12, power: 1.6, ang, spin: 9, heat: false });   // the ring snaps into pieces
+    breakApart(spr, toon, lastImgs.slice(isU ? 1 : 0, isU ? 2 : 1), at, sc, { n: isU ? 16 : 14, power: 1, ang, R: r });
+    if (isU) breakApart(spr, toon, [lastImgs[0], lastImgs[2]], at, sc, { n: 18, power: 1.7, ang, spin: 9, heat: false });   // the ring snaps into pieces
     explode(toon, to.x - 10, to.y - 4, { size: isU ? 1.9 : 1.5, dur: 1400 });
     flashAt(pxTop, to, isU ? 140 : 100, 300);
     fx.debris(to, 16, { power: 1.6 }); fx.sparks(to, 22, { power: 1.6 });
@@ -1046,38 +1088,83 @@ async function planetfall(s) {
   const jf = PL.jupiter, R = jf.r;
   const big = { x: core.x - 15, y: 2 };   // at the very top: Jupiter comes down from above the frame
   if (!s.isBoss) return jupiterCrush(s, { jf, R, big, settle });   // a small enemy can't hold it up: it's crushed
+  // Isaac 2026-10-22: GOLEM shrugs off the three planets, and NOVA, furious,
+  // calls on her full strength: she rises in a surge of void power and drives
+  // a beam of magic into the sky that tears a huge portal open. He only looks
+  // up and braces; his arms go up when Jupiter actually comes through. Then
+  // it's her might against his: her beam bears down on Jupiter while he holds
+  // it up, sinking into the floor, until his thrusters fire and he drives it
+  // back up, snapping her beam, and the portal swallows it.
+  const { toonBack, mateEl } = s;
   fx.focus(1, null, 500);
-  fx.darken(0.86, 800);
+  // he's still standing: he shakes it off and roars
+  sound.sfx("roar"); s.golem.fxv.glitch = 0.6; s.golem.to({ glitch: 0 }, 400, "lin", s.golem.fxv);
+  await s.golem.to({ flare: 2.4, bob: 0.08, tilt: 0.1 }, 300, "out");
+  fx.shake(10); fx.ring(s.golemC(), { color: "#ff3a24", size: 200, ms: 450, width: 5 });
+  await s.golem.to({ flare: 0.6, bob: 0, tilt: 0 }, 500, "io");
+  // NOVA: furious, she summons everything she has
   mate.setMood("angry");
-  const strain = mate.anim(2200, (e) => { mate.nova.idle.shake = 0.25 + 0.5 * e; mate.nova.lift = 0.18 + 0.06 * e; }, "lin");
-  sound.sfx("bhRumble", { ms: 9000 }); sound.sfx("darkChoir", { ms: 3200 }); sound.sfx("whispers", { ms: 3200 });
-  gatherMotes(pxTop, () => s.mateC(), 2000, { n: 40, r: 220 });
-  const gate = portal(s, px, { x: big.x, y: big.y, rx: R * 0.9, ry: 26 });
+  fx.darken(0.86, 800);
+  fx.focus(1.06, s.mateC(), 600);
+  sound.sfx("voidCharge"); sound.sfx("darkChoir", { ms: 4000 }); sound.sfx("whispers", { ms: 3000 });
+  const m0 = mate.nova.m;
+  mate.anim(900, (e) => { mate.nova.lift = 0.18 + 0.2 * e; mate.nova.idle.shake = 0.3 * e; mate.nova.m = { ...m0, energy: 3.6 + 3 * e }; }, "out");
+  gatherMotes(pxTop, () => s.mateC(), 1000, { n: 46, r: 240 });
+  let aura = true;   // a pillar of void power surging up round her
+  toonBack.add({ dur: 30000, draw(pen, k, t, a) {
+    if (!aura) { a.t = a.dur; return; }
+    const c = s.mateC();
+    for (let i = 0; i < 8; i++) { const u = (t / 900 + i / 8) % 1; pen.puff("void", c.x + Math.sin(t * 0.004 + i * 2) * 16 * (1 - u), c.y + 34 - u * 170, 24 * (1 - u * 0.6), 0.95 * (1 - u)); }
+    pen.oval("void", c.x, floor, 50, 9, 0.85);
+  } });
+  await fx.wait(900);
+  fx.shake(12); flashAt(pxTop, s.mateC(), 70, 300); sound.sfx("handsBurst");
+  fx.ring(s.mateC(), { color: "#a066f0", size: 240, ms: 500, width: 6 });
+  fx.focus(1, null, 600);
+  // her beam: two twisting strands of violet light with a white-hot core
+  let beamTo = () => big, beamOn = true, beamW = 0;
+  px.add({ dur: 60000, draw(g, k, t, a) {
+    beamW += ((beamOn ? 1 : 0) - beamW) * 0.18;
+    if (!beamOn && beamW < 0.02) { a.t = a.dur; return; }
+    const c = s.mateC(), from = { x: c.x + 8, y: c.y - 14 }, to = beamTo(), dx = to.x - from.x, dy = to.y - from.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    for (const ph of [0, Math.PI]) {
+      const pts = [];
+      for (let i = 0; i <= 24; i++) { const u = i / 24, wv = Math.sin(u * 14 - t * 0.02 + ph) * 9 * Math.sin(u * Math.PI); pts.push([from.x + dx * u + nx * wv, from.y + dy * u + ny * wv]); }
+      ribbon(g, pts, 7 * beamW, 5 * beamW, VIOLET);
+    }
+    ribbon(g, [[from.x, from.y], [to.x, to.y]], 5 * beamW, 3 * beamW, PALE);
+    glow(g, from.x, from.y, 30 * beamW, "#a066f0", 0.8); glow(g, to.x, to.y, 44 * beamW, "#a066f0", 0.7);
+    starFlash(g, to.x, to.y, (10 + 4 * Math.sin(t * 0.05)) * beamW, PALE);
+  } });
+  sound.sfx("telekinesis"); sound.sfx("voidHum", { ms: 9000 });
+  const strain = mate.anim(2000, (e) => { mate.nova.idle.shake = 0.3 + 0.4 * e; }, "lin");
+  sound.sfx("bhRumble", { ms: 10000 });
+  const gate = portal(s, px, { x: big.x, y: big.y, rx: R * 1.05, ry: 32 });
   for (let i = 0; i < 6; i++) fx.wait(i * 300).then(() => fx.shake(4 + i * 2));
   // the ground shakes and loose rubble starts to float up off the floor
   const rubble = Array.from({ length: 26 }, () => ({ x: rand(40, fx.w - 40), s: rand(2, 5), v: rand(18, 60), d: rand(0, 2400) }));
-  px.add({ dur: 9000, draw(g, k, t) { for (const q of rubble) { const u = Math.max(0, t - q.d) / 1000; if (u <= 0) continue; const y = floor - 2 - q.v * u - Math.sin(u * 3 + q.x) * 3; if (y < big.y + 30) continue; g.fillStyle = q.s > 3.5 ? "#5d6270" : "#8c92a0"; g.fillRect(q.x + Math.sin(u * 2 + q.x) * 4, y, q.s, q.s); } } });
-  const opening = gate.open(1500);
-  // he sees it coming: looks up, braces, arms up
-  await fx.wait(700);
-  sound.sfx("servo", { ms: 500 }); sound.sfx("roar");
-  s.golem.to({ tilt: -0.28, ca: 1.5, ce: 1.4, cp: 0, na: 1.5, ne: 1.4, np: 0.3, flare: 1.6, thrust: 2.2, bob: 0.05 }, 520, "out");
+  px.add({ dur: 12000, draw(g, k, t) { for (const q of rubble) { const u = Math.max(0, t - q.d) / 1000; if (u <= 0) continue; const y = floor - 2 - q.v * u - Math.sin(u * 3 + q.x) * 3; if (y < big.y + 30) continue; g.fillStyle = q.s > 3.5 ? "#5d6270" : "#8c92a0"; g.fillRect(q.x + Math.sin(u * 2 + q.x) * 4, y, q.s, q.s); } } });
+  const opening = gate.open(1800);
+  // he looks up at it and braces (arms still down)
+  await fx.wait(600);
+  sound.sfx("servo", { ms: 400 });
+  s.golem.to({ tilt: -0.22, flare: 1.4, lean: -0.04, bob: -0.05, ce: 1.15, ne: 1.15 }, 600, "io");
   await opening;
   fx.title("JUPITER", "");
   await strain;
-  // it comes down out of the portal, straight onto his hands
-  // he cradles it between his claw and his cannon, like Atlas
+  // it comes down out of the portal; as it comes through, his arms go up
+  // and he catches it between his claw and his cannon, like Atlas
   const hands = () => { const a = s.Pt([-0.06, -1.5, -0.05], "claw"), b = s.Pt([0, -1.05, 0], "cannon"); return { a, b, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
-  // Isaac 2026-10-22: in front of him it hid his arms, so it read as a ball on
-  // his chest. It's drawn behind him now, resting on his raised hands, his claw
-  // and cannon pressing into its underside.
+  // (drawn behind him, resting on his raised hands, his claw and cannon pressing into its underside)
   const holdY = () => hands().y - R * 0.2;
   const J = { x: hands().x, y: big.y - R };
-  let jLive = true;
-  const jBody = s.sprBack.add({ dur: 20000, draw(g, k, t, a) { if (!jLive) { a.t = a.dur; return; } drawPlanet(g, jf, J, t, { clipY: big.y, spin: 2.5 }); } });
-  s.pxBack.add({ dur: 20000, draw(g, k, t, a) { if (!jLive) { a.t = a.dur; return; } glow(g, J.x, Math.max(J.y, big.y + 40), R * 1.4, "#ff9a4a", 0.2); } });
+  let jLive = true, jScale = 1, jSpin = 2.5;
+  s.sprBack.add({ dur: 60000, draw(g, k, t, a) { if (!jLive) { a.t = a.dur; return; } drawPlanet(g, jf, J, t, { clipY: big.y, spin: jSpin, scale: jScale }); } });
+  s.pxBack.add({ dur: 60000, draw(g, k, t, a) { if (!jLive) { a.t = a.dur; return; } glow(g, J.x, Math.max(J.y, big.y + 40), R * 1.4 * jScale, "#ff9a4a", 0.2); } });
+  beamTo = () => ({ x: J.x, y: Math.max(big.y + 16, J.y - R * 0.55) });   // her beam rides down with it, driving it on
   sound.sfx("ghostFly", { size: 1.4 }); sound.sfx("laserCharge", { ms: 1300 });
   for (let i = 0; i < 6; i++) fx.wait(i * 200).then(() => { fx.shake(6 + i * 2); sound.sfx("rumble", { size: 0.6 }); });
+  fx.wait(250).then(() => { sound.sfx("servo", { ms: 500 }); sound.sfx("roar"); s.golem.to({ tilt: -0.28, ca: 1.5, ce: 1.4, cp: 0, na: 1.5, ne: 1.4, np: 0.3, flare: 1.8, thrust: 2.2, bob: 0.05, lean: 0 }, 420, "out"); });
   const y0 = J.y;
   await spr.add({ dur: 1300, draw(g, k) { const h = hands(), e = ease.in(k); J.x = lerp(J.x, h.x, 0.2); J.y = lerp(y0, holdY(), e); } });
   // contact
@@ -1088,22 +1175,23 @@ async function planetfall(s) {
   fx.ring({ x: core.x, y: floor }, { color: "#ffd9a3", size: 440, flat: 0.12, ms: 700, width: 10 });
   fx.crack(core.x, { width: 340 }); fx.dust(core.x, 30, 3);
   fx.debris({ x: core.x, y: floor - 10 }, 18, { power: 1.7 });
-  // he holds it: crushed down, arms buckling, sparks at his hands, thrusters screaming
-  // the weight drives him down into the floor (the floor cuts him off as he sinks)
+  // he holds it: crushed down, arms buckling, sparks at his hands, thrusters screaming;
+  // the weight (and her beam) drive him down into the floor, which cuts him off as he sinks
   const home = foeEl._pos || { x: 0, y: 0, r: 0 }, top = foeEl.offsetTop, height = foeEl.offsetHeight;
   let sunk = true;
-  px.add({ dur: 15000, draw(g, k, t, a) { if (!sunk) { foeEl.style.clipPath = ""; a.t = a.dur; return; } const y = foeEl._pos?.y || 0; foeEl.style.clipPath = `inset(0 0 ${Math.max(0, top + height + y - floor - 2).toFixed(1)}px 0)`; } });
+  px.add({ dur: 30000, draw(g, k, t, a) { if (!sunk) { foeEl.style.clipPath = ""; a.t = a.dur; return; } const y = foeEl._pos?.y || 0; foeEl.style.clipPath = `inset(0 0 ${Math.max(0, top + height + y - floor - 2).toFixed(1)}px 0)`; } });
   fx.move(foeEl, { x: home.x, y: home.y + 62 }, 180, "out");
   s.golem.to({ ce: 1.78, ne: 1.78, bob: -0.22, tilt: -0.2, flare: 2.4, thrust: 3 }, 200, "out");
   fx.slowmo(0.55, 1800);
+  mate.anim(400, (e) => { mate.nova.idle.shake = 0.7; mate.nova.lift = 0.38 + 0.04 * e; }, "out");   // she bears down with everything
   let holding = true;
-  pxTop.add({ dur: 12000, draw(g, k, t, a) {   // the grinding contact at his hands
+  pxTop.add({ dur: 30000, draw(g, k, t, a) {   // the grinding contact at his hands
     if (!holding) { a.t = a.dur; return; }
     const h = hands();
     for (const p of [h.a, h.b]) { glow(g, p.x, p.y - 4, 18 + 4 * Math.sin(t * 0.05), "#ffb040", 0.8); if (((t / 50) | 0) % 2) { g.fillStyle = "#fff3c4"; g.fillRect(p.x + rand(-10, 10), p.y - 6 + rand(-6, 6), 3, 3); } }
   } });
   let carry = true;   // Jupiter rides on his hands while he holds and pushes
-  spr.add({ dur: 12000, draw(g, k, t, a) { if (!carry) { a.t = a.dur; return; } const h = hands(); J.x = lerp(J.x, h.x, 0.2); J.y = holdY() + Math.sin(t * 0.03) * 2; } });
+  spr.add({ dur: 30000, draw(g, k, t, a) { if (!carry) { a.t = a.dur; return; } const h = hands(); J.x = lerp(J.x, h.x, 0.2); J.y = holdY() + Math.sin(t * 0.03) * 2; } });
   for (let i = 0; i < 6; i++) {
     await fx.wait(260);
     sound.sfx("servo", { ms: 220 }); sound.sfx("impact", { size: 0.5 });
@@ -1113,12 +1201,13 @@ async function planetfall(s) {
     s.golem.fxv.glitch = 0.4; s.golem.to({ glitch: 0 }, 160, "lin", s.golem.fxv);
     s.golem.to({ ce: 1.78 + (i % 2 ? 0.08 : -0.05), ne: 1.78 + (i % 2 ? -0.05 : 0.08), tilt: -0.2 + (i % 2 ? 0.04 : -0.04) }, 200, "io");
   }
-  // Isaac 2026-10-22: the push has to read as GOLEM pushing. Three heaves:
-  // each time he sinks under it gathering himself, his thrusters blast fire and
-  // dust out of the floor round him and he drives up, arms straightening, then
-  // the weight wins part of it back. Then a roar, slow motion, and one last
-  // explosive shove that throws it up into the portal.
-  const { toonBack } = s;
+  // the struggle: locked, trembling, neither giving way
+  sound.sfx("servo", { ms: 900 });
+  for (let i = 0; i < 6; i++) fx.wait(i * 150).then(() => { fx.shake(5); s.golem.fxv.glitch = 0.25; s.golem.to({ glitch: 0 }, 100, "lin", s.golem.fxv); });
+  s.golem.to({ ce: 1.92, ne: 1.92, bob: -0.28, flare: 3.4, charge: 1, thrust: 2 }, 900, "in");
+  fx.move(foeEl, { x: home.x, y: home.y + 92 }, 900, "in");
+  await fx.wait(900);
+  // his thrusters fire: one huge push drives it back up and snaps her beam
   const blast = (power, ms) => {   // his thrusters, buried in the floor, blasting fire and dust out round him
     const x0 = s.golemC().x;
     const jets = Array.from({ length: 10 }, (_, i) => ({ side: i % 2 ? 1 : -1, d: rand(0, 0.35), v: rand(180, 340) * power, r: rand(18, 34) * power, h: rand(-4, 2) }));
@@ -1136,58 +1225,37 @@ async function planetfall(s) {
     } });
     fx.dust(x0, Math.round(14 * power), 2 * power);
   };
-  let depth = 84;
-  const heave = async (i, up, slip) => {
-    // gathering: he sinks a little under it, arms buckling, core glowing hotter
-    sound.sfx("servo", { ms: 320 });
-    s.golem.to({ ce: 1.9, ne: 1.9, bob: -0.26, tilt: -0.14, flare: 2.6 + i * 0.4, charge: 0.4 + i * 0.25, thrust: 2 }, 300, "in");
-    fx.move(foeEl, { x: home.x, y: home.y + depth + 8 }, 300, "in");
-    await fx.wait(300);
-    // the drive
-    sound.sfx("impact", { size: 0.9 + i * 0.2 }); sound.sfx("rumble", { size: 0.8 + i * 0.2 }); sound.sfx("whoosh", { theme: "fire" });
-    blast(0.8 + i * 0.25, 600);
-    fx.hitstop(60); fx.shake(14 + i * 5); fx.punch(0.025 + i * 0.01, hands());
-    fx.ring({ x: s.golemC().x, y: floor }, { color: "#ffb040", size: 220 + i * 70, flat: 0.14, ms: 500, width: 6 });
-    s.golem.to({ ce: 1.55 - i * 0.12, ne: 1.55 - i * 0.12, ca: 1.55 + i * 0.05, na: 1.55 + i * 0.05, bob: 0.05, tilt: -0.28, flare: 3.2 + i * 0.3, thrust: 3.6 }, 360, "out");
-    fx.move(foeEl, { x: home.x, y: home.y + up }, 360, "out");
-    for (const p of [hands().a, hands().b]) fx.sparks(p, 10, { colors: ["#fff3c4", "#ffb040"], power: 1.2 });
-    await fx.wait(360);
-    s.golem.fxv.glitch = 0.5; s.golem.to({ glitch: 0 }, 200, "lin", s.golem.fxv);
-    await fx.wait(180 + i * 60);   // holding it there, shaking
-    // the weight wins some of it back
-    sound.sfx("servo", { ms: 260 }); sound.sfx("impact", { size: 0.6 });
-    fx.shake(9);
-    s.golem.to({ ce: 1.72, ne: 1.72, bob: -0.12, flare: 2.4 }, 320, "io");
-    fx.move(foeEl, { x: home.x, y: home.y + slip }, 320, "inOut");
-    await fx.wait(320);
-    depth = slip;
-  };
-  sound.sfx("roar"); fx.flash(0.2, "#ffd9a3");
-  await heave(0, 56, 66);
-  await heave(1, 34, 44);
-  await heave(2, 14, 24);
-  // the last shove: a roar, slow motion, everything at once
-  sound.sfx("roar"); sound.sfx("laserCharge", { ms: 900 });
-  s.golem.to({ ce: 1.95, ne: 1.95, bob: -0.3, flare: 3.8, charge: 1, thrust: 2 }, 380, "in");
-  fx.move(foeEl, { x: home.x, y: home.y + depth + 10 }, 380, "in");
-  for (let i = 0; i < 4; i++) fx.wait(i * 90).then(() => fx.shake(6 + i * 3));
-  await fx.wait(380);
-  sound.sfx("explosion", { size: 1.6 }); sound.sfx("slamImpact"); sound.sfx("whoosh", { theme: "fire" });
+  sound.sfx("roar"); sound.sfx("explosion", { size: 1.6 }); sound.sfx("slamImpact"); sound.sfx("whoosh", { theme: "fire" });
   bigHit(fx, hands(), { stop: 140, shake: 40, punch: 0.06, flash: "#ffd9a3" });
-  fx.slowmo(0.35, 700);
-  speedLines(pxTop, () => J, 700, { inner: R * 1.1 });
-  blast(1.7, 1000);
+  fx.slowmo(0.35, 900);
+  speedLines(pxTop, () => J, 900, { inner: R * 1.1 });
+  blast(1.8, 1300);
   fx.ring(s.golemC(), { color: "#ffb040", size: 380, flat: 0.6, ms: 700, width: 10 });
   fx.ring({ x: s.golemC().x, y: floor }, { color: "#ffd9a3", size: 520, flat: 0.12, ms: 800, width: 10 });
   fx.crack(s.golemC().x, { width: 380 }); fx.debris({ x: s.golemC().x, y: floor - 10 }, 22, { power: 2 });
-  s.golem.to({ ca: 1.85, na: 1.85, ce: 1.05, ne: 1.05, cp: -0.5, np: -0.3, tilt: -0.34, bob: 0.08, flare: 4, thrust: 4 }, 260, "out");
-  fx.move(foeEl, { x: home.x, y: home.y - 12 }, 300, "out");
-  await fx.wait(120);
-  // it goes: thrown up off his hands, back into the portal
+  s.golem.to({ ca: 1.85, na: 1.85, ce: 1.05, ne: 1.05, cp: -0.5, np: -0.3, tilt: -0.34, bob: 0.08, flare: 4, thrust: 4 }, 700, "out");
+  fx.move(foeEl, { x: home.x, y: home.y - 12 }, 800, "out");
+  // halfway up, her beam snaps and she's thrown back
+  fx.wait(380).then(() => {
+    beamOn = false; aura = false;
+    sound.sfx("chainSnap"); sound.sfx("impact", { size: 1 });
+    flashAt(pxTop, s.mateC(), 80, 320); shards(pxTop, s.mateC(), 16, 1.1);
+    mate.setMood("sad");
+    const mh = mateEl._pos || { x: 0, y: 0 };
+    fx.move(mateEl, { x: mh.x - 34 }, 140, "out").then(() => fx.move(mateEl, mh, 600, "inOut"));
+    mate.anim(500, (e) => { mate.nova.lift = 0.42 * (1 - e) + 0.18 * e; mate.nova.idle.shake = 0.7 * (1 - e); }, "out");
+  });
+  await fx.wait(820);
+  // it goes up into the portal and is swallowed: shrinking into the vortex as it spins away
   carry = false; holding = false;
-  mate.setMood("sad");
-  const jy = J.y;
-  await spr.add({ dur: 750, draw(g, k) { J.y = lerp(jy, big.y - R * 1.05, ease.out(k)); } });
+  const jy = J.y, jx = J.x;
+  sound.sfx("ghostWind", { ms: 1400 }); sound.sfx("portal");
+  await spr.add({ dur: 1000, draw(g, k) {
+    const e = ease.in(k);
+    J.y = lerp(jy, big.y, ease.out(k)); J.x = lerp(jx, big.x, k);
+    jScale = 1 - 0.92 * e; jSpin = 2.5 + 14 * e;
+    gate.P.open = 1 + 0.35 * Math.sin(k * Math.PI);   // the portal heaves as it gulps it down
+  } });
   jLive = false;
   sunk = false;
   fx.move(foeEl, { x: home.x, y: home.y }, 500, "inOut");
@@ -1198,11 +1266,10 @@ async function planetfall(s) {
   s.golem.rest(700);
   await fx.wait(500);
   fx.darken(0, 600); fx.focus(1, null, 600);
-  mate.nova.idle.shake = 0;
+  mate.nova.idle.shake = 0; mate.nova.m = m0;
   settle();
   await fx.wait(500);
   mate.setMood("idle");
-  void jBody;
 }
 
 // Planetfall's ending on a small enemy (Addendum K): it can't catch Jupiter

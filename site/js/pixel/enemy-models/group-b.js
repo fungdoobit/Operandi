@@ -367,14 +367,14 @@ float map(vec3 p){
   // ---- the foot / body, oozing along the ground ----
   vec3 b = p;
   float ooze = .02*vnoise(p*9. + vec3(0., -T*.8, T*.3)) + .008*vnoise(p*25.);
-  vec3 h0 = vec3(.6, .12, 0.), h1 = vec3(-.45 - ext*.6, .2, -.03), h2 = vec3(-.78 - ext, .38 + .03*sin(T*1.6) - .1*wn, -.05);
-  float body = sdCapT(b, h0, h1, .13, .22);
-  body = smin(body, sdCapT(b, h1, h2, .22, .2), .12);
+  vec3 h0 = vec3(.72, .1, 0.), h1 = vec3(-.42 - ext*.6, .22, -.03), h2 = vec3(-.86 - ext, .44 + .03*sin(T*1.6) - .12*wn, -.05);
+  float body = sdCapT(b, h0, h1, .14, .27);
+  body = smin(body, sdCapT(b, h1, h2, .27, .24), .14);
   // a skirt of slime spreading at the base
   body = smin(body, sdCapT(b, vec3(.7, .02, 0.), vec3(-.55 - ext*.6, .03, -.03), .07, .15), .1);
   body = max(body, -b.y);
   // the maw: a dark hole in the front of the head, opening wide
-  vec3 mq = b - h2 - vec3(-.18, -.08, 0.);
+  vec3 mq = b - h2 - vec3(-.19, -.07, 0.);
   float mo = clamp(OPEN*1.2 + lu*.6, 0., 1.);
   float maw = (length(mq/vec3(.08, .03 + .07*mo, .09 + .03*mo)) - 1.)*.05;
   float bd = max(body + ooze, -maw);
@@ -391,25 +391,26 @@ float map(vec3 p){
     float fi = float(i), ph = fract(T*.35 + fi*.37);
     vec3 s0 = h2 + vec3(-.2 + .04*fi, -.14, -.06 + .06*fi);
     float ln = .06 + .22*ph + .1*mo;
-    float dr = sdCapT(b, s0, s0 + vec3(.0, -ln, 0.), .022, .012);
-    dr = smin(dr, length(b - s0 - vec3(0., -ln, 0.)) - .026*(1. - ph*.4), .03);
-    U(d, dr, 1., b);
-    G(dr + .03);
+    ln *= .6;
+    float dr = sdCapT(b, s0, s0 + vec3(.0, -ln, 0.), .016, .006);
+    dr = smin(dr, length(b - s0 - vec3(0., -ln, 0.)) - .02*(1. - ph*.5), .02);
+    U(d, dr, 3., b);
+    G(dr + .02);
   }
   // eye stalks with glowing eyes, and two short feelers
   for (int s = -1; s <= 1; s += 2) {
     float fs = float(s);
-    vec3 e0 = h2 + vec3(-.02, .14, .08*fs);
+    vec3 e0 = h2 + vec3(-.04, .15, .09*fs);
     float sl = 1. - .75*wn;
     vec3 e1 = e0 + vec3(-.12 + .06*sin(T*1.3 + fs), .42*sl, .1*fs + .04*sin(T*1.7 + fs*2.));
     vec3 em = mix(e0, e1, .5) + vec3(.05, .02, 0.);
-    float st = min(sdCapT(b, e0, em, .055, .04), sdCapT(b, em, e1, .04, .03));
+    float st = min(sdCapT(b, e0, em, .07, .042), sdCapT(b, em, e1, .042, .03));
     U(d, st + ooze*.4, 1., b);
     vec3 eq = b - e1 - normalize(e1 - em)*.03;
     float eye = length(eq) - .055*(.6 + .4*sl);
     U(d, eye, 3., eq); E(eye);
-    vec3 f0 = h2 + vec3(-.16, -.02, .12*fs);
-    U(d, sdCapT(b, f0, f0 + vec3(-.14, -.1 + .03*sin(T*2. + fs), .06*fs), .04, .015), 1., b);
+    vec3 f0 = h2 + vec3(-.12, -.06, .14*fs);
+    U(d, sdCapT(b, f0, f0 + vec3(-.08, -.1 + .02*sin(T*2. + fs), .05*fs), .04, .012), 1., b);
   }
   // ---- the shell (bounded) ----
   vec3 sq = p - vec3(.2 + .05*wn - .08*lu, .8 - .03*wn, .05);
@@ -445,9 +446,9 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
     float k = fract(lp.x);
     float lines = .85 + .15*sin(lp.x*6.2832*6.);
     if (min(k, 1. - k) < .04) return sh*.35;
-    float cr = abs(vnoise(p*vec3(5., 6., 5.) + 2.) - .5) + .3*abs(vnoise(p*14.) - .5);
-    if (cr < .03) { m = 3.; return .55 + .35*(sin(T*2.5 + p.y*8.)*.5 + .5); }
-    if (cr < .055) return sh*.45;
+    float cr = abs(vnoise(p*vec3(2.6, 3.2, 2.6) + 2.) - .5) + .12*abs(vnoise(p*12.) - .5);
+    if (cr < .022) { m = 3.; return .55 + .35*(sin(T*2.5 + p.y*8.)*.5 + .5); }
+    if (cr < .04) return sh*.4;
     return sh*lines*(.85 + .25*vnoise(p*20.));
   }
   if (m == 1.) {   // wet, mottled slime
@@ -470,10 +471,10 @@ export const skeleton = {
   name: "Bone Legion", w: 290, h: 210, ground: 0, offX: 0.0, scale: 0.3, pitch: 0.18,
   palettes: [
     ["#1e1a14", "#3e382c", "#6a6250", "#9a9178", "#c8c0a4", "#ece6d2"],   // 1 bone
-    ["#140a06", "#2e160c", "#4e2a14", "#74401e", "#9a5e2c", "#c08448"],   // 2 rusty iron
+    ["#100a08", "#22140e", "#3a2216", "#56341e", "#744a2a", "#946640"],   // 2 rusty iron
     ["#002a3a", "#005a78", "#0aa0c8", "#40d8ff", "#a0f0ff", "#f0ffff"],   // 3 eye fire
     ["#050404", "#0e0a0a", "#1a1414", "#261e1c", "#342824", "#40322c"],   // 4 hollows
-    ["#160608", "#300c10", "#4e1418", "#6e2020", "#8c3428", "#a85038"],   // 5 cloth
+    ["#120608", "#240c0e", "#3a1414", "#521e1a", "#6c2c22", "#86402e"],   // 5 cloth
     ["#14100a", "#2c2214", "#48381e", "#66502a", "#86683a", "#a8864e"],   // 6 shield wood
     ["#1a1c20", "#353a40", "#565c64", "#7c848c", "#a8b0b6", "#d8dee2"],   // 7 blade steel
   ],
@@ -493,8 +494,10 @@ export const skeleton = {
   glsl: `
 // one skeleton warrior, standing at the origin facing -x, about 1.55 tall.
 // ph: its own time offset; at, wd: its own strike and wind-up.
+float WS = 1.;
+#define UW(dd, nd, mm, ll) U(dd, (nd)*WS, mm, ll)
 void warrior(inout float d, vec3 p, float ph, float at, float wd, float wk){
-  if (sdBox(p - vec3(-.18, 1., 0.), vec3(.95, 1.15, .5)) > .25) { d = min(d, sdBox(p - vec3(-.18, 1., 0.), vec3(.95, 1.15, .5))); return; }
+  if (sdBox(p - vec3(-.18, 1., 0.), vec3(.95, 1.15, .5)) > .25) { d = min(d, sdBox(p - vec3(-.18, 1., 0.), vec3(.95, 1.15, .5))*WS); return; }
   float t = T + ph;
   float br = .012*sin(t*2.1);
   vec3 q = p;
@@ -505,34 +508,34 @@ void warrior(inout float d, vec3 p, float ph, float at, float wd, float wk){
   for (int s = -1; s <= 1; s += 2) {
     float fs = float(s);
     float st = sin(WALK*6.283 + fs*1.57 + ph);
-    vec3 hip = vec3(0., .74 - .03*wk, .09*fs);
+    vec3 hip = vec3(0., .7 - .03*wk, .09*fs);
     vec3 ft = vec3(fs < 0. ? -.2 : .2, .03, .13*fs);
     ft.x += .18*st*wk; ft.y += max(0., cos(WALK*6.283 + fs*1.57 + ph))*.1*wk;
-    vec3 kn = mix(hip, ft, .5) + vec3(-.08, .02, 0.);
+    vec3 kn = mix(hip, ft, .5) + vec3(-.12, .02, 0.);
     float lg = min(sdCapT(p, hip, kn, .038, .03), sdCapT(p, kn, ft + vec3(0., .04, 0.), .03, .024));
     lg = min(lg, length(p - kn) - .042);
     lg = min(lg, sdCapT(p, ft + vec3(.03, .03, 0.), ft + vec3(-.11, 0., 0.), .03, .02));
-    U(d, lg + cr, 1., p);
+    UW(d, lg + cr, 1., p);
   }
   // pelvis, spine, ribs
-  U(d, sdRBox(q - vec3(0., .78, 0.), vec3(.07, .06, .13), .04) + cr, 1., q);
-  U(d, sdCapT(q, vec3(.03, .8, 0.), vec3(.02, 1.3, 0.), .03, .026) + cr, 1., q);
+  UW(d, sdRBox(q - vec3(0., .78, 0.), vec3(.07, .06, .13), .04) + cr, 1., q);
+  UW(d, sdCapT(q, vec3(.03, .8, 0.), vec3(.02, 1.3, 0.), .03, .026) + cr, 1., q);
   vec3 rq = q - vec3(-.02, 1.08, 0.);
   float cage = abs(length(rq/vec3(.14 + br, .19, .17 + br)) - 1.)*.14 - .014;
   cage = max(cage, abs(fract(rq.y*14. + .5) - .5)*.07 - .016);   // separate ribs
   cage = max(cage, rq.y - .16); cage = max(cage, -rq.y - .19);
   cage = max(cage, -(rq.x + .12 - abs(rq.z)*.3));               // open at the front
-  U(d, cage + cr, 1., rq);
-  U(d, sdCapT(q, vec3(-.12, 1.2, 0.), vec3(-.13, .96, 0.), .02, .012), 1., q);   // sternum
+  UW(d, cage + cr, 1., rq);
+  UW(d, sdCapT(q, vec3(-.12, 1.2, 0.), vec3(-.13, .96, 0.), .02, .012), 1., q);   // sternum
   // ragged cloth wraps round the hips and a sash over the chest
   vec3 cq = q - vec3(0., .66, 0.);
-  float sk = sdCapT(cq, vec3(0., .14, 0.), vec3(0., -.12, 0.), .15, .2);
-  sk = max(abs(sk) - .012, -cq.y - .14 - .1*vnoise(cq*vec3(30., 1., 30.)) + .04*sin(t*2. + cq.x*12.));
+  float sk = sdCapT(cq, vec3(0., .14, 0.), vec3(0., -.12, 0.), .12, .15);
+  sk = max(abs(sk) - .01, -cq.y - .04 - .16*vnoise(cq*vec3(34., 1., 34.)) + .03*sin(t*2. + cq.x*12.));
   sk = max(sk, cq.y - .14);
-  U(d, sk, 5., cq);
-  float sash = sdCapT(q, vec3(.0, 1.26, .15), vec3(-.12, .82, -.14), .045, .04);
+  UW(d, sk, 5., cq);
+  float sash = sdCapT(q, vec3(.0, 1.26, .15), vec3(-.12, .82, -.14), .028, .024);
   sash = max(sash, -sdCapT(q, vec3(.0, 1.26, .15), vec3(-.12, .82, -.14), .0, .0) - .06);
-  U(d, sash, 5., q);
+  UW(d, sash, 5., q);
   // skull with a dented rusty helmet and a hanging jaw
   vec3 hq = q - vec3(-.04, 1.43 + br*.5, 0.);
   hq.xy = R(.08*sin(t*1.3) - .15*at) * hq.xy;
@@ -541,30 +544,36 @@ void warrior(inout float d, vec3 p, float ph, float at, float wd, float wk){
   // the eye sockets: dark hollows with blue fire inside
   float so = 1e5;
   for (int s = -1; s <= 1; s += 2) so = min(so, length((hq - vec3(-.11, -.02, .045*float(s)))/vec3(.8, 1., 1.)) - .034);
-  U(d, max(sk2 + cr, -so), -so > sk2 - .006 ? 4. : 1., hq);
+  UW(d, max(sk2 + cr, -so), -so > sk2 - .006 ? 4. : 1., hq);
   for (int s = -1; s <= 1; s += 2) {
     vec3 e = hq - vec3(-.1, -.02, .045*float(s));
     float eye = length(e) - .014 - .004*sin(t*9. + float(s));
-    U(d, eye, 3., e); E(eye - .01);
+    UW(d, eye, 3., e); E((eye - .01)*WS);
   }
   vec3 jq = hq - vec3(-.04, -.11, 0.); jq.xy = R(-.25*at - .1*wd - .05*sin(t*1.7)) * jq.xy;
-  U(d, sdRBox(jq - vec3(-.03, -.02, 0.), vec3(.05, .018, .06), .015) + cr, 1., jq);
-  for (int i = -1; i <= 1; i++) U(d, sdBox(hq - vec3(-.12, -.095, .025*float(i)), vec3(.01, .014, .008)), 1., hq);   // teeth
+  UW(d, sdRBox(jq - vec3(-.03, -.02, 0.), vec3(.05, .018, .06), .015) + cr, 1., jq);
+  for (int i = -1; i <= 1; i++) UW(d, sdBox(hq - vec3(-.12, -.095, .025*float(i)), vec3(.01, .014, .008)), 1., hq);   // teeth
   vec3 hm = hq - vec3(.0, .03, 0.);
-  float helm = abs(length(hm/vec3(.145, .13, .13)) - 1.)*.13 - .012;
-  helm = max(helm, -hm.y + .0);
-  helm = min(helm, sdCylY(hm - vec3(0., .005, 0.), .16, .008));      // brim
-  helm = min(helm, sdCapT(hm, vec3(.0, .12, 0.), vec3(.03, .23, 0.), .02, .004));   // spike
+  float hr = .14*(1. - smoothstep(.0, .2, hm.y)*.75);
+  float helm = max(length(hm.xz) - hr, -hm.y);   // a tall pointed helm
+  helm = max(helm, hm.y - .21);
+  helm = max(helm, -(length(hm/vec3(.13, .11, .115)) - 1.)*.1 + .0);
+  helm = max(helm, -length(hm.xz) + hr - .02);
+  helm = min(helm, sdCapT(hm, vec3(.0, .19, 0.), vec3(.04, .27, 0.), .016, .003));   // spike
+  float wrap = max(abs(length(hm.xz) - .142) - .014, abs(hm.y - .03) - .03 - .01*sin(atan(hm.z, hm.x)*5.));   // a cloth band
+  UW(d, wrap, 5., hm);
+  vec3 tl = hm - vec3(.13, -.02, .0);   // a ragged tail of cloth down the back
+  UW(d, sdBox(tl - vec3(.0, -.12 + .0, .0), vec3(.01, .08 - .03*vnoise(tl*30.), .03)) - .004, 5., tl);
   helm = min(helm, sdBox(hm - vec3(-.14, -.04, 0.), vec3(.008, .06, .012)));   // nose guard
   helm += .008*vnoise(hm*24.);
-  U(d, helm, 2., hm);
+  UW(d, helm, 2., hm);
   // sword arm (near side): raised on the wind-up, slashes down
   vec3 sh = vec3(.0, 1.24, -.19);
   vec3 hd = mix(vec3(-.28, .9, -.28), vec3(.05, 1.66, -.24), wd);
   hd = mix(hd, vec3(-.56, .84, -.26), at);
   vec3 el = (sh + hd)*.5 + vec3(.1, -.1 + .1*wd, -.06);
-  U(d, min(sdCapT(q, sh, el, .03, .024), sdCapT(q, el, hd, .024, .02)) + cr, 1., q);
-  U(d, min(length(q - el) - .032, length(q - sh) - .045), 1., q);
+  UW(d, min(sdCapT(q, sh, el, .03, .024), sdCapT(q, el, hd, .024, .02)) + cr, 1., q);
+  UW(d, min(length(q - el) - .032, length(q - sh) - .045), 1., q);
   // the scimitar: a curved blade in the arm's swing plane
   float ba = mix(mix(.75, 2.5, wd), -.55, at);
   vec3 bq = q - hd;
@@ -574,34 +583,36 @@ void warrior(inout float d, vec3 p, float ph, float at, float wd, float wk){
   float wdt = mix(.022, .045, smoothstep(.1, .5, u))*(1. - smoothstep(.5, .66, u)) + .004;
   float bl = max(abs(bq.y - cv) - wdt, abs(u - .34) - .32);
   bl = max(bl, abs(bq.z) - .008);
-  U(d, bl*.8, 7., vec3(u, bq.y - cv, wdt));
-  U(d, sdBox(bq - vec3(.0, .0, 0.), vec3(.012, .05, .016)), 2., bq);   // crossguard
-  U(d, sdCap(bq, vec3(.0, 0., 0.), vec3(.1, 0., 0.), .016), 5., bq);   // grip
+  UW(d, bl*.8, 7., vec3(u, bq.y - cv, wdt));
+  UW(d, sdBox(bq - vec3(.0, .0, 0.), vec3(.012, .05, .016)), 2., bq);   // crossguard
+  UW(d, sdCap(bq, vec3(.0, 0., 0.), vec3(.1, 0., 0.), .016), 5., bq);   // grip
   // shield arm (far side): a round rusty shield held forward
   vec3 sh2 = vec3(.02, 1.24, .19);
   vec3 hd2 = vec3(-.22, 1.0 + .08*wd, .2) + vec3(-.04*at, 0., 0.);
   vec3 el2 = (sh2 + hd2)*.5 + vec3(.05, -.1, .05);
-  U(d, min(sdCapT(q, sh2, el2, .03, .024), sdCapT(q, el2, hd2, .024, .02)) + cr, 1., q);
+  UW(d, min(sdCapT(q, sh2, el2, .03, .024), sdCapT(q, el2, hd2, .024, .02)) + cr, 1., q);
   vec3 sq = q - hd2 - vec3(-.05, 0., .02);
-  sq.xz = R(.35) * sq.xz;
+  sq.xz = R(-.5) * sq.xz;
   float shd = sdCylY(sq.yxz, .2, .02) - .01;
   shd = smin(shd, length(sq - vec3(-.02, 0., 0.)) - .055, .02);   // the boss
   shd += .005*vnoise(sq*30.);
-  U(d, shd, length(sq.yz) > .17 || length(sq.yz) < .06 ? 2. : 6., sq);
+  UW(d, shd, length(sq.yz) > .17 || length(sq.yz) < .06 ? 2. : 6., sq);
 }
 float map(vec3 p){
   float d = 1e5;
   float a0 = smoothstep(0., .6, ATK), a1 = smoothstep(.2, .8, ATK), a2 = smoothstep(.4, 1., ATK);
   float wk = smoothstep(0., .3, abs(sin(WALK*3.1416)));
   // two behind, a little smaller, then the leader in front
-  vec3 p1 = (p - vec3(.42, 0., .42)) / .9;
-  p1.xz = R(.12) * p1.xz;
+  WS = .84;
+  vec3 p1 = (p - vec3(.55, 0., -.05)) / WS;
+  p1.xz = R(.15) * p1.xz;
   warrior(d, p1, 1.7, a1, WIND*(1. - a1), wk);
-  vec3 p2 = (p - vec3(-.32, 0., .55)) / .86;
-  p2.xz = R(-.1) * p2.xz;
+  WS = .8;
+  vec3 p2 = (p - vec3(-.2, 0., .6)) / WS;
+  p2.xz = R(-.12) * p2.xz;
   warrior(d, p2, 3.1, a2, WIND*(1. - a2), wk);
-  d *= .86;
-  vec3 p0 = p - vec3(-.05, 0., -.2);
+  WS = 1.;
+  vec3 p0 = p - vec3(-.15, 0., -.25);
   warrior(d, p0, 0., a0, WIND*(1. - a0), wk);
   return d;
 }
@@ -611,8 +622,9 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
     if (c < .02) return sh*.4;
     return sh*(.82 + .25*vnoise(p*18.)) - .04*(1. - n.y);
   }
-  if (m == 2.) {   // rusty iron, pitted
+  if (m == 2.) {   // dented iron eaten by rust
     float r = vnoise(p*16.) + .5*vnoise(p*40.);
+    if (r < .72) { m = 7.; return sh*.85 + .05; }
     return sh*(.7 + .35*r) + (r > 1.1 ? .12 : 0.);
   }
   if (m == 5.) return sh*(.8 + .3*vnoise(p*vec3(40., 6., 40.)));   // frayed cloth threads

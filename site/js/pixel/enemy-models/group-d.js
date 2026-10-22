@@ -492,18 +492,20 @@ float map(vec3 p){
     }
   }
   // a long burnt coat hanging off the shoulders in tatters, swaying
-  vec3 k = t - vec3(.14, 1.1, 0.);
-  float bx5 = sdBox(k, vec3(.3, .7, .45)); if (bx5 >= .1) d = min(d, bx5); else {
-    float lo = 1. - smoothstep(-.1, .5, k.y);
-    k.x -= .05*sin(T*1.6 + k.y*4. + k.z*6.)*lo + .15*lo;
-    float coat = abs(length(k.xz*vec2(1.3, 1.) + vec2(.22, 0.)) - .42 - .12*lo) - .014;
-    coat = max(coat, -k.x - .04);
-    coat = max(coat, k.y - .56);
-    float rag = -.78 + .45*pow(abs(sin(k.z*9. + 1.)), .7) + .14*vnoise(vec3(k.z*24., 0., 0.));
+  vec3 k = t - vec3(.12, 1.1, 0.);
+  float bx5 = sdBox(k, vec3(.4, .75, .5));
+  if (bx5 >= .1) d = min(d, bx5); else {
+    float lo = smoothstep(.5, -.7, k.y);
+    float wv = .05*sin(T*1.6 + k.z*6. + k.y*4.)*lo;
+    float sx = k.x - (.18*lo*lo + 1.3*k.z*k.z*(1. - .4*lo) + wv);
+    float coat = abs(sx) - .022;
+    coat = max(coat, abs(k.z) - .3 - .1*lo);
+    coat = max(coat, k.y - .54);
+    float rag = -.8 + .5*pow(abs(sin(k.z*11. + 1.)), .6) + .15*vnoise(vec3(k.z*24., 0., 0.));
     coat = max(coat, rag - k.y);
-    coat = max(coat, -(vnoise(k*9.) - .74)*.1);   // burnt holes
-    U(d, coat, 4., k);
-    U(d, sdEll(k - vec3(-.12, .55, 0.), vec3(.16, .06, .34)), 4., k);   // the torn collar
+    coat = max(coat, (vnoise(k*7. + 2.) - .8)*.1);   // a few burnt holes
+    U(d, coat*.8, 4., k);
+    U(d, sdEll(k - vec3(-.1, .52, 0.), vec3(.14, .06, .32)), 4., k);   // the torn collar
   }
   return d;
 }
@@ -534,7 +536,7 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
 // forward.
 const gunPose = (P) => {
   const b = 1 - Math.min(1, Math.max(0, (P.open || 0) * 3)), w = P.wind || 0, at = P.atk || 0;
-  const S = [-0.26, 1.0, -0.1], SW = [-0.2, 1.2, -0.12], SA = [0.07, 0.03], BW = [-0.02, 1.26, -0.14], BA = [-0.5, 1.12, -0.12];
+  const S = [-0.28, 1.0, -0.24], SW = [-0.2, 1.2, -0.24], SA = [0.07, 0.03], BW = [-0.02, 1.26, -0.26], BA = [-0.5, 1.12, -0.12];
   let G = S.map((v, i) => v + (SW[i] - v) * w * (1 - b) + (BW[i] - v) * w * b);
   G = [G[0] + SA[0] * at * (1 - b) + (BA[0] - BW[0]) * at * b, G[1] + SA[1] * at * (1 - b) + (BA[1] - BW[1]) * at * b, G[2]];
   const ang = -0.28 + 0.28 * w * (1 - b) + 0.16 * at * (1 - b) + 2.5 * w * b + 3.05 * at * b;
@@ -555,7 +557,7 @@ export const gunner = {
   glow: ["#5a0606", "#ff2a14", "#ffb0a0", "#5a0606", "#ff3424", "#ffc0b0"],
   anchors: {
     core: [0, 0.95, 0], head: [-0.16, 1.45, 0], feet: [0, 0, 0],
-    muzzle: (P) => gunAt(P, -0.62, 0.035), weapon: (P) => gunAt(P, 0.3, -0.02),
+    muzzle: (P) => gunAt(P, -0.84, 0.05), weapon: (P) => gunAt(P, 0.4, -0.02),
   },
   idle: (t) => ({ bob: Math.sin(t * 2.6) * 0.008, lean: Math.sin(t * 1.1) * 0.012 + (Math.sin(t * 7.3) > 0.97 ? 0.02 : 0) }),
   glsl: LIB + `
@@ -585,8 +587,8 @@ float map(vec3 p){
   float ang = atan(pq.z, pq.x);
   float lo = smoothstep(.0, -.5, pq.y);
   pq.x -= .04*sin(T*1.8 + pq.z*5.)*lo;
-  float pon = sdCapT(pq*vec3(1., 1., .92), vec3(0., .02, 0.), vec3(.03, -.48, 0.), .13, .38) + .015*sin(ang*7. + pq.y*3.);
-  pon = max(pon, -(pq.y + .5 - .1*abs(sin(ang*4.5 + .5)) - .05*vnoise(vec3(ang*9., 0., 0.))));
+  float pon = sdCapT(pq*vec3(1., 1., .92), vec3(0., .02, 0.), vec3(.03, -.42, 0.), .13, .33) + .015*sin(ang*7. + pq.y*3.);
+  pon = max(pon, -(pq.y + .44 - .1*abs(sin(ang*4.5 + .5)) - .05*vnoise(vec3(ang*9., 0., 0.))));
   pon = max(pon, -sdCapT(pq, vec3(0., -.1, 0.), vec3(.03, -.7, 0.), .09, .33));   // hollow inside
   U(d, pon, 4., pq);
   U(d, sdTorZ((pq - vec3(0., .02, 0.)).xzy, .12, .04), 4., pq);   // a rolled collar
@@ -606,8 +608,8 @@ float map(vec3 p){
     U(d, sdCylY(fq.yxz - vec3(0., -.075, 0.), .045, .01), 1., fq);
     // the single big red eye, off-centre on the near side
     vec3 e = h - vec3(-.13, .03, -.045);
-    U(d, sdTorZ(e.zyx, .055, .015), 6., e);   // the lens rim
-    float eye = sdEll(e - vec3(-.005, 0., 0.), vec3(.03, .045, .045));
+    U(d, sdTorZ(e.zyx, .062, .016), 6., e);   // the lens rim
+    float eye = sdEll(e - vec3(-.005, 0., 0.), vec3(.035, .055, .055));
     U(d, eye, 3., e); E(eye - .012);
     U(d, sdEll(h - vec3(-.12, .04, .06), vec3(.02, .025, .025)), 5., h);   // a dead socket on the far side
     for (int s = -1; s <= 1; s += 2) {   // hoses to the back
@@ -620,30 +622,30 @@ float map(vec3 p){
     U(d, length(h - vec3(.24, .34, .05)) - .016, 3., h);
   }
   // the rifle, in local space: barrel along -x, stock at +x
-  vec3 G = vec3(-.26, 1., -.1);
-  G += (vec3(-.2, 1.2, -.12) - vec3(-.26, 1., -.1))*WIND*(1. - b) + (vec3(-.02, 1.26, -.14) - vec3(-.26, 1., -.1))*WIND*b;
+  vec3 G = vec3(-.28, 1., -.24);
+  G += (vec3(-.2, 1.2, -.24) - vec3(-.28, 1., -.24))*WIND*(1. - b) + (vec3(-.02, 1.26, -.26) - vec3(-.28, 1., -.24))*WIND*b;
   G.xy += vec2(.07, .03)*ATK*(1. - b) + vec2(-.48, -.14)*ATK*b;
   float ga = -.28 + .28*WIND*(1. - b) + .16*ATK*(1. - b) + 2.5*WIND*b + 3.05*ATK*b;
-  vec3 r = q - G; r.xy = R(-ga) * r.xy;
+  vec3 r = q - G; r.xy = R(-ga) * r.xy; r /= 1.35;
   float bx2 = sdBox(r - vec3(-.1, 0., 0.), vec3(.6, .2, .08));
   if (bx2 >= .1) d = min(d, bx2); else {
-    U(d, sdRBox(r - vec3(-.12, .02, 0.), vec3(.16, .045, .03), .01), 6., r);      // receiver
-    U(d, sdCylY((r - vec3(-.44, .035, 0.)).yxz, .016, .18), 6., r);              // barrel
-    U(d, sdCylY((r - vec3(-.38, .035, 0.)).yxz, .03, .08), 6., r);               // a ventilated shroud
-    U(d, sdCylY((r - vec3(-.6, .035, 0.)).yxz, .024, .025), 6., r);              // muzzle brake
-    U(d, sdRBox(r - vec3(-.16, .1, 0.), vec3(.07, .022, .02), .008), 6., r);     // scope
+    U(d, (sdRBox(r - vec3(-.12, .02, 0.), vec3(.16, .045, .03), .01))*1.35, 6., r);      // receiver
+    U(d, (sdCylY((r - vec3(-.44, .035, 0.)).yxz, .016, .18))*1.35, 6., r);              // barrel
+    U(d, (sdCylY((r - vec3(-.38, .035, 0.)).yxz, .03, .08))*1.35, 6., r);               // a ventilated shroud
+    U(d, (sdCylY((r - vec3(-.6, .035, 0.)).yxz, .024, .025))*1.35, 6., r);              // muzzle brake
+    U(d, (sdRBox(r - vec3(-.16, .1, 0.), vec3(.07, .022, .02), .008))*1.35, 6., r);     // scope
     vec3 mg = r - vec3(-.12, -.07, 0.); mg.xy = R(-.25) * mg.xy;
     U(d, sdRBox(mg, vec3(.03, .08, .022), .008), 1., mg);                       // magazine
-    U(d, extrude(sdTrap((r - vec3(.15, -.01, 0.)).yx, .055, .03, .14), r.z, .022), 7., r);   // wooden stock
-    U(d, sdRBox(r - vec3(.02, -.07, 0.), vec3(.022, .05, .018), .008), 7., r);  // grip
-    U(d, sdCap(r, vec3(-.03, .0, 0.), vec3(.1, .05, .0), .007), 5., r);        // a strap
+    U(d, (extrude(sdTrap((r - vec3(.15, -.01, 0.)).yx, .055, .03, .14), r.z, .022))*1.35, 7., r);   // wooden stock
+    U(d, (sdRBox(r - vec3(.02, -.07, 0.), vec3(.022, .05, .018), .008))*1.35, 7., r);  // grip
+    U(d, (sdCap(r, vec3(-.03, .0, 0.), vec3(.1, .05, .0), .007))*1.35, 5., r);        // a strap
   }
   // arms: from under the poncho to the grip and the foregrip
   vec3 cg = vec3(cos(ga), sin(ga), 0.), cu = vec3(-sin(ga), cos(ga), 0.);
   for (int s = -1; s <= 1; s += 2) {
     float fs = float(s);
-    vec3 H = fs < 0. ? G + cg*.02 - cu*.06 + vec3(0., 0., -.03) : G - cg*.26 - cu*.01 + vec3(0., 0., .05);
-    vec3 El = vec3(.02, 1.0, .2*fs) + (H - vec3(-.26, 1., -.1))*.4;
+    vec3 H = fs < 0. ? G + cg*.03 - cu*.08 + vec3(0., 0., -.02) : G - cg*.35 - cu*.01 + vec3(0., 0., .04);
+    vec3 El = vec3(.0, 1.0, .24*fs) + (H - vec3(-.28, 1., -.24))*.45 + vec3(0., 0., -.1);
     vec3 S = vec3(.0, 1.25, .17*fs);
     U(d, sdCap(t, S, El, .035), 1., t);
     U(d, sdCapT(q, El, H, .04, .03), 1., q);
@@ -686,7 +688,7 @@ const knightBlade = (P, k) => { const { H, a } = knightSword(P); return [H[0] + 
 export const knight = {
   name: "Fallen Knight", w: 250, h: 260, ground: 0, scale: 0.42, pitch: 0.12, offX: -0.38,
   palettes: [
-    ["#050508", "#0c0c12", "#16161e", "#22222c", "#32323e", "#4a4a58"],   // 1 blackened plate
+    ["#060609", "#101017", "#1c1c26", "#2c2c38", "#444454", "#6a6a7c"],   // 1 blackened plate
     ["#060406", "#0e0a0e", "#181218", "#221a22", "#2e242e", "#3c303c"],   // 2 mail, leather, joints
     ["#1e0838", "#4a1488", "#8a3ae8", "#c08aff", "#e8d2ff", "#ffffff"],   // 3 violet glow (visor, cracks, runes)
     ["#0e0306", "#20060c", "#360c14", "#4e141e", "#681e28", "#842a34"],   // 4 cape (dark crimson)
@@ -724,8 +726,8 @@ float map(vec3 p){
   // fauld: stepped plates skirting the hips, mail beneath
   vec3 fq = q - vec3(.0, 1.02, 0.);
   float fang = atan(fq.z, fq.x);
-  U(d, sdCapT(fq, vec3(0., .08, 0.), vec3(0., -.12, 0.), .24, .3), 2., fq);
-  float fau = sdCapT(fq, vec3(0., .1, 0.), vec3(0., -.1, 0.), .27, .34);
+  U(d, sdCapT(fq, vec3(0., .08, 0.), vec3(0., -.12, 0.), .2, .22), 2., fq);
+  float fau = sdCapT(fq*vec3(1., 1., .9), vec3(0., .1, 0.), vec3(0., -.12, 0.), .25, .3);
   fau = max(fau, -fq.y - .1 + .05*step(.5, fract(fang*2.2)));
   U(d, fau, 1., fq);
   // the breastplate: a broad barrel chest with a ridge
@@ -736,18 +738,18 @@ float map(vec3 p){
   U(d, chest, 1., c);
   U(d, sdCylY(c - vec3(-.01, .3, 0.), .17, .07) - .02, 2., c);   // gorget
   U(d, sdTorZ((c - vec3(.0, -.33, 0.)).xzy, .25, .025), 7., c);  // belt
-  // the cape, tattered, sweeping out behind
-  vec3 k = q - vec3(.2, 1.0, 0.);
-  float bx1 = sdBox(k, vec3(.35, .85, .5));
+  // the cape: a broad tattered sheet hanging from the shoulders, swaying
+  vec3 k = q - vec3(.16, 1.0, 0.);
+  float bx1 = sdBox(k, vec3(.4, .85, .55));
   if (bx1 >= .1) d = min(d, bx1); else {
-    float lo = smoothstep(.6, -.6, k.y);
-    k.x -= .25*lo*lo + .05*sin(T*1.3 + k.z*5. + k.y*3.)*lo;
-    float cape = abs(length(k.xz*vec2(1.4, 1.) + vec2(.25, 0.)) - .42 - .1*lo) - .016;
-    cape = max(cape, -k.x - .05);
-    cape = max(cape, k.y - .62);
-    float rag = -.85 + .45*pow(abs(sin(k.z*8. + 2.)), .6) + .15*vnoise(vec3(k.z*20., 0., 0.));
+    float lo = smoothstep(.6, -.7, k.y);
+    float wv = .04*sin(T*1.3 + k.z*6. + k.y*3.)*lo;
+    float sx = k.x - (.2*lo*lo + 1.1*k.z*k.z*(1. - .5*lo) + wv);
+    float cape = abs(sx) - .018;
+    cape = max(cape, abs(k.z) - .34 - .12*lo);
+    cape = max(cape, k.y - .64);
+    float rag = -.88 + .4*pow(abs(sin(k.z*9. + 2.)), .6) + .15*vnoise(vec3(k.z*20., 0., 0.));
     cape = max(cape, rag - k.y);
-    cape = max(cape, -(vnoise(k*8. + 3.) - .78)*.1);
     U(d, cape, 4., k);
   }
   // pauldrons: layered plates with spikes
@@ -826,8 +828,8 @@ float map(vec3 p){
 float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
   if (m == 1.) {
     // cracks in the plate leaking violet light
-    float v = abs(vnoise(lp*vec3(9., 6., 9.) + 5.) - .5) + abs(vnoise(lp*23. + 1.) - .5)*.35;
-    if (v < .03) { m = 3.; return .55 + .35*sin(T*2.5 + lp.y*9.); }
+    float v = abs(vnoise(lp*vec3(7., 5., 7.) + 5.) - .5);
+    if (v < .028 && vnoise(lp*3. + 11.) > .45) { m = 3.; return .55 + .35*sin(T*2.5 + lp.y*9.); }
     return sh*.9 + .06*vnoise(lp*40.) + .08*pow(max(n.y, 0.), 3.);
   }
   if (m == 6. && abs(lp.y) < .012 && lp.x > .2 && lp.x < .95) { m = 3.; return .5 + .4*sin(T*3. - lp.x*12.); }   // a glowing fuller

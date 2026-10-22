@@ -219,6 +219,7 @@ class Sound {
     this.timer = null;
     if (!song || !this.ready) return;
     if (song === "victory" || song === "defeat") return this.jingle(song);
+    this.theme = THEMES[song] || null;   // a biome's theme (Addendum K), else the boss theme
     // A look-ahead scheduler: every 25 ms, queue the notes due in the next 120 ms.
     this.step = 0;
     this.nextAt = this.ctx.currentTime + 0.12;
@@ -231,9 +232,12 @@ class Sound {
     if (this.nextAt < c.currentTime - 0.2) this.nextAt = c.currentTime + 0.05;   // after a pause, don't play a backlog
     while (this.nextAt < c.currentTime + 0.12) {
       // it speeds up as things get desperate: 148 to 166 BPM
-      const bpm = 160 + 18 * this.intensity, sixteenth = 60 / bpm / 4;
-      this.playStep(this.step, this.nextAt, sixteenth);
-      this.step = (this.step + 1) % (SONG.length * 16);
+      const T = this.theme;
+      const bpm = T ? T.bpm * (1 + 0.06 * this.intensity) : 160 + 18 * this.intensity, sixteenth = 60 / bpm / 4;
+      // swing: every other 16th is late (the swamp's lurch)
+      const at = T?.swing && this.step % 2 ? this.nextAt + sixteenth * T.swing * 0.5 : this.nextAt;
+      if (T) this.playTheme(T, this.step, at, sixteenth); else this.playStep(this.step, at, sixteenth);
+      this.step = (this.step + 1) % ((T ? T.prog.length : SONG.length) * 16);
       this.nextAt += sixteenth;
     }
   }
@@ -284,6 +288,49 @@ class Sound {
     // the alarm when your teammate is in trouble
     if (low && (s === 0 || s === 8)) { this.pulse("square", 91, t, len * 3, 0.06, out, 0.5); this.pulse("square", 90, t + len * 3, len * 3, 0.06, out, 0.5); }
   }
+  // One 16th of a biome theme (THEMES below). Lighter than the boss theme:
+  // drums, a bass line, the lead and one colour layer of its own; more hats
+  // and the lead up an octave as the fight gets close, and the same alarm when
+  // your teammate is low.
+  playTheme(T, step, t, len) {
+    const out = this.musicBus, bar = Math.floor(step / 16), s = step % 16, lvl = this.intensity, mid = lvl > 0.4, hot = lvl > 0.7;
+    const deg = (d) => { const o = Math.floor(d / 7), i = ((d % 7) + 7) % 7; return T.tonic + 12 * o + T.scale[i]; };
+    const root = T.prog[bar % T.prog.length], chord = [root, root + 2, root + 4].map(deg);
+    const D = T.drums;
+    if (D.kick.includes(s) || (hot && D.kick2?.includes(s))) { this.tone("sine", D.kickF || 150, 38, t, 0.16, D.kickV ?? 0.8, { to: out }); this.noise(t, 0.015, 0.2, { type: "lowpass", f0: 2500, to: out }); }
+    if (D.snare.includes(s)) { this.noise(t, D.snareLen || 0.12, D.snareV ?? 0.4, { type: "bandpass", f0: D.snareF || 1800, q: 0.8, to: out }); }
+    if (D.tom?.includes(s)) this.tone("triangle", [220, 180, 150, 120][s % 4], 80, t, 0.12, 0.35, { to: out });
+    if (D.block?.includes(s)) this.tone("square", 1250, 1100, t, 0.03, 0.08, { to: out });
+    const hatEvery = mid ? Math.max(1, D.hat / 2) : D.hat;
+    if (D.hat && s % hatEvery === 0) this.noise(t, 0.02, (s % 4 === 2 ? 0.1 : 0.06) * (D.hatV ?? 1), { type: "highpass", f0: 8000, to: out });
+    // bass: degrees above the chord's root (an octave or two down), null rests, "-" holds
+    const b = T.bass[s];
+    if (typeof b === "number") { let hold = 1; while (s + hold < 16 && T.bass[s + hold] === "-") hold++; this.pulse(T.bassWave || "triangle", deg(root + b) - 24 + (T.bassOct || 0), t, len * hold * 0.9, T.bassV ?? 0.5, out, 0.5); }
+    // lead: eighth notes over 4 bars, repeated (bars 5-8 the same tune over the next chords)
+    if (s % 2 === 0) {
+      const L = T.lead[bar % T.lead.length], n = L[s / 2];
+      if (typeof n === "number") {
+        let hold = 1; while (s / 2 + hold < 8 && L[s / 2 + hold] === "-") hold++;
+        const f = deg(n) + (hot ? 12 : 0), dur = len * 2 * hold * 0.92, V = T.leadV ?? 0.13;
+        if (T.leadWave === "flute" || T.leadWave === "theremin") this.tone("triangle", midi(f), midi(f), t, dur, V * 1.4, { to: out, vibrato: T.leadWave === "flute" ? [5.5, 4] : [3, 12], attack: 0.03 });
+        else if (T.leadWave === "bell") { this.tone("sine", midi(f), midi(f), t, dur * 1.6, V * 1.6, { to: out }); this.tone("sine", midi(f + 12), midi(f + 12), t, dur * 0.6, V * 0.5, { to: out }); this.tone("sine", midi(f), midi(f), t + len * 3, dur, V * 0.5, { to: out }); }   // with an echo
+        else if (T.leadWave === "saw") this.tone("sawtooth", midi(f), midi(f), t, dur, V * 0.6, { to: out, dist: true });
+        else if (T.leadWave === "organ") { this.pulse("square", f, t, dur, V, out, 0.5); this.pulse("square", f + 12, t, dur, V * 0.5, out, 0.25); }
+        else this.pulse("square", f, t, dur, V, out, T.duty || 0.25);
+      }
+    }
+    // the colour layer
+    const C = T.layer;
+    if (C === "harp" && s % 2 === 0) this.pulse("triangle", chord[(s / 2) % 3] + 12 * (1 + ((s / 2) >> 1) % 2), t, len * 1.8, 0.06, out);
+    if (C === "strum" && [2, 6, 10, 14].includes(s)) for (const n of chord) this.pulse("square", n - 12, t, len * 0.8, 0.035, out, 0.25);
+    if (C === "drone" && s === 0) { this.tone("sawtooth", midi(T.tonic - 24), midi(T.tonic - 24), t, len * 16, 0.05, { to: out }); this.tone("sawtooth", midi(T.tonic - 17), midi(T.tonic - 17), t, len * 16, 0.035, { to: out }); }
+    if (C === "glitter" && s % 3 === 0) this.tone("sine", midi(chord[s % 3] + 24), midi(chord[s % 3] + 24), t, len * 2, 0.04, { to: out });
+    if (C === "tremolo") this.pulse("square", chord[s % 2 ? 2 : 0] - 12, t, len * 0.6, 0.03, out, 0.125);
+    if (C === "bubbles" && Math.random() < 0.12) this.tone("sine", 600 + Math.random() * 900, 1500 + Math.random() * 900, t, 0.06, 0.03, { to: out });
+    if (C === "power" && [0, 3, 6, 10].includes(s)) for (const n of [chord[0], chord[0] + 7]) this.tone("sawtooth", midi(n - 12), midi(n - 12), t, len * 1.4, 0.04, { to: out, dist: true });
+    if (C === "pad" && s === 0) for (const n of chord) this.tone("triangle", midi(n - 12), midi(n - 12), t, len * 15, 0.05, { to: out, attack: 0.2 });
+    if ((this.danger.me > 0.66) && (s === 0 || s === 8)) { this.pulse("square", 91, t, len * 3, 0.05, out, 0.5); this.pulse("square", 90, t + len * 3, len * 3, 0.05, out, 0.5); }
+  }
   // A chiptune voice. duty: pulse width for square waves (0.125, 0.25 or 0.5).
   pulse(type, n, t, dur, peak, out, duty) {
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
@@ -312,6 +359,47 @@ class Sound {
     else { this.pulse("triangle", 38, end, 1.6, 0.4, out); this.pulse("square", 39, end, 1.6, 0.05, out); }
   }
 }
+
+// ---- The biome themes (Addendum K: each module's fights get their own music,
+// different from the boss). Melodies in scale degrees (0 = the tonic, 7 = an
+// octave up), "-" holds, null rests; 4 bars repeated over an 8-bar progression
+// of chord roots (scale degrees). Bass: degrees above each chord's root per 16th.
+const _ = null, H = "-";
+const SCALES = { dorian: [0, 2, 3, 5, 7, 9, 10], major: [0, 2, 4, 5, 7, 9, 11], phrygDom: [0, 1, 4, 5, 7, 8, 10], minor: [0, 2, 3, 5, 7, 8, 10], mixo: [0, 2, 4, 5, 7, 9, 10], harmonic: [0, 2, 3, 5, 7, 8, 11], phrygian: [0, 1, 3, 5, 7, 8, 10] };
+const THEMES = {
+  // a hushed, mysterious forest: a dorian flute over a harp, soft shaker
+  forest: { bpm: 108, tonic: 64, scale: SCALES.dorian, prog: [0, 0, 6, 6, 3, 3, 0, 4], leadWave: "flute", layer: "harp",
+    lead: [[4, H, 3, 2, 0, H, _, _], [2, H, 3, 4, 6, H, 4, H], [5, H, 4, 3, 2, H, 0, H], [1, H, 2, 3, 4, H, H, _]],
+    bass: [0, _, _, 4, _, _, 0, _, 0, _, _, 4, _, _, 2, _], drums: { kick: [0, 10], snare: [8], snareV: 0.2, hat: 2, hatV: 0.6 } },
+  // the overgrown ruins: a bright, bouncy adventure march
+  grassland: { bpm: 132, tonic: 67, scale: SCALES.major, prog: [0, 4, 5, 3, 0, 4, 3, 4], duty: 0.25, layer: "strum",
+    lead: [[4, _, 4, 5, 7, H, 4, _], [5, H, 4, 2, 4, H, H, _], [2, _, 2, 4, 5, H, 4, 2], [1, H, 2, 4, 0, H, H, _]],
+    bass: [0, _, 4, _, 0, _, 4, _, 0, _, 4, _, 2, _, 4, _], drums: { kick: [0, 8], kick2: [6, 14], snare: [4, 12], hat: 2 } },
+  // the bone dunes: a snake-charmer melody over a drone and hand drums
+  desert: { bpm: 100, tonic: 62, scale: SCALES.phrygDom, prog: [0, 0, 1, 0, 6, 6, 1, 0], duty: 0.125, layer: "drone", leadV: 0.12,
+    lead: [[7, 8, 7, 6, 7, H, _, _], [5, 6, 5, 4, 5, H, 4, H], [4, 5, 4, 2, 1, H, 2, H], [1, H, 2, 1, 0, H, H, _]],
+    bass: [0, _, _, 0, _, _, 0, _, _, _, 0, _, _, _, _, _], drums: { kick: [0, 7, 10], snare: [12], snareF: 900, tom: [3, 6, 11, 14] } },
+  // frostbite fields: slow, echoing bells over held roots and glitter
+  ice: { bpm: 88, tonic: 66, scale: SCALES.minor, prog: [0, 0, 5, 5, 3, 3, 4, 4], leadWave: "bell", layer: "glitter", leadV: 0.11,
+    lead: [[4, H, H, 3, 2, H, H, _], [0, H, 2, H, 3, H, H, _], [7, H, 6, H, 4, H, 2, H], [3, H, H, 2, 1, H, H, _]],
+    bass: [0, H, H, H, H, H, H, H, H, H, H, H, H, H, H, H], drums: { kick: [0], snare: [8], snareV: 0.15, snareLen: 0.05, hat: 4, hatV: 0.5 } },
+  // wreck beach: fast surf rock with a tremolo-picked guitar
+  beach: { bpm: 144, tonic: 69, scale: SCALES.mixo, prog: [0, 0, 6, 6, 3, 3, 0, 4], duty: 0.5, layer: "tremolo", leadV: 0.1,
+    lead: [[0, _, 0, 2, 4, H, 2, 0], [6, H, 4, H, 2, H, _, _], [3, _, 3, 4, 5, H, 4, 3], [4, H, H, 2, 0, H, _, _]],
+    bass: [0, _, 0, _, 0, _, 0, _, 4, _, 4, _, 6, _, 6, _], drums: { kick: [0, 6, 8], snare: [4, 12], hat: 1, hatV: 0.7 } },
+  // the witchmire: a swung, lurching theremin waltz with a tuba bass and bubbles
+  swamp: { bpm: 84, tonic: 60, scale: SCALES.harmonic, prog: [0, 0, 3, 3, 5, 4, 0, 4], leadWave: "theremin", layer: "bubbles", swing: 0.6, bassOct: -12, bassV: 0.6,
+    lead: [[4, H, 3, 2, 3, H, _, _], [2, H, 0, H, -1, H, 0, _], [5, H, 4, 3, 4, H, 2, H], [3, H, 2, H, 0, H, H, _]],
+    bass: [0, _, _, _, _, _, _, _, 4, _, _, _, 2, _, 3, _], drums: { kick: [0], snare: [8], snareV: 0.18, block: [6, 14] } },
+  // the scorched wastes: distorted, driving phrygian
+  wasteland: { bpm: 150, tonic: 59, scale: SCALES.phrygian, prog: [0, 0, 1, 0, 5, 5, 1, 6], leadWave: "saw", layer: "power", bassWave: "sawtooth", bassV: 0.22,
+    lead: [[0, H, 1, 0, _, 3, H, 1], [0, H, H, _, 4, 3, 1, 0], [5, H, 4, 3, 4, H, 1, H], [3, 1, 0, H, H, _, _, _]],
+    bass: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 1], drums: { kick: [0, 3, 6, 8, 11, 14], snare: [4, 12], hat: 1, hatV: 0.6 } },
+  // the fallen keep: a gothic organ march with snare rolls
+  castle: { bpm: 116, tonic: 62, scale: SCALES.minor, prog: [0, 0, 5, 5, 2, 2, 4, 4], leadWave: "organ", layer: "pad", leadV: 0.09,
+    lead: [[4, H, H, 5, 4, H, 3, H], [2, H, H, 3, 4, H, H, _], [7, H, 6, H, 5, H, 4, H], [5, H, 4, H, 3, H, H, _]],
+    bass: [0, _, _, _, 0, _, _, _, 4, _, _, _, 0, _, _, _], drums: { kick: [0, 8], snare: [4, 6, 12, 14], snareV: 0.3, snareLen: 0.06 } },
+};
 
 // ---- The battle theme: D harmonic minor, 16 bars ----
 // Tension comes from half-step rubs (D-Eb, G-Ab), the C#-diminished turnaround

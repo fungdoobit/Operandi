@@ -6,7 +6,7 @@ import { Dot, DOT_CSS } from "./dot.js";
 import { Runner } from "./runner.js";
 import { Store } from "./store.js";
 import { SHOP, LEVELS, DIFFS, EARN, BOSS, MANA, TIERS, LEVEL, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
-import { ENEMIES, enemyFor } from "./enemies.js";
+import { ENEMIES, enemyFor, MODULE_BIOME } from "./enemies.js";
 import { BattleStage, pixelateOut } from "./boss-fight.js";
 import { sound } from "./sound.js";
 import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard, countersFirewall } from "./boss-rules.js";
@@ -808,7 +808,7 @@ function enterLevelFight() {
     battleKey = key;
     dot.root.style.visibility = "hidden";
     dot.sayOverride = (text, opts) => battle?.say(text, opts);
-    sound.music("battle");
+    sound.music(MODULE_BIOME[f.module] || "forest");   // the biome's own theme
     battle.hp(f.me, f.foe); battle.mana(S().kit.mana);
     battle.intro();
   } else {

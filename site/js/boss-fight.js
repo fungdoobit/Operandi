@@ -150,7 +150,7 @@ export class BattleStage {
     this.ctx = { isBoss: this.isBoss, fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, toonBack: this.toonBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
-    sound.music("battle");
+    sound.music(this.isBoss ? "battle" : biome || this.enemy.biome);   // each biome has its own theme (Addendum K)
     // Browsers keep sound off until you tap the page. If you came straight
     // here (a page load), offer a button for it.
     if (!sound.ready) {
