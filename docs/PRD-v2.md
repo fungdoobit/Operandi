@@ -514,3 +514,52 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 - **No help on tries 1 and 2** in every fight (lessons included). Hints and peeks still work but cost mana. Solutions stay available outside boss fights (a solution pass gives 0 mana).
 - Entering a lesson or challenge has no page-pixelate transition (that stays for bosses): the enemy just resolves out of big pixel blocks.
 - Bosses keep their own mana pool (they start at 0), so the balanced 300-HP fight doesn't change.
+
+## Addendum L: playable characters and a true pixel-art style (draft 2026-10-22, awaiting answers and "go")
+
+**Problem.** Isaac (2026-10-22): the companions (DOT, PYRO) should go, replaced by real characters, keeping NOVA. The enemies built in Addendum K look like 3D models "pretending to be 2D pixel art"; he wants real 2D pixel art that uses shading to look solid, like his references (an RPG enemy sheet, a pixel treant, Fire Emblem-style character sprites, a blue-haired sword girl), at their resolution: not too low. The first character is a red-haired rogue assassin with a saber and a spear. Her basic attack copies the sword swing in his video, in red.
+
+**What the references have in common.** Hand-placed pixels with a limited palette per sprite, 3 to 5 shades per colour, a dark (not black) outline, light from the top left, selective anti-aliasing, and strong poses. Characters are about 48 to 80 px tall; enemies 32 to 110 px. The slash effect in the video: a big crescent in flat bands (white core, light, mid, deep), jagged spiky tips, a thin dark wisp trailing behind, the enemy flashing to a solid white silhouette during the hit-stop.
+
+**Success criteria.**
+- Isaac calls the heroine and the enemies "real pixel art" that matches his references.
+- The red saber slash reads as the one in the video.
+- Every level still works as in Addendum K (cards, mana, waves, no tips on tries 1-2); only the art and the fighters change.
+
+**Scope, IN (proposed).**
+- **Characters replace companions.** You fight as a character: the heroine (the starter) or NOVA (kept as she is). DOT and PYRO are retired; the roaming pet goes too (see open question 2).
+- **The heroine** (name to pick): red hair tied back, a rogue outfit (hood or scarf, leather, wraps), a saber and a spear. About 64 px tall in art pixels. Animations: idle, run-in, hurt, KO, win, plus a pose set for each ability.
+- **Her 7 cards** (proposal; same tiers as now):
+
+  | tier | card | what happens |
+  |---|---|---|
+  | basic | Crimson Slash | the video's swing in red |
+  | light | Twin Fang | two fast saber cuts in an X |
+  | medium | Piercing Lunge | a dash with the spear, a red line punching through |
+  | medium | Scarlet Whirl | a spinning spear sweep, a full circle of red |
+  | heavy | Rising Moon | an upward saber launch, then the spear driven down from the air |
+  | ultimate | Thousand Cuts | she blinks around the enemy in a flurry of red slashes, then sheathes: everything lands at once |
+  | ultimate II | Skyfall Lance | she hurls the spear into the sky and it falls as a giant blade of red light |
+
+- **Enemies redrawn as real 2D pixel art**: the same 18 enemies, attacks and HP, new sprites (idle, attack, hurt; a few frames each).
+- **Kept as they are**: the 8 biome backgrounds (already 2D pixel paintings), the card, mana and fight rules, the biome music, NOVA.
+
+**How the art gets made (the big decision; see open question 1).**
+- A. **I draw every sprite in code**, pixel by pixel (palette-indexed grids, frame by frame). Free and fully consistent, but slow, and every design needs your feedback rounds, like GOLEM did. Honest risk: matching professional sprite artists is hard; expect several rounds per character.
+- B. **Free or cheap asset packs** (itch.io and similar; many are free, CC0 or allow commercial use) for the enemies, and I draw the heroine. Fastest and closest to your enemy references (that sheet looks like a commercial pack), but you'd download them (I can't buy or log in), and we'd check each licence.
+- C. **A mix**: start with A for the heroine and one enemy as a style test, then decide.
+
+**Constraints.** Zero budget. The art takes many feedback rounds. Asset packs must allow use in a site that may charge later (RM80 plan).
+
+**Plan (smallest first, after "go").**
+1. Style test: the heroine's idle frame plus the red Crimson Slash on one redrawn enemy (Rotcap), in the forest. You approve the look before anything else.
+2. The heroine's full animation set and her 7 cards.
+3. Retire DOT and PYRO; the character select (the heroine or NOVA) replaces the teammate Shop cards.
+4. Redraw the enemies, module by module (Module 1 first).
+
+**Open questions.**
+1. Art: A (I draw everything), B (asset packs for enemies), or C (style test first)? Recommended: **C**.
+2. Without DOT, who gives the feedback, hints and error help (today DOT says them)? Options: the heroine speaks them, or a plain message panel with no mascot. Recommended: **the character you're playing speaks**, in a short dialogue box next to her portrait.
+3. GOLEM and NOVA are drawn in the 3D "hi-bit" style. Keep both for now (recommended, since you rated NOVA highly), or redraw GOLEM as 2D pixel art too?
+4. The heroine's name? (A few ideas: Scarlet, Rook, Kaela, Vex.)
+5. The cards above: OK, or changes?
