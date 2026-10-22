@@ -4,11 +4,12 @@
 // Each is rendered once into 16 spin frames; abilities stamp the frames with
 // props-px.js stamp() on a raw sprite layer.
 //   venus: swirling cream cloud bands     mars: rust red, dark plains, an ice cap
-//   uranus: cyan, its near-vertical rings  jupiter: turbulent bands, the Great Red Spot
+//   uranus: cyan, its near-vertical rings (also as uranusBody + uranusRingBack/Front, the ring tumbling)
+//   jupiter: turbulent bands, the Great Red Spot
 import { PixelGL } from "./pixel-gl.js";
 
 const MODEL = `
-uniform vec2 uRes; uniform float uKind, uSpin, uView;
+uniform vec2 uRes; uniform float uKind, uSpin, uView, uPart, uTumble;   // uPart: 0 all, 1 body only, 2 ring behind, 3 ring in front
 float fbm2(vec3 p){ return .55*vnoise(p) + .3*vnoise(p*2.1 + 7.) + .15*vnoise(p*4.3 + 3.); }
 out vec4 o;
 void main(){
@@ -16,10 +17,17 @@ void main(){
   float r2 = dot(uv, uv);
   // Uranus's rings: a tilted plane, almost edge-on and almost upright
   float ringT = 1e5, ringD = 0.;
-  if (uKind > 1.5 && uKind < 2.5) {
-    vec3 rn = normalize(vec3(.96, .12, .26)), ro = vec3(uv, -5.);
+  if (uKind > 1.5 && uKind < 2.5 && uPart != 1.) {
+    vec3 rn = vec3(.96, .12, .26); rn.xz = R(uTumble) * rn.xz; rn = normalize(rn);   // uTumble turns the ring about the vertical
+    vec3 ro = vec3(uv, -5.);
     float t = -dot(ro, rn) / rn.z; vec3 p = ro + vec3(0., 0., t); ringD = length(p);
     if (ringD > 1.42 && ringD < 1.95 && fract(ringD*9.) > .25) ringT = t;
+  }
+  if (uPart > 1.5) {   // the ring alone, the half behind the planet (2) or in front of it (3)
+    if (ringT > 1e4 || (uPart > 2.5) != (ringT < 5.)) { o = vec4(0., 0., 1., 0.); return; }
+    float sh = .45 + .35*fract(ringD*3.7) + .15*sin(ringD*40.);
+    if (r2 < 1.4 && ringT > 5.) sh *= .55;
+    o = vec4(clamp(sh, 0., 1.), 6./16., .6, 0.); return;
   }
   float sphT = r2 < 1. ? 5. - sqrt(1. - r2) : 1e5;
   if (sphT > 1e4 && ringT > 1e4) {
@@ -92,13 +100,29 @@ export function planetSprites() {
     gl.resize(size, size);
     halo.forEach((hex, k) => { const n = parseInt(hex.slice(1), 16); gl.glow.set([(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255], k * 3); });
     cache[name] = Array.from({ length: 16 }, (_, f) => {
-      gl.draw({ uKind: id, uSpin: (f / 16) * Math.PI * 2, uView: view }, { uTime: 0, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: 0, uPlume: [0, 0, 0, 0] });
+      gl.draw({ uKind: id, uSpin: (f / 16) * Math.PI * 2, uView: view, uPart: 0, uTumble: 0 }, { uTime: 0, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: 0, uPlume: [0, 0, 0, 0] });
       const out = document.createElement("canvas"); out.width = size; out.height = size;
       out.getContext("2d").drawImage(c, 0, 0);
       return out;
     });
     // the planet's radius in its canvas, for hit tests and placement
     cache[name].r = size / view;
+  }
+  // Uranus in three sheets, so its ring can tumble on its own and break off
+  // (Planetfall): the ring's far half, the bare planet, the ring's near half.
+  // The ring sheets are 16 tumble angles.
+  const [id, size, view, halo] = KINDS.uranus;
+  gl.resize(size, size);
+  halo.forEach((hex, k) => { const n = parseInt(hex.slice(1), 16); gl.glow.set([(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255], k * 3); });
+  for (const [key, part] of [["uranusBody", 1], ["uranusRingBack", 2], ["uranusRingFront", 3]]) {
+    cache[key] = Array.from({ length: 16 }, (_, f) => {
+      const a = (f / 16) * Math.PI * 2;
+      gl.draw({ uKind: id, uSpin: part === 1 ? a : 0, uView: view, uPart: part, uTumble: part === 1 ? 0 : a }, { uTime: 0, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: 0, uPlume: [0, 0, 0, 0] });
+      const out = document.createElement("canvas"); out.width = size; out.height = size;
+      out.getContext("2d").drawImage(c, 0, 0);
+      return out;
+    });
+    cache[key].r = size / view;
   }
   gl.gl.getExtension("WEBGL_lose_context")?.loseContext();
   return cache;
