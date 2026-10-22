@@ -5,3 +5,6 @@ node_modules/
 site/_*.html
 *.mp4
 previews/
+
+# third-party character art, licence unconfirmed (Isaac 2026-10-22): keep out of the public repo
+site/assets/kaela/
