@@ -47,7 +47,7 @@ export class Scene extends PixelScene {
     }
 
     // 2. tall pointed windows in the back wall, glass shattered
-    const winW = 30, spacing = Math.max(96, Math.min(130, W / 5));
+    const winW = 30, spacing = W < 520 ? Math.max(72, W * 0.26) : Math.max(96, Math.min(130, W / 5));
     const k = Math.max(1, Math.floor((W * 0.36) / spacing)), xs = [];
     for (let j = 1; j <= k; j++) xs.push(W / 2 - j * spacing, W / 2 + j * spacing);
     this.windows = [];
