@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Kaela sheet</title>
+<style>body{margin:0;background:#2a2d3a;display:flex;flex-wrap:wrap;gap:8px;padding:8px} canvas{image-rendering:pixelated;background:#3d4255}</style></head>
+<body>
+<!-- Kaela's poses at 4x, for checking the pixel art. ?scale=n -->
+<script type="module">
+import { paintKaela, POSES, W, H } from "./js/pixel2d/kaela.js";
+import { paintRotcap, W as RW, H as RH } from "./js/pixel2d/rotcap.js";
+const sc = +(new URLSearchParams(location.search).get("scale") || 4);
+for (const [name, P] of Object.entries(POSES)) {
+  const c = document.createElement("canvas"); c.width = W; c.height = H; c.style.width = W * sc + "px"; c.title = name;
+  c.getContext("2d").putImageData(paintKaela(P, 0.6).img, 0, 0);
+  document.body.append(c);
+}
+for (const P of [{ lean: 0, wind: 0, atk: 0, squash: 0, mouth: 0 }, { lean: 0, wind: 1, atk: 0, squash: 0.2, mouth: 0 }, { lean: 0, wind: 0, atk: 1, squash: 0, mouth: 1 }]) {
+  const c = document.createElement("canvas"); c.width = RW; c.height = RH; c.style.width = RW * sc + "px";
+  c.getContext("2d").putImageData(paintRotcap(P, 0.6).img, 0, 0); document.body.append(c);
+}
+</script></body></html>

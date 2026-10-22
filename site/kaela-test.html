@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaela style test</title>
+<style>
+:root { color-scheme: dark; }
+body { margin: 0; background: #0f1116; color: #e9ecf2; font-family: system-ui, sans-serif; }
+main { max-width: 1300px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 0 0 4px; } p { color: #9aa3b5; margin: 0 0 12px; font-size: 14px; }
+#wrap { position: relative; height: 440px; border-radius: 12px; overflow: hidden; background: #06070c; }
+#stage { position: absolute; inset: 0; }
+#stage canvas.layer { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; z-index: 2; }
+.bar { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+button { font: 600 14px system-ui; border: 1px solid #3a4150; background: #1a1f29; color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+button.go { background: #7a1424; border-color: #c2142e; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Kaela: style test (PRD Addendum L)</h1>
+  <p>Real 2D pixel art, painted on the same pixel grid as the forest background. Press Crimson Slash.</p>
+  <div id="wrap"><div id="stage"></div></div>
+  <div class="bar"><button class="go" id="slash">Crimson Slash</button><button id="slow">Crimson Slash at ¼ speed</button></div>
+</main>
+<script type="module">
+import { ForestScene } from "./js/pixel/biome-scenes/forest.js";
+import { paintKaela, POSES, mixPose, W as KW, H as KH } from "./js/pixel2d/kaela.js";
+import { paintRotcap, REST, W as RW, H as RH } from "./js/pixel2d/rotcap.js";
+import { drawSlash, shards } from "./js/pixel2d/slash.js";
+import { sound } from "./js/sound.js";
+
+const stage = document.getElementById("stage"), wrap = document.getElementById("wrap");
+new ForestScene(stage);
+const HA = 220, FLOOR = 176;
+const art = document.createElement("canvas"), fx = document.createElement("canvas");
+art.className = fx.className = "layer"; fx.style.zIndex = 3;
+stage.append(art, fx);
+let WA = 400;
+const fit = () => { WA = Math.max(200, Math.round(stage.clientWidth / stage.clientHeight * HA)); for (const c of [art, fx]) { c.width = WA; c.height = HA; } };
+fit(); new ResizeObserver(fit).observe(stage);
+const ga = art.getContext("2d"), gf = fx.getContext("2d");
+
+// sprites are painted into small canvases and cached per frame
+const sprite = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
+const kc = sprite(KW, KH), rc = sprite(RW, RH);
+const ease = { out: (t) => 1 - (1 - t) ** 3, in: (t) => t * t * t, io: (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2) };
+const cl = (v) => Math.max(0, Math.min(1, v));
+
+// the clock: game time stops during hit-stop
+let gt = 0, last = performance.now(), hitstop = 0, shake = 0, speed = 1;
+let act = null;           // the slash in progress: { t0 }
+let kx = 0, kPose = POSES.idle, ex = 0, eP = { ...REST }, flash = 0, parts = [];
+let kKey = "", rKey = "";
+
+function slash(spd = 1) {
+  if (act) return;
+  sound.unlock();
+  speed = spd; act = { t0: gt, hit: false, whoosh: false };
+}
+document.getElementById("slash").onclick = () => slash(1);
+document.getElementById("slow").onclick = () => slash(0.25);
+window.__slash = slash;
+
+function update() {
+  const kxBase = WA * 0.24, exBase = WA * 0.7;
+  if (!act) { kPose = POSES.idle; kx = 0; }
+  else {
+    const t = (gt - act.t0);
+    const gap = exBase - kxBase - 46;   // dash so she ends up just in reach
+    if (t < 200) { kPose = mixPose(POSES.idle, POSES.windup, ease.out(t / 200)); kx = -4 * ease.out(t / 200); }
+    else if (t < 260) { kPose = POSES.windup; kx = -4; }
+    else if (t < 340) { const k = (t - 260) / 80; kPose = mixPose(POSES.windup, POSES.strike, ease.in(Math.min(1, k * 1.3))); kx = -4 + gap * ease.out(k); if (!act.whoosh) { act.whoosh = true; sound.sfx("whoosh", { theme: "fire" }); sound.sfx("slash"); } }
+    else if (t < 640) { kPose = mixPose(POSES.strike, POSES.follow, ease.out((t - 340) / 300)); kx = -4 + gap; }
+    else if (t < 940) { const k = (t - 640) / 300; kPose = mixPose(POSES.follow, POSES.idle, ease.io(k)); kx = (-4 + gap) * (1 - ease.io(k)) + Math.sin(k * Math.PI) * 0; }
+    else act = null;
+    // contact: freeze, flash the enemy white, shake, red shards
+    if (act && !act.hit && t >= 318) {
+      act.hit = true; hitstop = 150; flash = 150; shake = 4;
+      sound.sfx("impact", { size: 1 }); sound.sfx("hit", { size: 1 });
+      parts.push(...shards(22, exBase - 14, FLOOR - 40, Math.floor(gt)));
+      act.knock = gt;
+    }
+  }
+  // the enemy: knocked back and flinching after the hit, then recovering
+  if (act?.knock) { const k = (gt - act.knock) / 420; ex = 7 * Math.sin(Math.min(1, k) * Math.PI) * (1 - k * 0.3); eP = { ...REST, lean: -0.3 * Math.sin(Math.min(1, k) * Math.PI), squash: 0.15 * Math.max(0, 1 - k * 2), mouth: 1 }; }
+  else { ex = 0; eP = { ...REST }; }
+}
+
+function render(now) {
+  const kxBase = WA * 0.24, exBase = WA * 0.7;
+  ga.clearRect(0, 0, WA, HA);
+  // Kaela: repainted at 30 fps in action, 8 fps idle (pixel animation is held for frames)
+  const fps = act ? 30 : 8, key = Math.floor(gt / (1000 / fps)) + (act ? "a" : "i");
+  if (key !== kKey) { kKey = key; kc.getContext("2d").putImageData(paintKaela(kPose, gt / 1000).img, 0, 0); }
+  const rk = Math.floor(gt / 125) + ":" + (flash > 0) + ":" + eP.lean.toFixed(2);
+  if (rk !== rKey) { rKey = rk; rc.getContext("2d").putImageData(paintRotcap(eP, gt / 1000, { flash: flash > 0 }).img, 0, 0); }
+  // soft ground shadows
+  ga.fillStyle = "rgba(0,0,0,0.35)";
+  for (const [x, w] of [[kxBase + kx, 22], [exBase + ex, 30]]) for (let i = -w; i <= w; i++) { const k = 1 - (i / w) ** 2; ga.fillRect(Math.round(x + i), FLOOR - 1, 1, k > 0.5 ? 2 : 1); }
+  ga.drawImage(rc, Math.round(exBase + ex - 50), FLOOR - (RH - 5));
+  ga.drawImage(kc, Math.round(kxBase + kx - KW * 0.42), FLOOR - (KH - 5));
+  // effects
+  const img = gf.createImageData(WA, HA);
+  if (act) {
+    const t = gt - act.t0;
+    if (t > 272 && t < 640) {
+      const gap = exBase - kxBase - 46, cx = kxBase - 4 + gap + 4, cy = FLOOR - 44;
+      const p = ease.out(Math.min(1, (t - 272) / 120)), a0 = -2.5, a1 = 1.25, head = a0 + (a1 - a0) * p;
+      drawSlash(img, { cx, cy, R: 40, T: 24, head, span: Math.min(head - a0 + 0.05, 2.7), dir: 1, thin: Math.max(0, (t - 430) / 210), seed: 0.3 });
+    }
+  }
+  // shards: little squares with gravity
+  const dt = 1 / 60;
+  parts = parts.filter((s) => { s.vy += 380 * dt * (hitstop > 0 ? 0 : 1); if (hitstop <= 0) { s.x += s.vx * dt; s.y += s.vy * dt; } s.life = (s.life || 0) + dt; return s.life < 0.8 && s.y < FLOOR + 4; });
+  for (const s of parts) { const c = [parseInt(s.c.slice(1, 3), 16), parseInt(s.c.slice(3, 5), 16), parseInt(s.c.slice(5, 7), 16)]; for (let i = 0; i < s.s; i++) for (let j = 0; j < s.s; j++) { const x = Math.round(s.x) + i, y = Math.round(s.y) + j; if (x >= 0 && y >= 0 && x < WA && y < HA) { const o = (y * WA + x) * 4; img.data.set([...c, 255], o); } } }
+  gf.putImageData(img, 0, 0);
+  // camera shake, in whole art pixels
+  const sx = shake > 0.3 ? Math.round((Math.random() - 0.5) * shake) * 2 : 0, sy = shake > 0.3 ? Math.round((Math.random() - 0.5) * shake) * 2 : 0;
+  stage.style.transform = `translate(${sx * (stage.clientHeight / HA) / 2}px, ${sy * (stage.clientHeight / HA) / 2}px)`;
+}
+
+let tick = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  const real = Math.min(50, now - last); last = now;
+  if (hitstop > 0) hitstop -= real; else gt += real * speed;
+  if (flash > 0) flash -= real;
+  shake *= 0.86;
+  // effects and sprites update "on twos" (30 fps), like hand-drawn animation
+  if (++tick % 2) return;
+  update(); render(now);
+}
+requestAnimationFrame(loop);
+window.__state = () => ({ gt, act });
+</script>
+</body>
+</html>
