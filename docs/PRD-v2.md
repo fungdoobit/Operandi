@@ -453,3 +453,50 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 - Card art is painted with the battle's cel-effects shader (`toonStill` in `toon-fx.js`).
 - 2026-10-21, Isaac: **left click casts, right click flips** (the reverse of his first answer). Touch stays: tap flips, hold casts.
 - The old mark-based damage (15 to 25, crit 40) is gone: damage comes from the card, the mark decides the mana.
+
+## Addendum K: every level is a fight, with small enemies per module, plus a scarier GOLEM (draft 2026-10-22, awaiting "go")
+
+**Problem.** Only the boss at the end of a module is a fight; lessons and practice are plain. Isaac wants the whole course to feel like the GOLEM fight: the same cards and mana, the same "no help on tries 1 and 2" rule (hints and peeks still usable), but against smaller enemies, in a biome per module that differs from that module's boss arena. GOLEM should also look much more threatening.
+
+**Success criteria.**
+- Every practice challenge happens inside a fight. An enemy fight takes 1 to 3 challenges, about 5 to 15 minutes, not 45 like a boss.
+- Each module has its own biome background and 3 to 5 enemies, each with a look, 2 to 3 attacks and a defeat animation, all at GOLEM's quality bar.
+- The companions' existing abilities work on every enemy, not only on GOLEM.
+- GOLEM still reads as GOLEM (one glowing eye, no brows or mouth), but Isaac calls him scary.
+
+**Scope, IN.**
+- **Enemy encounters** on the practice challenges (see open question 1 for lessons). Same card hand, mana, crits, cooldowns and strike-back as the boss fight.
+- **Biome per module** (proposal; Isaac's five biomes plus three more, since there are 8 modules):
+
+  | module | biome | enemies (from Isaac's list) |
+  |---|---|---|
+  | 1 Basics | Whispering Forest | tree monster, corrupted mushroom, wasp, forest spirit |
+  | 2 Decisions | Grassland ruins | goblin, snake, spiders, mutated big snail |
+  | 3 Loops | Desert | skeleton army: sword, bow and arrow (armies repeat, like loops) |
+  | 4 Lists | Ice fields | zombified bear, small robots |
+  | 5 Functions | Beach | robotic crab with weapon modifications |
+  | 6 Dictionaries | Witch's swamp | witch, wizard |
+  | 7 Files and errors | Scorched wasteland | terminator skeleton: plasma cannon, simple gun |
+  | 8 Projects | Fallen castle | corrupted knight, plus a mix from earlier modules |
+
+- **A generic enemy target.** Today every ability aims at GOLEM's parts (claw, cannon, poses, his size). Abilities move to a small shared "foe" interface (body centre, size, a few hit points, hurt, knockback, sink, defeat), and GOLEM-only beats (catching Jupiter, ripping free of Grasp) get a short alternative ending for small enemies.
+- **Rendering:** enemies are 3D models on the same hi-bit renderer as GOLEM and NOVA; backgrounds are drawn once per size, like the Sunken Foundry.
+- **GOLEM, scarier** (small redesign, kept recognisable): the eye becomes a narrow, hungry slit-iris that tracks the teammate and flares red when he attacks; a darker hull with red warning lights instead of friendly blue; sharper, hooked claw and spikes; a hunched, lower stance that leans over the teammate; cracks in his core leaking red light; steam and sparks venting.
+
+**Scope, OUT (for now).** New bosses for modules 2 to 8 (they come with their modules); enemies for modules that don't have lessons yet (only Module 1's enemies are needed until Module 2 exists); new companion abilities.
+
+**Constraints.** Zero budget; all art made in code. Each enemy at GOLEM's quality took several feedback rounds, so enemies are simpler (no specials) and arrive one module at a time. iPad performance is still untested, and more WebGL models on screen add to that risk.
+
+**Plan (smallest working version first).**
+1. GOLEM's scarier look (one design round with Isaac).
+2. The generic foe interface, so every ability works on any enemy. Check that all current abilities still play on GOLEM.
+3. Module 1: the Whispering Forest background and the first enemy (corrupted mushroom, the simplest), wired into the practice challenges end to end.
+4. The other Module 1 enemies, one at a time, each reviewed by Isaac.
+5. Later modules' biomes and enemies ship with those modules (Phase 2 onwards).
+
+**Open questions.**
+1. "All levels": does that include the **lessons** (the teaching sections), or only the practice challenges? Recommended: **practice only**. Lessons are where a complete beginner first meets an idea, and no explanations on the first two tries there would mostly cause frustration, not learning.
+2. **HP and losing:** does your teammate's HP carry from one encounter to the next (an "expedition"), or does each encounter start fresh? Recommended: fresh, and losing just restarts that encounter.
+3. **Mana between encounters:** reset per fight (ultimates then hardly ever show in short fights), or carry over across a module (recommended, cap 30, so ultimates come up every few fights)?
+4. **Long ultimates:** Planetfall is about 20 s. Against a small enemy, keep the full cinematic, or play a short version and keep the full one for bosses? Recommended: full the first time per day, short after that.
+5. **Rewards:** keep today's challenge Bits, plus a small win bonus per enemy (for example +5)?
