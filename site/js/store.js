@@ -21,6 +21,9 @@ export function freshState() {
     boss: null,          // the boss fight in progress (boss-rules.js newFight)
     bossWins: {},        // module -> { at, firstTry }
     bossFights: {},      // module -> fights started (the first one is the "first try")
+    fight: null,         // the lesson / challenge fight in progress (Addendum K): enemy, HP, wave
+    kit: { mana: 0, cd: {} },   // mana and card cooldowns, carried from fight to fight
+    ultSeen: {},         // card id -> the day its full ultimate last played (later that day: the short cut)
     streak: { count: 0, last: null },
     history: [],
     updatedAt: 0,
@@ -33,6 +36,7 @@ function upgrade(st) {
   const fresh = freshState();
   st.equipped = Object.assign({}, fresh.equipped, st.equipped);
   st.pet = Object.assign({}, fresh.pet, st.pet);
+  st.kit = Object.assign({}, fresh.kit, st.kit); st.ultSeen ||= {};
   if (st.owned.glasses) { st.owned.nerd = true; delete st.owned.glasses; }
   const old = st.equipped.dot;
   if (old) {

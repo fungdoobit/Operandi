@@ -10,6 +10,7 @@
 //   { type: "slam", wave: "rock" | "ice" | "thorn" | "shock" }
 //   { type: "charge" }   { type: "beam" }   { type: "rain", proj, n }
 // color: the attack's main colour.
+import { ENEMY_MODELS } from "./pixel/enemy-models/index.js";
 
 export const BIOMES = {
   forest: { name: "Whispering Forest", module: 1 },
@@ -56,7 +57,9 @@ export const ENEMIES = {
 export const enemiesIn = (biome) => Object.keys(ENEMIES).filter((k) => ENEMIES[k].biome === biome);
 
 // A deterministic pick for a level's n-th wave, so a reload shows the same enemy.
+// (Only enemies whose model exists; Rotcap if none do.)
 export function enemyFor(module, seed, wave = 0) {
-  const list = enemiesIn(MODULE_BIOME[module] || "forest");
+  const list = enemiesIn(MODULE_BIOME[module] || "forest").filter((k) => ENEMY_MODELS[k]);
+  if (!list.length) return "mushroom";
   return list[Math.abs((seed * 31 + wave * 7) | 0) % list.length];
 }

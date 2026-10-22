@@ -1045,6 +1045,7 @@ async function planetfall(s) {
   // up into the portal, which slams shut.
   const jf = PL.jupiter, R = jf.r;
   const big = { x: core.x - 15, y: 2 };   // at the very top: Jupiter comes down from above the frame
+  if (!s.isBoss) return jupiterCrush(s, { jf, R, big, settle });   // a small enemy can't hold it up: it's crushed
   fx.focus(1, null, 500);
   fx.darken(0.86, 800);
   mate.setMood("angry");
@@ -1202,6 +1203,53 @@ async function planetfall(s) {
   await fx.wait(500);
   mate.setMood("idle");
   void jBody;
+}
+
+// Planetfall's ending on a small enemy (Addendum K): it can't catch Jupiter
+// like GOLEM, so the planet comes down on top of it, drives it into the floor
+// and goes back up into the portal.
+async function jupiterCrush(s, { jf, R, big, settle }) {
+  const { fx, px, spr, sprBack, toon, pxTop, mate, foeEl } = s;
+  const core = s.golemC(), floor = fx.floorY;
+  const at = { x: core.x, y: big.y };
+  fx.darken(0.8, 600);
+  mate.setMood("angry");
+  sound.sfx("bhRumble", { ms: 4000 }); sound.sfx("darkChoir", { ms: 2000 });
+  const gate = portal(s, px, { x: at.x, y: at.y, rx: R * 0.9, ry: 24 });
+  await gate.open(1000);
+  fx.title("JUPITER", "");
+  const J = { x: at.x, y: big.y - R };
+  let live = true;
+  sprBack.add({ dur: 12000, draw(g, k, t, a) { if (!live) { a.t = a.dur; return; } drawPlanet(g, jf, J, t, { clipY: big.y, spin: 2.5 }); } });
+  sound.sfx("ghostFly", { size: 1.4 });
+  for (let i = 0; i < 5; i++) fx.wait(i * 160).then(() => fx.shake(6 + i * 3));
+  const y0 = J.y, land = floor - R * 0.62;
+  speedLines(pxTop, () => ({ x: J.x, y: J.y + R }), 700, { inner: R });
+  await spr.add({ dur: 800, draw(g, k) { J.y = lerp(y0, land, ease.in(k)); } });
+  // the crush
+  sound.sfx("explosion", { size: 2 }); sound.sfx("slamImpact"); sound.sfx("impact", { size: 1.6 });
+  bigHit(fx, { x: J.x, y: floor }, { stop: 260, shake: 44, punch: 0.08, flash: "#ffd9a3" });
+  const home = foeEl._pos || { x: 0, y: 0, r: 0 };
+  fx.move(foeEl, { x: home.x, y: home.y + 40 }, 120, "out");
+  fx.ring({ x: J.x, y: floor }, { color: "#ffd9a3", size: 520, flat: 0.12, ms: 800, width: 10 });
+  fx.crack(J.x, { width: 420 }); fx.debris({ x: J.x, y: floor - 10 }, 26, { power: 2 }); fx.dust(J.x, 30, 3);
+  explode(toon, J.x - R * 0.7, floor - 10, { size: 1.3, dur: 1300 }); explode(toon, J.x + R * 0.7, floor - 10, { size: 1.3, dur: 1300 });
+  s.onHit(1);
+  fx.slowmo(0.4, 700);
+  await fx.wait(700);
+  s.onHit(2);
+  // back up into the portal, which slams shut
+  const jy = J.y;
+  sound.sfx("ghostWind", { ms: 1200 });
+  await spr.add({ dur: 900, draw(g, k) { J.y = lerp(jy, big.y - R * 1.05, ease.io(k)); } });
+  live = false;
+  fx.move(foeEl, home, 500, "back");
+  await gate.close(300);
+  sound.sfx("explosion", { size: 1 }); fx.shake(20); flashAt(pxTop, at, 140, 380);
+  fx.darken(0, 600);
+  settle();
+  await fx.wait(500);
+  mate.setMood("idle");
 }
 
 // ---- the cards ----

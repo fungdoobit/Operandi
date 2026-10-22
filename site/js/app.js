@@ -5,7 +5,8 @@
 import { Dot, DOT_CSS } from "./dot.js";
 import { Runner } from "./runner.js";
 import { Store } from "./store.js";
-import { SHOP, LEVELS, DIFFS, EARN, BOSS, MANA, TIERS, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
+import { SHOP, LEVELS, DIFFS, EARN, BOSS, MANA, TIERS, LEVEL, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
+import { ENEMIES, enemyFor } from "./enemies.js";
 import { BattleStage, pixelateOut } from "./boss-fight.js";
 import { sound } from "./sound.js";
 import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard, countersFirewall } from "./boss-rules.js";
@@ -230,7 +231,7 @@ async function doRun() {
   try {
     const r = await runner.run(ed.value, { expected: task.expected });
     showOutput(r); showTab("output");
-    if (quietTry()) {   // boss fights: no tips until the third Submit
+    if (quietTry()) {   // every fight: no tips until the third Submit
       if (task.expected && r.lines.join("\n") === task.expected.join("\n")) { const v = V().outputMatches(); dot.say(v.text, { title: v.title, mood: "happy" }); }
     } else if (r.diagnosis) sayHelp(r.diagnosis.id, r.diagnosis, { mood: "worried" });
     else if (task.expected && r.lines.join("\n") === task.expected.join("\n")) { const v = V().outputMatches(); dot.say(v.text, { title: v.title, mood: "happy" }); }
@@ -244,10 +245,11 @@ async function doRun() {
 
 /* ---------- Submit ---------- */
 
-// Boss fights: no tips on the first two Submits of a challenge (Addendum J).
-// tries = Submits so far (including the one just made).
+// No tips on the first two Submits (Addendum J for bosses; Addendum K made
+// every lesson and challenge a fight, so it's everywhere now). Hints and peeks
+// still work. tries = Submits so far (including the one just made).
 const QUIET_TRIES = 2;
-function quietTry(tries = (rec()?.attempts || 0) + 1) { return task?.kind === "boss" && tries <= QUIET_TRIES; }
+function quietTry(tries = (rec()?.attempts || 0) + 1) { return !!task && tries <= QUIET_TRIES; }
 
 function isSolved() {
   if (!task) return false;
@@ -319,12 +321,16 @@ async function doSubmit() {
 
     renderFeedback({ passed, mark, rewardLine, rewardParts, run, diff, hardcoded, styleLint, already, attempts: r.attempts, quiet });
     showTab(passed ? "feedback" : run.error ? "output" : diff ? "tests" : "tests");
-    if (quiet && !passed) battle?.say(`${passedCount} of ${results.length} tests passed. No tips on tries 1 and 2 in a boss fight: read Python's error in Output and the failing tests. From your third Submit I can help again${r.attempts === QUIET_TRIES ? " (that's the next one)" : ""}.`, { title: `Not yet · try ${r.attempts}`, mood: "worried" });
-    else if (task.kind !== "boss" || !passed) dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, already, attempts: r.attempts, results });
+    if (quiet && !passed) battle?.say(`${passedCount} of ${results.length} tests passed. No tips on tries 1 and 2 in a fight: read Python's error in Output and the failing tests. From your third Submit I can help again${r.attempts === QUIET_TRIES ? " (that's the next one)" : ""}.`, { title: `Not yet · try ${r.attempts}`, mood: "worried" });
+    else if (!passed) dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, already, attempts: r.attempts, results });
     renderTop(); renderRail();
     if (task.kind === "challenge") renderChallenge();
-    else if (task.kind === "boss") await bossTurn(passed, mark, r);
-    else if (passed) renderLessonFooter();
+    if (task.kind === "boss") await bossTurn(passed, mark, r);
+    else {
+      if (passed && task.kind === "lesson") renderLessonFooter();
+      // a pass casts a card at the enemy (the praise comes after it lands); a miss lets it attack
+      await levelTurn(passed, mark, r, { already, rewardLine, styleLint });
+    }
   } catch (e) {
     toast(e.message || "Something went wrong running your code.");
   } finally {
@@ -372,8 +378,8 @@ function renderFeedback({ passed, mark, rewardLine, rewardParts, run, diff, hard
   let h = `<div class="fb"><div class="fb-head"><div class="score">${mark}<small>/10</small></div><div class="verdict"><span class="pill ${passed ? "ok" : "no"}">${passed ? "Passed" : "Not yet"}</span><span>Attempt ${attempts}</span></div></div>`;
   if (rewardLine) h += `<div class="reward">${esc(rewardLine)} · ${esc(rewardParts.join(" · "))}</div>`;
   if (already && passed) h += `<p class="empty">Already completed, so no extra Bits. Practice challenges keep paying.</p>`;
-  if (quiet && !passed) {   // boss fight, tries 1 and 2: no explanations
-    h += `<p class="empty">No tips on tries 1 and 2 in a boss fight. Python's own error message is in Output, and Tests shows which tests failed. From your third Submit, the usual help comes back.</p>`;
+  if (quiet && !passed) {   // a fight, tries 1 and 2: no explanations
+    h += `<p class="empty">No tips on tries 1 and 2 in a fight. Python's own error message is in Output, and Tests shows which tests failed. From your third Submit, the usual help comes back.</p>`;
     $("panel-feedback").innerHTML = h + `</div>`;
     return;
   }
@@ -487,7 +493,6 @@ function wireExamples() {
 }
 
 function openLesson(id, section) {
-  leaveBoss();
   const l = ALL_LESSONS.find((x) => x.id === id);
   const secs = sectionsOf(l);
   if (section == null) section = firstOpenSection(l);
@@ -501,7 +506,7 @@ function openLesson(id, section) {
     const open = n === 0 || sectionDone(l, n - 1);
     return `<button class="sec ${sectionDone(l, n) ? "done" : ""}" data-sec="${n}" role="tab" aria-selected="${n === section}" ${open ? "" : "disabled"}><span class="n">${sectionDone(l, n) ? "✓" : n + 1}</span>${esc(x.title)}</button>`;
   }).join("")}</div>` : "";
-  $("briefInner").innerHTML = `
+  $("briefInner").innerHTML = `<div class="bsay" id="bossSay" hidden></div>
     <p class="eyebrow">Module ${mod.id} · Lesson ${MODULE_LESSONS(l.module).indexOf(l) + 1} of ${MODULE_LESSONS(l.module).length}${l.sections ? ` · Section ${section + 1} of ${secs.length}` : ""}${sectionDone(l, section) ? " · completed" : ""}</p>
     <h1>${esc(l.title)}</h1>
     ${steps}
@@ -513,9 +518,12 @@ function openLesson(id, section) {
       <div class="hints" id="hintBox"></div>
       <div id="solutionBox"></div>
     </div>
+    ${testFill()}
     <div id="lessonFooter"></div>`;
+  enterLevelFight();
   $("briefInner").querySelectorAll("[data-sec]").forEach((b) => b.addEventListener("click", () => { if (!busy && !b.disabled) openLesson(id, +b.dataset.sec); }));
   wireExamples();
+  $("testFill")?.addEventListener("click", fillAnswer);
   renderHints();
   if (rec().solutionUsed) renderSolutionBlock();
   renderLessonFooter();
@@ -527,7 +535,7 @@ function openLesson(id, section) {
   if (!S().seenIntro) {
     S().seenIntro = true; store.save();
     const v = V().welcome(S().items);
-    dot.say(`${v.text} I wander around the screen: drag me anywhere if I'm in the way.`, { title: v.title, mood: "happy" });
+    dot.say(`${v.text} Every lesson is a fight: pass a task, then pick a card to strike the enemy.`, { title: v.title, mood: "happy" });
   } else if (!sectionDone(l, section) && section === 0) {
     dot.say(V().lessonIntro(i + 1, l.title).text, { mood: "idle" });
   }
@@ -567,16 +575,17 @@ function openView(kind) {
 
 let difficulty = 1;
 function openPractice() {
-  leaveBoss();
   view = { kind: "practice" };
   const cur = S().current;
   if (cur && ALL_TEMPLATES.some((t) => t.id === cur.templateId)) {
     task = challengeTask(cur);
     setWorkVisible(true);
     renderChallenge();
+    enterLevelFight();
     loadEditor();
     prepareTask();
   } else {
+    leaveBoss();
     task = null;
     setWorkVisible(false);
     renderPracticeHome();
@@ -634,6 +643,7 @@ async function startChallenge() {
     task = candidate;
     setWorkVisible(true);
     renderChallenge();
+    enterLevelFight();
     loadEditor();
     prepareTask();
     renderRail();
@@ -645,7 +655,7 @@ async function startChallenge() {
 
 function renderChallenge() {
   const cur = S().current, c = task;
-  $("briefInner").innerHTML = `
+  $("briefInner").innerHTML = `<div class="bsay" id="bossSay" hidden></div>
     <p class="eyebrow">Practice · ${DIFFS[c.difficulty]}${cur.solved ? " · solved" : ""}</p>
     <h1>${esc(c.title)}</h1>
     <p>${esc(c.scenario)}</p>
@@ -655,13 +665,16 @@ function renderChallenge() {
       <div class="hints" id="hintBox"></div>
       <div id="solutionBox"></div>
     </div>
+    ${testFill()}
     ${cur.solved ? `<h3>Next challenge</h3>${diffPicker()}<button class="btn primary" id="startBtn">Give me another</button>` : `<div style="margin-top:20px"><button class="btn" id="skipBtn">Skip this challenge</button><div id="skipConfirm"></div></div>`}`;
+  if (battle) battle.sayHost = $("bossSay");
+  $("testFill")?.addEventListener("click", fillAnswer);
   renderHints();
   if (cur.solutionUsed) renderSolutionBlock();
   if (cur.solved) { wireDiff(); $("startBtn").addEventListener("click", startChallenge); }
   $("skipBtn")?.addEventListener("click", () => {
     $("skipConfirm").innerHTML = `<div class="inline-confirm"><span>Skip it? Items you used on it aren't refunded.</span><button class="btn" id="skipYes">Skip</button><button class="btn" id="skipNo">Keep going</button></div>`;
-    $("skipYes").addEventListener("click", () => { store.log({ kind: "challenge", id: task.key, title: task.title, skipped: true, attempt: cur.attempts }); S().current = null; store.save(); openPractice(); });
+    $("skipYes").addEventListener("click", () => { store.log({ kind: "challenge", id: task.key, title: task.title, skipped: true, attempt: cur.attempts }); S().current = null; S().fight = null; store.save(); openPractice(); });
     $("skipNo").addEventListener("click", () => ($("skipConfirm").innerHTML = ""));
   });
 }
@@ -756,15 +769,133 @@ function openFaq(id) {
   document.getElementById("faq-" + id)?.scrollIntoView({ block: "start" });
 }
 
+/* ---------- Level fights (PRD Addendum K) ---------- */
+
+// Every lesson and challenge is a fight against small enemies from the
+// module's biome, with the same cards, mana and no-tips rule as the boss.
+// A lesson is one fight across all its sections (your HP carries over); a
+// challenge is one fight. A pass casts a card; an enemy that survives strikes
+// back, one that dies makes way for the next (a wave). The last pass of a
+// level always finishes the enemy. Mana and cooldowns carry from fight to fight
+// (S().kit). The fight in progress is S().fight.
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+const fightKey = () => (task.kind === "lesson" ? `lesson:${task.lessonId}` : task.key);
+const levelModule = () => (task.kind === "lesson" ? ALL_LESSONS[lessonIndex(task.lessonId)].module : task.template?.module || 1);
+// Does this pass end the level? A challenge: always. A lesson: once every section is done.
+const levelEnds = () => task.kind !== "lesson" || lessonDone(task.lessonId);
+
+// Test mode: a button that fills in a correct answer.
+function testFill() { return S().testMode ? `<div class="note"><b>Test mode</b>Fills the editor with a correct answer.<div style="margin-top:10px"><button class="btn" id="testFill">Fill in the answer</button></div></div>` : ""; }
+function fillAnswer() { if (!task) return; setCode(task.solution); lsSet("operandi:draft:" + task.key, task.solution); }
+
+function newLevelFight(key) {
+  const module = levelModule(), seed = Math.floor(Math.random() * 1e6), enemy = enemyFor(module, seed, 0);
+  S().fight = { key, module, seed, wave: 0, enemy, foe: ENEMIES[enemy].hp, me: LEVEL.hp, beaten: 0, hand: null };
+  store.save();
+  return S().fight;
+}
+
+// Put the battle band up for the task on screen (or keep the one that's there).
+function enterLevelFight() {
+  const key = fightKey();
+  let f = S().fight, created = false;
+  if (!f || f.key !== key || !ENEMIES[f.enemy]) { f = newLevelFight(key); created = true; }
+  if (!battle || battleKey !== key) {
+    leaveBoss({ keepMusic: true });
+    $("arena").hidden = false;
+    document.querySelector(".body").classList.add("boss-mode");
+    battle = new BattleStage($("arena"), $("bossSay"), { skin: S().equipped.teammate || "dot", accessories: wearing(), foe: f.enemy, max: { me: LEVEL.hp, foe: ENEMIES[f.enemy].hp } });
+    battleKey = key;
+    dot.root.style.visibility = "hidden";
+    dot.sayOverride = (text, opts) => battle?.say(text, opts);
+    sound.music("battle");
+    battle.hp(f.me, f.foe); battle.mana(S().kit.mana);
+    battle.intro();
+  } else {
+    battle.sayHost = $("bossSay");
+    if (created) { battle.hp(f.me, f.foe); battle.spawn(f.enemy, f.foe); }   // a fresh fight on the same stage (a replayed lesson)
+  }
+  battle.mana(S().kit.mana);
+  // A pass was saved but no card picked yet (the page was closed): back to the hand.
+  if (f.hand && !busy) { busy = true; castLevel().finally(() => { busy = false; }); }
+}
+
+async function levelTurn(passed, mark, r, extra) {
+  const f = S().fight;
+  if (!battle || !f || f.key !== fightKey()) return;
+  const E = ENEMIES[f.enemy];
+  if (!passed) {   // a miss: the enemy attacks
+    f.me = Math.max(0, f.me - E.hit);
+    store.save();
+    await battle.counter(E.hit, () => battle.hp(f.me, f.foe), { miss: true });
+    if (f.me <= 0) await knockedOut();
+    return;
+  }
+  const flawless = mark === 10 && r.attempts === 1 && !r.assisted;
+  const gain = manaFor(mark, r), kit = S().kit;
+  kit.mana = Math.min(MANA.cap, kit.mana + gain);
+  f.hand = { mark, flawless, gain, last: levelEnds(), already: extra.already, rewardLine: extra.rewardLine, tips: extra.styleLint?.length || 0 };
+  store.save();
+  await castLevel();
+}
+
+// The card hand, the cast, and what follows: a strike back, a new wave, or the win.
+async function castLevel() {
+  const f = S().fight, kit = S().kit, h = f.hand, E = ENEMIES[f.enemy];
+  battle.mana(kit.mana);
+  const v = V().passed(h.mark);
+  battle.say(`${h.flawless ? "Flawless: whatever you cast now is a critical hit!" : v.text} Pick an ability card.`, { title: `${h.mark}/10 · +${h.gain} mana`, mood: "fierce" });
+  const card = await battle.pickCard(kit, { gain: h.gain, crit: h.flawless, dome: false });
+  const strike = castCard(kit, card, { crit: h.flawless });
+  // ultimates: the full cinematic the first time each day, the short cut after that
+  const ult = card.tier === "ultimate" || card.tier === "ultimate2", short = ult && S().ultSeen[card.id] === today();
+  if (ult) S().ultSeen[card.id] = today();
+  f.hand = null;
+  const foeLeft = h.last ? 0 : Math.max(0, f.foe - strike.dmg), killed = foeLeft <= 0;
+  const back = !killed && strike.result !== "crit" ? Math.round(E.hit * LEVEL.strikeBack) : 0;
+  f.foe = foeLeft;
+  f.me = Math.max(0, f.me - back);
+  let bounty = 0;
+  if (killed) { f.beaten += 1; if (!h.already) { bounty = LEVEL.bounty; store.earn(bounty); } }
+  if (killed && !h.last) { f.wave += 1; f.enemy = enemyFor(f.module, f.seed, f.wave); f.foe = ENEMIES[f.enemy].hp; }
+  if (h.last) S().fight = null;   // the level is won
+  store.save();
+  battle.mana(kit.mana);
+  await battle.attack(strike, () => battle.hp(f.me + back, foeLeft), card, { short });
+  if (killed && h.last) await battle.victory();
+  else if (killed) { await battle.beaten(); await battle.spawn(f.enemy, f.foe); }
+  else if (back) await battle.counter(back, () => battle.hp(f.me, f.foe));
+  else battle.staggered();
+  if (f.me <= 0) return knockedOut();
+  // the praise and the rewards, with the way on
+  const paid = h.already ? "You'd already finished this one, so no Bits this time." : rec()?.solutionUsed ? "You used the solution, so no Bits for this one." : `${h.rewardLine}${bounty ? ` and +${bounty} for beating ${E.name}` : ""}.`;
+  const what = killed ? (h.last ? `${E.name} is beaten: level cleared!` : `${E.name} is beaten! ${ENEMIES[f.enemy].name === E.name ? `Another ${E.name}` : ENEMIES[f.enemy].name} steps in.`) : `${card.name} hit ${E.name}${back ? `, and it struck back` : ", and it's staggered"}.`;
+  const tip = h.tips ? ` ${h.tips === 1 ? "One small style tip" : "A few style tips"} in Feedback.` : "";
+  battle.say(`${what} ${paid}${tip}`, { title: h.last ? "Victory" : `${strike.dmg} damage`, mood: killed ? "celebrate" : "happy", actions: [nextAction()] });
+  renderTop(); renderRail();
+}
+
+// Your teammate went down: the fight restarts with full HP and a fresh enemy. Passed sections stay passed.
+async function knockedOut() {
+  const f = S().fight;
+  await battle.defeat();
+  f.me = LEVEL.hp; f.wave += 1; f.enemy = enemyFor(f.module, f.seed, f.wave); f.foe = ENEMIES[f.enemy].hp;
+  store.save();
+  battleKey = null;   // a new stage (your teammate gets back up)
+  enterLevelFight();
+  battle.say("Your teammate was knocked out, so the fight starts again with full HP. Anything you've passed stays passed. Read the error and the failing tests, then try again.", { title: "Knocked out", mood: "sad" });
+}
+
 /* ---------- Boss fight ---------- */
 
 // The fight's state is S().boss (boss-rules.js newFight). Each challenge is a
 // turn: a pass is your strike, a failed Submit is a miss and the boss hits back.
 let battle = null;
+let battleKey = null;   // which lesson / challenge fight the stage on screen belongs to
 
 // keepMusic: we're going straight into another fight view, so the music carries on.
 function leaveBoss({ keepMusic = false } = {}) {
-  battle = null;
+  battle = null; battleKey = null;
   if (!keepMusic) sound.music(null);
   $("arena").hidden = true;
   $("arena").replaceChildren();          // stops the battle's animation loops

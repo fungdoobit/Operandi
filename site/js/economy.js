@@ -95,6 +95,11 @@ export const BOSS = {
   critTimes: 1.5,              // a flawless pass makes the ability you cast a crit
 };
 
+// Fights in every lesson and challenge (PRD Addendum K). Your teammate's HP
+// for a level; Bits for each enemy beaten; an enemy that survives your hit
+// strikes back for this share of its hit (a crit staggers it instead).
+export const LEVEL = { hp: 100, bounty: 5, strikeBack: 0.6 };
+
 // Mana and ability cards in boss fights (PRD Addendum J). A pass gives mana by
 // how clean it was; mana saves up between turns; each pass you cast one card.
 export const MANA = {
