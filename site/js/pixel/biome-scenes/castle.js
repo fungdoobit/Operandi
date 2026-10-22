@@ -220,8 +220,9 @@ export class Scene extends PixelScene {
         put(cx + x + sway, y, c);
       }
     };
-    banner(mpL + mw + 12, 74, 56, 14);
-    banner(mpR - mw - 12, 74, 48, 14);
+    const bo = W < 520 ? -(mw + 9) : mw + 12;
+    banner(mpL + bo, 74, 56, W < 520 ? 10 : 14);
+    banner(mpR - bo, 74, 48, W < 520 ? 10 : 14);
     if (W > 760) { banner(Math.round(W / 2 - spacing / 2), 50, 40, 10); banner(Math.round(W / 2 + spacing / 2), 50, 46, 10); }
 
     // 7. violet corruption: crystal clusters bursting from the floor, veins between them
