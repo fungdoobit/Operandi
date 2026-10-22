@@ -48,11 +48,12 @@ export class Scene extends PixelScene {
 
     // 2. tall pointed windows in the back wall, glass shattered
     const winW = 30, spacing = Math.max(96, Math.min(130, W / 5));
-    const n = Math.max(1, Math.round((W * 0.7) / spacing)), first = W / 2 - ((n - 1) * spacing) / 2;
+    const k = Math.max(1, Math.floor((W * 0.36) / spacing)), xs = [];
+    for (let j = 1; j <= k; j++) xs.push(W / 2 - j * spacing, W / 2 + j * spacing);
     this.windows = [];
-    const mxs = Math.round(W / 2), mys = 58;
-    for (let i = 0; i < n; i++) {
-      const wx = Math.round(first + i * spacing), ws = 66, wb = 128, hw = winW / 2;
+    const mxs = Math.round(W / 2 - spacing + 3), mys = 64;
+    for (let i = 0; i < xs.length; i++) {
+      const wx = Math.round(xs[i]), ws = 66, wb = 128, hw = winW / 2;
       const inside = (x, y) => y <= wb && (y >= ws ? Math.abs(x - wx) <= hw : Math.hypot(x - (wx + hw), y - ws) <= winW && Math.hypot(x - (wx - hw), y - ws) <= winW);
       const top = Math.round(ws - winW * 0.87);
       this.windows.push({ x: wx, top, bot: wb, hw });
@@ -87,6 +88,23 @@ export class Scene extends PixelScene {
       }
     }
 
+    // the great rose window above the throne, its glass mostly gone
+    { const rx = Math.round(W / 2), ry = 62, R = 24;
+      for (let y = ry - R - 5; y <= ry + R + 5; y++) for (let x = rx - R - 5; x <= rx + R + 5; x++) {
+        const d = Math.hypot(x - rx, y - ry), a = Math.atan2(y - ry, x - rx);
+        if (d > R + 4) continue;
+        if (d > R) { put(x, y, d > R + 3 ? C.stoneDeep : (y < ry ? C.stoneLit : C.stone)); continue; }
+        const spoke = Math.abs(((a / (Math.PI / 6)) % 1 + 1) % 1 - 0.5) > 0.44 && d > 6;
+        const ring = Math.abs(d - 6) < 1 || Math.abs(d - 15) < 0.8;
+        let c = (x * 13 + y * 7) % 89 === 0 ? C.star : y < ry - 6 ? C.sky : C.sky2;
+        const petal = Math.floor(((a + Math.PI) / (Math.PI / 6))), glassy = d > R - 4 - 3 * Math.sin(petal * 2.3) || (d < 6 && petal % 3 !== 0) || (d > 15 && petal % 4 === 1);
+        if (glassy) { const pal = [[C.gRed, C.gRedHi], [C.gBlue, C.gBlueHi], [C.gViolet, C.gVioletHi], [C.gGold, C.gGoldHi]][(petal + (d > 15 ? 1 : 0)) % 4]; c = (x + y) % 4 === 0 ? pal[1] : pal[0]; }
+        if (spoke || ring) c = C.stoneLit;
+        put(x, y, c);
+      }
+      this.windows.push({ x: rx, top: ry - R + 4, bot: ry + R, hw: 12, rose: true });
+    }
+
     // 3. the dais and the empty throne, split by crystals, a sword left in the steps
     const tx = Math.round(W / 2), tb = BW + 2;
     for (let s = 0; s < 3; s++) {
@@ -110,18 +128,20 @@ export class Scene extends PixelScene {
     for (let k = -3; k <= 3; k++) put(tx - 26 + k, tb - 19, C.gold);
     put(tx - 26, tb - 23, C.gold);
 
-    // 4. the flagstone floor in perspective
+    // 4. the flagstone floor in perspective: staggered slabs, each its own tone, lit at the back
     const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    const tones = [C.floorDark, C.floor, C.floor, C.floorLit];
     for (let y = BW; y < H; y++) {
-      const d = y - VY, row = Math.floor(900 / d), rf = 900 / d - row, t = (y - BW) / (H - BW);
+      const d = y - VY, z = 1100 / d, row = Math.floor(z / 1.4), rf = z / 1.4 - row, t = (y - BW) / (H - BW);
       for (let x = 0; x < W; x++) {
-        const u = ((x - W / 2) / d) * 3.2 + (row % 2) * 0.5 + 100, col = Math.floor(u), cf = u - col;
-        const h = hash(row, col), grout = rf > 0.93 || cf < 0.06 * (1 + d / 120);
         if (y === BW) { put(x, y, C.stoneDark); continue; }
-        if (grout) { put(x, y, C.grout); continue; }
-        const base = h < 0.3 ? C.floorDark : h < 0.75 ? C.floor : C.floorLit;
-        dith(x, y, base, rf < 0.15 ? C.floorHi : C.floorLit, rf < 0.15 ? 0.35 : h * 0.25);
-        if (t > 0.5 && (1 - t) * 0.6 + 0.2 < bay(x, y) * 0.8) put(x, y, C.floorDark);   // darker toward the viewer
+        const u = ((x - W / 2) / d) * 2.6 + (row % 2) * 0.5 + 100, col = Math.floor(u), cf = u - col;
+        const groutW = 1.2 / (d * 0.32);   // ~1 px wide at any depth
+        if (cf < groutW || rf > 1 - 1100 / (d * d * 1.4)) { put(x, y, C.grout); continue; }
+        const h = hash(row, col), tone = tones[Math.floor(h * 4)], hi = rf < 0.12 ? 1 : 0;   // the slab's far edge catches light
+        let c = hi ? mix(tone, C.floorHi, 0.6) : tone;
+        if (h > 0.85 && Math.sin(x * 0.6 + y * 1.9) > 0.7) c = C.floorDark;   // worn pits
+        dith(x, y, c, mix(c, C.floorDark, 0.7), t * 0.7);
       }
     }
     // a strip of carpet running from the dais toward the viewer, rotted to tatters
@@ -159,7 +179,7 @@ export class Scene extends PixelScene {
         const u = (x + w) / (2 * w), sh = Math.floor(u * shafts), sf = u * shafts - sh;
         let c = sf < 0.18 ? C.stoneHi : sf < 0.5 ? C.stoneLit : sf > 0.85 ? C.stoneDeep : C.stone;
         if (u > 0.7) c = sf < 0.18 ? C.stoneLit : sf > 0.6 ? C.stoneDeep : C.stoneDark;
-        if (near) c = mix(c, C.stoneDeep, 0.35);
+        if (near) c = mix(c, C.stoneDeep, 0.2);
         if ((y * 7 + x * 3) % 41 === 0) c = C.stoneDark;   // chips
         put(cx + x, y, c);
       }
@@ -234,16 +254,17 @@ export class Scene extends PixelScene {
     // 8. iron braziers beside the middle pillars (their flames are in the light layer)
     this.braziers = [];
     const brazier = (bx, by) => {
-      for (let k = 0; k < 14; k++) { put(bx - 5 + Math.round(k * 0.25), by - k, C.iron); put(bx + 5 - Math.round(k * 0.25), by - k, C.iron); put(bx, by - k, k % 4 ? C.iron : C.ironLit); }
-      for (let x = -6; x <= 6; x++) put(bx + x, by, C.ironLit);
-      for (let y = 0; y < 6; y++) for (let x = -8 + y; x <= 8 - y; x++) put(bx + x, by - 14 - 5 + y, y === 0 ? C.ironHi : x < -2 ? C.ironLit : C.iron);
-      for (let x = -7; x <= 7; x++) put(bx + x, by - 20, C.flameDeep);   // embers in the bowl
+      for (let k = 0; k < 22; k++) { put(bx - 7 + Math.round(k * 0.22), by - k, C.iron); put(bx + 7 - Math.round(k * 0.22), by - k, C.iron); put(bx, by - k, k % 5 ? C.iron : C.ironLit); put(bx - 1, by - k, C.ironLit); }
+      for (let x = -8; x <= 8; x++) { put(bx + x, by, C.ironLit); put(bx + x, by - 11, Math.abs(x) < 5 ? C.iron : C.iron); }
+      for (let y = 0; y < 7; y++) for (let x = -11 + y; x <= 11 - y; x++) put(bx + x, by - 29 + y, y === 0 ? C.ironHi : y === 1 ? C.ironLit : x < -3 ? C.ironLit : C.iron);
+      for (const sx of [-11, 11]) { put(bx + sx, by - 30, C.ironHi); put(bx + sx, by - 31, C.ironLit); }   // little horns on the rim
+      for (let x = -9; x <= 9; x++) put(bx + x, by - 30, C.flameDeep);   // embers in the bowl
       // the violet glow it throws on the floor and pillar
-      for (let y = by - 40; y < by + 14; y++) for (let x = bx - 36; x <= bx + 36; x++) {
-        const k = (1 - Math.hypot((x - bx) / 36, (y - by + 4) / 24)) * 0.55;
+      for (let y = by - 60; y < by + 14; y++) for (let x = bx - 44; x <= bx + 44; x++) {
+        const k = (1 - Math.hypot((x - bx) / 44, (y - by + 20) / 40)) * 0.6;
         if (k > 0 && k > bay(x, y) + 0.05 && get(x, y)[2] < 120) put(x, y, mix(get(x, y), C.glow2, 0.4));
       }
-      this.braziers.push({ x: bx, y: by - 21 });
+      this.braziers.push({ x: bx, y: by - 31 });
     };
     brazier(mpL + 24, BW + 14); brazier(mpR - 24, BW + 14);
 
@@ -268,17 +289,28 @@ export class Scene extends PixelScene {
       if (y1 < 200) put(x, y1, C.stoneDeep);
     }
 
+    const sprite = (R, col) => {
+      const c = document.createElement("canvas"); c.width = c.height = R * 2;
+      const g = c.getContext("2d"), img = g.createImageData(R * 2, R * 2);
+      for (let y = 0; y < R * 2; y++) for (let x = 0; x < R * 2; x++) {
+        const k = Math.max(0, 1 - Math.hypot(x - R + 0.5, y - R + 0.5) / R) ** 1.4;
+        if (k > bay(x, y)) { const o = (y * R * 2 + x) * 4; img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 255; }
+      }
+      g.putImageData(img, 0, 0); return c;
+    };
+    this.fireGlow = sprite(30, C.flame); this.fireCore = sprite(12, C.flameHi);
+    for (const gl of this.glows) gl.spr = sprite(Math.max(6, Math.round(16 * gl.s)), C.cry2);
     this.dust = Array.from({ length: Math.round(W / 6) }, () => ({ w: Math.floor(r() * this.windows.length), a: r(), b: r(), p: r() * 9, v: 0.5 + r() }));
     this.BW = BW; this.slope = slope;
   }
-  animate({ t, dt, px }) {
+  animate({ g: g2, t, dt, px }) {
     const r = Math.random;
     // brazier flames: flickering violet tongues with a white core, and a pulsing glow
     for (const b of this.braziers) {
-      const g = 0.16 + 0.06 * Math.sin(t * 9 + b.x) + 0.04 * Math.sin(t * 23);
-      px(b.x - 14, b.y - 22, C.flame, g * 0.5, 28); px(b.x - 9, b.y - 16, C.flame, g, 18);
-      for (let k = -6; k <= 6; k++) {
-        const h = Math.max(1, Math.round((8 - Math.abs(k) * 1.1) * (0.75 + 0.35 * Math.sin(t * 12 + k * 1.9) + 0.2 * Math.sin(t * 7.3 - k))));
+      const g = 0.2 + 0.06 * Math.sin(t * 9 + b.x) + 0.04 * Math.sin(t * 23);
+      g2.globalAlpha = g * 1.4; g2.drawImage(this.fireGlow, b.x - 30, b.y - 36); g2.globalAlpha = g * 1.6; g2.drawImage(this.fireCore, b.x - 12, b.y - 16); g2.globalAlpha = 1;
+      for (let k = -8; k <= 8; k++) {
+        const h = Math.max(1, Math.round((13 - Math.abs(k) * 1.4) * (0.75 + 0.35 * Math.sin(t * 12 + k * 1.9) + 0.2 * Math.sin(t * 7.3 - k))));
         for (let j = 0; j < h; j++) {
           const f = j / h, c = Math.abs(k) < 2 && f < 0.5 ? C.flameCore : f < 0.6 && Math.abs(k) < 4 ? C.flameHi : f > 0.85 ? C.flameDeep : C.flame;
           px(b.x + k + Math.round(Math.sin(t * 8 + j * 0.5) * f * 1.5), b.y - j, c, 0.95);
@@ -287,7 +319,7 @@ export class Scene extends PixelScene {
       if (Math.sin(t * 5 + b.x) > 0.6) px(b.x + (r() - 0.5) * 8, b.y - 12 - r() * 12, C.flameHi, 0.9);   // sparks
     }
     // crystals pulse, veins shimmer in a slow wave
-    for (const g of this.glows) { const a = 0.08 + 0.06 * Math.sin(t * 1.4 + g.x * 0.1); px(g.x - 10 * g.s, g.y - 10 * g.s, C.cry2, a, Math.round(20 * g.s)); }
+    for (const gl of this.glows) { g2.globalAlpha = 0.14 + 0.1 * Math.sin(t * 1.4 + gl.x * 0.1); g2.drawImage(gl.spr, Math.round(gl.x - gl.spr.width / 2), Math.round(gl.y - gl.spr.height / 2)); } g2.globalAlpha = 1;
     for (const v of this.veins) for (let i = 0; i < v.length; i++) {
       const k = Math.sin(t * 2.2 - i * 0.35 + v[0][0]);
       if (k > 0.75) px(v[i][0], v[i][1], C.veinHi, (k - 0.75) * 3.5);

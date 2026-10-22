@@ -24,7 +24,7 @@ function waspTip(P) {
   return [x, y, 0];
 }
 export const wasp = {
-  name: "Stinger", w: 220, h: 190, fly: true, hover: -0.75, scale: 0.26, pitch: 0.2,
+  name: "Stinger", w: 220, h: 200, fly: true, hover: -1.0, scale: 0.26, pitch: 0.2,
   palettes: [
     ["#07050a", "#120c18", "#1e1428", "#2e2040", "#463260", "#6a5088"],   // 1 chitin
     ["#241002", "#552a04", "#8e4e08", "#cc8410", "#f0bc2a", "#fff08a"],   // 2 amber bands
@@ -133,7 +133,7 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
   if (m == 1.) return sh*.9 + .25*pow(max(dot(n, normalize(vec3(-.3, .9, -.4))), 0.), 24.);   // glossy chitin
   if (m == 3. && length(lp) > .03) {   // compound eyes: a hot centre fading to a dark rim, with facets
     float c = clamp(1. - length(lp.xy/vec2(.06, .088)), 0., 1.);
-    return (.15 + .85*c)*(.8 + .2*step(.3, abs(fract(lp.y*60. + lp.x*30.) - .5)));
+    return (.45 + .55*c)*(.8 + .2*step(.3, abs(fract(lp.y*60. + lp.x*30.) - .5)));
   }
   if (m == 4.) {   // see-through membrane (dithered) with a few dark veins
     float v = min(abs(fract(lp.z*6. + .25*sin(lp.x*7.)) - .5), abs(fract(lp.x*2.6 + lp.z*1.5) - .5)*1.6);
@@ -160,7 +160,7 @@ function treantHand(P) {
   return [x, y + 0.62, wr[2]];
 }
 export const treant = {
-  name: "Gnarlwood", w: 290, h: 290, ground: 0, scale: 0.5, pitch: 0.12,
+  name: "Gnarlwood", w: 290, h: 290, ground: 0, scale: 0.5, pitch: 0.12, yaw: -0.8,
   palettes: [
     ["#0b0806", "#1a120c", "#2c2016", "#403022", "#584430", "#745c42"],   // 1 bark
     ["#081006", "#101e0a", "#1a2e0e", "#284414", "#3a5a1c", "#52742a"],   // 2 moss
@@ -247,7 +247,7 @@ float map(vec3 p){
   // glowing fungus shelves climbing its near side
   if (sdBox(b - vec3(.1, .55, -.36), vec3(.35, .6, .22)) < d) for (int i = 0; i < 5; i++) {
     float fi = float(i), cl = i < 3 ? 0. : 1., k = i < 3 ? fi : fi - 3.;
-    vec3 f = b - (cl < .5 ? vec3(.2 - k*.05, .12 + k*.09, -.34 - k*.01) : vec3(-.05 + k*.06, .82 + k*.09, -.36));
+    vec3 f = b - (cl < .5 ? vec3(.06 - k*.05, .12 + k*.09, -.38 - k*.01) : vec3(-.05 + k*.06, .82 + k*.09, -.36));
     f.xy = R(.2*(k - 1.) - .1) * f.xy;
     float sh = ell(f, vec3(.11 - .025*k, .03, .09 - .02*k));
     sh = max(sh, -f.x - .2);
@@ -296,8 +296,8 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
     // moss on the upward faces; deep twisting bark grooves
     if (n.y > .3 && vnoise(p*9.) + .3*vnoise(p*30.) > .62) { m = 2.; return sh + .1*vnoise(p*30.); }
     float g = abs(sin(atan(lp.z, lp.x)*5. + lp.y*3.5 + vnoise(lp*vec3(3., 1.2, 3.))*6.));
-    if (g < .16 + .2*vnoise(lp*9.)) return sh*.45;
-    return sh - .06 + .12*vnoise(lp*vec3(20., 5., 20.));
+    if (g < .1 + .14*vnoise(lp*5.)) return sh*.4;
+    return sh - .1 + .22*vnoise(lp*vec3(26., 6., 26.));
   }
   if (m == 4. && lp.x > .16 && vnoise(lp*26. + vec3(0., T*2., 0.)) > .45) { m = 3.; return .1 + .35*vnoise(lp*40. - T*3.); }   // embers deep in the maw
   if (m == 4.) return sh*.6;
@@ -335,15 +335,15 @@ float map(vec3 p){
   vec3 q = p; q.xy = R(.12*WIND - .15*ATK) * q.xy;
   // mist body: a pointed hood, a ragged mantle, and a robe that frays into trailing tendrils
   vec3 b = q;
-  b.x -= .07*sin(T*1.3 + b.y*3.)*smoothstep(.7, -.4, b.y);
-  float body = ell(b - vec3(.04, .68, 0.), vec3(.19, .13, .29));   // shoulders
+  b.x -= (.07*sin(T*1.3 + b.y*3.) + .08)*smoothstep(.7, -.4, b.y);
+  float body = ell(b - vec3(.04, .68, 0.), vec3(.16, .13, .28));   // shoulders
   body = smin(body, ell(b - vec3(.0, .93, 0.), vec3(.17, .2, .17)), .07);   // hood behind the mask
   body = smin(body, sdCapT(b, vec3(.02, 1.0, 0.), vec3(.2, 1.22, 0.), .12, .0), .05);   // its swept point
-  body = smin(body, sdCapT(b, vec3(.04, .62, 0.), vec3(.1, .12, 0.), .2, .27), .1);
+  body = smin(body, sdCapT(b, vec3(.04, .62, 0.), vec3(.16, .14, 0.), .18, .25), .1);
   for (int i = 0; i < 5; i++) {
     float fi = float(i), az = fi*1.257 + .6;
     vec3 wa = vec3(.1 + cos(az)*.16, .2, sin(az)*.2);
-    vec3 wb = vec3(.22 + .14*sin(T*1.7 + fi*2.) + cos(az)*.12, -.35 - .18*hash1(fi*5.) + .07*sin(T*2.3 + fi), sin(az)*.32 + .05*sin(T + fi));
+    vec3 wb = vec3(.42 + .14*sin(T*1.7 + fi*2.) + cos(az)*.12, -.4 - .2*hash1(fi*5.) + .07*sin(T*2.3 + fi), sin(az)*.3 + .05*sin(T + fi));
     body = smin(body, sdCapT(b, wa, wb, .12, .0), .07);
   }
   vec3 cp = vec3(-.17, .5, -.02);
@@ -431,7 +431,7 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
 const GOB_LEAN = (P) => 0.42 + 0.18 * (P.atk || 0) - 0.12 * (P.wind || 0);
 const GOB_K = 1.2;   // the model is built small and scaled up
 const gobBody = (P, [x, y, z]) => { const [rx, ry] = rot(x, y, GOB_LEAN(P)); return [(rx + 0.04) * GOB_K, (ry + 0.42) * GOB_K, z * GOB_K]; };
-const gobCleaverHand = (P) => mix3(mix3([-0.3, 0.06, -0.3], [0.1, 0.65, -0.25], P.wind || 0), [-0.5, 0.15, -0.15], P.atk || 0);
+const gobCleaverHand = (P) => mix3(mix3([-0.4, 0.14, -0.32], [0.1, 0.65, -0.25], P.wind || 0), [-0.5, 0.15, -0.15], P.atk || 0);
 const gobBombHand = (P) => mix3([0.3, 0.0, 0.25], [0.35, 0.45, 0.3], Math.max(P.open || 0, P.wind || 0) * (1 - (P.atk || 0)));
 export const goblin = {
   name: "Grub Goblin", w: 240, h: 200, ground: 0, scale: 0.3, pitch: 0.14,
@@ -443,13 +443,13 @@ export const goblin = {
     ["#180a04", "#361808", "#5e2c0c", "#8a4414", "#b26626", "#d89656"],   // 5 rust
     ["#262014", "#463e2c", "#6a6046", "#968a68", "#c2b48e", "#ece0bc"],   // 6 bone, teeth
     ["#08090c", "#11151d", "#1c2230", "#2a3242", "#3e4658", "#5c6678"],   // 7 bomb iron
-    ["#12161c", "#222832", "#384050", "#566072", "#848ea0", "#c4ccd8"],   // 8 blade steel
+    ["#1a1e26", "#323a48", "#525c6e", "#7a8698", "#a8b2c2", "#e2e8f0"],   // 8 blade steel
   ],
   glow: ["#7a2a04", "#f07a10", "#ffe080", "#7a5a04", "#f0d020", "#fff8b0"],
   anchors: {
     core: [-0.06, 0.72, 0], feet: [0, 0, 0],
     head: (P) => gobBody(P, [-0.06, 0.55, 0]),
-    weapon: (P) => { const h = gobCleaverHand(P), a = mix(mix(0.5, 2.6, P.wind || 0), 0.3, P.atk || 0); return gobBody(P, [h[0] - Math.cos(a) * 0.25, h[1] + Math.sin(a) * 0.25, h[2]]); },
+    weapon: (P) => { const h = gobCleaverHand(P), a = mix(mix(0.75, 2.6, P.wind || 0), 0.3, P.atk || 0); return gobBody(P, [h[0] - Math.cos(a) * 0.25, h[1] + Math.sin(a) * 0.25, h[2]]); },
     muzzle: (P) => { const h = gobBombHand(P); return gobBody(P, [h[0], h[1] + 0.09, h[2]]); },
   },
   idle: (t) => ({ bob: Math.abs(Math.sin(t * 2.6)) * 0.015, lean: Math.sin(t * 1.3) * 0.03, walkT: Math.sin(t * 1.3) * 0.04 }),
@@ -502,8 +502,9 @@ float map0(vec3 p){
   for (int s = -1; s <= 1; s += 2) sko = min(sko, length(pa - vec3(-.03 + .03*float(s), .055, -.08)) - .022);
   U(d, max(sk, -sko), -sko > sk - .006 ? 4. : 6., pa);
   // head: counter-tilted so it glares forward
-  vec3 h = b - vec3(-.07, .52, 0.);
+  vec3 h = b - vec3(-.07, .53, 0.);
   h.xy = R(lean*.75 - .1*ATK) * h.xy;
+  h /= 1.15;
   float head = ell(h - vec3(0., .02, 0.), vec3(.14, .12, .13));
   head = smin(head, ell(h - vec3(-.06, -.07, 0.), vec3(.12, .07, .11)), .05);
   for (int s = -1; s <= 1; s += 2) head = smin(head, sdCapT(h, vec3(-.14, .05, 0.), vec3(-.1, .09, .12*float(s)), .032, .022), .03);   // heavy brow
@@ -540,20 +541,20 @@ float map0(vec3 p){
   // near arm: the cleaver
   {
     vec3 sh = vec3(-.03, .36, -.2);
-    vec3 hd = mix(mix(vec3(-.3, .06, -.3), vec3(.1, .65, -.25), WIND), vec3(-.5, .15, -.15), ATK);
+    vec3 hd = mix(mix(vec3(-.4, .14, -.32), vec3(.1, .65, -.25), WIND), vec3(-.5, .15, -.15), ATK);
     vec3 el = (sh + hd)*.5 + vec3(.07, -.08, -.08);
     U(d, sdCapT(b, sh, el, .05, .04), 1., b);
     U(d, sdCapT(b, el, hd, .045, .035), 1., b);
     U(d, sdCapT(b, el + (hd - el)*.3, el + (hd - el)*.8, .05, .045), 2., b);   // bracer
     U(d, length(b - hd) - .05, 1., b);
-    float a = mix(mix(.5, 2.6, WIND), .3, ATK);
+    float a = mix(mix(.75, 2.6, WIND), .3, ATK);
     vec2 dir = vec2(-cos(a), sin(a));
     U(d, sdCap(b, hd - vec3(dir*.07, 0.), hd + vec3(dir*.06, 0.), .02), 2., b);
     vec3 c = b - hd; c.xy = R(-atan(dir.y, dir.x)) * c.xy;
-    float bl = sdBox(c - vec3(.22, .025, 0.), vec3(.16, .06, .012));
-    bl = max(bl, dot(c.xy - vec2(.38, .0), normalize(vec2(1., .9))));   // the point
-    bl = max(bl, c.y - (.08 - .028*abs(fract(c.x*10.) - .5)*2.));   // a jagged notched spine
-    bl = max(bl, -(length(c.xy - vec2(.27, .04)) - .018));   // a hole punched through
+    float bl = sdBox(c - vec3(.25, .03, 0.), vec3(.19, .075, .014));
+    bl = max(bl, dot(c.xy - vec2(.44, .0), normalize(vec2(1., .9))));   // the point
+    bl = max(bl, c.y - (.1 - .035*abs(fract(c.x*9.) - .5)*2.));   // a jagged notched spine
+    bl = max(bl, -(length(c.xy - vec2(.32, .05)) - .02));   // a hole punched through
     U(d, bl, 8., c);
   }
   // far arm: the bomb, held up, cocked back to throw

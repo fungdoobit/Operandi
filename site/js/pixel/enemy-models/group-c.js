@@ -5,11 +5,12 @@
 
 // ---- Bone Archers: a squad of three skeleton archers ----
 // Bleached skeletons in hooded, sun-rotted desert cloaks with ragged hems, open
-// at the front over their ribcages. Turquoise soul-fire burns in their eye
-// sockets. Each carries a longbow and a quiver on its back. WIND draws the
-// bows (the limbs bend, the string comes back to the cheek), ATK looses the
-// arrows (the string snaps straight, the hand follows through), OPEN (fully
-// open: the rain attack) leans them back and aims the bows at the sky.
+// at the front over their ribcages, rag sashes and leather bracers. Turquoise
+// soul-fire burns in their eye sockets. Each carries a longbow and a quiver on
+// its back. WIND draws the bows (the limbs bend, the string comes back to the
+// cheek), ATK looses the arrows (the string snaps straight, the hand follows
+// through), OPEN (fully open: the rain attack) leans them back and aims the
+// bows at the sky.
 export const archer = {
   name: "Bone Archers", w: 280, h: 210, ground: 0, scale: 0.36, pitch: 0.16, offX: 0.62,
   palettes: [
@@ -51,7 +52,7 @@ void archer(inout float d, vec3 p, float id){
   vec3 fq = p - vec3(-.09, .5, -.02);
   float flap = sdBox(fq, vec3(.012, .15 + .03*sin(fq.z*60.), .055));
   flap = max(flap, -fq.y - .1 - .05*hash1(floor(fq.z*30.)));
-  U(d, flap - .006, 1., fq + vec3(0., .2*sin(T*1.7 + id), 0.)*0.);
+  U(d, flap - .006, 1., fq);
   // upper body: breathing, leaning back to shoot at the sky, pivoting at the pelvis
   vec3 q = p - vec3(0., .62, 0.);
   q.xy = R(.24*hi - .03*w + .05*a) * q.xy;
@@ -127,7 +128,7 @@ void archer(inout float d, vec3 p, float id){
     vec3 a0 = nk - dir*.02, a1 = nk + dir*(.5 + .22*bend);
     U(d, sdCap(q, a0, a1, .008), 5., q);
     U(d, sdCapT(q, a1, a1 + dir*.07, .022, .0), 6., q);
-    U(d, sdCapT(q, a0 + dir*.02, a0 + dir*.12, .028, .004) + .012*0., 6., q);
+    U(d, sdCapT(q, a0 + dir*.02, a0 + dir*.12, .028, .004), 6., q);
   }
   // quiver on the back
   vec3 qa = vec3(.3, .6, -.03), qb = vec3(.22, 1.12, .06);
@@ -171,9 +172,9 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
 // A huge hunched bear on its hind legs, matted near-black fur rimed with frost,
 // jagged ice crystals growing out of its hump, icicles hanging off its jaw and
 // forearms. One flank is torn open to rotten flesh and bare ribs. Pale blue
-// eyes burn under a heavy brow; the fanged maw gapes (OPEN, and on WIND as it
-// roars). WIND rears it upright with both paws raised, ATK brings it crashing
-// forward with the claws (the lunge swipe and the ground slam).
+// eyes burn under a heavy brow; the fanged maw hangs open (wider on OPEN, and
+// on WIND as it roars). WIND rears it upright with both paws raised, ATK brings
+// it crashing forward with the claws (the lunge swipe and the ground slam).
 export const bear = {
   name: "Frostbitten Bear", w: 270, h: 260, ground: 0, scale: 0.5, pitch: 0.14, offX: -0.1,
   palettes: [
@@ -189,7 +190,7 @@ export const bear = {
     core: [0, 1.15, 0], head: [-0.62, 1.62, 0], feet: [0, 0, 0], muzzle: [-0.92, 1.55, 0],
     weapon: (P) => {
       const w = P.wind || 0, a = P.atk || 0, mix = (x, y, k) => x + (y - x) * k;
-      return [mix(mix(-0.72, -0.25, w), -1.05, a), mix(mix(0.55, 2.35, w), 0.45, a), -0.42];
+      return [mix(mix(-0.72, -0.25, w), -1.05, a), mix(mix(0.55, 2.2, w), 0.45, a), -0.42];
     },
   },
   idle: (t) => ({ bob: Math.sin(t * 1.6) * 0.012, lean: Math.sin(t * 0.8) * 0.02 }),
@@ -303,15 +304,16 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
 };
 
 // ---- Scrap Bots: a gang of three hostile junk robots ----
-// Built from salvage: mismatched steel plates, flaking hazard paint, rust and
-// frost. Each has one red camera eye under a slanted visor plate.
-// The gunner (front) rolls on treads, with a cannon arm under an ammo drum
-// (the muzzle; its barrel kicks back on every ATK). The brute behind is an
-// oil drum on stubby reverse-jointed legs with a pincer claw. The scout is a
-// small box on stilt legs with twin whip antennae. WIND hunkers them down for
-// the charge, ATK throws them forward, WALK drives the treads and legs.
+// Built from salvage: mismatched steel plates, hazard-striped panels with the
+// paint flaking off, rust and frost. Each has one red camera eye, hooded by a
+// slanted visor plate into a scowl. The gunner (front) rolls on treads with a
+// cannon arm under an ammo drum (the muzzle; its barrel kicks back on every
+// ATK). The brute behind is an oil drum on stubby legs, with a grille mouth,
+// jagged scrap teeth round its rim and a pincer claw. The scout is a small
+// box on stilt legs with twin whip antennae. WIND hunkers them down for the
+// charge, ATK throws them forward, WALK drives the treads and legs.
 export const robot = {
-  name: "Scrap Bots", w: 270, h: 180, ground: 0, scale: 0.34, pitch: 0.2, offX: 0.5,
+  name: "Scrap Bots", w: 270, h: 180, ground: 0, scale: 0.34, pitch: 0.2, yaw: -0.32, offX: 0.5,
   palettes: [
     ["#0a0c10", "#161a22", "#262c36", "#3c4450", "#5a6470", "#848e9a"],   // 1 steel plates
     ["#1a0c06", "#341808", "#562a0e", "#7c4016", "#a45c22", "#c8823c"],   // 2 rust
@@ -323,13 +325,21 @@ export const robot = {
   glow: ["#7a0a0a", "#ff4a2a", "#ffd0b0", "#7a0a0a", "#ff4a2a", "#ffe0d0"],
   anchors: {
     core: [0.45, 0.5, 0], head: [-0.06, 0.88, 0], feet: [0, 0, 0],
-    muzzle: (P) => [-0.6 + 0.09 * (P.atk || 0), 0.6, -0.27],
+    muzzle: (P) => [-0.62 + 0.09 * (P.atk || 0), 0.6, -0.26],
     weapon: [-0.4, 0.55, -0.2],
   },
   idle: (t) => ({ bob: 0, walkT: t * 0.15 }),
   glsl: `
 float cylX(vec3 p, float r, float h){ return sdCylY(p.yxz, r, h); }
 float cylZ(vec3 p, float r, float h){ return sdCylY(p.xzy, r, h); }
+// a camera eye: a dark barrel with a red lens, its top cut off on a slant (a scowl)
+void camEye(inout float d, vec3 e, float r){
+  U(d, cylX(e, r*1.4, .05), 4., e);
+  vec3 l = e + vec3(.04, 0., 0.);
+  float lens = (length(l/vec3(1., .55, 1.)) - r)*.55;   // a narrow slit, cut on a slant: a scowl
+  lens = max(lens, dot(l, normalize(vec3(.2, 1., .45))) - r*.25);
+  U(d, lens, 3., e); E(lens);
+}
 // the gunner: treads, a boxy body, a cannon arm
 void gunner(inout float d, vec3 p){
   for (int s = -1; s <= 1; s += 2) {
@@ -351,12 +361,9 @@ void gunner(inout float d, vec3 p){
   vec3 h = q - vec3(-.05, .56, 0.);
   h.xz = R(.18*sin(T*.7) + .12*step(.92, fract(T*.37))) * h.xz;
   U(d, sdRBox(h, vec3(.12, .09, .12), .03), 1., h);
-  vec3 vs = h - vec3(-.1, .09, 0.); vs.xy = R(-.35) * vs.xy;   // slanted visor: a scowl
+  vec3 vs = h - vec3(-.1, .09, 0.); vs.xy = R(-.35) * vs.xy;   // slanted visor
   U(d, sdRBox(vs, vec3(.07, .015, .12), .008), 5., vs);
-  vec3 e = h - vec3(-.14, -.005, -.02);
-  U(d, cylX(e, .065, .05), 4., e);
-  float lens = max(length(e + vec3(.04, 0., 0.)) - .046, dot(e, normalize(vec3(.35, 1., .3))) - .012);
-  U(d, lens, 3., e); E(lens);
+  camEye(d, h - vec3(-.14, -.005, -.02), .046);
   U(d, sdCap(h, vec3(.05, .09, .07), vec3(.12, .36, .1), .01), 4., h);   // antenna
   float tip = length(h - vec3(.12, .37, .1)) - .022; U(d, tip, 3., h); G(tip + .01);
   // cannon arm on the near side, with an ammo drum; the barrel kicks back on the shot
@@ -364,10 +371,11 @@ void gunner(inout float d, vec3 p){
   U(d, length(a - vec3(.07, 0., 0.)) - .07, 4., a);
   U(d, sdRBox(a - vec3(-.1, 0., 0.), vec3(.14, .055, .055), .02), 1., a);
   U(d, cylZ(a - vec3(-.06, .09, 0.), .07, .045), 5., a);
-  vec3 g = a - vec3(-.32 + .09*ATK, 0., 0.);
-  U(d, cylX(g, .042, .16), 4., g);
-  U(d, cylX(g - vec3(-.13, 0., 0.), .052, .03), 1., g);   // muzzle brake
-  U(d, cylX(g - vec3(.06, 0., 0.), .055, .05), 2., g);   // cooling jacket
+  vec3 g = a - vec3(-.34 + .09*ATK, 0., 0.);
+  U(d, sdRBox(g - vec3(.1, 0., 0.), vec3(.1, .065, .065), .02), 1., g);   // breech block
+  for (int k = 0; k < 2; k++) U(d, cylX(g - vec3(-.06, .028*float(2*k - 1), 0.), .026, .16), 4., g);   // twin barrels
+  U(d, sdRBox(g - vec3(-.2, 0., 0.), vec3(.025, .07, .05), .01), 1., g);   // muzzle brake
+  U(d, sdRBox(g - vec3(.0, 0., 0.), vec3(.03, .075, .055), .01), 2., g);   // barrel clamp
   // a stubby claw on the far side
   vec3 c = q - vec3(-.06, .28, .22);
   U(d, sdCapT(c, vec3(0.), vec3(-.16, -.06, 0.), .05, .035), 1., c);
@@ -400,16 +408,13 @@ void brute(inout float d, vec3 p){
   }
   vec3 pt = q - vec3(-.2, .02, -.1); pt.xz = R(.5) * pt.xz;   // patched with a plate
   U(d, sdRBox(pt, vec3(.03, .12, .1), .01), 1., pt);
-  // head: a hooded box with one big eye
+  // head: a box with one big eye under a slanted brow plate
   vec3 h = q - vec3(-.04, .34, 0.);
   h.xz = R(-.15*sin(T*.5 + 1.)) * h.xz;
   U(d, sdRBox(h, vec3(.13, .1, .13), .04), 1., h);
-  vec3 hood = h - vec3(-.1, .1, 0.); hood.xy = R(-.4) * hood.xy;
-  U(d, sdRBox(hood, vec3(.09, .02, .14), .01), 2., hood);
-  vec3 e = h - vec3(-.13, -.01, -.03);
-  U(d, cylX(e, .07, .05), 4., e);
-  float lens = max(length(e + vec3(.035, 0., 0.)) - .052, dot(e, normalize(vec3(.35, 1., .3))) - .014);
-  U(d, lens, 3., e); E(lens);
+  vec3 hood = h - vec3(-.12, .07, 0.); hood.xy = R(-.45) * hood.xy;
+  U(d, sdRBox(hood, vec3(.07, .018, .14), .008), 1., hood);
+  camEye(d, h - vec3(-.13, -.01, -.03), .052);
   U(d, sdCap(h, vec3(.06, .1, -.05), vec3(.0, .3, -.09), .01), 4., h);
   vec3 dsh = h - vec3(.0, .3, -.09); dsh.xy = R(.6) * dsh.xy;
   U(d, max(abs(length(dsh - vec3(0., .1, 0.)) - .1) - .01, dsh.y - .03), 1., dsh);   // a bent dish
@@ -438,12 +443,9 @@ void scout(inout float d, vec3 p){
   b.xy = R(.1*WIND - .25*ATK + .06*sin(T*2.3)) * b.xy;
   U(d, sdRBox(b, vec3(.13, .12, .12), .03), 5., b);
   U(d, sdRBox(b - vec3(.03, .1, 0.), vec3(.12, .03, .13), .015), 1., b);
-  vec3 e = b - vec3(-.13, 0., -.02);
-  U(d, cylX(e, .07, .04), 4., e);
-  float lens = max(length(e + vec3(.03, 0., 0.)) - .05, dot(e, normalize(vec3(.35, 1., .3))) - .012);
+  camEye(d, b - vec3(-.13, 0., -.02), .05);
   vec3 bv = b - vec3(-.13, .07, 0.); bv.xy = R(-.4) * bv.xy;
   U(d, sdRBox(bv, vec3(.05, .012, .13), .006), 1., bv);
-  U(d, lens, 3., e); E(lens);
   for (int s = -1; s <= 1; s += 2) {
     float fs = float(s);
     vec3 a0 = vec3(.06, .12, .08*fs), a1 = a0 + vec3(.1 + .03*sin(T*3. + fs), .3, .05*fs);
@@ -477,6 +479,157 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
   }
   if (m == 2.) return sh + .12*vnoise(lp*30.) - .05 - .15*step(.48, abs(fract(lp.y*14.) - .5));
   if (m == 4.) return sh + .14*step(.5, fract(lp.x*16. - WALK*3.));
+  return sh;
+}`,
+};
+
+// ---- Clawtank: a crab refitted as a war machine ----
+// A big shore crab whose barnacled red carapace has been bolted over with
+// gunmetal armour plates. Its right claw is gone, replaced by a huge hydraulic
+// crusher on brass pistons (the weapon: WIND cocks it back and opens it, ATK
+// slams it forward and snaps it shut). A mortar turret sits on its back (the
+// muzzle for "shell", kicking back on ATK) with a red laser emitter slung under
+// the barrel (the muzzle for "beam", when OPEN is full). Red eyes glare from
+// armoured stalks; six segmented legs scuttle on WALK.
+export const crab = {
+  name: "Clawtank", w: 300, h: 210, ground: 0, scale: 0.48, pitch: 0.22, yaw: -0.6, offX: -0.05,
+  palettes: [
+    ["#1a0806", "#3a120c", "#621e12", "#8c3018", "#b44a22", "#d87038"],   // 1 crab shell
+    ["#0c0e12", "#1a1e26", "#2c323c", "#444c58", "#646e7a", "#8e98a4"],   // 2 armour plate
+    ["#3a0404", "#7a0a0a", "#c41a12", "#ff4a2a", "#ff9a72", "#fff0e0"],   // 3 red eyes, laser
+    ["#060406", "#100a0c", "#1c1214", "#2a1c1c", "#3a2826", "#4c3632"],   // 4 joints, belly
+    ["#1a1610", "#38301e", "#5e5030", "#8a7848", "#b8a468", "#e4d4a0"],   // 5 brass hydraulics
+    ["#2a261e", "#4a4436", "#6e6650", "#948a6e", "#bab092", "#e0d8bc"],   // 6 barnacles
+  ],
+  glow: ["#7a0a0a", "#ff4a2a", "#ffd0b0", "#7a0a0a", "#ff4a2a", "#ffe0d0"],
+  anchors: {
+    core: [0.05, 0.75, 0], head: [-0.68, 1.24, 0], feet: [0, 0, 0],
+    weapon: (P) => { const w = P.wind || 0, a = P.atk || 0; return [-1.7 - 0.05 * w - 0.4 * a, 0.62 + 0.8 * w - 0.12 * a, -0.66]; },
+    muzzle: (P) => (P.open || 0) > 0.8 ? [-0.32, 1.28, 0.02] : [-0.2 + 0.08 * (P.atk || 0), 1.62 - 0.06 * (P.atk || 0), 0.05],
+  },
+  idle: (t) => ({ bob: Math.sin(t * 2.1) * 0.01, walkT: t * 0.12 }),
+  glsl: `
+float ell(vec3 p, vec3 r){ return (length(p/r) - 1.)*min(r.x, min(r.y, r.z)); }
+float cylX(vec3 p, float r, float h){ return sdCylY(p.yxz, r, h); }
+float map(vec3 p){
+  float d = 1e5;
+  float br = sin(T*2.1);
+  // six segmented legs, three a side, stepping in turn
+  if (abs(p.z) > .3 && p.y < 1.05) {
+    for (int s = -1; s <= 1; s += 2) {
+      float fs = float(s);
+      for (int i = 0; i < 3; i++) {
+        float fi = float(i), ph = WALK*6.283 + fi*2.1 + fs*1.;
+        float lift = max(sin(ph), 0.)*.1;
+        vec3 b = vec3(-.2 + .28*fi, .64, .45*fs);
+        vec3 k = vec3(-.2 + .32*fi + .05*cos(ph), .86 + lift, .82*fs);
+        vec3 m = vec3(-.22 + .36*fi + .07*cos(ph), .42 + lift, 1.05*fs);
+        vec3 t = vec3(-.26 + .38*fi + .08*cos(ph), lift*.5, 1.0*fs);
+        U(d, sdCapT(p, b, k, .11, .085), 1., p);
+        U(d, length(p - k) - .08, 4., p);
+        U(d, sdCapT(p, k, m, .085, .065), 1., p);
+        U(d, length(p - m) - .062, 4., p);
+        U(d, sdCapT(p, m, t, .065, .008), 2., p);   // steel-capped tips
+      }
+    }
+  }
+  // the carapace: wide and flat with a serrated rim, armour bolted over it
+  vec3 c = p - vec3(.05, .76 + .012*br, 0.);
+  float an = atan(c.z, -c.x);
+  float rim = .035*abs(fract(an*3.2) - .5)*smoothstep(.2, .9, abs(an));
+  float shell = ell(c, vec3(.7 + rim, .34, .64 + rim));
+  shell = smin(shell, ell(c - vec3(.05, -.13, 0.), vec3(.56, .22, .52)), .08);   // the belly
+  shell += .012*vnoise(c*12.);
+  U(d, shell, c.y < -.1 ? 4. : 1., c);
+  vec3 ap = c - vec3(.08, .2, 0.);
+  float plate = max(ell(ap, vec3(.6, .19, .52)), -ap.y + .02);
+  plate = max(plate, abs(ap.z) - .3);
+  U(d, plate - .01, 2., ap);
+  for (int s = -1; s <= 1; s += 2) {   // side plates hung on the shell
+    vec3 sp = c - vec3(-.05, .06, .5*float(s)); sp.yz = R(.5*float(s)) * sp.yz;
+    U(d, sdRBox(sp, vec3(.32, .1, .02), .015), 2., sp);
+  }
+  // mouthparts working under the face
+  vec3 mo = c - vec3(-.68, -.1, 0.);
+  for (int s = -1; s <= 1; s += 2) {
+    vec3 mq = mo - vec3(0., 0., .06*float(s));
+    mq.xz = R(float(s)*(.2 + .2*OPEN + .08*sin(T*6.))) * mq.xz;
+    U(d, sdRBox(mq, vec3(.04, .07, .035), .015), 4., mq);
+  }
+  // armoured eye stalks with red eyes
+  for (int s = -1; s <= 1; s += 2) {
+    float fs = float(s), tw = .05*sin(T*1.3 + fs*2.) + .04*step(.95, fract(T*.4 + fs*.3));
+    vec3 e0 = vec3(-.55, .9, .17*fs), e1 = vec3(-.68 + tw, 1.24, .22*fs);
+    U(d, sdCapT(p, e0, e1, .05, .035), 2., p);
+    vec3 e = p - e1;
+    U(d, sdCylY(e - vec3(0., -.02, 0.), .055, .03), 2., e);
+    float eye = length((e - vec3(-.015, .03, 0.))/vec3(1., .75, 1.)) - .05;
+    U(d, eye, 3., e); E(eye);
+  }
+  // the mortar turret on its back, with the laser emitter under the barrel
+  vec3 tq = p - vec3(.15, 1.08, .05);
+  U(d, sdCylY(tq, .2, .06) - .015, 2., tq);
+  U(d, sdRBox(tq - vec3(0., .14, 0.), vec3(.17, .1, .16), .03), 2., tq);
+  vec3 bq = tq - vec3(-.08, .2, 0.);
+  bq.xy = R(-.75 - .1*ATK + .1*WIND) * bq.xy;   // the barrel, angled up and forward
+  bq.y -= .22 - .08*ATK;
+  U(d, sdCylY(bq, .085, .2) - .01, 2., bq);
+  U(d, sdCylY(bq - vec3(0., .18, 0.), .1, .04) - .005, 5., bq);   // brass muzzle ring
+  U(d, sdCylY(bq - vec3(0., .2, 0.), .055, .05), 4., bq);   // the bore
+  vec3 lz = tq - vec3(-.32, .2, -.03);
+  U(d, cylX(lz - vec3(.08, 0., 0.), .05, .1), 2., lz);
+  U(d, cylX(lz, .04, .03), 5., lz);
+  float lens = length(lz + vec3(.03, 0., 0.)) - (.03 + .012*OPEN);
+  U(d, lens, 3., lz); G(lens - .01*OPEN);
+  // the small natural claw on the far side
+  vec3 sc = p - vec3(-.45, .62, .42);
+  U(d, sdCapT(sc, vec3(0.), vec3(-.25, -.05, .1), .08, .06), 1., sc);
+  U(d, ell(sc - vec3(-.36, -.04, .12), vec3(.14, .08, .06)), 1., sc);
+  U(d, sdCapT(sc, vec3(-.45, -.02, .12), vec3(-.58, -.01 + .04*OPEN, .12), .035, .006), 6., sc);
+  // the big hydraulic crusher on the near side: cocked back on WIND, slammed out on ATK
+  vec3 s0 = vec3(-.5, .68, -.46);
+  vec3 el = vec3(-.72 - .06*WIND - .1*ATK, .5 + .1*WIND - .08*ATK, -.72);
+  vec3 cb = vec3(-.92 - .2*WIND - .4*ATK, .58 + .4*WIND - .1*ATK, -.7 + .06*WIND);
+  U(d, sdCapT(p, s0, el, .13, .11), 2., p);
+  U(d, length(p - el) - .12, 4., p);
+  U(d, sdCapT(p, el, cb, .11, .13), 1., p);
+  vec3 pn = normalize(cb - el), pv = normalize(cross(pn, vec3(0., 0., 1.)));
+  U(d, sdCap(p, s0 + vec3(0., .12, 0.), el + pv*.14, .025), 5., p);   // pistons
+  U(d, sdCap(p, el + pv*.12, cb + pv*.13, .028), 5., p);
+  U(d, sdCap(p, el + pv*.12, mix(el, cb, .5) + pv*.13, .042), 2., p);
+  // the claw itself, pointing along the forearm
+  vec3 k = (p - cb)/1.3; d /= 1.3;   // drawn 1.3x bigger
+  k.xy = R(.15 + .5*WIND - .2*ATK) * k.xy;   // aimed forward, raised when cocked
+  float palm = ell(k - vec3(-.24, 0., 0.), vec3(.34, .23, .19));
+  palm = smin(palm, sdRBox(k - vec3(-.16, .0, 0.), vec3(.2, .16, .19), .06), .06);
+  U(d, palm, 2., k);
+  U(d, sdCylY((k - vec3(-.02, 0., 0.)).xzy, .15, .2), 5., k);   // hydraulic collar
+  vec3 f0 = k - vec3(-.52, -.08, 0.);   // the fixed jaw, serrated
+  float fixd = sdCapT(f0, vec3(0.), vec3(-.42, .06, 0.), .13, .025);
+  fixd = max(fixd, -(f0.y - .03 + .03*abs(fract(f0.x*11.) - .5)));
+  U(d, fixd, 2., f0);
+  float op = .1 + .6*WIND*(1. - ATK) + .2*OPEN;
+  vec3 f1 = k - vec3(-.5, .09, 0.); f1.xy = R(-op) * f1.xy;   // the crusher jaw, hinged on top
+  float dact = sdCapT(f1, vec3(0.), vec3(-.44, -.05, 0.), .13, .025);
+  dact = max(dact, -(-f1.y - .02 + .03*abs(fract(f1.x*11. + .5) - .5)));
+  U(d, dact, 2., f1);
+  d *= 1.3;
+  return d;
+}
+float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
+  if (m == 1.) {
+    float bn = vnoise(lp*11.);
+    if (bn > .84 && n.y > -.2 && vnoise(lp*31.) > .4) { m = 6.; return sh + .1*sin(length(fract(lp*24.) - .5)*20.); }   // barnacles
+    return sh + .1*vnoise(lp*30.) - .05 + .08*smoothstep(.55, .7, vnoise(lp*5. + 3.));
+  }
+  if (m == 2.) {
+    float rv = length(fract(lp.xz*vec2(8., 8.) + .5) - .5);
+    if (vnoise(lp*6. + 7.) > .8) { m = 1.; return sh*.6; }   // rust streaks
+    if (rv < .09 && n.y > .3) return sh + .3;   // rivets
+    if (abs(fract(lp.x*4.5) - .5) < .04) return sh - .25;   // plate seams
+    return sh + .05*vnoise(lp*40.);
+  }
+  if (m == 5.) return sh + .15*step(.5, fract(lp.y*20.));
   return sh;
 }`,
 };

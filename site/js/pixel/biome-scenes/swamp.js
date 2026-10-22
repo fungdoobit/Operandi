@@ -63,7 +63,7 @@ export class Scene extends PixelScene {
     }
     for (let i = 0; i < W / 9; i++) { const x = r() * W, y = 30 + r() * 70; if (r() < 0.8) put(x, y, mix(C.sky2, C.star, 0.3 + r() * 0.5)); }
     // 2. the moon with a dithered halo and craters, cut by thin clouds
-    const mx = Math.round(W * 0.34), my = 66, mr = 15;
+    const mx = Math.round(W * (W < 500 ? 0.42 : 0.34)), my = 66, mr = 15;
     for (let y = my - 52; y < my + 52; y++) for (let x = mx - 70; x < mx + 70; x++) {
       const d = Math.hypot((x - mx) * 0.8, y - my);
       if (d <= mr || y < 0) continue;
@@ -272,7 +272,7 @@ export class Scene extends PixelScene {
         if (y < 6) break;
       }
       // the long branch arching over the top toward the middle
-      limb(bx + dir * th * 0.5, 34, -Math.PI / 2 + dir * 1.05, Math.min(W * 0.3, 140), th * 0.55, 2, nearPal, 0.22, dir * -0.004);
+      limb(bx + dir * th * 0.5, 34, -Math.PI / 2 + dir * 1.05, Math.min(W * 0.2, 140), th * 0.55, 2, nearPal, 0.22, dir * -0.004);
       limb(bx + dir * th * 0.5, 80, -Math.PI / 2 + dir * 1.25, Math.min(W * 0.12, 70), th * 0.4, 1, nearPal, 0.25, dir * 0.004);
       limb(bx, 14, -Math.PI / 2 - dir * 0.6, 30, th * 0.5, 1, nearPal, 0.1);
     };

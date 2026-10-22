@@ -57,9 +57,14 @@ export const ENEMIES = {
 export const enemiesIn = (biome) => Object.keys(ENEMIES).filter((k) => ENEMIES[k].biome === biome);
 
 // A deterministic pick for a level's n-th wave, so a reload shows the same enemy.
-// (Only enemies whose model exists; Rotcap if none do.)
+// Enemies checked in battle and cleared for the course. The others show only
+// in the preview pages until they're verified (models still being built can't
+// break a lesson on the live site).
+export const READY = new Set(["mushroom"]);
+
+// (Only ready enemies whose model exists; Rotcap if none.)
 export function enemyFor(module, seed, wave = 0) {
-  const list = enemiesIn(MODULE_BIOME[module] || "forest").filter((k) => ENEMY_MODELS[k]);
+  const list = enemiesIn(MODULE_BIOME[module] || "forest").filter((k) => ENEMY_MODELS[k] && READY.has(k));
   if (!list.length) return "mushroom";
   return list[Math.abs((seed * 31 + wave * 7) | 0) % list.length];
 }

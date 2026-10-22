@@ -79,18 +79,21 @@ export class Scene extends PixelScene {
 
     // 4. smoke columns rising from the city and leaning with the wind
     this.plumes = [];
+    // a plume is a column of overlapping round puffs, each lit from the fires below-left
     const plume = (bx, h, w0, lean) => {
-      const steps = Math.round(h);
-      for (let s = 0; s < steps; s++) {
-        const u = s / steps, cx = bx + u * u * lean + Math.sin(u * 5 + bx) * 2, cy = HZ - 6 - s, rad = w0 * (0.45 + u * 1.9) + Math.sin(s * 0.35 + bx) * 2 + Math.sin(s * 0.13) * 2;
-        for (let x = Math.round(cx - rad); x <= cx + rad; x++) {
-          const k = 1 - Math.abs(x - cx) / rad, lumpy = 0.14 * Math.sin(x * 0.35 + s * 0.3) + 0.12 * Math.sin(s * 0.7 - x * 0.25) + 0.1 * Math.sin((x - cx) * 0.9 + s * 0.5);
-          if (k + lumpy < bay(x, cy) * 0.5) continue;
-          const lit = (x - cx) / rad + lumpy * 0.5 < -0.55, low = u < 0.1, curl = false;
-          put(x, cy, low ? C.smokeLit : lit ? (u < 0.35 ? C.smokeLit : C.smoke2) : (k + lumpy) < 0.3 && u > 0.5 ? mix(C.smoke, C.sky2, 0.4) : curl ? C.smoke2 : C.smoke);
+      for (let s = 0; s < h; s += 2.5 + r() * 2) {
+        const u = s / h, cx = bx + u * u * lean + (r() - 0.5) * w0 * (0.8 + u), cy = HZ - 6 - s, rad = w0 * (0.45 + u * 1.5) * (0.75 + r() * 0.45);
+        for (let y = Math.round(cy - rad); y <= cy + rad; y++) for (let x = Math.round(cx - rad); x <= cx + rad; x++) {
+          const dx = (x - cx) / rad, dy = (y - cy) / rad, d = dx * dx + dy * dy;
+          if (d > 1) continue;
+          if (u > 0.75 && d > 0.6 && (1 - d) * 2.5 < bay(x, y)) continue;   // the thin top frays out
+          const l = dx * 0.7 - dy * 0.7;   // light from below-left
+          let c = d > 0.72 && l < -0.35 ? (u < 0.2 ? C.smokeHi : u < 0.5 ? C.smokeLit : C.smoke2) : l < -0.55 ? C.smoke2 : C.smoke;
+          if (u > 0.5) c = mix(c, C.sky1, (u - 0.5) * 0.9);
+          put(x, y, c);
         }
       }
-      this.plumes.push({ x: bx + lean, y: HZ - 6 - steps, w: w0 * 2 });
+      this.plumes.push({ x: bx + lean, y: HZ - 6 - h, w: w0 * 2 });
     };
     plume(W * 0.2, 125, 9, 80);
     plume(W * 0.76, 105, 8, 70);
@@ -180,7 +183,7 @@ export class Scene extends PixelScene {
     for (let yy = -mr; yy <= 0; yy++) for (let xx = -mr - 4; xx <= mr + 4; xx++) {
       const e = (xx / (mr + 4)) ** 2 + (yy / mr) ** 2; if (e > 1) continue;
       const l = (xx * 0.6 - yy * 0.4) / mr, plate = (xx + 40) % 9 === 0 || yy === -Math.round(mr * 0.45);
-      put(mhx + xx, mhy + yy, plate ? C.rustDark : l < -0.4 ? C.rustLit : l > 0.3 ? C.rustDark : C.rust);
+      put(mhx + xx, mhy + yy, plate ? C.midDark : yy < -mr + 2 ? C.rustLit : l < -0.4 ? C.metalLit : l > 0.3 ? C.midDark : C.metal);
     }
     for (let yy = -6; yy <= -3; yy++) for (let xx = -11; xx <= 1; xx++) put(mhx + xx, mhy + yy, C.midDark);   // the visor slot
     this.eye = { x: mhx - 7, y: mhy - 5 };

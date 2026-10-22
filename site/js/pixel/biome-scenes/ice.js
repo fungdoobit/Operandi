@@ -16,8 +16,8 @@ const C = {
   ice: [hex("#0c1e30"), hex("#153452"), hex("#235a7e"), hex("#4a90b4"), hex("#9ad4ea"), hex("#e4f8ff")],
   pineFar: hex("#132236"), pineFarSnow: hex("#3e5874"), pine: hex("#08121e"), pineMid: hex("#0f2030"), pineSnow: hex("#7a9ab8"), pineSnowHi: hex("#cfe4f4"),
   snow: [hex("#1a2a44"), hex("#2a4064"), hex("#45628a"), hex("#7894b8"), hex("#b6cce4"), hex("#e6f2fc")],
-  sheet: [hex("#0a1a2a"), hex("#12304a"), hex("#1e5068")], crack: hex("#04101c"), crackHi: hex("#8ad8ff"),
-  metal: [hex("#140f14"), hex("#2a2228"), hex("#4a3a3a"), hex("#6e5446"), hex("#9a7a5a")], rust: hex("#7a3a1e"), rustHi: hex("#b05a2a"),
+  sheet: [hex("#0a1a2a"), hex("#123048"), hex("#1a5058"), hex("#2a8070"), hex("#6ad8b0")], crack: hex("#04101c"), crackHi: hex("#8ad8ff"),
+  metal: [hex("#0c1018"), hex("#1c2430"), hex("#34404e"), hex("#56667a"), hex("#8a9cb0")], rust: hex("#7a3a1e"), rustHi: hex("#b05a2a"),
   eye: hex("#ff3a2a"), eyeHi: hex("#ffb0a0"), bark: hex("#120c10"), barkLit: hex("#2a2030"),
   fog: hex("#24405a"),
 };
@@ -46,7 +46,7 @@ export class Scene extends PixelScene {
     for (let y = 10; y < HOR; y++) for (let x = 0; x < W; x++) {
       const e = auY(x), d = y - e;
       let k = d > 0 ? Math.max(0, 1 - d / 10) : Math.max(0, 1 + d / 55) ** 2;
-      k *= 0.55 + 0.45 * Math.sin(x * 0.05 + Math.sin(x * 0.013) * 3);
+      k *= (0.55 + 0.45 * Math.sin(x * 0.05 + Math.sin(x * 0.013) * 3)) * (0.55 + 0.45 * Math.sin(x * 0.31 + Math.sin(x * 0.021) * 6 + y * 0.02));
       if (k > 0.05) ramp(x, y, [get(x, y), C.au[0], C.au[1], C.au[2]], k * (d > -8 ? 0.95 : 0.6));
       if (d < -30 && k > 0.1) blend(x, y, C.auTop, k * 0.3);
     }
@@ -92,7 +92,7 @@ export class Scene extends PixelScene {
     for (let y = HOR; y < FLOOR; y++) for (let x = 0; x < W; x++) blend(x, y, C.fog, 0.5 * Math.max(0, 1 - Math.abs(y - HOR - 14) / 16) * (0.7 + 0.3 * Math.sin(x * 0.03 + y * 0.2)));
 
     // 4. faceted ice cliffs with a frozen waterfall (left of centre)
-    const cx0 = Math.round(W * 0.1), cx1 = Math.round(W * 0.36), cTop = (x) => 78 + 18 * Math.abs(Math.sin(x * 0.05)) + 10 * Math.sin(x * 0.11) + Math.max(0, (x - cx1 + 30)) * 1.6 + Math.max(0, cx0 + 20 - x) * 1.2;
+    const cx0 = Math.round(W * 0.1), cx1 = Math.round(W * 0.36), cTop = (x) => 74 + 16 * Math.abs(Math.sin(x * 0.045)) + 10 * Math.abs(Math.sin(x * 0.13 + 1)) + 4 * Math.abs(Math.sin(x * 0.37)) + 3 * hash(x >> 2, 1) + Math.max(0, (x - cx1 + 30)) * 1.6 + Math.max(0, cx0 + 20 - x) * 1.2;
     const seeds = Array.from({ length: 60 }, () => ({ x: cx0 - 10 + r() * (cx1 - cx0 + 20), y: 70 + r() * 110, v: r() }));
     const fallX = Math.round(W * 0.22), fallW = 14;
     for (let x = cx0 - 30; x < cx1 + 40; x++) {
@@ -122,21 +122,22 @@ export class Scene extends PixelScene {
 
     // 6. the scrap heap: a dead giant robot's head half buried, an arm, pipes, a wheel
     const SX = Math.round(W * 0.64), SB = FLOOR - 4;
-    const met = (x, y, v) => ramp(x, y, C.metal, v + 0.06 * (hash(x >> 1, y >> 1) - 0.5) + (hash(x >> 2, y >> 2) < 0.12 ? 0.15 : 0));
+    const met = (x, y, v) => ramp(x, y, C.metal, v + 0.12 + 0.06 * (hash(x >> 1, y >> 1) - 0.5) + (hash(x >> 2, y >> 2) < 0.12 ? 0.15 : 0));
     // a heap of junk shapes behind
     for (let i = 0; i < 26; i++) {
       const bx = SX - 50 + r() * 100, by = SB - r() * 18, w = 4 + r() * 10, h = 3 + r() * 7, ang = (r() - 0.5) * 0.8;
       for (let y = -h; y <= 0; y++) for (let k = -w; k <= w; k++) { const x = Math.round(bx + k + y * ang); met(x, by + y, 0.22 + (y === -Math.round(h) ? 0.4 : 0) + (k / w) * -0.1); if (y === -Math.round(h) && hash(x, by) < 0.7) put(x, by + y - 1, C.snow[4]); }
     }
     // the head: a dome with a visor slit and one socket
-    const hx = SX + 8, hy = SB - 18, hr = 22;
+    const hx = SX + 8, hy = SB - 20, hr = 24;
     for (let y = hy - hr; y < SB + 2; y++) for (let x = hx - hr - 4; x <= hx + hr + 4; x++) {
       const dx = (x - hx) / (hr + 4), dy = (y - hy) / hr;
       if (dx * dx + Math.min(0, dy) ** 2 > 1) continue;
       const tilt = y - hy + (x - hx) * 0.15;
       const visor = tilt > -2 && tilt < 5 && Math.abs(x - hx) < hr;
       let v = 0.4 - dx * 0.25 - Math.min(0, dy) * -0.1 + (dy < -0.7 ? 0.2 : 0);
-      if (visor) v = 0.05;
+      if (visor) v = 0.05 + (Math.abs(x - hx + 9) < 4 || Math.abs(x - hx - 6) < 4 ? 0 : 0.12);
+      if (tilt > 12 && tilt < 18 && Math.abs(x - hx) < 10) v = ((x + 100) % 3 === 0) ? 0.02 : 0.32;   // the mouth grill
       if (Math.abs(tilt - 10) < 0.6) v = 0.1;   // a panel seam
       met(x, y, v);
       if (Math.abs(x - hx) % 9 === 0 && tilt > 7 && tilt < 14) put(x, y, C.metal[4]);   // rivets
@@ -145,6 +146,7 @@ export class Scene extends PixelScene {
     // snow cap on the dome
     for (let x = hx - hr; x <= hx + hr; x++) { const dx = (x - hx) / (hr + 4), top = Math.round(hy - hr * Math.sqrt(Math.max(0, 1 - dx * dx))); for (let k = 0; k < 3 + 3 * (1 - Math.abs(dx)); k++) put(x, top + k - 1, k < 1 ? C.snow[5] : C.snow[4]); }
     this.eye = { x: hx - 9, y: Math.round(hy + 1 - 9 * 0.15) };
+    for (let k = 0; k < 2; k++) for (let j = 0; j < 2; j++) put(this.eye.x + k, this.eye.y + j, k + j ? C.rust : C.eye);
     // an antenna snapped and bent
     for (let k = 0; k < 18; k++) put(hx + 10 + Math.round(k * 0.25), hy - hr + 4 - k, C.metal[3]); for (let k = 0; k < 7; k++) put(hx + 14 + k, hy - hr - 14 + Math.round(k * 0.6), C.metal[3]);
     // a great arm reaching up out of the snow, claw open (to the left)
@@ -164,39 +166,48 @@ export class Scene extends PixelScene {
     for (let y = FLOOR - 26; y < FLOOR; y++) for (let x = 0; x < W; x++) blend(x, y, C.fog, ((y - FLOOR + 26) / 26) * 0.35 * (0.7 + 0.3 * Math.sin(x * 0.04 + y * 0.15)));
 
     // 7. the floor: packed snow in perspective with sheets of cracked ice
+    const patches = [];
+    for (let i = 0; i < Math.max(3, W / 120); i++) { const py = FLOOR + 8 + r() * 36; patches.push({ x: r() * W, y: py, rx: 20 + r() * 50 * (0.6 + (py - FLOOR) / 40), ry: 3 + (py - FLOOR) * 0.14 }); }
     for (let y = FLOOR; y < H; y++) {
       const t = (y - FLOOR) / (H - FLOOR);
       for (let x = 0; x < W; x++) {
         const n = 0.1 * Math.sin(x * 0.02 + y * 0.13) + 0.08 * Math.sin(x * 0.051 - y * 0.3) + 0.05 * (hash(x >> 1, y) - 0.5);
-        const sheetK = Math.sin(x * 0.012 / (0.4 + t) + 1.3) * Math.sin(x * 0.03 / (0.4 + t) + 0.4) + 0.2 * Math.sin(y * 0.2);
-        if (sheetK > 0.45 && t > 0.08) {
-          const refl = Math.max(0, 1 - Math.abs(y - FLOOR - 12 - t * 10) / 20) * 0.5;
-          ramp(x, y, C.sheet, 0.35 + refl + 0.2 * Math.sin(x * 0.4 - y * 1.2) * 0.3);
-          if (sheetK < 0.5) put(x, y, C.snow[3]);
+        let sheetK = -1;
+        for (const pt of patches) { const q = 1 - Math.hypot((x - pt.x) / pt.rx, (y - pt.y) / pt.ry) + 0.12 * Math.sin(x * 0.2 + y * 0.9 + pt.x); if (q > sheetK) sheetK = q; }
+        if (sheetK > 0) {
+          const refl = Math.max(0, 1 - t * 1.2) * (0.5 + 0.5 * Math.sin(x * 0.05 + 1)) * 0.45;
+          ramp(x, y, C.sheet, 0.2 + refl + (Math.sin(x * 0.3 - y * 1.7) > 0.92 ? 0.25 : 0));
+          if (sheetK < 0.06) put(x, y, C.snow[4]);
         } else ramp(x, y, C.snow, 0.6 + n - t * 0.35 + (t < 0.04 ? 0.3 : 0));
       }
     }
     // cracks across the ice, with bright edges
-    for (let i = 0; i < W / 70; i++) {
-      let x = r() * W, y = FLOOR + 8 + r() * 34;
-      for (let s = 0; s < 40; s++) {
-        put(x, y, C.crack); put(x, y - 1, C.crackHi);
-        if (r() < 0.12) { let bx = x, by = y; for (let k = 0; k < 8; k++) { bx += (r() - 0.5) * 2; by += 1; put(bx, by, C.crack); } }
-        x += 1 + r() * 1.5; y += (r() - 0.5) * 1.8;
+    for (let i = 0; i < W / 110; i++) {
+      let x = r() * W, y = FLOOR + 10 + r() * 30, dir = r() < 0.5 ? -1 : 1;
+      for (let s2 = 0; s2 < 30 + r() * 30; s2++) {
+        put(x, y, C.crack); put(x, y + 1, C.crackHi);
+        if (r() < 0.08) { let bx = x, by = y; for (let k = 0; k < 6; k++) { bx += dir * (0.5 + r()); by += 0.7; put(bx, by, C.crack); } }
+        x += 1.5 + r() * 1.5; y += (r() - 0.5) * 1.2;
       }
     }
     // little snow mounds and grass poking through
     for (let i = 0; i < W / 12; i++) { const x = r() * W, y = FLOOR + 1 + r() * 40; if (Math.abs(x - W / 2) < W * 0.15) continue; for (let k = 0; k < 2 + r() * 3; k++) put(x + k * (r() < 0.5 ? 1 : -1) * 0.5, y - k, C.mtn[2]); }
 
     // 8. framing: a huge snowy pine on the left, ice spires on the right
-    const lx = Math.max(12, Math.round(W * 0.025));
-    for (let y = 0; y < FLOOR + 8; y++) for (let k = -6; k <= 6; k++) put(lx + k, y, k < -3 ? C.barkLit : C.bark);
-    for (let i = 0; i < 9; i++) {
-      const by = 4 + i * 19 + r() * 6, len = 26 + i * 4 + r() * 10, droop = 0.25 + r() * 0.15;
-      for (let s = 0; s < len; s++) {
-        const x = lx + s, y = by + s * droop + (s * s) * 0.004, th = 7 * (1 - s / len) + 2;
-        for (let k = 0; k < th; k++) { const yy = Math.round(y + k - th * 0.4); put(x, yy, k < 2 ? (s > len * 0.2 ? (k < 1 ? C.pineSnowHi : C.pineSnow) : C.pine) : hash(x, yy) < 0.3 ? C.pineMid : C.pine); }
-        for (let k = 0; k < th; k++) { const xx = lx - Math.round(s * 0.35); put(xx, Math.round(by + s * 0.4 + k), k < 1 && s > 2 ? C.pineSnow : C.pine); }
+    const lx = Math.max(6, Math.round(W * 0.012));
+    for (let y = 0; y < FLOOR + 8; y++) for (let k = -4; k <= 4; k++) put(lx + k, y, k < -2 ? C.barkLit : C.bark);
+    // tiers of drooping, snow-laden boughs, widest at the bottom
+    for (let i = 0; i < 12; i++) {
+      const ty = -8 + i * 15 + r() * 4, wdt = 16 + i * 4.2 + r() * 8;
+      for (const side of [1, -1]) for (let s2 = 0; s2 < wdt; s2++) {
+        const u = s2 / wdt, x = lx + side * s2, yb = ty + u * 12 + u * u * 6;
+        const th = 9 * (1 - u) + 3;
+        for (let k = 0; k < th; k++) {
+          const yy = Math.round(yb - th + k + 2 + (hash(x >> 1, i) - 0.5) * 2);
+          const edge = k < 2 && hash(x, i) < 0.9;
+          put(x, yy, edge ? (k < 1 ? (side > 0 ? C.pineSnowHi : C.pineSnow) : C.pineSnow) : k < 4 ? C.pineMid : C.pine);
+        }
+        if (u > 0.85 && hash(x, 7 + i) < 0.4) for (let k = 0; k < 3; k++) put(x, Math.round(yb + 2 + k), C.pine);   // ragged tips
       }
     }
     const spire = (sx, base, h, w, lean) => {
@@ -226,7 +237,7 @@ export class Scene extends PixelScene {
       for (let y = 0; y < len; y += 2) {
         const f = (1 - y / len) ** 1.6 * k;
         if (f < 0.05) break;
-        px(x, e - y - 2, y < 6 ? C.au[3] : y < len * 0.6 ? C.au[2] : C.auTop, f * 0.42, 2);
+        px(x, e - y - 2, y < 6 ? C.au[3] : y < len * 0.6 ? C.au[2] : C.auTop, f * 0.6, 2);
       }
     }
     // twinkling stars

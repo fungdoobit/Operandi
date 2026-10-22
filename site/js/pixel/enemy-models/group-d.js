@@ -98,7 +98,7 @@ float map(vec3 p){
     U(d, eye, 3., e); E(eye - .01);
   }
   // long grey hair hanging from under the hat
-  if (sdBox(q - vec3(-.12, .85, 0.), vec3(.3, .4, .32)) < .1) {
+  float bx1 = sdBox(q - vec3(-.12, .85, 0.), vec3(.3, .4, .32)); if (bx1 >= .1) d = min(d, bx1); else {
     for (int i = 0; i < 6; i++) {
       float fi = float(i), z = -.13 + fi*.052;
       vec3 a = hc + vec3(.03, .06, z*.9);
@@ -319,179 +319,191 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
 };
 
 // ---- Chrome Reaper ----
-// A tall chrome endoskeleton out of the wastes: a polished steel skeleton with
-// hydraulic pistons beside every long bone, black cables down the spine, an
-// open ribcage around a red reactor core, and an angular skull with a bladed
-// crest and two red optics. Burnt scraps of a long coat hang off its shoulders.
-// Its near forearm is a heavy plasma cannon (the muzzle): WIND/OPEN raise it to
-// aim and light its coils, ATK kicks it back with the recoil.
+// A tall chrome endoskeleton out of the wastes, hunched forward like a hunter on
+// bent knees: polished steel bones with a hydraulic piston beside each one,
+// black cables down the spine, an open ribcage around a red reactor core, an
+// angular skull with a bladed crest, a heavy toothed jaw and two red optics.
+// A long burnt coat hangs in tatters off its shoulders. Its near forearm is a
+// heavy plasma cannon (the muzzle): WIND/OPEN raise it to aim and light its
+// coils, ATK kicks it back with the recoil.
+const REAPER_PELVIS = [0.02, 0.92], REAPER_HUNCH = 0.16;
+const reaperUpper = ([x, y, z]) => {   // the torso leans forward around the pelvis (as in the GLSL)
+  const c = Math.cos(REAPER_HUNCH), s = Math.sin(REAPER_HUNCH), dx = x - REAPER_PELVIS[0], dy = y - REAPER_PELVIS[1];
+  return [REAPER_PELVIS[0] + c * dx - s * dy, REAPER_PELVIS[1] + s * dx + c * dy, z];
+};
 const reaperGun = (P) => {
   const aim = Math.max(P.wind || 0, P.open || 0), at = P.atk || 0;
-  const E = [-0.06 + 0.1 * at, 1.3, -0.3];
-  const a = -0.4 + 0.4 * aim + 0.15 * at;
-  return [E[0] - Math.cos(a) * 0.72, E[1] + Math.sin(a) * 0.72, E[2]];
+  const E = [-0.1 + 0.1 * at, 1.26, -0.3];
+  const a = -0.55 + 0.6 * aim + 0.12 * at;
+  return reaperUpper([E[0] - Math.cos(a) * 0.78, E[1] + Math.sin(a) * 0.78, E[2]]);
 };
 export const reaper = {
-  name: "Chrome Reaper", w: 200, h: 214, ground: 0, scale: 0.36, pitch: 0.12, offX: -0.18,
+  name: "Chrome Reaper", w: 220, h: 220, ground: 0, scale: 0.36, pitch: 0.12, offX: -0.2,
   palettes: [
     ["#06080c", "#1a2028", "#3c4652", "#7a8694", "#c2ccd6", "#f4f8fc"],   // 1 chrome
     ["#050608", "#0c0e12", "#16191f", "#22262e", "#30353f", "#424854"],   // 2 dark steel (joints, sleeves)
     ["#2a0206", "#6a0612", "#c41226", "#ff3a4a", "#ff9aa2", "#ffffff"],   // 3 red glow (optics, core, coils)
-    ["#070605", "#110e0c", "#1c1814", "#28221c", "#362e26", "#463c32"],   // 4 burnt coat
+    ["#070605", "#120e0b", "#1e1813", "#2c231b", "#3c3024", "#4e3f2e"],   // 4 burnt coat
     ["#040304", "#0a0709", "#140d10", "#1e1418", "#2a1c22", "#38262c"],   // 5 cables
     ["#08090c", "#14171c", "#24282f", "#383d46", "#545a64", "#7a808a"],   // 6 gunmetal cannon
   ],
   glow: ["#5a0410", "#ff2a40", "#ffb0b8", "#5a0410", "#ff3a4a", "#ffc0c6"],
   anchors: {
-    core: [0, 1.15, 0], head: [-0.08, 1.92, 0], feet: [0, 0, 0],
+    core: [0, 1.15, 0], head: reaperUpper([-0.08, 1.86, 0]), feet: [0, 0, 0],
     muzzle: (P) => reaperGun(P), weapon: (P) => reaperGun(P),
   },
-  idle: (t) => ({ bob: Math.sin(t * 2.0) * 0.008, lean: Math.sin(t * 0.7) * 0.015, walkT: 0 }),
+  idle: (t) => ({ bob: Math.sin(t * 2.0) * 0.008, lean: Math.sin(t * 0.7) * 0.015 }),
   glsl: LIB + `
 // a long bone with a hydraulic piston running beside it
 void limb(inout float d, vec3 q, vec3 a, vec3 b, float r, vec3 off){
-  U(d, sdCapT(q, a, b, r, r*.8), 1., q);
+  U(d, sdCapT(q, a, b, r, r*.75), 1., q);
   vec3 a2 = a + off, b2 = b + off, m = mix(a2, b2, .55);
-  U(d, sdCap(q, a2, m, r*.62), 2., q);   // the cylinder
-  U(d, sdCap(q, m, b2, r*.32), 1., q);   // the polished rod
+  U(d, sdCap(q, a2, m, r*.6), 2., q);    // the cylinder
+  U(d, sdCap(q, m, b2, r*.3), 1., q);    // the polished rod
 }
 float map(vec3 p){
   float d = 1e5;
-  float bb = sdBox(p - vec3(-.2, 1.1, 0.), vec3(1., 1.15, .6));
+  float bb = sdBox(p - vec3(-.25, 1.1, 0.), vec3(1.05, 1.15, .6));
   if (bb > .2) return bb;
   float aim = max(WIND, OPEN);
   vec3 q = p;
-  float br = .006*sin(T*2.);
-  // legs: chrome bones, pistons, knee and ankle joints, clawed feet
+  // legs on bent knees: chrome bones, pistons, joints, clawed feet
   for (int s = -1; s <= 1; s += 2) {
     float fs = float(s), ph = WALK*6.283 + fs*1.57;
-    vec3 hip = vec3(.02, .98, .13*fs), knee = vec3(-.1 + .05*sin(ph), .54, .15*fs), ank = vec3(.0 + .04*sin(ph), .12, .14*fs);
-    limb(d, q, hip, knee, .05, vec3(.07, 0., 0.));
-    limb(d, q, knee, ank, .042, vec3(.06, .0, -.0));
-    U(d, length(q - knee) - .06, 2., q);
-    U(d, length(q - ank) - .045, 2., q);
+    vec3 hip = vec3(.02, .9, .13*fs), knee = vec3(-.16 + .05*sin(ph), .52, .16*fs), ank = vec3(.04 + .04*sin(ph), .12, .15*fs);
+    limb(d, q, hip, knee, .045, vec3(.07, .02, 0.));
+    limb(d, q, knee, ank, .038, vec3(.06, 0., 0.));
+    U(d, length(q - knee) - .058, 2., q);
+    U(d, sdRBox(q - knee - vec3(-.05, .01, 0.), vec3(.03, .05, .04), .015), 1., q);   // knee cap
+    U(d, length(q - ank) - .042, 2., q);
     vec3 f = q - ank;
-    U(d, sdRBox(f - vec3(-.08, -.08, 0.), vec3(.1, .03, .055), .02), 1., f);
-    for (int k = -1; k <= 1; k++) U(d, sdCapT(f, vec3(-.15, -.08, float(k)*.035), vec3(-.24, -.1, float(k)*.04), .022, .008), 1., f);
-    U(d, sdCapT(f, vec3(.02, -.06, 0.), vec3(.1, -.1, 0.), .025, .01), 1., f);   // heel spur
+    U(d, sdRBox(f - vec3(-.07, -.08, 0.), vec3(.09, .028, .05), .018), 1., f);
+    for (int k = -1; k <= 1; k++) U(d, sdCapT(f, vec3(-.14, -.08, float(k)*.035), vec3(-.25, -.1, float(k)*.045), .02, .006), 1., f);
+    U(d, sdCapT(f, vec3(.02, -.06, 0.), vec3(.11, -.1, 0.), .022, .006), 1., f);   // heel spur
   }
-  // pelvis
-  U(d, sdRBox(q - vec3(.02, 1.0, 0.), vec3(.1, .07, .19), .04), 1., q);
-  U(d, sdRBox(q - vec3(-.06, 1.0, 0.), vec3(.04, .1, .08), .02), 2., q);
-  // spine and cables
-  for (int k = 0; k < 4; k++) {
-    vec3 v = q - vec3(.06, 1.1 + float(k)*.1, 0.);
-    U(d, sdRBox(v, vec3(.045, .03, .06), .015), 1., v);
+  U(d, sdRBox(q - vec3(.02, .92, 0.), vec3(.09, .06, .18), .035), 1., q);   // pelvis
+  // everything above the pelvis hunches forward
+  vec3 t = q - vec3(.02, .92, 0.); t.xy = R(-.16 - .05*ATK) * t.xy; t += vec3(.02, .92, 0.);
+  for (int k = 0; k < 4; k++) {   // spine
+    vec3 v = t - vec3(.06, 1.02 + float(k)*.1, 0.);
+    U(d, sdRBox(v, vec3(.04, .028, .055), .014), 1., v);
+    U(d, sdCapT(v, vec3(.02, 0., 0.), vec3(.1, -.03, 0.), .02, .004), 1., v);   // spinous spikes
   }
   for (int s = -1; s <= 1; s += 2) {
     float fs = float(s);
-    vec3 c = q - vec3(.0 + .03*sin(q.y*9. + fs), 0., .07*fs);
-    U(d, sdCap(c, vec3(.02, 1.05, 0.), vec3(.02, 1.55, 0.), .02), 5., c);
+    vec3 c = t - vec3(.03*sin(t.y*9. + fs), 0., .07*fs);
+    U(d, sdCap(c, vec3(.02, .96, 0.), vec3(.02, 1.52, 0.), .018), 5., c);
   }
   // the ribcage around a red reactor core
-  vec3 cq = q - vec3(-.02, 1.48, 0.);
-  if (sdBox(cq, vec3(.3, .3, .32)) < .1) {
-    float core = length(cq - vec3(.0, -.02, 0.)) - .085 - .01*sin(T*6.);
+  vec3 cq = t - vec3(-.02, 1.45, 0.);
+  float bx2 = sdBox(cq, vec3(.3, .3, .32)); if (bx2 >= .1) d = min(d, bx2); else {
+    float core = length(cq - vec3(.0, -.02, 0.)) - .08 - .01*sin(T*6.);
     U(d, core, 3., cq); G(core - .02);
     for (int k = 0; k < 4; k++) {
       float fk = float(k);
-      vec3 r = cq - vec3(0., .14 - fk*.085, 0.);
-      r.xy = R(-.12) * r.xy;
-      float rad = .2 - fk*.012;
-      float rib = length(vec2(length(r.xz*vec2(1.15, 1.)) - rad, r.y)) - .019;
-      rib = max(rib, -(r.x + .19));   // open at the front, around the sternum
+      vec3 r = cq - vec3(0., .13 - fk*.08, 0.);
+      r.xy = R(-.15) * r.xy;
+      float rib = length(vec2(length(r.xz*vec2(1.15, 1.)) - (.2 - fk*.014), r.y)) - .017;
+      rib = max(rib, -(r.x + .18));
       U(d, rib, 1., r);
     }
-    U(d, sdRBox(cq - vec3(-.2, .02, 0.), vec3(.025, .15, .04), .015), 1., cq);   // sternum
-    // a chest plate over the upper ribs
-    vec3 pl = cq - vec3(-.06, .2, 0.);
-    float plate = sdRBox(pl, vec3(.15, .06, .24), .05);
-    plate = max(plate, -sdBox(pl - vec3(-.18, -.03, 0.), vec3(.04, .03, .02)));
-    U(d, plate, 1., pl);
+    U(d, sdRBox(cq - vec3(-.19, .02, 0.), vec3(.022, .14, .035), .012), 1., cq);   // sternum
+    vec3 pl = cq - vec3(-.05, .19, 0.);
+    U(d, sdRBox(pl, vec3(.14, .05, .23), .045), 1., pl);   // a chest plate over the upper ribs
   }
-  // shoulders and collarbones
+  // shoulders: small armoured caps
   for (int s = -1; s <= 1; s += 2) {
     float fs = float(s);
-    U(d, length(q - vec3(.0, 1.68, .28*fs)) - .075, 1., q);
-    U(d, sdCap(q, vec3(-.04, 1.7, .04*fs), vec3(.0, 1.7, .26*fs), .028), 1., q);
+    vec3 sh = t - vec3(.0, 1.64, .27*fs);
+    U(d, length(sh) - .065, 2., sh);
+    U(d, max(sdEll(sh - vec3(0., .03, .0), vec3(.1, .07, .09)), -sh.y + .01), 1., sh);
+    U(d, sdCap(t, vec3(-.03, 1.64, .04*fs), vec3(0., 1.64, .22*fs), .022), 1., t);
   }
   // the far arm: skeletal, a three-clawed hand reaching forward
   {
-    vec3 S = vec3(.0, 1.66, .3), E = vec3(.06, 1.28, .34), H = vec3(-.26 + .05*sin(T*1.3), 1.12, .32);
-    limb(d, q, S, E, .04, vec3(.05, 0., .0));
-    U(d, length(q - E) - .05, 2., q);
-    U(d, sdCap(q, E, H, .022), 1., q);
-    U(d, sdCap(q, E + vec3(0., 0., .03), H + vec3(0., 0., .03), .016), 2., q);
-    U(d, sdRBox(q - H, vec3(.04, .03, .03), .012), 1., q);
+    vec3 S = vec3(.0, 1.62, .3), E = vec3(.06, 1.26, .34), H = vec3(-.26 + .05*sin(T*1.3), 1.08, .32);
+    limb(d, t, S, E, .036, vec3(.05, 0., .0));
+    U(d, length(t - E) - .045, 2., t);
+    U(d, sdCap(t, E, H, .02), 1., t);
+    U(d, sdCap(t, E + vec3(0., 0., .03), H + vec3(0., 0., .03), .014), 2., t);
+    U(d, sdRBox(t - H, vec3(.04, .03, .03), .012), 1., t);
     for (int k = -1; k <= 1; k++) {
-      vec3 f0 = H + vec3(-.03, -.01, float(k)*.025), f1 = f0 + vec3(-.07, -.03, float(k)*.01), f2 = f1 + vec3(-.02, -.07, 0.);
-      U(d, sdCap(q, f0, f1, .012), 1., q); U(d, sdCapT(q, f1, f2, .011, .003), 1., q);
+      vec3 f0 = H + vec3(-.03, -.01, float(k)*.025), f1 = f0 + vec3(-.08, -.03, float(k)*.012), f2 = f1 + vec3(-.02, -.08, 0.);
+      U(d, sdCap(t, f0, f1, .011), 1., t); U(d, sdCapT(t, f1, f2, .01, .002), 1., t);
     }
   }
   // the near arm: upper arm, then the plasma cannon instead of a forearm
   {
-    vec3 S = vec3(.0, 1.66, -.3), E = vec3(-.06 + .1*ATK, 1.3, -.3);
-    limb(d, q, S, E, .045, vec3(.05, 0., 0.));
-    U(d, length(q - E) - .065, 2., q);
-    float a = -.4 + .4*aim + .15*ATK;
-    vec3 g = q - E; g.xy = R(a) * g.xy;   // cannon space: the barrel runs down -x
-    if (sdBox(g - vec3(-.35, 0., 0.), vec3(.45, .2, .2)) < .1) {
-      U(d, sdCylY(g.yxz - vec3(-.18, 0., 0.), .11, .16), 6., g);
-      U(d, sdCylY(g.yxz - vec3(-.5, 0., 0.), .075, .2), 6., g);
+    vec3 S = vec3(.0, 1.62, -.3), E = vec3(-.1 + .1*ATK, 1.26, -.3);
+    limb(d, t, S, E, .042, vec3(.05, 0., 0.));
+    U(d, length(t - E) - .065, 2., t);
+    float a = -.55 + .6*aim + .12*ATK;
+    vec3 g = t - E; g.xy = R(a) * g.xy;   // cannon space: the barrel runs down -x
+    float bx3 = sdBox(g - vec3(-.38, 0., 0.), vec3(.48, .2, .2)); if (bx3 >= .1) d = min(d, bx3); else {
+      U(d, sdCylY((g - vec3(-.18, 0., 0.)).yxz, .115, .17), 6., g);
+      U(d, sdCylY((g - vec3(-.52, 0., 0.)).yxz, .075, .2), 6., g);
       for (int k = 0; k < 3; k++) {   // charging coils
-        vec3 c = g - vec3(-.38 - float(k)*.09, 0., 0.);
+        vec3 c = g - vec3(-.42 - float(k)*.09, 0., 0.);
         float coil = sdCylY(c.yxz, .1, .018);
-        U(d, coil, aim > .05 || OPEN > .05 ? 3. : 2., c);
-        if (aim > .05) G(coil + .03 - .03*aim);
+        U(d, coil, aim > .05 ? 3. : 2., c);
+        if (aim > .05) G(coil + .03 - .04*aim);
       }
-      float muz = sdCylY(g.yxz - vec3(-.72, 0., 0.), .095, .04);
-      muz = max(muz, -sdCylY(g.yxz - vec3(-.76, 0., 0.), .05, .1));
+      float muz = sdCylY((g - vec3(-.74, 0., 0.)).yxz, .1, .045);
+      muz = max(muz, -sdCylY((g - vec3(-.8, 0., 0.)).yxz, .055, .1));
       U(d, muz, 1., g);
-      float bore = sdCylY(g.yxz - vec3(-.7, 0., 0.), .05, .02);
-      U(d, bore, 3., g); if (aim > .05) G(bore + .02 - .03*aim);
-      U(d, sdRBox(g - vec3(-.22, .12, 0.), vec3(.14, .025, .06), .015), 1., g);   // a heat-sink fin
-      U(d, sdCap(g, vec3(-.05, -.1, 0.), vec3(.2, -.2, .05), .022), 5., g);    // a feed cable to the core
+      float bore = sdCylY((g - vec3(-.72, 0., 0.)).yxz, .055, .02);
+      U(d, bore, 3., g); G(bore + .03 - .04*aim);
+      U(d, sdRBox(g - vec3(-.24, .13, 0.), vec3(.15, .025, .055), .012), 1., g);   // heat-sink fins
+      U(d, sdRBox(g - vec3(-.24, .0, -.13), vec3(.15, .055, .02), .012), 1., g);
+      U(d, sdCap(g, vec3(-.05, -.1, 0.), vec3(.22, -.22, .06), .02), 5., g);   // a feed cable to the core
     }
   }
-  // the skull: an angular cranium, a bladed crest, red optics, a toothed jaw
-  vec3 h = q - vec3(-.08, 1.9, 0.);
-  h.xy = R(-.05 + .05*sin(T*.9)) * h.xy;
-  if (sdBox(h, vec3(.25, .25, .2)) < .1) {
-    U(d, sdCap(q, vec3(.0, 1.6, 0.), vec3(-.04, 1.8, 0.), .035), 2., q);   // neck
-    float sk = sdEll(h - vec3(.02, .04, 0.), vec3(.15, .14, .12));
-    sk = smin(sk, sdRBox(h - vec3(-.08, -.03, 0.), vec3(.06, .06, .095), .03), .04);   // the face plate
-    sk = smin(sk, sdRBox(h - vec3(-.07, .03, 0.), vec3(.04, .015, .11), .01), .02);   // a heavy brow
-    for (int s = -1; s <= 1; s += 2) sk = max(sk, -sdEll(h - vec3(-.14, .0, .055*float(s)), vec3(.04, .03, .035)));   // sockets
+  // the skull: a long angular cranium, a bladed crest, red optics, a heavy toothed jaw
+  vec3 h = t - vec3(-.1, 1.84, 0.);
+  h.xy = R(.08 + .05*sin(T*.9) - .1*aim) * h.xy;
+  float bx4 = sdBox(h, vec3(.28, .26, .2)); if (bx4 >= .1) d = min(d, bx4); else {
+    U(d, sdCap(t, vec3(.0, 1.6, 0.), vec3(-.05, 1.76, 0.), .03), 2., t);   // neck
+    U(d, sdCap(t, vec3(.03, 1.6, .04), vec3(-.02, 1.78, .05), .014), 1., t);
+    float sk = sdEll(h - vec3(.05, .05, 0.), vec3(.17, .13, .115));
+    sk = smin(sk, sdRBox(h - vec3(-.08, -.01, 0.), vec3(.07, .07, .09), .03), .04);   // the face
+    sk = smin(sk, sdRBox(h - vec3(-.1, .04, 0.), vec3(.045, .016, .105), .01), .02);  // a heavy brow
+    sk = max(sk, -sdBox(h - vec3(-.15, -.05, 0.), vec3(.03, .02, .02)));               // nose slit
+    for (int s = -1; s <= 1; s += 2) sk = max(sk, -sdEll(h - vec3(-.16, .005, .052*float(s)), vec3(.045, .032, .036)));   // sockets
     U(d, sk, 1., h);
-    vec3 j = h - vec3(-.07, -.1, 0.);
-    j.xy = R(-.15*OPEN) * j.xy;
-    U(d, sdRBox(j, vec3(.06, .025, .075), .015), 1., j);
-    for (int k = -2; k <= 2; k++) U(d, sdBox(j - vec3(-.055, .03, float(k)*.026), vec3(.008, .014, .009)), 1., j);
+    vec3 j = h - vec3(-.07, -.11, 0.);
+    j.xy = R(-.25*OPEN) * j.xy;
+    U(d, sdRBox(j, vec3(.075, .028, .08), .015), 1., j);
+    for (int k = -2; k <= 2; k++) {   // teeth, top and bottom
+      U(d, sdBox(j - vec3(-.07, .035, float(k)*.026), vec3(.008, .016, .009)), 1., j);
+      U(d, sdBox(j - vec3(-.07, .07, float(k)*.026), vec3(.008, .014, .009)), 1., j);
+    }
     for (int s = -1; s <= 1; s += 2) {
       float fs = float(s);
-      vec3 e = h - vec3(-.125, .0, .055*fs);
-      float eye = length(e) - .024;
-      U(d, eye, 3., e); E(eye - .006);
-      U(d, sdCap(h, vec3(-.02, -.04, .1*fs), vec3(-.08, -.1, .08*fs), .014), 2., h);   // jaw pistons
+      vec3 e = h - vec3(-.15, .005, .052*fs);
+      float eye = length(e) - .026;
+      U(d, eye, 3., e); E(eye - .008);
+      U(d, sdCap(h, vec3(.0, -.04, .1*fs), vec3(-.07, -.11, .08*fs), .013), 2., h);   // jaw pistons
     }
-    for (int k = 0; k < 3; k++) {   // the crest
+    for (int k = 0; k < 3; k++) {   // the bladed crest, swept back
       float fk = float(k);
-      vec3 c = h - vec3(-.06 + fk*.09, .16 - fk*.02, 0.);
-      U(d, extrude(sdTrap(c.xy*vec2(1., -1.) + vec2(.0, .04), .035, .005, .05), c.z, .012), 1., c);
+      vec3 c = h - vec3(-.04 + fk*.1, .17 - fk*.02, 0.);
+      c.xy = R(.5) * c.xy;
+      U(d, extrude(sdTrap(c.xy*vec2(1., -1.) + vec2(.0, .05), .04, .004, .06), c.z, .011), 1., c);
     }
   }
-  // burnt scraps of a long coat, hanging behind
-  vec3 k = q - vec3(.16, 1.2, 0.);
-  if (sdBox(k, vec3(.2, .55, .42)) < .1) {
-    float ang = atan(k.z, -k.x + .3);
-    k.x += .03*sin(T*1.6 + k.y*4. + k.z*6.)*(1. - smoothstep(.2, .5, k.y));
-    float coat = abs(length(k.xz*vec2(1.6, 1.) + vec2(.25, 0.)) - .38) - .012;
-    coat = max(coat, -k.x - .02);
-    coat = max(coat, k.y - .48 + .25*smoothstep(.0, .4, abs(k.z)) - .3);
-    float rag = -.3 + .35*abs(sin(k.z*14.)) + .15*vnoise(vec3(k.z*20., 0., 0.));
+  // a long burnt coat hanging off the shoulders in tatters, swaying
+  vec3 k = t - vec3(.14, 1.1, 0.);
+  float bx5 = sdBox(k, vec3(.3, .7, .45)); if (bx5 >= .1) d = min(d, bx5); else {
+    float lo = 1. - smoothstep(-.1, .5, k.y);
+    k.x -= .05*sin(T*1.6 + k.y*4. + k.z*6.)*lo + .15*lo;
+    float coat = abs(length(k.xz*vec2(1.5, 1.) + vec2(.27, 0.)) - .4) - .013;
+    coat = max(coat, -k.x - .04);
+    coat = max(coat, k.y - .56);
+    float rag = -.62 + .45*pow(abs(sin(k.z*9. + 1.)), .7) + .14*vnoise(vec3(k.z*24., 0., 0.));
     coat = max(coat, rag - k.y);
-    coat = max(coat, -(vnoise(k*vec3(9., 9., 9.)) - .72)*.1);   // burnt holes
+    coat = max(coat, -(vnoise(k*9.) - .74)*.1);   // burnt holes
     U(d, coat, 4., k);
+    U(d, sdEll(k - vec3(-.12, .55, 0.), vec3(.16, .06, .34)), 4., k);   // the torn collar
   }
   return d;
 }
@@ -504,8 +516,8 @@ float shadeOf(inout float m, vec3 p, vec3 n, vec3 lp, float sh){
   }
   if (m == 4.) {
     float v = vnoise(lp*14.);
-    if (v > .66) return .02;
-    return sh*.8 + .1*v;
+    if (v > .64) return .02;                    // charred
+    return sh*.85 + .12*v;
   }
   if (m == 6.) return sh + (fract(lp.x*18.) < .15 ? -.15 : 0.);
   return sh;

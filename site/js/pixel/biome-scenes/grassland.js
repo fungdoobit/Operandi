@@ -12,9 +12,9 @@ const C = {
   sun: hex("#fff4cc"), sunHalo: hex("#ffe29a"),
   cl0: hex("#3a2c4e"), cl1: hex("#6e4060"), cl2: hex("#b45e5e"), cl3: hex("#ec9662"), cl4: hex("#ffd28c"),
   hillA: hex("#b77a7e"), hillAl: hex("#e2a07a"), hillB: hex("#7e5670"), hillBl: hex("#d0906a"),
-  hillC: hex("#3e3e4a"), hillCl: hex("#a8884e"), meadow: hex("#2e3a26"), meadowLit: hex("#6a7430"), meadowHi: hex("#c0a040"),
+  meadow: hex("#2e3a26"), meadowLit: hex("#6a7430"), meadowHi: hex("#c0a040"),
   st0: hex("#2a2434"), st1: hex("#4a4052"), st2: hex("#76626a"), st3: hex("#b08872"), st4: hex("#f0c48a"),
-  ivy0: hex("#132015"), ivy1: hex("#24381c"), ivy2: hex("#47622a"), ivy3: hex("#9aa84a"),
+  ivy1: hex("#24381c"), ivy2: hex("#47622a"), ivy3: hex("#9aa84a"),
   bark0: hex("#140f12"), bark1: hex("#2a1e1e"), bark2: hex("#4a3426"), bark3: hex("#a87a4a"),
   leaf0: hex("#0e1610"), leaf1: hex("#1c2a18"), leaf2: hex("#3c4e22"), leaf3: hex("#b0a040"),
   g0: hex("#1a2414"), g1: hex("#2c3c1c"), g2: hex("#4c6224"), g3: hex("#8e9a34"), g4: hex("#e0c050"),
@@ -80,7 +80,7 @@ export class Scene extends PixelScene {
     const fA = ridge(HOR + 2, 28, 0.011, r() * 6);
     hill(fA, C.hillA, C.hillAl, 2);
     // the tower: a broken keep with window slits
-    const tx = Math.round(W * 0.24), tyb = Math.round(fA(tx)) + 2;
+    const tx = Math.round(W * 0.27), tyb = Math.round(fA(tx)) + 2;
     for (let y = tyb - 40; y < tyb; y++) for (let k = -6; k <= 6; k++) {
       const top = tyb - 40 + (k > 2 ? (k - 2) * 3 : 0) + (k < -3 ? 4 : 0);   // a ragged broken top
       if (y < top) continue;
@@ -192,7 +192,7 @@ export class Scene extends PixelScene {
         ramp(x, y, [C.g0, C.g1, C.g2, C.g3], 0.35 + n + sunlit * 0.45 - t * 0.35);
       }
     }
-    // flagstones: rows that widen toward the viewer, cracked, grass between
+    // flagstones: rows that widen toward the viewer, cracked and missing, grass creeping over
     for (let row = 0, y = FLOOR + 2; y < H; row++) {
       const t = (y - FLOOR) / (H - FLOOR), rh = Math.round(4 + t * 9), half = W * (0.11 + 0.17 * t);
       let x = W / 2 - half + (row % 2) * 6;
@@ -204,7 +204,7 @@ export class Scene extends PixelScene {
           const lit = yy === y ? 0.75 : yy === y + rh - 2 ? 0.1 : 0.4;
           const v = lit + 0.15 * (hash(xx >> 1, yy >> 1) - 0.5) + Math.max(0, 1 - Math.abs(xx - SX) / (W * 0.4)) * 0.2;
           ramp(xx, yy, [C.pave0, C.pave1, C.pave2, C.pave3], v);
-          if (hash(xx, yy * 3) < 0.06 || (edge > 0.7 && hash(xx >> 1, yy) < 0.3)) put(xx, yy, hash(xx, yy) < 0.5 ? C.g2 : C.g3);   // moss and grass creeping over
+          if (hash(xx, yy * 3) < 0.06 || (edge > 0.7 && hash(xx >> 1, yy) < 0.3)) put(xx, yy, hash(xx, yy) < 0.5 ? C.g2 : C.g3);
         }
         x += sw;
       }
@@ -212,10 +212,10 @@ export class Scene extends PixelScene {
     }
     // the grass lip along the floor line, lit gold
     for (let x = 0; x < W; x++) { put(x, FLOOR, C.g3); if (hash(x, 1) < 0.5) put(x, FLOOR - 1, C.g2); }
-    // grass tufts and wildflowers (none right on the fighters' line in the middle)
+    // grass tufts and wildflowers (kept off the path in the middle)
     for (let i = 0; i < W / 2.2; i++) {
       const x = r() * W, y = FLOOR + (r() < 0.5 ? r() * 4 : r() * 44), h = 3 + r() * 6 * (1 + (y - FLOOR) / 40);
-      if (Math.abs(x - W / 2) < W * (0.17 + 0.2 * (y - FLOOR) / 44) && y > FLOOR + 4 && r() < 0.7) continue;
+      if (Math.abs(x - W / 2) < W * (0.11 + 0.17 * (y - FLOOR) / 44) && y > FLOOR + 4 && r() < 0.7) continue;
       for (let k = 0; k < h; k++) { put(x + Math.round(k * 0.3), y - k, k > h - 2 ? C.g4 : k > h * 0.5 ? C.g3 : C.g2); put(x - Math.round(k * 0.35) + 2, y - k * 0.8, k > h - 2 ? C.g3 : C.g2); }
     }
     const fcols = [C.fRed, C.fYel, C.fWhite, C.fBlue, C.fPink];
@@ -295,11 +295,12 @@ export class Scene extends PixelScene {
     this.pollen = Array.from({ length: Math.round(W / 9) }, () => ({ x: r() * W, y: 40 + r() * (FLOOR - 30), v: 1 + r() * 3, p: r() * 6, s: r() }));
   }
 
-  animate({ t, dt, W, H, FLOOR, px }) {
+  animate({ t, dt, W, FLOOR, px }) {
     // pollen drifting through the sunbeams; brighter near the sun
     for (const m of this.pollen) {
       m.x += (3 + m.s * 3) * dt; m.y -= m.v * dt * 0.4;
-      if (m.x > W + 2) { m.x = -2; } if (m.y < 30) m.y = FLOOR - 4;
+      if (m.x > W + 2) m.x = -2;
+      if (m.y < 30) m.y = FLOOR - 4;
       const near = Math.max(0, 1 - Math.hypot(m.x - this.sun.x, m.y - this.sun.y) / 220);
       const tw = 0.5 + 0.5 * Math.sin(t * 2 + m.p);
       px(m.x + Math.sin(t * 0.8 + m.p) * 4, m.y + Math.sin(t * 1.3 + m.p) * 2, C.pollen, 0.25 + 0.55 * near * tw + 0.15 * tw);
@@ -312,7 +313,7 @@ export class Scene extends PixelScene {
       if (open) { px(wx - 2, y - 1, f.c, 1, 2); px(wx + 1, y - 1, f.c, 1, 2); px(wx - 1, y + 1, f.c); px(wx + 1, y + 1, f.c); }
       else { px(wx - 1, y - 2, f.c); px(wx, y - 2, f.c); px(wx - 1, y - 1, f.c); }
     }
-    // tall grass swaying in the wind at both edges (in front of everything)
+    // tall grass swaying in the wind at both edges (in front of the scene)
     const gust = Math.sin(t * 0.7) * 0.5 + Math.sin(t * 1.9) * 0.2;
     for (const b of this.blades) {
       const sway = (gust + 0.4 * Math.sin(t * 2.2 + b.p + b.x * 0.05)) * 0.12;
