@@ -20,7 +20,7 @@ button.go { background: #7a1424; border-color: #c2142e; }
 <body>
 <main>
   <h1>Kaela: style test (PRD Addendum L)</h1>
-  <p>Real 2D pixel art, painted on the same pixel grid as the forest background. Press Crimson Slash.</p>
+  <p>Round 2: Kaela rebuilt after the reference (chibi proportions, spiky hair, straight sword, low dash) and the swirl slash from the videos, in red. Rotcap is a placeholder until we pick a ready-made enemy.</p>
   <div id="wrap"><div id="stage"></div></div>
   <div class="bar"><button class="go" id="slash">Crimson Slash</button><button id="slow">Crimson Slash at ¼ speed</button></div>
 </main>
@@ -28,7 +28,7 @@ button.go { background: #7a1424; border-color: #c2142e; }
 import { ForestScene } from "./js/pixel/biome-scenes/forest.js";
 import { paintKaela, POSES, mixPose, W as KW, H as KH } from "./js/pixel2d/kaela.js";
 import { paintRotcap, REST, W as RW, H as RH } from "./js/pixel2d/rotcap.js";
-import { drawSlash, shards } from "./js/pixel2d/slash.js";
+import { drawSwirl, shards } from "./js/pixel2d/slash.js";
 import { sound } from "./js/sound.js";
 
 const stage = document.getElementById("stage"), wrap = document.getElementById("wrap");
@@ -69,14 +69,16 @@ function update() {
   else {
     const t = (gt - act.t0);
     const gap = exBase - kxBase - 46;   // dash so she ends up just in reach
-    if (t < 200) { kPose = mixPose(POSES.idle, POSES.windup, ease.out(t / 200)); kx = -4 * ease.out(t / 200); }
-    else if (t < 260) { kPose = POSES.windup; kx = -4; }
-    else if (t < 340) { const k = (t - 260) / 80; kPose = mixPose(POSES.windup, POSES.strike, ease.in(Math.min(1, k * 1.3))); kx = -4 + gap * ease.out(k); if (!act.whoosh) { act.whoosh = true; sound.sfx("whoosh", { theme: "fire" }); sound.sfx("slash"); } }
-    else if (t < 640) { kPose = mixPose(POSES.strike, POSES.follow, ease.out((t - 340) / 300)); kx = -4 + gap; }
-    else if (t < 940) { const k = (t - 640) / 300; kPose = mixPose(POSES.follow, POSES.idle, ease.io(k)); kx = (-4 + gap) * (1 - ease.io(k)) + Math.sin(k * Math.PI) * 0; }
+    // the reference's timing: a quick crouch, then the swing whips round from behind into a thrust as the swirl wraps her
+    const crouch = { ...POSES.idle, lean: 0.55, ft: 0.6, fs: 1.35, bt: 2.4, bs: 0.2, sw: 2.7, flow: 0.4 };
+    if (t < 200) { kPose = mixPose(POSES.idle, crouch, ease.out(t / 200)); kx = -3 * ease.out(t / 200); }
+    else if (t < 260) { kPose = crouch; kx = -3; }
+    else if (t < 340) { const k = (t - 260) / 80; kPose = mixPose(crouch, POSES.thrust, ease.out(k)); kx = -3 + gap * ease.out(k); if (!act.whoosh) { act.whoosh = true; sound.sfx("whoosh", { theme: "fire" }); sound.sfx("slash"); } }
+    else if (t < 640) { kPose = mixPose(POSES.thrust, POSES.swept, ease.out(Math.min(1, (t - 340) / 160))); kx = -3 + gap; }
+    else if (t < 940) { const k = (t - 640) / 300; kPose = mixPose(POSES.swept, POSES.idle, ease.io(k)); kx = (-3 + gap) * (1 - ease.io(k)); }
     else act = null;
     // contact: freeze, flash the enemy white, shake, red shards
-    if (act && !act.hit && t >= 318) {
+    if (act && !act.hit && t >= 330) {
       act.hit = true; hitstop = 150; flash = 150; shake = 4;
       sound.sfx("impact", { size: 1 }); sound.sfx("hit", { size: 1 });
       parts.push(...shards(22, exBase - 14, FLOOR - 40, Math.floor(gt)));
@@ -105,10 +107,11 @@ function render(now) {
   const img = gf.createImageData(WA, HA);
   if (act) {
     const t = gt - act.t0;
-    if (t > 272 && t < 640) {
-      const gap = exBase - kxBase - 46, cx = kxBase - 4 + gap + 4, cy = FLOOR - 44;
-      const p = ease.out(Math.min(1, (t - 272) / 120)), a0 = -2.5, a1 = 1.25, head = a0 + (a1 - a0) * p;
-      drawSlash(img, { cx, cy, R: 40, T: 24, head, span: Math.min(head - a0 + 0.05, 2.7), dir: 1, thin: Math.max(0, (t - 430) / 210), seed: 0.3 });
+    if (t > 262 && t < 600) {
+      const cx = kxBase + kx + 6, cy = FLOOR - 30;   // it follows her as she dashes in
+      // from low behind her, under and round the front, up to the front-top
+      const p = ease.out(Math.min(1, (t - 262) / 110)), a0 = 2.7, a1 = -0.75, head = a0 + (a1 - a0) * p;
+      drawSwirl(img, { cx, cy, rx: 44, ry: 22, tilt: -0.12, head, span: Math.min(a0 - head + 0.05, 3.2), dir: -1, thin: Math.max(0, (t - 400) / 200), seed: 3 });
     }
   }
   // shards: little squares with gravity

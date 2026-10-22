@@ -54,3 +54,48 @@ export function shards(n, x, y, seed = 1) {
   const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
   return Array.from({ length: n }, () => ({ x, y, vx: 40 + rnd() * 140, vy: -60 - rnd() * 120, s: rnd() < 0.3 ? 2 : 1, c: rnd() < 0.25 ? "#fff4ee" : rnd() < 0.6 ? "#ff4646" : "#c2142e" }));
 }
+
+// ---- the swirl (round 2, matched to Isaac's videos) ----
+// A wide swoosh wrapping round the body: many parallel strands following an
+// ellipse round the swing centre, so it reads as streaky; a bulbous white-hot
+// head at the leading edge, cooling through light and mid to deep toward the
+// tail; the strands' tails end at staggered points (the feathered end); thin
+// dark wisps lag behind on the outside.
+//   head: the angle the leading edge has reached (radians on the ellipse);
+//   span: how far back the tail reaches; dir: +1 if the angle grows as it sweeps
+//   rx, ry, tilt: the ellipse; thin: 0..1 as it fades
+export const SWIRL = { core: "#fff6f2", hot: "#ffd8cc", light: "#ff9c8c", mid: "#ff4a50", deep: "#c4182e", dark: "#7a0c26", wisp: "#4a0a2e", wisp2: "#6e1446" };
+export function drawSwirl(img, { cx, cy, rx, ry, tilt = 0, head, span, dir = -1, thin = 0, pal = SWIRL, seed = 1 }) {
+  const { width: w, height: h, data: D } = img, P = {}; for (const k in pal) P[k] = hexRGB(pal[k]);
+  const disc = (x, y, r, c) => { const R = Math.max(0.5, r), x0 = Math.floor(x - R), x1 = Math.ceil(x + R), y0 = Math.floor(y - R), y1 = Math.ceil(y + R); for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) { if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue; const ddx = xx + 0.5 - x, ddy = yy + 0.5 - y; if (ddx * ddx + ddy * ddy > R * R) continue; const o = (yy * w + xx) * 4; D[o] = c[0]; D[o + 1] = c[1]; D[o + 2] = c[2]; D[o + 3] = 255; } };
+  const ct = Math.cos(tilt), st = Math.sin(tilt);
+  const at = (a, d) => { const ex = (rx + d) * Math.cos(a), ey = (ry + d * ry / rx) * Math.sin(a); return [cx + ex * ct - ey * st, cy + ex * st + ey * ct]; };
+  let s = seed * 9301 + 49297; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  // the strands, outermost first so the bright inner ones sit on top
+  const N = 15, strands = Array.from({ length: N }, (_, i) => { const off = (i / (N - 1) - 0.5) * 2; return { d: off * 13, lag: Math.abs(off) * 0.2 + rnd() * 0.06, len: 0.4 + rnd() * 0.55, w: 2.2 + (1 - Math.abs(off)) * 2.2, dark: i % 4 === 1 }; });
+  strands.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+  const cool = thin * 1.6;
+  for (const S of strands) {
+    const sp = span * S.len * (1 - thin * 0.7), h0 = head - dir * S.lag;
+    const steps = Math.max(6, Math.ceil(sp * (rx + ry) * 0.9));
+    for (let k = steps; k >= 0; k--) {
+      const u = 1 - k / steps;   // 0 at this strand's tail, 1 at its head
+      const a = h0 - dir * sp * (1 - u);
+      const [x, y] = at(a, S.d);
+      const wd = S.w * (0.35 + 0.65 * u) * (1 - thin) * (u > 0.94 ? 0.5 + (1 - u) * 8 : 1);
+      if (wd < 0.45) continue;
+      const heat = u - cool - Math.abs(S.d) * 0.03;
+      let c = heat > 0.66 ? P.core : heat > 0.5 ? P.hot : heat > 0.32 ? P.light : heat > 0.14 ? P.mid : P.deep;
+      if (S.dark && heat < 0.66) c = heat > 0.32 ? P.mid : heat > 0.14 ? P.deep : P.dark;   // the darker streaks
+      disc(x, y, wd, c);
+    }
+  }
+  // the bulbous white head
+  if (thin < 0.5) { const [hx, hy] = at(head, 0); disc(hx, hy, 9 * (1 - thin * 2), P.core); }
+  // dark wisps lagging behind on the outside
+  for (const [d, lag, len] of [[16, 0.35, 0.7], [19, 0.55, 0.45], [-15, 0.5, 0.4]]) {
+    if (thin > 0.85) continue;
+    const sp = span * len, h0 = head - dir * lag, steps = Math.ceil(sp * rx);
+    for (let k = 0; k <= steps; k++) { const u = k / steps, [x, y] = at(h0 - dir * sp * u, d + Math.sin(u * 7 + seed) * 1.2); disc(x, y, (1 - u) * 1.1 * (1 - thin), u < 0.3 ? P.wisp2 : P.wisp); }
+  }
+}
