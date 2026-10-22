@@ -45,6 +45,8 @@ const f = newFight(1); f.mana = 30; battle.mana(f.mana);
 const crit = new URLSearchParams(location.search).has("crit");
 window.__cast = (id) => run(() => { const c = battle.kit.find((k) => k.id === id); return battle.attack({ result: crit ? "crit" : "hit", dmg: TIERS[c.tier].dmg }, null, c); });
 window.__hand = () => run(async () => { const c = await battle.pickCard(f, { gain: 10, crit: true }); const strike = castCard(f, c, { crit: true }); battle.mana(f.mana); await battle.attack(strike, null, c); });
+// a finishing blow: GOLEM has hp left and this card kills him (lethal endings)
+window.__lethal = (id, hp = 20) => run(async () => { const c = battle.kit.find((k) => k.id === id); battle.hp(battle.lastHp?.me ?? 100, hp); await battle.attack({ result: crit ? "crit" : "hit", dmg: TIERS[c.tier].dmg }, () => battle.hp(battle.lastHp.me, 0), c, { lethal: true }); await battle.victory(); });
 window.__mine = () => window.__cast(battle.kit[battle.kit.length - 1].id);
 window.__boom = () => run(async () => { const c = battle.ctx.fx.fromPage(battle.golem.point("core")); await explode(battle.toon, c.x, c.y, { size: 1.4 }); });
 window.__missiles = () => run(() => golemAttack(battle.ctx, "missiles", { onHit() {} }));

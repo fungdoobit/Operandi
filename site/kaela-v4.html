@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaela round 4</title>
+<style>
+body { margin: 0; background: #2a2f3a; color: #e9ecf2; font: 14px system-ui, sans-serif; }
+main { display: flex; gap: 16px; padding: 16px; flex-wrap: wrap; align-items: flex-end; }
+canvas { image-rendering: pixelated; background: #3a4150; }
+</style>
+</head>
+<body>
+<main id="m"></main>
+<script type="module">
+// Kaela on the flat painter, at 1x, 3x and 7x (?t= sets the breathing frame)
+import { paintKaelaFlat, W, H } from "./js/pixel2d/kaela-flat.js";
+const t = +(new URLSearchParams(location.search).get("t") || 0);
+for (const s of [1, 3, 7]) {
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  c.style.width = W * s + "px"; c.style.height = H * s + "px";
+  c.getContext("2d").putImageData(paintKaelaFlat(t), 0, 0);
+  document.getElementById("m").append(c);
+}
+</script>
+</body>
+</html>

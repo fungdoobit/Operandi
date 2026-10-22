@@ -1049,7 +1049,7 @@ async function castTurn() {
   battle.mana(f.mana);
   battle.say(strike.result === "crit" ? `${card.name}: critical hit!` : strike.result === "blocked" ? `${card.name}. The Firewall soaked up half of it.` : `${card.name}!`, { title: `${strike.dmg} damage`, mood: "fierce" });
   // The save already counts his strike back; the bars show each hit as it lands.
-  await battle.attack(strike, () => battle.hp(f.me + back, f.foe), card);
+  await battle.attack(strike, () => battle.hp(f.me + back, f.foe), card, { lethal: f.foe <= 0 });
   if (reward) { await battle.victory(); renderBossPanel("won", reward); renderTop(); renderRail(); return; }
   if (back) await battle.counter(back, () => battle.hp(f.me, f.foe));
   else battle.staggered();

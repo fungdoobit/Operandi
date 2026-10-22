@@ -190,7 +190,7 @@ async function graspOfTheVoid(s) {
   await fx.wait(560);
   // 2. the portal: a crack of light, then it rips wide open on the floor
   sound.sfx("voidTear"); fx.shake(9); fx.hitstop(60);
-  const life = 4800;
+  const life = s.lethal ? 6400 : 4800;   // the finishing version runs longer: he goes all the way under
   const draw = (back) => (g, k, t) => drawPortal(g, cx, cy, R, open * (1 - closing), t, back, cracks);
   const portalBack = pxBack.add({ dur: life, draw: draw(true) });
   const portalFront = px.add({ dur: life, z: 1, draw: draw(false) });
@@ -211,7 +211,7 @@ async function graspOfTheVoid(s) {
   }));
   const writhers = Array.from({ length: 4 }, (_, i) => ({ base: [cx + rand(-0.85, 0.85) * R, cy + rand(0, 0.1) * R], h: rand(50, 90), seed: 20 + i, flip: i % 2 ? 1 : -1, delay: rand(0, 200) }));
   let grip = 0, shatter = 0, pull = 0;
-  const handsActor = s.toon.add({ dur: 3200, draw(pen, k, t) {
+  const handsActor = s.toon.add({ dur: s.lethal ? 4800 : 3200, draw(pen, k, t) {
     const amt = 1 - shatter;
     voidOoze(pen, cx, cy, R, k * 3.2, t, amt);
     for (const w of writhers) {   // smaller arms clawing the air at the rim
@@ -262,7 +262,7 @@ async function graspOfTheVoid(s) {
   // 5. the pull: he's dragged down into the portal, fighting it; the floor cuts him off as he sinks
   const top = foeEl.offsetTop, height = foeEl.offsetHeight, home = foeEl._pos || { x: 0, y: 0, r: 0 };
   const clip = () => { const y = (foeEl._pos?.y || 0); foeEl.style.clipPath = `inset(0 0 ${Math.max(0, top + height + y - floor).toFixed(1)}px 0)`; };
-  const clipper = px.add({ dur: 2600, draw() { clip(); } });
+  const clipper = px.add({ dur: s.lethal ? 4200 : 2600, draw() { clip(); } });
   sound.sfx("telekinesis");
   px.add({ dur: 240, draw(g, k) { pull = ease.out(k); } });
   for (let i = 0; i < 3; i++) {
@@ -272,6 +272,43 @@ async function graspOfTheVoid(s) {
     fx.shake(14 + i * 5); fx.hitstop(70); fx.punch(0.03, core0); sound.sfx("impact", { size: 0.7 }); fx.dust(cx, 6, 1);
     if (i === 1) s.onHit(2);
     await fx.wait(160);
+  }
+  // 6b. the finishing blow (Isaac 2026-10-22): no escape. He fights it, the
+  // hands only grip harder, and the void swallows him whole.
+  if (s.lethal) {
+    golem.to({ flare: 2.4, thrust: 2.8, tilt: -0.3, lean: -0.1 }, 220, "out");
+    sound.sfx("laserCharge", { ms: 300 });
+    await fx.move(foeEl, { x: home.x + rand(-4, 4), y: home.y + height * 0.3 }, 260, "out");   // he heaves up a little...
+    fx.shake(10);
+    // ...and more hands burst up and seize him
+    sound.sfx("handsBurst"); sound.sfx("ghostWail");
+    for (let i = 0; i < 4; i++) hands.push({ part: i < 2 ? (i ? "cannon" : "claw") : null, L: i < 2 ? [0, -0.2, -0.2] : [rand(-0.4, 0.4), 0.3, -0.5], base: [cx + rand(-0.6, 0.6) * R, cy], bend: rand(-30, 30), delay: 2300 + i * 60, w: 15, size: 72, seed: 40 + i, flip: i % 2 ? 1 : -1 });
+    bigHit(fx, core0, { stop: 140, shake: 22, punch: 0.05, flash: "#8a4dff" });
+    golem.fxv.glitch = 1.4;
+    golem.to({ flare: 0.6, thrust: 0.4, tilt: 0.2, lean: 0.15, ca: 1.3, na: 1.3, ce: 0.4, ne: 0.4 }, 300, "out");   // arms flung up, reaching for the sky
+    sound.sfx("roar");
+    fx.slowmo(0.5, 900);
+    // the last drag: all the way down, the floor eating him
+    sound.sfx("voidCrush"); sound.sfx("telekinesis");
+    await fx.move(foeEl, { x: home.x, y: home.y + height * 1.05 }, 1100, "in");
+    fx.shake(18); fx.hitstop(90); impactFrame(fx, { ms: 60 });
+    foeEl.style.visibility = "hidden";
+    s.onHit(2);
+    s.died();
+    // a last gasp of his core light from under the floor, then the portal seals
+    px.add({ dur: 700, z: 3, draw(g, k) { glow(g, cx, cy - 8, 120 * (1 - k), "#ff5a3a", 0.7 * (1 - k)); } });
+    px.add({ dur: 420, draw(g, k) { shatter = ease.out(k); } });
+    await fx.wait(450);
+    sound.sfx("portalClose");
+    await px.add({ dur: 420, draw(g, k) { closing = ease.in(k); } });
+    px.add({ dur: 380, z: 5, draw(g, k) { const f = k < 0.2 ? k / 0.2 : (1 - k) / 0.8; starFlash(g, cx, cy - 6, 90 * f); glow(g, cx, cy - 6, 70 * f, "#cba2ff", 0.6); } });
+    fx.shake(10);
+    fx.letterbox(false); fx.darken(0, 600); fx.focus(1, null, 600);
+    mate.anim(400, (e) => { mate.nova.lift = 0.1 * (1 - e); }, "io");
+    await fx.wait(600);
+    mate.setMood("happy");
+    void portalBack; void portalFront; void handsActor; void clipper;
+    return;
   }
   // 6. just before he goes under: his core blazes, he roars and rips free
   fx.darken(0.2, 200);
@@ -617,7 +654,7 @@ function drawCoil(gFront, gBack, S, B, axis, k, t) {
   void loops;
 }
 async function spectralChains(s) {
-  const { fx, px, pxTop, spr, sprBack, toon, mate } = s;
+  const { fx, px, pxTop, spr, sprBack, toon, mate, foeEl } = s;
   const S = propSprites();
   if (!S) return graspOfTheVoid(s);   // no WebGL for the props: fall back to the hands
   const core = s.golemC(), floor = fx.floorY, cx = core.x - 10;
@@ -696,6 +733,39 @@ async function spectralChains(s) {
   speedLines(pxTop, core, 420);
   shards(pxTop, core, 22, 1.3);
   s.onHit(2);
+  // 4b. the finishing blow (Isaac 2026-10-22): no drones, no escape. She pulls
+  // the chains apart, his armour splits, explosions rip across him and he blows up.
+  if (s.lethal) {
+    sound.sfx("ghostWail"); sound.sfx("voidCrush");
+    fx.slowmo(0.45, 1600);
+    s.golem.to({ flare: 2.6, thrust: 0, tilt: 0.25, lean: 0.2, ca: -0.2, na: -0.2, ce: 0.6, ne: 0.6 }, 300, "out");   // arms wrenched apart
+    for (let i = 0; i < 6; i++) {
+      const p = { x: core.x + rand(-90, 90), y: core.y + rand(-70, 60) };
+      s.golem.fxv.glitch = 1 + i * 0.3;
+      explode(toon, p.x, p.y, { size: 0.6 + i * 0.08 });
+      fx.debris(p, 6, { power: 1.2 }); fx.sparks(p, 8, { power: 1.2 });
+      fx.shake(12 + i * 3); fx.hitstop(40); sound.sfx("explosion", { size: 0.8 }); sound.sfx("chainRattle", { size: 1 });
+      await fx.wait(170);
+    }
+    // the final blast: everything lets go at once
+    sound.sfx("explosion", { size: 2 }); sound.sfx("chainSnap"); sound.sfx("slamImpact");
+    impactFrame(fx, { ms: 80 });
+    bigHit(fx, core, { stop: 220, shake: 40, punch: 0.08, flash: "#ffd9a3" });
+    explode(toon, core.x, core.y, { size: 2.2 });
+    fx.ring(core, { color: "#ffb040", size: 420, flat: 0.5, ms: 700, width: 10 });
+    fx.debris(core, 26, { power: 2 }); shards(pxTop, core, 30, 1.8);
+    foeEl.style.visibility = "hidden";
+    s.died();
+    for (const ch of chains) spr.add({ dur: 300, draw(g, k) { ch.cut = ease.out(k); } }).then(() => { ch.gone = 1; });
+    taut = 0; pulses = 0; mate.nova.idle.shake = 0;
+    await fx.wait(900);
+    await Promise.all([top.close(), bot.close()]);
+    fx.letterbox(false); fx.darken(0, 600); fx.focus(1, null, 600);
+    settle();
+    await fx.wait(400);
+    mate.setMood("happy");
+    return;
+  }
   // 4. he fights back: smoke bursts from his pods, drones fly out
   sound.sfx("servo", { ms: 300 }); sound.sfx("laserCharge", { ms: 300 });
   s.golem.to({ flare: 1.8, thrust: 1.4 }, 200, "out");
@@ -982,6 +1052,14 @@ async function planetfall(s) {
     { key: "mars", at: { x: lerp(c.x, core.x, 0.36), y: 90 }, frac: 0.3, spin: 10 },
     { key: "uranus", at: { x: lerp(c.x, core.x, 0.52), y: 112 }, frac: 0.4, spin: 6, last: true },
   ];
+  // The finishing blow (Isaac 2026-10-22): Jupiter carries damage too, and
+  // whichever planet takes his last HP kills him. If that's one of the first
+  // three, Jupiter never comes; otherwise Jupiter comes down and crushes him.
+  if (s.lethal) {
+    const fr = [0.2, 0.2, 0.25];
+    let sum = 0;
+    smalls.forEach((P, i) => { P.frac = fr[i]; sum += fr[i]; if (!smalls.some((q) => q.kill) && s.dmg * sum >= s.hpBefore) P.kill = true; });
+  }
   // Isaac 2026-10-22, "like a movie": each one bursts out through its portal
   // (cut off by the portal's surface as it comes through), tears down with a
   // burning bow shock and a long plasma tail, the last moment in slow motion,
@@ -1076,9 +1154,16 @@ async function planetfall(s) {
     fx.move(foeEl, { x: home0.x + (isU ? 34 : 22), y: home0.y }, 90, "out").then(() => fx.move(foeEl, home0, 520, "inOut"));
     s.golem.fxv.glitch = isU ? 0.8 : 0.5; s.golem.to({ glitch: 0 }, 260, "lin", s.golem.fxv);
     s.golem.to({ lean: 0.2, tilt: 0.24, bob: -0.12 }, 100, "out").then(() => s.golem.to({ lean: 0, tilt: 0, bob: 0 }, 460, "io"));
-    if (P.last) { s.onHit(1); s.onHit(2); } else s.chunk(P.frac);
+    if (P.kill || (P.last && !s.lethal)) { s.onHit(1); s.onHit(2); } else s.chunk(P.frac);
   };
-  for (const P of smalls) { await throwPlanet(P); await fx.wait(P.last ? 900 : 220); }
+  for (const P of smalls) { await throwPlanet(P); if (P.kill) break; await fx.wait(P.last ? 900 : 220); }
+  if (smalls.some((P) => P.kill)) {   // that planet finished him: he explodes (bossDefeat), no Jupiter
+    await fx.wait(500);
+    fx.darken(0, 500); fx.focus(1, null, 500);
+    settle();
+    mate.setMood("happy");
+    return;
+  }
 
   // ---- Jupiter ----
   // Its portal opens right above GOLEM. He sees it coming and throws his arms
@@ -1087,7 +1172,7 @@ async function planetfall(s) {
   // up into the portal, which slams shut.
   const jf = PL.jupiter, R = jf.r;
   const big = { x: core.x - 15, y: 2 };   // at the very top: Jupiter comes down from above the frame
-  if (!s.isBoss) return jupiterCrush(s, { jf, R, big, settle });   // a small enemy can't hold it up: it's crushed
+  if (!s.isBoss || s.lethal) return jupiterCrush(s, { jf, R, big, settle, lethal: s.lethal });   // a small enemy can't hold it up: it's crushed
   // Isaac 2026-10-22: GOLEM shrugs off the three planets, and NOVA, furious,
   // calls on her full strength: she rises in a surge of void power and drives
   // a beam of magic into the sky that tears a huge portal open. He only looks
@@ -1275,7 +1360,9 @@ async function planetfall(s) {
 // Planetfall's ending on a small enemy (Addendum K): it can't catch Jupiter
 // like GOLEM, so the planet comes down on top of it, drives it into the floor
 // and goes back up into the portal.
-async function jupiterCrush(s, { jf, R, big, settle }) {
+// lethal (GOLEM's finishing blow): he throws his arms up too late, is crushed
+// into the floor and blows up under it; Jupiter goes back up alone.
+async function jupiterCrush(s, { jf, R, big, settle, lethal = false }) {
   const { fx, px, spr, sprBack, toon, pxTop, mate, foeEl } = s;
   const core = s.golemC(), floor = fx.floorY;
   const at = { x: core.x, y: big.y };
@@ -1292,6 +1379,7 @@ async function jupiterCrush(s, { jf, R, big, settle }) {
   for (let i = 0; i < 5; i++) fx.wait(i * 160).then(() => fx.shake(6 + i * 3));
   const y0 = J.y, land = floor - R * 0.62;
   speedLines(pxTop, () => ({ x: J.x, y: J.y + R }), 700, { inner: R });
+  if (lethal) { s.golem.to({ ca: 1.4, na: 1.4, ce: 0.5, ne: 0.5, flare: 2, tilt: -0.2 }, 500, "out"); sound.sfx("roar"); }   // he sees it, too late
   await spr.add({ dur: 800, draw(g, k) { J.y = lerp(y0, land, ease.in(k)); } });
   // the crush
   sound.sfx("explosion", { size: 2 }); sound.sfx("slamImpact"); sound.sfx("impact", { size: 1.6 });
@@ -1303,14 +1391,26 @@ async function jupiterCrush(s, { jf, R, big, settle }) {
   explode(toon, J.x - R * 0.7, floor - 10, { size: 1.3, dur: 1300 }); explode(toon, J.x + R * 0.7, floor - 10, { size: 1.3, dur: 1300 });
   s.onHit(1);
   fx.slowmo(0.4, 700);
-  await fx.wait(700);
+  if (lethal) {   // flattened: driven down under the floor, where he blows up
+    const top = foeEl.offsetTop, height = foeEl.offsetHeight;
+    const clipper = px.add({ dur: 4000, draw() { const y = (foeEl._pos?.y || 0); foeEl.style.clipPath = `inset(0 0 ${Math.max(0, top + height + y - floor).toFixed(1)}px 0)`; } });
+    s.golem.fxv.glitch = 1.5;
+    await fx.move(foeEl, { x: home.x, y: home.y + height * 1.05 }, 600, "in");
+    foeEl.style.visibility = "hidden";
+    s.died();
+    for (let i = 0; i < 4; i++) fx.wait(i * 140).then(() => { explode(toon, J.x + rand(-R * 0.8, R * 0.8), floor - 6, { size: 0.9 + i * 0.15 }); fx.shake(16 + i * 4); sound.sfx("explosion", { size: 1 }); });
+    await fx.wait(700);
+    bigHit(fx, { x: J.x, y: floor }, { stop: 160, shake: 34, punch: 0.06, flash: "#ffd9a3" });
+    explode(toon, J.x, floor - 10, { size: 2 }); fx.debris({ x: J.x, y: floor }, 24, { power: 2 });
+    void clipper;
+  } else await fx.wait(700);
   s.onHit(2);
   // back up into the portal, which slams shut
   const jy = J.y;
   sound.sfx("ghostWind", { ms: 1200 });
   await spr.add({ dur: 900, draw(g, k) { J.y = lerp(jy, big.y - R * 1.05, ease.io(k)); } });
   live = false;
-  fx.move(foeEl, home, 500, "back");
+  if (!lethal) fx.move(foeEl, home, 500, "back");
   await gate.close(300);
   sound.sfx("explosion", { size: 1 }); fx.shake(20); flashAt(pxTop, at, 140, 380);
   fx.darken(0, 600);

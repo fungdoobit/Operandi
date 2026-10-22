@@ -257,7 +257,10 @@ export class BattleStage {
 
   // Your strike. strike = { result: "hit" | "crit" | "blocked", dmg }; onImpact runs when it lands.
   // card = the ability card cast (abilities.js); without one, the first in the kit.
-  async attack(strike, onImpact, card, { short = false } = {}) {
+  // lethal: this blow finishes him, so a move that normally lets him escape
+  // (Grasp, Chains, Planetfall) kills him instead and calls s.died().
+  async attack(strike, onImpact, card, { short = false, lethal = false } = {}) {
+    this.foeGone = false;
     const crit = strike.result === "crit";
     let landed = false, shown = 0;
     const land = () => {
@@ -288,15 +291,16 @@ export class BattleStage {
       this.number(`-${d}`, "foe", strike.result === "blocked" ? "blocked" : "hit");
       if (this.lastHp) this.hp(this.lastHp.me, Math.max(0, this.lastHp.foe - d));
     };
-    await this.ability(card || this.kit[0], onHit, crit, chunk, { short });
+    await this.ability(card || this.kit[0], onHit, crit, chunk, { short, lethal, hpBefore: this.lastHp?.foe ?? 0, dmg: strike.dmg });
     if (!landed) land();   // a move with a single hit that was a crit
   }
 
   // Play one ability from the teammate's kit.
   // short: the quick version of an ultimate (after the first time each day, Addendum K).
-  async ability(a, onHit = () => "hit", crit = false, chunk = () => {}, { short = false } = {}) {
+  async ability(a, onHit = () => "hit", crit = false, chunk = () => {}, { short = false, lethal = false, hpBefore = 0, dmg = 0 } = {}) {
     const { fx, px, golem, dot } = this.ctx;
-    await (short ? (s) => shortUltimate(s, a) : a.run)({ ...this.ctx, crit, chunk, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
+    const died = () => { this.foeGone = true; };
+    await (short ? (s) => shortUltimate(s, a) : a.run)({ ...this.ctx, crit, chunk, lethal: lethal && this.isBoss, hpBefore, dmg, died, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
       Pt: (L, part) => fx.fromPage(golem.pagePoint(L, part)),
       mateC: () => fx.at(dot.figure, { fy: 0.55 }), golemC: () => fx.fromPage(golem.point("core")), onHit, px });
   }
@@ -320,6 +324,8 @@ export class BattleStage {
   restoreDome() { this.boss.buildDome(); }
   async victory() {
     if (!this.isBoss) { await enemyDefeat(this.ctx); await M.teammateWin(this.ctx); return; }
+    // the finishing move already killed him on screen (dragged under, ripped apart, crushed)
+    if (this.foeGone) { sound.music("victory"); await M.teammateWin(this.ctx); return; }
     sound.music(null); await M.bossDefeat(this.ctx); sound.music("victory");
   }
   // An enemy beaten mid-level (another one is coming).
