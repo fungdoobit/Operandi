@@ -10,7 +10,11 @@ import { PixelBoss } from "./pixel/golem-boss.js";
 import { golemAttack, golemIntro, golemSpecial } from "./pixel/golem-moves.js";
 import { SPECIALS } from "./boss-rules.js";
 import { BOSS } from "./economy.js";
-import { FoundryBG } from "./pixel/arena-bg.js";
+import { biomeBG } from "./pixel/biomes.js";
+import { PixelEnemy, EnemyFoe } from "./pixel/enemy-px.js";
+import { enemyAttack, enemyIntro, enemyDefeat } from "./pixel/enemy-moves.js";
+import { ENEMIES, BIOMES } from "./enemies.js";
+import { shortUltimate } from "./ult-short.js";
 import { PixelFX } from "./pixel/pixel-fx.js";
 import { ToonFX } from "./pixel/toon-fx.js";
 import { NovaFighter } from "./pixel/nova-mate.js";
@@ -101,11 +105,17 @@ export async function pixelateOut(el, ms = 650) {
 
 export class BattleStage {
   // host: where the stage goes. sayHost: where your teammate's messages go.
-  constructor(host, sayHost, { skin = "dot", accessories = [], name = "GOLEM" } = {}) {
+  // foe: "golem" (the boss) or a small enemy's kind (enemies.js), fought in its
+  // biome (PRD Addendum K). max: the HP bars' full values.
+  constructor(host, sayHost, { skin = "dot", accessories = [], name, foe = "golem", biome, max } = {}) {
+    this.isBoss = foe === "golem";
+    this.enemy = this.isBoss ? null : ENEMIES[foe];
+    name ??= this.isBoss ? "GOLEM" : this.enemy.name;
+    this.max = max || { me: BOSS.hp, foe: this.isBoss ? BOSS.hp : this.enemy.hp };
     ensureFilters();
     if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS + CARDS_CSS; document.head.append(st); }
     const who = { pyro: "PYRO", nova: "NOVA" }[skin] || "DOT";
-    host.innerHTML = `<div class="bstage" role="img" aria-label="Boss battle: ${who} against ${esc(name)}">
+    host.innerHTML = `<div class="bstage" role="img" aria-label="${this.isBoss ? "Boss battle" : "Battle"}: ${who} against ${esc(name)}">
       <div class="bworld"><div class="bfloor"></div><div class="bfoe"></div><div class="bmate"></div></div>
       <div class="bhp me ${skin === "pyro" ? "fire" : skin === "nova" ? "void" : ""}"><div class="row"><span>${who}</span><small></small></div><div class="bar"><div class="fill"></div></div><div class="mana"><span>Mana</span><div class="mbar"><i></i></div><b>0</b></div></div>
       <div class="bhp foe"><div class="row"><span>${esc(name)}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
@@ -113,11 +123,18 @@ export class BattleStage {
     this.sayHost = sayHost;
     this.stage = host.querySelector(".bstage");
     const world = host.querySelector(".bworld"), foeEl = host.querySelector(".bfoe"), mateEl = host.querySelector(".bmate");
-    this.bg = new FoundryBG(world);   // the Sunken Foundry (pixel/arena-bg.js); it shakes with the camera
+    // the Sunken Foundry for GOLEM (pixel/arena-bg.js), else the enemy's biome (pixel/biomes.js); it shakes with the camera
+    this.bg = biomeBG(world, this.isBoss ? "foundry" : biome || this.enemy.biome);
     this.fx = new BattleFX(this.stage, world, { floor: 0.8 });
     // 512 art px wide (default 416): room for his arms when they swing out, so they don't run off his canvas
-    this.golem = new PixelGolem(foeEl, { px: 1, w: GOLEM_W });
-    this.boss = new PixelBoss({ golem: this.golem, fx: this.fx, figure: foeEl });
+    if (this.isBoss) {
+      this.golem = new PixelGolem(foeEl, { px: 1, w: GOLEM_W });
+      this.boss = new PixelBoss({ golem: this.golem, fx: this.fx, figure: foeEl });
+    } else {
+      // a small enemy: the same interface as GOLEM (enemy-px.js), so every ability works on it
+      this.golem = new PixelEnemy(foeEl, foe);
+      this.boss = new EnemyFoe({ model: this.golem, fx: this.fx, figure: foeEl, name });
+    }
     // NOVA fights as her pixel self (NovaFighter); DOT and PYRO share dot.js
     this.dot = skin === "nova" ? new NovaFighter(mateEl) : new Dot(mateEl, { facing: "right", battle: true, skin });
     this.dot.setAccessory(accessories);
@@ -130,7 +147,7 @@ export class BattleStage {
     this.spr = new PixelFX(world, { z: 9, raw: true });
     this.sprBack = new PixelFX(world, { z: 0, before: foeEl, raw: true });
     this.kit = kitFor(skin);
-    this.ctx = { fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, toonBack: this.toonBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
+    this.ctx = { isBoss: this.isBoss, fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, toonBack: this.toonBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
     sound.music("battle");
@@ -165,7 +182,11 @@ export class BattleStage {
     // tall), so on wide screens they don't end up miles apart.
     const zone = Math.min(Wd, Hd * 3.6), edge = (Wd - zone) / 2;
     this.golem.setPx(1);
-    Object.assign(this.foeEl.style, { right: edge + (6 - GOLEM_EXTRA) + "px", bottom: 0.2 * Hd - 17 + "px" });
+    if (this.isBoss) Object.assign(this.foeEl.style, { right: edge + (6 - GOLEM_EXTRA) + "px", bottom: 0.2 * Hd - 17 + "px" });
+    else {   // a small enemy stands on the floor line, centred about four-fifths across the fight zone
+      const cw = this.golem.canvas.width;
+      Object.assign(this.foeEl.style, { right: Math.max(0, edge + zone * 0.2 - cw / 2) + "px", bottom: 0.2 * Hd - this.golem.footPx + "px" });
+    }
     this.mateEl.style.left = edge + zone * 0.06 + "px";
     // HP bars (on the stage itself, in real pixels) line up with the zone, clear of the ☰ button in the corner.
     const left = Math.max(64, (edge + 14) * k), right = Math.max(14, (edge + 14) * k), mid = W / 2;
@@ -178,12 +199,12 @@ export class BattleStage {
 
   hp(me, foe) {
     this.lastHp = { me, foe };
-    const set = (cls, v) => {
-      this.stage.querySelector(`.bhp.${cls} .fill`).style.width = (v / BOSS.hp) * 100 + "%";
-      this.stage.querySelector(`.bhp.${cls} small`).textContent = `${v} / ${BOSS.hp}`;
+    const set = (cls, v, max) => {
+      this.stage.querySelector(`.bhp.${cls} .fill`).style.width = (v / max) * 100 + "%";
+      this.stage.querySelector(`.bhp.${cls} small`).textContent = `${v} / ${max}`;
     };
-    set("me", me); set("foe", foe);
-    sound.setDanger(1 - foe / BOSS.hp, 1 - me / BOSS.hp);   // the music gets tenser as either side weakens
+    set("me", me, this.max.me); set("foe", foe, this.max.foe);
+    sound.setDanger(1 - foe / this.max.foe, 1 - me / this.max.me);   // the music gets tenser as either side weakens
   }
 
   mana(v) {
@@ -220,11 +241,23 @@ export class BattleStage {
   }
 
   // ---- Scenes ----
-  intro() { return golemIntro(this.ctx); }
+  intro() { return this.isBoss ? golemIntro(this.ctx) : enemyIntro(this.ctx); }
+
+  // The next wave: a new enemy steps in (its HP bar refills).
+  async spawn(kind, hp) {
+    this.enemy = ENEMIES[kind];
+    this.golem.setKind(kind);
+    this.boss.b.name = this.enemy.name;
+    this.max.foe = this.enemy.hp;
+    this.stage.querySelector(".bhp.foe .row span").textContent = this.enemy.name;
+    this.fit();
+    this.hp(this.lastHp?.me ?? this.max.me, hp ?? this.enemy.hp);
+    await enemyIntro(this.ctx);
+  }
 
   // Your strike. strike = { result: "hit" | "crit" | "blocked", dmg }; onImpact runs when it lands.
   // card = the ability card cast (abilities.js); without one, the first in the kit.
-  async attack(strike, onImpact, card) {
+  async attack(strike, onImpact, card, { short = false } = {}) {
     const crit = strike.result === "crit";
     let landed = false, shown = 0;
     const land = () => {
@@ -255,14 +288,15 @@ export class BattleStage {
       this.number(`-${d}`, "foe", strike.result === "blocked" ? "blocked" : "hit");
       if (this.lastHp) this.hp(this.lastHp.me, Math.max(0, this.lastHp.foe - d));
     };
-    await this.ability(card || this.kit[0], onHit, crit, chunk);
+    await this.ability(card || this.kit[0], onHit, crit, chunk, { short });
     if (!landed) land();   // a move with a single hit that was a crit
   }
 
   // Play one ability from the teammate's kit.
-  async ability(a, onHit = () => "hit", crit = false, chunk = () => {}) {
+  // short: the quick version of an ultimate (after the first time each day, Addendum K).
+  async ability(a, onHit = () => "hit", crit = false, chunk = () => {}, { short = false } = {}) {
     const { fx, px, golem, dot } = this.ctx;
-    await a.run({ ...this.ctx, crit, chunk, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
+    await (short ? (s) => shortUltimate(s, a) : a.run)({ ...this.ctx, crit, chunk, mate: dot, P: (name) => fx.fromPage(golem.point(name)),
       Pt: (L, part) => fx.fromPage(golem.pagePoint(L, part)),
       mateC: () => fx.at(dot.figure, { fy: 0.55 }), golemC: () => fx.fromPage(golem.point("core")), onHit, px });
   }
@@ -271,7 +305,9 @@ export class BattleStage {
   async counter(dmg, onImpact, { miss = false } = {}) {
     if (miss) { this.number("MISS", "me", "miss"); await this.fx.wait(350); }
     else await this.fx.wait(250);
-    await golemAttack(this.ctx, null, { onHit: () => { this.number(`-${dmg}`, "me", "ouch"); onImpact?.(); } });
+    const onHit = () => { this.number(`-${dmg}`, "me", "ouch"); onImpact?.(); };
+    if (this.isBoss) await golemAttack(this.ctx, null, { onHit });
+    else await enemyAttack(this.ctx, this.enemy, { onHit });
   }
   // A crit staggers him: no strike back this turn.
   staggered() {
@@ -282,6 +318,14 @@ export class BattleStage {
   special(kind) { return golemSpecial(this.ctx, kind, SPECIALS[kind]); }
   // Put a standing Firewall back after a reload.
   restoreDome() { this.boss.buildDome(); }
-  async victory() { sound.music(null); await M.bossDefeat(this.ctx); sound.music("victory"); }
-  async defeat() { sound.music("defeat"); await M.bossWin(this.ctx); }
+  async victory() {
+    if (!this.isBoss) { await enemyDefeat(this.ctx); await M.teammateWin(this.ctx); return; }
+    sound.music(null); await M.bossDefeat(this.ctx); sound.music("victory");
+  }
+  // An enemy beaten mid-level (another one is coming).
+  beaten() { return enemyDefeat(this.ctx); }
+  async defeat() {
+    if (!this.isBoss) { await M.teammateKO(this.ctx); this.boss.win(); await this.fx.wait(1200); return; }
+    sound.music("defeat"); await M.bossWin(this.ctx);
+  }
 }

@@ -477,6 +477,21 @@ const SFX = {
     this.tone("sine", 110, 40, t, 0.25, 0.6, { room: 0.3 });
   },
   swarm(t, k, o) { this.swarm(t, (o.ms || 3000) / 1000, 0.35 * k); },
+  // ---- small enemies (Addendum K) ----
+  // a bowstring: a short plucked twang falling in pitch, and the arrow's hiss
+  twang(t) { this.tone("triangle", 420, 180, t, 0.14, 0.22, { glide: 0.1 }); this.tone("square", 840, 300, t, 0.05, 0.05); this.noise(t + 0.02, 0.18, 0.12, { type: "highpass", f0: 3000, f1: 6000 }); },
+  // a gunshot: a hard crack, a short body and a little room
+  gunshot(t, k) { this.noise(t, 0.05, 0.7 * k, { type: "highpass", f0: 1800, dist: true }); this.noise(t, 0.22, 0.5 * k, { type: "lowpass", f0: 2400, f1: 200, room: 0.35 }); this.tone("sine", 160, 50, t, 0.16, 0.4); },
+  // a beast's growl: a low rough saw buzz that rises and falls
+  growl(t, k) { this.tone("sawtooth", 70, 95, t, 0.6, 0.18 * k, { vibrato: [26, 18], glide: 0.3 }); this.noise(t, 0.6, 0.18 * k, { type: "bandpass", f0: 260, f1: 400, q: 4 }); },
+  // a snake's hiss
+  hiss(t) { this.noise(t, 0.5, 0.25, { type: "highpass", f0: 4500, f1: 3200, attack: 0.05 }); },
+  // something wet landing
+  squelch(t) { this.noise(t, 0.14, 0.4, { type: "lowpass", f0: 900, f1: 180, q: 6 }); this.tone("sine", 260, 90, t, 0.12, 0.2); },
+  // a spell: a bright rising chime with a shimmer
+  magic(t, k) { [0, 0.05, 0.1].forEach((d, i) => this.tone("triangle", 660 * (1 + i * 0.5), 1320 * (1 + i * 0.5), t + d, 0.25, 0.08 * k, { room: 0.5 })); this.noise(t, 0.4, 0.08, { type: "highpass", f0: 6000, room: 0.5 }); },
+  // wings buzzing (a wasp)
+  wings(t, k, o) { const d = (o.ms || 600) / 1000; this.tone("sawtooth", 180, 200, t, d, 0.06 * k, { vibrato: [40, 30] }); this.noise(t, d, 0.06 * k, { type: "bandpass", f0: 900, q: 5 }); },
   bite(t) { this.noise(t, 0.08, 0.4, { type: "bandpass", f0: 1200, q: 3, dist: true }); this.tone("square", 300, 120, t, 0.06, 0.1); },
   // Digital crackle: tiny bit-flip blips (no noise bursts; the old version stacked into a clap, Isaac 2026-10-21).
   glitch(t) {

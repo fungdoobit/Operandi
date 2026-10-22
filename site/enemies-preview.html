@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enemies and biomes</title>
+<style>
+body { margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: #0f1116; color: #e9ecf2; }
+main { max-width: 1400px; margin: 0 auto; padding: 18px 16px 40px; }
+h1 { font-size: 20px; margin: 0 0 6px; } p { color: #9aa3b5; margin: 0 0 12px; font-size: 14px; }
+h2 { font-size: 15px; margin: 14px 0 4px; color: #c9cfdb; }
+#arena { height: 440px; border-radius: 12px; overflow: hidden; position: relative; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; align-items: center; }
+.bar a, .bar button { font: 600 14px system-ui; border: 1px solid #3a4150; background: #1a1f29; color: #fff; border-radius: 8px; padding: 7px 12px; cursor: pointer; text-decoration: none; }
+.bar a.on { background: #3a2a62; border-color: #7838d0; }
+.bar span { color: #9aa3b5; font-size: 13px; margin-right: 4px; }
+#say { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Enemies and biomes (PRD Addendum K)</h1>
+  <p>Every module's biome and its enemies. Pick an enemy, then watch its attacks, cast your teammate's cards at it, or beat it.</p>
+  <div class="bar" id="skins"><span>Teammate:</span></div>
+  <div id="biomes"></div>
+  <div id="arena"></div><div id="say"></div>
+  <div class="bar" id="attacks"><span>Its attacks:</span></div>
+  <div class="bar"><span>Fight:</span><button id="intro">Enter</button><button id="hurt">Get hit</button><button id="beat">Beat it</button><button id="next">Next enemy (wave)</button><button id="ko">Teammate KO</button></div>
+  <div class="bar" id="moves"><span>Your cards:</span></div>
+</main>
+<script type="module">
+import { BattleStage } from "./js/boss-fight.js";
+import { DOT_CSS } from "./js/dot.js";
+import { NOVA_CSS } from "./js/pixel/nova-mate.js";
+import { enemyAttack } from "./js/pixel/enemy-moves.js";
+import { TIERS } from "./js/economy.js";
+import { ENEMIES, BIOMES, enemiesIn } from "./js/enemies.js";
+import { ENEMY_MODELS } from "./js/pixel/enemy-models/index.js";
+const st = document.createElement("style"); st.textContent = DOT_CSS + NOVA_CSS; document.head.append(st);
+const q = new URLSearchParams(location.search);
+const skin = q.get("skin") || "nova";
+const built = (k) => !!ENEMY_MODELS[k];
+const first = Object.keys(ENEMIES).find(built);
+let foe = q.get("foe") && built(q.get("foe")) ? q.get("foe") : first;
+const link = (patch) => { const u = new URLSearchParams(location.search); for (const k in patch) u.set(k, patch[k]); return "?" + u; };
+document.getElementById("skins").insertAdjacentHTML("beforeend", ["nova", "pyro", "dot"].map((k) => `<a href="${link({ skin: k })}" class="${k === skin ? "on" : ""}">${k.toUpperCase()}</a>`).join(""));
+document.getElementById("biomes").innerHTML = Object.entries(BIOMES).map(([id, b]) => `<h2>Module ${b.module}: ${b.name}</h2><div class="bar">${enemiesIn(id).map((k) => built(k) ? `<a href="${link({ foe: k })}" class="${k === foe ? "on" : ""}">${ENEMIES[k].name}</a>` : `<button disabled title="model not built yet">${ENEMIES[k].name}</button>`).join("")}</div>`).join("");
+const battle = new BattleStage(document.getElementById("arena"), document.getElementById("say"), { skin, foe, max: { me: 100, foe: ENEMIES[foe].hp } });
+window.__battle = battle;
+let busy = false;
+const run = async (fn) => { if (busy) return; busy = true; try { await fn(); } finally { busy = false; } };
+let me = 100, hp = ENEMIES[foe].hp;
+battle.hp(me, hp);
+window.__attack = (i) => run(() => { const e = ENEMIES[foe]; return enemyAttack(battle.ctx, { ...e, attacks: [e.attacks[i]] }, { onHit() { me = Math.max(0, me - e.hit); battle.hp(me, hp); } }); });
+window.__cast = (id) => run(async () => { const c = battle.kit.find((k) => k.id === id); const dmg = TIERS[c.tier].dmg; await battle.attack({ result: "hit", dmg }, () => { hp = Math.max(0, hp - dmg); battle.hp(me, hp); }, c, { short: q.has("short") }); });
+window.__intro = () => run(() => battle.intro());
+window.__beat = () => run(() => battle.beaten());
+window.__ko = () => run(() => battle.defeat());
+window.__next = () => run(async () => { const list = Object.keys(ENEMIES).filter((k) => built(k) && ENEMIES[k].biome === ENEMIES[foe].biome); foe = list[(list.indexOf(foe) + 1) % list.length]; hp = ENEMIES[foe].hp; await battle.spawn(foe, hp); });
+document.getElementById("attacks").insertAdjacentHTML("beforeend", ENEMIES[foe].attacks.map((a, i) => `<button onclick="__attack(${i})">${a.type}${a.proj ? ": " + a.proj : a.fx ? ": " + a.fx : a.wave ? ": " + a.wave : ""}</button>`).join(""));
+document.getElementById("moves").insertAdjacentHTML("beforeend", battle.kit.map((c) => `<button data-id="${c.id}">${c.name} <small>(${TIERS[c.tier].label})</small></button>`).join(""));
+document.getElementById("moves").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) window.__cast(b.dataset.id); });
+document.getElementById("intro").onclick = window.__intro;
+document.getElementById("hurt").onclick = () => run(() => battle.golem.hurt({}));
+document.getElementById("beat").onclick = window.__beat;
+document.getElementById("next").onclick = window.__next;
+document.getElementById("ko").onclick = window.__ko;
+battle.intro();
+</script>
+</body>
+</html>

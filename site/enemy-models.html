@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enemy models</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0b0d14; color: #e9ecf2; font: 14px system-ui, sans-serif; }
+  .grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; }
+  .cell { background: #151a26; border-radius: 8px; padding: 6px; text-align: center; }
+  .cell canvas { margin: 0 auto; }
+  .bar { padding: 10px 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button { background: #222a3a; color: #fff; border: 1px solid #3a4560; border-radius: 6px; padding: 5px 10px; }
+</style>
+</head>
+<body>
+<!-- Every enemy model in its rest pose, at 2x, with pose buttons (for checking the models; ?kind=a,b limits the list) -->
+<div class="bar"><span>Pose:</span>
+  <button data-p='{}'>rest</button>
+  <button data-p='{"wind":1}'>wind-up</button>
+  <button data-p='{"atk":1}'>strike</button>
+  <button data-p='{"open":1}'>open</button>
+  <button data-p='{"hurt":1,"lean":-0.2}'>hurt</button>
+  <button data-p='{"walk":0.25}'>walk</button>
+</div>
+<div class="grid" id="grid"></div>
+<script type="module">
+  import { PixelEnemy } from "./js/pixel/enemy-px.js";
+  import { ENEMY_MODELS } from "./js/pixel/enemy-models/index.js";
+  const want = new URLSearchParams(location.search).get("kind");
+  const kinds = want ? want.split(",") : Object.keys(ENEMY_MODELS);
+  const models = [];
+  for (const k of kinds) {
+    const cell = document.createElement("div"); cell.className = "cell";
+    document.getElementById("grid").append(cell);
+    try { const m = new PixelEnemy(cell, k); m.setPx(2); models.push(m); cell.insertAdjacentHTML("beforeend", `<div>${ENEMY_MODELS[k].name} (${k})</div>`); }
+    catch (e) { cell.textContent = k + ": " + e.message.slice(0, 400); console.error(e); }
+  }
+  window.__models = models;
+  document.querySelectorAll("[data-p]").forEach((b) => b.addEventListener("click", () => { for (const m of models) { m.pose = { ...m.pose, atk: 0, wind: 0, open: 0, hurt: 0, lean: 0, walk: 0, ...JSON.parse(b.dataset.p) }; } }));
+</script>
+</body>
+</html>

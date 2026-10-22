@@ -500,3 +500,17 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 3. **Mana between encounters:** reset per fight (ultimates then hardly ever show in short fights), or carry over across a module (recommended, cap 30, so ultimates come up every few fights)?
 4. **Long ultimates:** Planetfall is about 20 s. Against a small enemy, keep the full cinematic, or play a short version and keep the full one for bosses? Recommended: full the first time per day, short after that.
 5. **Rewards:** keep today's challenge Bits, plus a small win bonus per enemy (for example +5)?
+
+**Isaac's decisions (2026-10-22), then "go" ("do as much as you can, even the actual new biomes and enemies"):**
+1. **Lessons are fights too** ("I want my site to be game-like code"). Every lesson section and every practice challenge is fought.
+2. **A fight per level**: a challenge is one fight. A lesson with sections is one fight across its sections: your teammate's HP carries from section to section.
+3. **Mana carries over** between fights (cap 30), and so do cooldowns.
+4. **Ultimates**: the full cinematic the first time each day, a short version after that.
+5. **Rewards**: today's Bits, plus **+5 Bits per enemy beaten**.
+
+**Build decisions:**
+- **Waves.** A pass casts a card at the enemy. If it survives, it strikes back; if it dies, the next one steps in for the next section. **The last pass of a level always finishes the enemy** (the level ends with a win), so a challenge (one pass) is one enemy, and a lesson with sections can see several. More damage means more enemies beaten, which means more Bits.
+- **A failed Submit** is a miss: the enemy attacks. If your teammate's HP hits 0, the fight restarts (full HP, a fresh enemy). Passed sections stay passed, and nothing else is lost.
+- **No help on tries 1 and 2** in every fight (lessons included). Hints and peeks still work but cost mana. Solutions stay available outside boss fights (a solution pass gives 0 mana).
+- Entering a lesson or challenge has no page-pixelate transition (that stays for bosses): the enemy just resolves out of big pixel blocks.
+- Bosses keep their own mana pool (they start at 0), so the balanced 300-HP fight doesn't change.
