@@ -7,6 +7,7 @@
 import { sound } from "./sound.js";
 import { Dot } from "./dot.js";
 import { NovaMate } from "./pixel/nova-mate.js";
+import { PyroMate } from "./pixel/pyro-mate.js";
 import { novaWarp, canWarp } from "./pixel/nova-warp.js";
 
 const SPEED = 46;            // px per second while wandering
@@ -39,7 +40,8 @@ export class Pet {
     this.skin = skin;
     // NOVA is pixel art with his own idles (pixel/nova-mate.js); DOT and PYRO share dot.js
     // NOVA's size 101 is 5% bigger than the default 96 (Isaac 2026-10-23)
-    this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles, size: 101 }) : new Dot(this.root, { skin });
+    // PYRO is the flame sprite (pixel/pyro-mate.js, Isaac 2026-10-23); DOT (dot.js) is in storage for now
+    this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles, size: 101 }) : skin === "pyro" ? new PyroMate(this.root, { size: 96 }) : new Dot(this.root, { skin });
     this.dot.setAccessory(this.accessories);
     this.dot.onSay = (hasActions) => {
       this.speaking = true;
@@ -112,7 +114,7 @@ export class Pet {
           // A little hopping gait while he travels, with a jiggle.
           const before = Math.floor(this.phase / Math.PI);
           this.phase += dt * 7;
-          const floats = this.skin === "nova";   // NOVA glides; DOT and PYRO hop
+          const floats = this.skin === "nova" || this.skin === "pyro";   // NOVA and PYRO glide (for now); DOT hops
           if (!floats && Math.floor(this.phase / Math.PI) !== before && Math.floor(this.phase / Math.PI) % 2 === 0 && this.root.style.visibility !== "hidden") sound.sfx("hop", { theme: this.theme });   // every other landing
           bob = floats ? 0 : -Math.abs(Math.sin(this.phase)) * 5;
           this.dot.nudge((dx / dist) * 1.5, 0.012);

@@ -12,6 +12,7 @@ import { sound } from "./sound.js";
 import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard, countersFirewall } from "./boss-rules.js";
 import { Pet } from "./pet.js";
 import { NovaMate, NOVA_CSS } from "./pixel/nova-mate.js";
+import { PyroMate, PYRO_CSS } from "./pixel/pyro-mate.js";
 import { VOICES } from "../content/voices.js";
 import { startCloud, cloudConfigured } from "./cloud.js";
 import { rng, newSeed } from "./rng.js";
@@ -30,20 +31,21 @@ const S = () => store.state;
 /* ---------- Your teammate (DOT, PYRO or NOVA) ---------- */
 
 const dotStyle = document.createElement("style");
-dotStyle.textContent = DOT_CSS + NOVA_CSS;
+dotStyle.textContent = DOT_CSS + NOVA_CSS + PYRO_CSS;
 document.head.append(dotStyle);
-const V = () => VOICES[S().equipped.teammate] || VOICES.dot;
+const V = () => VOICES[S().equipped.teammate] || VOICES.pyro;
 const wearing = () => WEAR_SLOTS.map((slot) => S().equipped[slot]).filter(Boolean);
 const dot = new Pet({
-  skin: S().equipped.teammate || "dot",
+  skin: S().equipped.teammate || "pyro",
   accessories: wearing(),
   place: S().pet,
   voice: V,
   onPlace: (p) => { S().pet = p; store.save(); },
 });
+window.operandiPet = dot;   // for trying things by hand in the console (idles, warps, moods)
 
 function applyCosmetics() {
-  dot.setSkin(S().equipped.teammate || "dot");
+  dot.setSkin(S().equipped.teammate || "pyro");
   dot.setAccessory(wearing());
   const theme = S().equipped.theme;
   if (theme) document.documentElement.dataset.editor = theme;
@@ -205,7 +207,7 @@ function resetPanels() {
   $("testCount").textContent = "";
   $("panel-output").innerHTML = `<p class="empty">Press Run to see what your program prints.</p>`;
   $("panel-tests").innerHTML = `<p class="empty">Press Submit to check your code.</p>`;
-  $("panel-feedback").innerHTML = `<p class="empty">Submit your code and DOT will mark it out of 10.</p>`;
+  $("panel-feedback").innerHTML = `<p class="empty">Submit your code and your teammate will mark it out of 10.</p>`;
   showTab("output");
 }
 
@@ -680,7 +682,7 @@ function renderChallenge() {
 
 function renderShop() {
   const st = S();
-  const team = st.equipped.teammate || "dot";
+  const team = st.equipped.teammate || "pyro";
   const card = (e) => {
     const has = e.kind === "item" ? true : st.owned[e.id];
     const on = e.slot && st.equipped[e.slot] === e.id;
@@ -693,7 +695,7 @@ function renderShop() {
   const pyro = SHOP.find((e) => e.id === "pyro");
   const teamCard = (id, name, desc) => {
     // NOVA is free while Isaac tests him; the real unlock (GOLEM first try, or 1,500 Bits) comes later
-    const owned = id === "dot" || id === "nova" || st.owned[id];
+    const owned = id === "pyro" || id === "nova" || st.owned[id];   // PYRO is the starting teammate now (DOT is in storage)
     const btn = !owned
       ? `<button class="btn primary" data-buy="${id}" ${st.bits < pyro.price ? "disabled" : ""}>Buy for ◆ ${pyro.price}</button>`
       : team === id ? `<span class="owned">With you now</span>` : `<button class="btn" data-team="${id}">Switch to ${name}</button>`;
@@ -707,16 +709,15 @@ function renderShop() {
     </div>
     <h3>Your teammate</h3>
     <div class="team-grid">
-      ${teamCard("dot", "DOT", "Digital Operandi Teammate. Calm, patient, a little goopy.")}
       ${teamCard("pyro", "PYRO", "PYthon Runtime Operative. Fiery, energetic, very competitive.")}
       ${teamCard("nova", "NOVA", "GOLEM's exclusive companion: a living shadow from his core. Free while you test him; later he's won by beating GOLEM first try, or 1,500 Bits.")}
     </div>
     <h3>Help items</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "item").map(card).join("")}</div>
-    <h3>Looks</h3><p class="empty">Wear one hat, one pair of glasses, one moustache and one prop at the same time. Your teammate shows them off while roaming.</p>
+    <h3>Looks</h3><p class="empty">Wear one hat, one pair of glasses, one moustache and one prop at the same time. (They don't show on the new PYRO and NOVA yet.)</p>
     <div class="shop-grid">${SHOP.filter((e) => e.kind === "dot").map(card).join("")}</div>
     <h3>Editor themes</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "theme").map(card).join("")}</div>`;
-  for (const id of ["dot", "pyro", "nova"]) {
-    const d = id === "nova" ? new NovaMate($("team-" + id), { size: 96, idles: false }) : new Dot($("team-" + id), { size: 96, skin: id });
+  for (const id of ["pyro", "nova"]) {
+    const d = id === "nova" ? new NovaMate($("team-" + id), { size: 96, idles: false }) : new PyroMate($("team-" + id), { size: 72, idles: false });
     d.setAccessory(wearing());
     d.setMood(team === id ? "happy" : "idle");
   }
@@ -854,7 +855,7 @@ async function openBoss(m = 1, { again = false } = {}) {
   if (!f || f.module !== m) { if (bossBeaten(m)) return renderBossPanel("beaten"); startFight(m); f = S().boss; }
   // a fresh fight (or a rematch): pick who goes in
   if (!f.fighter) {
-    if (f.turn > 0 || f.cur.attempts) f.fighter = S().equipped.teammate || "dot";   // a fight saved before the picker existed
+    if (f.turn > 0 || f.cur.attempts) f.fighter = S().equipped.teammate || "pyro";   // a fight saved before the picker existed
     else { f.fighter = await chooseFighter(m); if (view.kind !== "boss") return; }
     store.save();
   }
@@ -878,10 +879,9 @@ async function openBoss(m = 1, { again = false } = {}) {
 // Who fights the boss (Addendum M): Kaela, or a teammate you own. The last pick is remembered.
 function chooseFighter(m) {
   const st = S(), name = BOSSES[m].name;
-  const owned = (id) => id === "kaela" || id === "dot" || id === "nova" || st.owned[id];
+  const owned = (id) => id === "kaela" || id === "pyro" || id === "nova" || st.owned[id];
   const all = [
     ["kaela", "Kaela", "A red-haired swordswoman. Fast blade cuts, a blood orb and a skyfall slam."],
-    ["dot", "DOT", "Water: blades, tidal dives and a wave he rides into the boss."],
     ["pyro", "PYRO", "Fire: embers, eruptions and a sunfire halo."],
     ["nova", "NOVA", "Void: shadow bolts, grasping hands, chains and Planetfall."],
   ].filter(([id]) => owned(id));
@@ -893,7 +893,7 @@ function chooseFighter(m) {
     <div class="team-grid pick-grid">${all.map(([id, n, d]) => `<button class="team-card pick ${id === last ? "active" : ""}" data-fighter="${id}">
       ${id === "kaela" ? `<img class="char-portrait" src="assets/kaela/portrait-red.png" alt="">` : `<div class="team-dot" id="pick-${id}"></div>`}
       <div><h4>${n}</h4><p>${d}</p></div></button>`).join("")}</div>`;
-  for (const [id] of all) if (id !== "kaela") id === "nova" ? new NovaMate($(`pick-${id}`), { size: 96, idles: false }) : new Dot($(`pick-${id}`), { size: 96, skin: id });
+  for (const [id] of all) if (id !== "kaela") id === "nova" ? new NovaMate($(`pick-${id}`), { size: 96, idles: false }) : new PyroMate($(`pick-${id}`), { size: 72, idles: false });
   return new Promise((res) => $("briefInner").querySelectorAll("[data-fighter]").forEach((b) => b.addEventListener("click", () => {
     st.lastFighter = b.dataset.fighter; res(b.dataset.fighter);
   })));
@@ -906,7 +906,7 @@ function renderBossStage() {
   // you scroll the instructions and type.
   $("arena").hidden = false;
   document.querySelector(".body").classList.add("boss-mode");
-  battle = new BattleStage($("arena"), $("bossSay"), { skin: f?.fighter || S().equipped.teammate || "dot", accessories: wearing(), name: BOSSES[view.module].name });
+  battle = new BattleStage($("arena"), $("bossSay"), { skin: (f?.fighter === "dot" ? "pyro" : f?.fighter) || S().equipped.teammate || "pyro", accessories: wearing(), name: BOSSES[view.module].name });
   if (f) battle.hp(f.me, f.foe); else battle.hp(BOSS.hp, BOSS.hp);
   battle.mana(f?.mana || 0);
   if (f?.dome) battle.restoreDome();
@@ -1136,7 +1136,7 @@ function wireSettings() {
   // a short test sound when you let go of the effects slider
   $("setSfxVol").addEventListener("change", () => sound.sfx("hit"));
   // your teammate's own sounds, each with its own volume (under the effects volume)
-  const team = () => ({ pyro: "fire", nova: "void" })[S().equipped.teammate] || "water";
+  const team = () => ({ pyro: "fire", nova: "void" })[S().equipped.teammate] || "fire";
   for (const [id, key, test] of [["setRoamVol", "roamVol", "hop"], ["setGrabVol", "grabVol", "plop"]]) {
     $(id).value = Math.round(s[key] * 100);
     $(id).addEventListener("input", () => sound.set({ [key]: $(id).value / 100 }));

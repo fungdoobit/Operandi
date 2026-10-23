@@ -72,7 +72,7 @@ print("This line runs")  # a comment can sit at the end of a line too</pre>
 <li><code>Print("hi")</code>: Python is case-sensitive, so <code>print</code> must be lowercase.</li>
 <li><code>print("hi)</code>: the closing quote is missing.</li>
 <li><code>print(hi)</code>: without quotes, Python looks for something <i>named</i> hi.</li>
-</ul>Don't worry about memorising these. DOT spots them for you.</div>`,
+</ul>Don't worry about memorising these. Your teammate spots them for you.</div>`,
         task: {
       text: `<p>The starter code prints three lines. Change it so that:</p><ol><li>The middle line becomes a comment, so it doesn't run. Don't delete it.</li><li>A new first line is a comment that says what the program does (any words you like).</li></ol>`,
       starter: 'print("Line one")\nprint("Line two")\nprint("Line three")\n',
@@ -338,7 +338,7 @@ print(f"Hi {name}, you are {age}.")</pre>
 <pre data-run>price = 3
 qty = 4
 print(f"{qty} items cost {price * qty}")</pre>
-<div class="note"><b>Common mistake</b>Forgetting the <code>f</code>: <code>"Hi {name}"</code> prints the curly brackets literally. DOT will point it out.</div>`,
+<div class="note"><b>Common mistake</b>Forgetting the <code>f</code>: <code>"Hi {name}"</code> prints the curly brackets literally. Your teammate will point it out.</div>`,
         task: {
       text: `<p>The starter code sets <code>name</code> and <code>age</code>. Print the sentence below with <b>one f-string</b>, working out the age in ten years inside the curly brackets.</p>`,
       starter: 'name = "Lin"\nage = 25\n\n# Print the sentence with an f-string\n',

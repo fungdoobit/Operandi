@@ -11,7 +11,7 @@ export function freshState() {
     bits: 0,
     items: { ...STARTER_ITEMS },
     owned: {},
-    equipped: { head: null, face: null, mouth: null, prop: null, theme: null, teammate: "dot" },
+    equipped: { head: null, face: null, mouth: null, prop: null, theme: null, teammate: "pyro" },
     pet: { mode: "roam", x: 0.8, y: 0.75 }, // where your teammate is: roaming, or parked at a spot
     lessons: {},
     modulesDone: {},
@@ -44,6 +44,8 @@ function upgrade(st) {
     if (slot) st.equipped[slot] = old === "glasses" ? "nerd" : old;
   }
   delete st.equipped.dot;
+  // DOT is in storage for now (Isaac 2026-10-23): PYRO takes his place
+  if (!st.equipped.teammate || st.equipped.teammate === "dot") st.equipped.teammate = "pyro";
   return st;
 }
 
