@@ -351,7 +351,9 @@ Isaac's boot.dev-style Python learning app. There are two versions:
       - HP bar label "KAELA", red fill.
     - kaela-moves.html runs its engine at art height 220 (GOLEM's pixel size).
   - **Paused (Isaac 2026-10-23: "pause on Kaela's stuff"):** a Blood Orb rebuild (a blood-palette `ToonFX` `toonBlood` in boss-fight.js, a cel orb and `explode()` impact in kaela-boss-kit.js, blood palette in toon-fx.js) sits **untested on branch `claude/wizardly-wozniak-iu7om1`**, not on main.
-  - Isaac 2026-10-23: "scrap DOT" (meaning not yet confirmed: drop the redesign, or remove DOT) and **a FULL revamp of PYRO** next. Waiting on his answers (scope; look direction; references), then a PRD for "go".
+  - Isaac 2026-10-23: "scrap DOT" (meaning not yet confirmed: drop the redesign, or remove DOT) and **a FULL revamp of PYRO**: better fire animation, exclusive roaming idles, NOVA's design language, abilities that interact with GOLEM like NOVA's; design first. He sent fire packs (Ansimuz Magic Pack Fire, a Flame enemy, fire/fire_aura sheets, Patreon licence; unzipped in the scratchpad only).
+    - Rejected: 3D slime bodies on the NOVA renderer (charcoal, magma, wildfire, then a 3D "classic"): "sooo bad", "stick close to the original PYRO design".
+    - **Now (waiting on Isaac): `js/pixel/pyro2d.js` `Pyro2D`**: his own outline, tufts, eyes, mouth and colours from dot.js (exports `GEO, SKINS, MOUTHS, GROUND, CX, CY`), painted pixel by pixel each frame: flat bands of his gradient (cushion shading from the upper left, a checker only where bands meet, a darker rim on the right), a crisp outline, a faint checker glow, his shine; the tufts (whatever rises above his plain head outline) are fire with tongues, wisps and crisp bands like the packs. Preview `site/pyro2d-preview.html`; video `previews/pyro-pixel-v1.mp4`. Not in the game yet.
   - Next: Kaela's 7 abilities redesigned as cinematics (review after 3); phases, telegraphs, skill-covering challenges.
   - Original summary:
   - Scrap "every level is a fight". Back to the roaming companion in lessons, with companion collecting.
