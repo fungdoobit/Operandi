@@ -350,6 +350,8 @@ Isaac's boot.dev-style Python learning app. There are two versions:
       - Card art is painted abilities (toon pen), with a new `blood` palette in toon-fx.js (`uPal` 2).
       - HP bar label "KAELA", red fill.
     - kaela-moves.html runs its engine at art height 220 (GOLEM's pixel size).
+  - **Paused (Isaac 2026-10-23: "pause on Kaela's stuff"):** a Blood Orb rebuild (a blood-palette `ToonFX` `toonBlood` in boss-fight.js, a cel orb and `explode()` impact in kaela-boss-kit.js, blood palette in toon-fx.js) sits **untested on branch `claude/wizardly-wozniak-iu7om1`**, not on main.
+  - Isaac 2026-10-23: "scrap DOT" (meaning not yet confirmed: drop the redesign, or remove DOT) and **a FULL revamp of PYRO** next. Waiting on his answers (scope; look direction; references), then a PRD for "go".
   - Next: Kaela's 7 abilities redesigned as cinematics (review after 3); phases, telegraphs, skill-covering challenges.
   - Original summary:
   - Scrap "every level is a fight". Back to the roaming companion in lessons, with companion collecting.
