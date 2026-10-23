@@ -20,9 +20,9 @@ button.go { background: #7a1424; border-color: #c2142e; }
 <body>
 <main>
   <h1>Kaela: ready-made sprite test (PRD Addendum L)</h1>
-  <p>Isaac's pick (Merakintsugi's platformer pack, free sample: idle and walk only), hair recoloured red, facing right. The attack is built from those frames: a crouch, a dash with afterimages, the red swirl slash, hit-stop, white flash and shake. The dummy is a stand-in.</p>
+  <p>Isaac's pick (Merakintsugi's platformer pack, free sample: idle and walk only), hair recoloured red, facing right. The attack is built from those frames: a crouch, a dash with afterimages, the red swirl slash, hit-stop, white flash and shake. First enemy: Isaac's red fanged flyer (64x64 sheet: idle, bite, death).</p>
   <div id="wrap"><div id="stage"></div></div>
-  <div class="bar"><button class="go" id="slash">Crimson Slash</button><button id="slow">At ¼ speed</button><button id="walk">Walk across</button></div>
+  <div class="bar"><button class="go" id="slash">Crimson Slash</button><button id="slow">At ¼ speed</button><button id="walk">Walk across</button><button id="bite">Enemy bites</button><button id="finish">Finishing slash</button></div>
 </main>
 <script type="module">
 import { ForestScene } from "./js/pixel/biome-scenes/forest.js";
@@ -44,18 +44,19 @@ const ga = art.getContext("2d"), gf = fx.getContext("2d");
 // ---- her sprite sheets: cut into frames, hair recoloured red, mirrored to face right ----
 const HAIR = { "178,178,255": [224, 58, 52], "158,160,250": [176, 34, 42] };
 const load = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
-function cut(img, fw, fh, cols, n) {
+function cut(img, fw, fh, cols, n, { recolour = true, row = 0 } = {}) {
   const out = [];
   for (let k = 0; k < n; k++) {
     const c = document.createElement("canvas"); c.width = fw; c.height = fh;
     const g = c.getContext("2d");
     g.translate(fw, 0); g.scale(-1, 1);   // the sheets face left; she faces the enemy on the right
-    g.drawImage(img, (k % cols) * fw, Math.floor(k / cols) * fh, fw, fh, 0, 0, fw, fh);
+    g.drawImage(img, (k % cols) * fw, (Math.floor(k / cols) + row) * fh, fw, fh, 0, 0, fw, fh);
     const d = g.getImageData(0, 0, fw, fh), D = d.data;
     let bottom = 0;
     for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
       const o = (y * fw + x) * 4; if (!D[o + 3]) continue;
       bottom = y;
+      if (!recolour) continue;
       const key = `${D[o]},${D[o + 1]},${D[o + 2]}`, to = HAIR[key] || (key === "255,255,255" && y < 16 ? [255, 128, 96] : null);
       if (to) { D[o] = to[0]; D[o + 1] = to[1]; D[o + 2] = to[2]; }
     }
@@ -64,12 +65,14 @@ function cut(img, fw, fh, cols, n) {
   }
   return out;
 }
-const [idleImg, walkImg] = await Promise.all([load("./assets/kaela/idle.png"), load("./assets/kaela/walk.png")]);
+const [idleImg, walkImg, demonImg] = await Promise.all([load("./assets/kaela/idle.png"), load("./assets/kaela/walk.png"), load("./assets/enemies/demon.png")]);
 const IDLE = cut(idleImg, 46, 55, 10, 10), WALK = cut(walkImg, 45, 58, 4, 24);
+// the enemy's sheet faces right, so the same flip turns it toward her; rows: idle, idle (mouth open), bite, bite into death
+const FOE = { idle: cut(demonImg, 64, 64, 8, 6, { recolour: false }), bite: cut(demonImg, 64, 64, 8, 4, { recolour: false, row: 2 }), die: cut(demonImg, 64, 64, 8, 8, { recolour: false, row: 3 }) };
 // a red silhouette of a frame, for the dash afterimages
-function ghost(f) {
+function ghost(f, col = "#ff3a44") {
   const c = document.createElement("canvas"); c.width = f.w; c.height = f.h;
-  const g = c.getContext("2d"); g.drawImage(f.c, 0, 0); g.globalCompositeOperation = "source-in"; g.fillStyle = "#ff3a44"; g.fillRect(0, 0, f.w, f.h);
+  const g = c.getContext("2d"); g.drawImage(f.c, 0, 0); g.globalCompositeOperation = "source-in"; g.fillStyle = col; g.fillRect(0, 0, f.w, f.h);
   return c;
 }
 
@@ -94,8 +97,15 @@ const dc = document.createElement("canvas"); dc.width = DW; dc.height = DH;
 const ease = { out: (t) => 1 - (1 - t) ** 3, in: (t) => t * t * t, io: (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2) };
 let gt = 0, last = performance.now(), hitstop = 0, shake = 0, speed = 1, flash = 0, parts = [], trail = [];
 let act = null, mode = "idle", kx = 0, sq = 0, frame = IDLE[0], tilt = 0;
+// the enemy: offset, current frame, white flash; hers too (when bitten)
+let ex = 0, ey = 0, eFrame = null, eAlpha = 1, dead = false, meFlash = 0, foeAct = null;
 
-function slash(spd = 1) { if (act) return; sound.unlock(); speed = spd; act = { kind: "slash", t0: gt, hit: false, whoosh: false }; }
+function slash(spd = 1, finish = false) { if (act || foeAct) return; if (dead) revive(); sound.unlock(); speed = spd; act = { kind: "slash", t0: gt, hit: false, whoosh: false, finish }; }
+function bite() { if (act || foeAct) return; if (dead) revive(); sound.unlock(); speed = 1; foeAct = { t0: gt, hit: false }; }
+function revive() { dead = false; eAlpha = 1; ex = ey = 0; }
+document.getElementById("bite").onclick = bite;
+document.getElementById("finish").onclick = () => slash(1, true);
+window.__bite = bite; window.__finish = () => slash(1, true);
 function walkAcross() { if (act) return; speed = 1; act = { kind: "walk", t0: gt }; }
 document.getElementById("slash").onclick = () => slash(1);
 document.getElementById("slow").onclick = () => slash(0.25);
@@ -128,10 +138,32 @@ function update() {
       sound.sfx("impact", { size: 1 }); sound.sfx("hit", { size: 1 });
       parts.push(...shards(22, exBase - 4, FLOOR - 34, Math.floor(gt)));
       act.knock = gt;
+      if (act.finish) { act.die = gt; sound.sfx("screech"); }
     }
   }
-  if (act?.knock) { const k = Math.min(1, (gt - act.knock) / 520); tilt = 0.35 * Math.sin(k * Math.PI) * (1 - k * 0.4) * (k < 1 ? 1 : 0); }
-  else tilt = 0;
+  // the enemy: hovering, knocked back by her hit, biting, dying
+  const bob = Math.round(Math.sin(gt / 260) * 2);
+  if (act?.die || dead) {
+    const k = act?.die ? (gt - act.die) / 900 : 1;
+    eFrame = FOE.die[Math.min(7, Math.floor(k * 10))];
+    ex = 10 * Math.min(1, k * 2); ey = 20 * Math.min(1, k);
+    eAlpha = k < 0.8 ? 1 : Math.max(0, 1 - (k - 0.8) / 0.4);
+    if (k >= 1.2) dead = true;
+  } else if (act?.knock) {
+    const k = Math.min(1, (gt - act.knock) / 420);
+    ex = 9 * Math.sin(k * Math.PI) * (1 - k * 0.3); ey = bob; eFrame = FOE.bite[0];
+  } else if (foeAct) {
+    // the bite: rear back, lunge at her with the jaws open, chomp, fly home
+    const t = gt - foeAct.t0, reach = -(exBase - kxBase - 34);
+    if (t < 260) { ex = 8 * ease.out(t / 260); eFrame = FOE.idle[Math.floor(t / 90) % 6]; }
+    else if (t < 420) { const k = (t - 260) / 160; ex = 8 + (reach - 8) * ease.in(k); eFrame = FOE.bite[Math.min(1, Math.floor(k * 2))]; if (!foeAct.whoosh) { foeAct.whoosh = true; sound.sfx("growl"); } }
+    else if (t < 640) { ex = reach; eFrame = FOE.bite[2 + Math.min(1, Math.floor((t - 420) / 110))]; }
+    else if (t < 1000) { ex = reach * (1 - ease.io((t - 640) / 360)); eFrame = FOE.idle[Math.floor(t / 90) % 6]; }
+    else foeAct = null;
+    if (foeAct && !foeAct.hit && t >= 430) { foeAct.hit = true; hitstop = 120; meFlash = 140; shake = 3; sound.sfx("bite"); sound.sfx("hit", { size: 0.8 }); parts.push(...shards(14, kxBase + 6, FLOOR - 30, Math.floor(gt))); }
+    ey = bob;
+  } else { ex = 0; ey = bob; eFrame = FOE.idle[Math.floor(gt / 110) % 6]; }
+  if (foeAct && !act) { kx = foeAct.hit && gt - foeAct.t0 < 700 ? -4 * Math.sin(Math.min(1, (gt - foeAct.t0 - 430) / 270) * Math.PI) : 0; }
 }
 
 function drawSprite(f, x, img = f.c) {
@@ -145,13 +177,13 @@ function render() {
   ga.clearRect(0, 0, WA, HA);
   // soft ground shadows
   ga.fillStyle = "rgba(0,0,0,0.35)";
-  for (const [x, w] of [[kxBase + kx, 14], [exBase, 12]]) for (let i = -w; i <= w; i++) { const k = 1 - (i / w) ** 2; ga.fillRect(Math.round(x + i), FLOOR, 1, k > 0.5 ? 2 : 1); }
-  dc.getContext("2d").putImageData(dummy(tilt, flash > 0), 0, 0);
-  ga.drawImage(dc, Math.round(exBase - DW / 2), FLOOR + 2 - DH);
+  for (const [x, w] of [[kxBase + kx, 14], ...(eAlpha > 0.2 ? [[exBase + ex, 10]] : [])]) for (let i = -w; i <= w; i++) { const k = 1 - (i / w) ** 2; ga.fillRect(Math.round(x + i), FLOOR, 1, k > 0.5 ? 2 : 1); }
+  // the enemy hovers about 26 px off the floor; white while hit
+  if (eAlpha > 0) { ga.globalAlpha = eAlpha; ga.drawImage(flash > 0 && !act?.die ? ghost(eFrame, "#ffffff") : eFrame.c, Math.round(exBase + ex - 32), Math.round(FLOOR - 62 + ey)); ga.globalAlpha = 1; }
   // afterimages, then her
   for (const g of trail) { ga.globalAlpha = 0.45 * (1 - (gt - g.t) / 160); drawSprite(g.f, kxBase + g.x, ghost(g.f)); }
   ga.globalAlpha = 1;
-  drawSprite(frame, kxBase + kx);
+  drawSprite(frame, kxBase + kx, meFlash > 0 ? ghost(frame, "#ffffff") : frame.c);
   // the swirl slash, wrapping round her as she arrives
   const img = gf.createImageData(WA, HA);
   if (act?.kind === "slash") {
@@ -176,6 +208,7 @@ function loop(now) {
   const real = Math.min(50, now - last); last = now;
   if (hitstop > 0) hitstop -= real; else gt += real * speed;
   if (flash > 0) flash -= real;
+  if (meFlash > 0) meFlash -= real;
   shake *= 0.86;
   if (++tick % 2) return;   // on twos (30 fps), like hand-drawn animation
   update(); render();
