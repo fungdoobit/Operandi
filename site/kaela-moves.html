@@ -117,7 +117,7 @@ const CARDS = [
   { name: "Rising Moon", tip: "an uppercut throws the enemy up; she follows and cuts it a thousand times in the air", heavy: true, juggle: true, reach: 50, cine: true,
     seq: [S("upper", 0, 9, { launch: true }), S("combo", 1, 33, { dy: 52, speed: 1.15 }), S("upper", 11)] },
   { name: "Skyfall", tip: "Thousand Cuts into an uppercut into the slam down", heavy: true, reach: 46, cine: true,
-    seq: [S("combo", 0, 33), S("upper", 0, 10, { launch: true, hang: 200 }), S("slam", 12, null, { slamDown: true, blend: 60, hits: [15] })] },
+    seq: [S("combo", 0, 33), S("upper", 0, 10, { launch: true, hang: 110 }), S("slam", 11, null, { slamDown: true, blend: 60, hits: [14] })] },
 ];
 const LIFT = -56;   // how high a launched enemy flies
 for (const c of CARDS) {   // lay the chain out on one timeline
@@ -147,10 +147,10 @@ for (const c of CARDS) {   // lay the chain out on one timeline
   c.reach = c.ranged ? null : c.reach ?? Math.min(...c.segs.map((g) => g.reach));   // a card can set its own stance distance
   if (c.orb) {   // the hit is the orb landing, not the swing
     const g = c.segs[1], launch = g.start + g.starts[MOVES.quick.hits[0] - g.from];
-    c.launch = launch; c.flight = 380; c.hits = [launch + c.flight]; c.total = Math.max(c.chain, launch + c.flight + 900);
+    c.launch = launch; c.flight = 210; c.hits = [launch + c.flight]; c.total = Math.max(c.chain, launch + c.flight + 900);
   }
   // cinematic beats: slow motion just before the finishing hit of the big cards
-  if (c.heavy || c.orb) c.slowAt = c.hits[c.hits.length - 1] - (c.orb ? 170 : 110);
+  if (c.heavy || c.orb) c.slowAt = c.hits[c.hits.length - 1] - (c.orb ? 45 : 110);
 }
 const [idleImg, walkImg, demonImg] = await Promise.all([load("./assets/kaela/moves/idle.png"), load("./assets/kaela/moves/walk.png"), load("./assets/enemies/demon.png")]);
 const IDLE = cut(idleImg, 46, 55, 10, 10), WALK = cut(walkImg, 45, 58, 4, 24);   // already restyled (tools/restyle-sheet.py)
@@ -228,13 +228,13 @@ function update() {
       if (c.orb && orb && mt >= c.segs[0].dur && mt < c.launch) orb.charge = null;   // charged: it waits on the blade for the swing
       // the orb flies from her blade to the enemy on a low arc
       if (c.orb && mt >= c.launch && mt < c.hits[0]) {
-        const k = ease.in(Math.min(1, (mt - c.launch) / c.flight) ** 0.8), b = blade(), tx = exBase - 6, ty = FLOOR - 34 + lift;
+        const k = Math.min(1, (mt - c.launch) / c.flight), b = blade(), tx = exBase - 6, ty = FLOOR - 34 + lift;   // a fast straight shot (Isaac: not a lob)
         if (!act.thrown) { act.thrown = true; sound.sfx("whoosh", { theme: "fire" }); }
-        const x = b.x + (tx - b.x) * k, y = b.y + (ty - b.y) * k - Math.sin(k * Math.PI) * 12;
+        const x = b.x + (tx - b.x) * k, y = b.y + (ty - b.y) * k;
         const tr = [...(orb?.trail || [])], lp = tr[tr.length - 1];
         if (lp) { const n = Math.max(1, Math.round(Math.hypot(x - lp.x, y - lp.y) / 2)); for (let i = 1; i < n; i++) tr.push({ x: lp.x + (x - lp.x) * i / n, y: lp.y + (y - lp.y) * i / n }); }   // every 2 px, so the tail is one streak
         tr.push({ x, y });
-        orb = { x, y, r: 6, trail: tr.slice(-40) };
+        orb = { x, y, r: 6, trail: tr.slice(-50) };
         if (!act.ring) { act.ring = true; booms.push({ t: gt, x: b.x, y: b.y, ring: true }); shake = 4; }   // the launch: a ring bursts off her blade
         camT = { z: 1.05, x: x / WA, y: y / HA, until: gt + 80 };   // the camera follows it
       } else if (c.orb && mt >= c.hits[0]) orb = null;

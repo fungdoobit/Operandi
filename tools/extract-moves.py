@@ -5,6 +5,7 @@
 #   video:<dir>          frames of a motion-test video (854x480 = the 640x360 game at 1.333x;
 #                        lossy, so colours are snapped to her palette afterwards)
 # usage: python3 -I extract-moves.py <source> <first> <last> <name> <outdir> [--hits 3,9] [--travel]
+#        vid only: [--dummy x0,x1] [--scene-last] [--floorcut]
 # Out: <name>.png (frames side by side, facing LEFT as in the source) and <name>.json:
 #   fw, fh, n, ms (per-frame duration), hits (frames where it lands), hitx (how far in front
 #   of her it lands, px, negative = in front), dark (frames where the screen is dimmed), anchor.
@@ -127,6 +128,9 @@ def is_fx(fr):
     px = fr[..., :3].astype(int)
     return (fr[..., 3] > 0) & ((((px[..., None, :] - REDS[None, None]) ** 2).sum(-1).min(-1)) < 30)
 
+if kind == "vid":   # the floor's top edge, found on the clip's last frame (lit)
+    _bg = np.array(sceneN[3, 3]); _r = (np.abs(sceneN - _bg).sum(2) > 40).mean(1)
+    VFLOOR = next(y for y in range(len(_r) // 2, len(_r)) if _r[y] > 0.5)
 # vid: the scenery's colours are learned from the clip's first frame (every colour there that
 # isn't hers); a pixel stays if it is nearer her palette than the scenery (and close to hers),
 # or far from both (an effect: slash, spark)
@@ -137,7 +141,9 @@ if kind == "vid":
         for i in range(0, len(pal), 256):
             p = pal[i:i + 256]; d = np.minimum(d, ((cols[:, None, :] - p[None]) ** 2).sum(2).min(1))
         return np.sqrt(d)
-    sc = np.unique(np.vstack([scene0.reshape(-1, 3), sceneN.reshape(-1, 3)]), axis=0)
+    # --scene-last: learn the scenery from the clip's last frame only (clip 002 opens mid-move, so its
+    # first frame holds her effects and they were being keyed out as scenery)
+    sc = np.unique(sceneN.reshape(-1, 3) if "--scene-last" in args else np.vstack([scene0.reshape(-1, 3), sceneN.reshape(-1, 3)]), axis=0)
     SCENE = sc[nearest(sc, HERA) > 26]
     for dc in ((41, 36, 31), (27, 26, 29), (30, 28, 30)): SCENE = np.vstack([SCENE, np.array(dc)])   # the dimmed screen
     # --dummy x0,x1: the training dummy stands between these columns of the first frame; it is
@@ -304,6 +310,30 @@ def repair(fr):
         if len(comp) > 40 or any(y in (0, H - 1) or x in (0, W - 1) for y, x in comp): continue
         if sum(1 for y, x in comp for n in nb8(body) if n[y, x]) < len(comp): continue   # mostly ringed by her, not by effects
         fill_from(out, comp, body)
+    # what isn't her: non-effect blobs that aren't part of her body (the big connected shape)
+    # but touch an effect are slash shading the recolour missed: they take the effect's reds by
+    # brightness; loose ones go. (They were getting her dark outline: dark lines inside slashes.)
+    on = out[..., 3] > 0; fxm = efx(out); body = on & ~fxm
+    cs = sorted(comps(body), key=len, reverse=True)
+    if cs:
+        big = len(cs[0])
+        for comp in cs:
+            if len(comp) >= max(40, big * 0.25): continue   # her (or a big part of her, like a sword arm)
+            touch = sum(1 for y, x in comp for n in nb8(fxm) if n[y, x])
+            for y, x in comp:
+                if touch:
+                    L = (0.3 * out[y, x, 0] + 0.59 * out[y, x, 1] + 0.11 * out[y, x, 2]) / 255
+                    out[y, x, :3] = RED["pale"] if L > 0.7 else RED["light"] if L > 0.5 else RED["mid"] if L > 0.33 else RED["deep"]
+                else: out[y, x, 3] = 0
+    # near-white bits on her hair are its shine (the clean frames draw it light red); on video it
+    # comes out off-white and slipped past the restyle as white blobs on her head
+    on = out[..., 3] > 0; pxx = out[..., :3].astype(int)
+    hair = on & np.isin(pxx[..., 0] * 65536 + pxx[..., 1] * 256 + pxx[..., 2], [c[0] * 65536 + c[1] * 256 + c[2] for c in HAIRC])
+    whiteish = on & (pxx.min(-1) >= 200)
+    for comp in comps(whiteish):
+        if len(comp) > 60: continue
+        if sum(1 for y, x in comp for n in nb8(hair) if n[y, x]) >= 3:
+            for y, x in comp: out[y, x, :3] = (196, 58, 54)
     # outline: her silhouette edge (next to see-through) in her outline colours
     on = out[..., 3] > 0; body = on & ~efx(out)
     P = np.pad(on, 1); inner = P[:-2, 1:-1] & P[2:, 1:-1] & P[1:-1, :-2] & P[1:-1, 2:]
@@ -320,6 +350,7 @@ for fi, n in enumerate(frames):
     dark = bool(np.abs(n[3, 3] - np.array(DARK)).sum() < 20) or (kind == "vid" and n[3, 3].sum() < 200)
     if kind == "vid":   # scenery (background, floor, dummy) keyed by colour; see SCENE below
         alpha = keep_vid(n)
+        if "--floorcut" in args: alpha[VFLOOR:] = False   # everything from the floor's top edge down (a dimmed floor slips past the colour keying)
         n = block_vote(n, alpha, files[fi])
     elif lossy:   # video: key the flat background and the dark screen, cut at the floor line
         alpha = (np.abs(n - np.array(BG)).sum(2) > 36) & (np.abs(n - np.array(DARK)).sum(2) > 30)
