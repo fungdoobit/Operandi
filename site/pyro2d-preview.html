@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PYRO pixel art</title>
+<style>
+:root { color-scheme: dark; }
+body { margin: 0; background: #14161d; color: #e9ecf2; font-family: system-ui, sans-serif; }
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 0 0 4px; } p { color: #9aa3b5; margin: 0 0 14px; font-size: 14px; }
+.row { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+.card { background: #0d0f14; border: 1px solid #262b36; border-radius: 12px; padding: 14px; text-align: center; }
+.card.light { background: #eef0f4; color: #222; }
+.card b { display: block; margin-top: 8px; font-size: 13px; }
+canvas { image-rendering: pixelated; display: block; margin: 0 auto; }
+.bar { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
+button { font: 600 14px system-ui; border: 1px solid #3a4150; background: #1a1f29; color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PYRO as real pixel art</h1>
+  <p>His own shape, face and colours, painted pixel by pixel (no filter), with his tufts burning as animated fire.</p>
+  <div class="bar" id="moods"></div>
+  <div class="row" id="row"></div>
+</main>
+<script type="module">
+import { Pyro2D } from "./js/pixel/pyro2d.js";
+import { Dot, DOT_CSS } from "./js/dot.js";
+const st = document.createElement("style"); st.textContent = DOT_CSS; document.head.append(st);
+const all = [];
+function add(label, S, css, light = false, flip = false) {
+  const c = document.createElement("div"); c.className = "card" + (light ? " light" : "");
+  const cv = document.createElement("canvas"); cv.width = Math.round(220 * S); cv.height = Math.round(250 * S);
+  cv.style.width = cv.width * css + "px"; if (flip) cv.style.transform = "scaleX(-1)";
+  c.append(cv); c.insertAdjacentHTML("beforeend", `<b>${label}</b>`);
+  document.getElementById("row").append(c);
+  all.push(new Pyro2D(cv, { S }));
+}
+// the old one, for comparison
+const old = document.createElement("div"); old.className = "card"; old.innerHTML = "<div id='old' style='width:96px'></div><b>Before (filter)</b>";
+document.getElementById("row").append(old);
+const d = new Dot(document.getElementById("old"), { skin: "pyro" });
+add("Roaming size (1.5 px, like NOVA)", 0.32, 1.5 * 101 / 96);
+add("Same, light page", 0.32, 1.5 * 101 / 96, true);
+add("Higher bit (1 px)", 0.48, 1);
+add("Big, to see the pixels", 0.32, 4.5);
+add("Facing right", 0.32, 4.5, false, true);
+const t0 = performance.now();
+let manual = false;
+(function loop(now) { if (!manual) { const t = (now - t0) / 1000; for (const p of all) p.draw(t); } requestAnimationFrame(loop); })(t0);
+window.__draw = (t) => { manual = true; for (const p of all) p.draw(t); };   // for recording clips
+for (const m of ["idle", "happy", "angry", "sad", "sleepy"]) {
+  const b = document.createElement("button"); b.textContent = m; b.onclick = () => { all.forEach((p) => p.setMood(m)); d.setMood(m); };
+  document.getElementById("moods").append(b);
+}
+window.__mood = (m) => all.forEach((p) => p.setMood(m));
+</script>
+</body>
+</html>

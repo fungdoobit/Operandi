@@ -105,6 +105,7 @@ function geometry(count) {
   };
 }
 const GEO = { dot: geometry(44), pyro: geometry(120) };
+export { GEO, SKINS, MOUTHS, GROUND, CX, CY };   // for PYRO's pixel painter (pixel/pyro2d.js)
 
 function taubin(pts, strength, rounds = 4) {
   const n = pts.length;
