@@ -7,6 +7,7 @@
 // damage (a crit on it); earlier cuts only shake him (s.boss.hit).
 import { KAELA_KIT } from "./kaela-kit.js";
 import { sound } from "../sound.js";
+import { explode } from "../pixel/toon-fx.js";
 
 const REDS = ["#ffffff", "#ffc4b6", "#ff7868", "#e03a34", "#b0222a"];
 const lerp = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
@@ -32,13 +33,25 @@ async function strike(card, s) {
       } else { fx.hitstop(60); fx.shake(4); s.boss.hit({ crit: false }); sound.sfx("hit", { size: 0.8 }); }
     },
     onLaunch: () => {   // Blood Orb leaves her blade: a fast straight shot into his core
-      const from = { x: me.x + 40, y: me.y - 4 };
+      const from = { x: me.x + 40, y: me.y - 4 }, T = s.toonBlood, ms = 230;
       sound.sfx("whoosh", { theme: "fire" });
-      orbDone = new Promise((res) => fx.orb(from, core, "blood", { ms: 220, size: 16, arc: 0, onArrive: () => {
-        fx.explosion(core, { size: 1.1, theme: "blood" }); fx.sparks(core, 24, { colors: REDS, power: 1.3 });
+      orbDone = (async () => {
+        // the orb: a hot core with a swirling tail, cel-shaded in her reds (toon-fx, palette "blood")
+        await T.add({ dur: ms, draw(pen, k, t) {
+          const x = from.x + (core.x - from.x) * k, y = from.y + (core.y - from.y) * k;
+          for (let i = 1; i <= 7; i++) {   // the tail, twisting behind it
+            const b = Math.max(0, k - i * 0.035), tx = from.x + (core.x - from.x) * b, ty = from.y + (core.y - from.y) * b;
+            pen.puff("heat", tx, ty + Math.sin(t * 0.03 + i) * 3, 9 - i, 0.95 - i * 0.1);
+          }
+          pen.puff("heat", x, y, 13, 1.25);
+        } });
+        // the hit: a star-flash, a cel fireball blooming in red, smoke rings, embers
+        explode(T, core.x, core.y, { size: 1.15 });
+        fx.sparks(core, 20, { colors: REDS, power: 1.2 });
+        fx.ring(core, { color: "#ffb0a0", size: 150, ms: 380, width: 6 });
         fx.hitstop(140); fx.shake(14); fx.punch(0.05, core); sound.sfx("impact", { size: 1.5 });
-        s.onHit(2); res();
-      } }));
+        s.onHit(2);
+      })();
     },
   });
   if (orbDone) await orbDone;

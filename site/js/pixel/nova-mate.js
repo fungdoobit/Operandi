@@ -9,6 +9,7 @@
 import { PixelNova } from "./nova-px.js";
 import { Dot } from "../dot.js";
 import { sound } from "../sound.js";
+import { drawPizza } from "./nova-pizza.js";
 
 export const NOVA_CSS = `
 .nova-figure { width: 96px; height: 115px; flex: none; touch-action: none; position: relative; }
@@ -24,6 +25,7 @@ const PORTAL = [1.04, 0.2, 0.05], HOLD = [0.8, 0.4, -0.25], FACE = [0, 0.48, -0.
 const lerp3 = (a, b, e) => a.map((v, i) => v + (b[i] - v) * e);
 
 const CHUNK = 1.5;   // how many CSS px one of her art pixels covers
+const HPAD = 26;     // art px of room round her canvas for things she holds
 
 export class NovaMate {
   constructor(container, { size = 96, idles = true, fast = false } = {}) {
@@ -36,6 +38,12 @@ export class NovaMate {
     // drawn smaller and shown CHUNK x: art pixels 1.5 CSS px, like DOT and PYRO, close to GOLEM's 2 (Isaac 2026-10-23)
     const W = Math.round(160 / CHUNK), H = Math.round(170 / CHUNK);
     this.nova = new PixelNova(this.figure, { kind: "mooncloak", w: W, h: H, px: k, view: 4.79, half: true, shadow: false });   // view 4.79 (was 5.03): 5% bigger, Isaac 2026-10-21
+    // a 2D layer over her at the same art-pixel size, for things she holds (the warp idle's pizza)
+    this.held2d = document.createElement("canvas");
+    this.held2d.width = W + 2 * HPAD; this.held2d.height = H + HPAD;   // a margin round her canvas so a held thing never gets cut off
+    this.held2d.style.imageRendering = "pixelated";
+    this.figure.append(this.held2d);
+    this.pizza = null;
     this.resize(size);
     this.tweens = [];
     this.last = null;
@@ -52,6 +60,18 @@ export class NovaMate {
     const k = size / 96, W = this.nova.canvas.width * CHUNK, H = this.nova.canvas.height * CHUNK;   // (the canvas is drawn smaller)
     this.figure.style.width = size + "px"; this.figure.style.height = 115 * k + "px";
     Object.assign(this.nova.canvas.style, { width: W * k + "px", height: H * k + "px", left: (size - W * k) / 2 + "px", top: (115 * k - H * k) / 2 + "px" });
+    if (this.held2d) {
+      const a = CHUNK * k;   // CSS px per art px
+      Object.assign(this.held2d.style, { width: this.held2d.width * a + "px", height: this.held2d.height * a + "px",
+        left: (size - W * k) / 2 - HPAD * a + "px", top: (115 * k - H * k) / 2 - HPAD * a + "px" });
+    }
+  }
+  // A point in her own 3D space → art pixels on her canvas (the shader's camera
+  // looks straight down z, orthographic, and turns her by yaw).
+  project([x, y, z]) {
+    const n = this.nova, c = Math.cos(n.yaw), s = Math.sin(n.yaw), H = n.canvas.height, W = n.canvas.width;
+    const wx = c * x + s * z, wy = y + (n.lastBob || 0);
+    return [W / 2 + (wx / n.view) * H + HPAD, H / 2 - ((wy - 0.1) / n.view) * H + HPAD];   // (on held2d, which has the margin)
   }
 
   // ----- per frame: tweens, sway spring, turning -----
@@ -68,6 +88,18 @@ export class NovaMate {
     this.swayV += -n.sway * 40 * dt; this.swayV *= Math.pow(0.04, dt);
     n.sway += this.swayV * dt;
     n.yaw += (this.yawT - n.yaw) * Math.min(1, dt * 6);
+    this.drawHeld(dt, s);
+  }
+  drawHeld(dt, s) {
+    const g = this.held2d.getContext("2d"), P = this.pizza;
+    g.clearRect(0, 0, this.held2d.width, this.held2d.height);
+    if (!P) return;
+    const [x, y] = this.project(this.nova.idle.bucketAt);
+    // floppy: the tip lags behind when the slice moves, then wobbles back
+    if (P.px != null && dt) P.fv += ((x - P.px) * P.dir * -0.05 + (y - P.py) * 0.04) / Math.max(dt, 0.008) * 0.016;
+    P.fv += -P.flop * 60 * dt; P.fv *= Math.pow(0.08, dt); P.flop += P.fv * dt;
+    P.px = x; P.py = y;
+    drawPizza(g, x, y, { dir: P.dir, aim: P.aim, flop: P.flop + Math.sin(s * 2.2) * 0.06, bites: P.bites, t: s, scale: P.scale });
   }
   anim(ms, fn, ease = "io") { return new Promise((done) => this.tweens.push({ ms, fn, ease: EASE[ease], t: 0, done })); }
   to(vals, ms, ease) {
@@ -215,6 +247,47 @@ export class NovaMate {
     await this.wait(380);
   }
 }
+
+// ----- the warp idle (Isaac 2026-10-23): she dives into a portal and comes out
+// somewhere else holding a slice of pizza. pet.js moves her and the portals
+// (nova-warp.js); these are her parts of it.
+const HOLD_P = (dir) => [dir * 1.2, 0.5, -0.25];
+// Where to hold the crust so the end of what's left reaches her mouth (the slice
+// tipped toward her: it points down and in at about 68 degrees).
+function biteAt(mate, P) {
+  const unit = mate.nova.canvas.height / mate.nova.view, l = (30 * (1 - P.bites * 0.27)) / unit;
+  return [FACE[0] + P.dir * (0.37 * l + 0.1), FACE[1] + 0.93 * l - 0.05, FACE[2]];
+}
+Object.assign(NovaMate.prototype, {
+  // She's already holding it in telekinesis as she comes out (dir: the side it's on).
+  holdPizza(dir) {
+    this.face(dir > 0 ? "right" : "left");
+    this.nova.idle.bucketAt = HOLD_P(dir);
+    this.nova.idle.tk = 1;
+    this.pizza = { dir, aim: 0, bites: 0, flop: 0.5, fv: 0, scale: 1, px: null, py: null };
+  },
+  async eatPizza() {
+    const I = this.nova.idle, P = this.pizza;
+    if (!P) return;
+    this.setMood("happy");
+    for (let b = 1; b <= 3; b++) {
+      await this.wait(b === 1 ? 500 : 380);
+      sound.sfx("telekinesis");
+      const to = biteAt(this, P);
+      await this.anim(460, (e) => { I.bucketAt = lerp3(HOLD_P(P.dir), to, e); P.aim = e; }, "io");
+      sound.sfx("munch");
+      P.bites = b;
+      await this.anim(320, (e) => { I.chomp = Math.sin(e * Math.PI * 3) * (1 - e); }, "lin");
+      I.chomp = 0;
+      if (b < 3) await this.anim(420, (e) => { I.bucketAt = lerp3(to, HOLD_P(P.dir), e); P.aim = 1 - e; }, "io");
+    }
+    this.pizza = null;
+    await this.anim(220, (e) => { I.tk = 1 - e; }, "in");
+    I.tk = 0;
+    await this.wait(500);
+    this.setMood("idle");
+  },
+});
 
 // NOVA on the battle stage (PRD Addendum I): she faces GOLEM with her angry eyes,
 // and reacts to hits like DOT does (hurt, swarmed, knocked out, winning).

@@ -61,8 +61,8 @@ void main(){
     float lit = max(gw, heat*.8);
     if (uPal == 1) lit = 0.;   // water: no glowing rims
     vec3 c = sn > .8 ? hex(26.,13.,16.) : sn > .53 ? hex(44.,24.,26.)
-           : sn > .43 ? (lit > .14 ? hex(172.,46.,22.) : hex(60.,32.,32.))
-           : lit > .2 ? hex(255.,140.,40.) : lit > .08 ? hex(204.,72.,26.) : hex(78.,44.,44.);
+           : sn > .43 ? (lit > .14 ? (uPal == 2 ? hex(160.,24.,36.) : hex(172.,46.,22.)) : hex(60.,32.,32.))
+           : lit > .2 ? (uPal == 2 ? hex(255.,96.,80.) : hex(255.,140.,40.)) : lit > .08 ? (uPal == 2 ? hex(200.,40.,44.) : hex(204.,72.,26.)) : hex(78.,44.,44.);   // blood: red-lit rims
     col = vec4(c, 1.);
   }
 

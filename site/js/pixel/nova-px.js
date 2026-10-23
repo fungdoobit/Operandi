@@ -378,7 +378,7 @@ float map(vec3 p){
   }
   // the telekinesis itself: two twisting strands of purple magic from him to the bucket
   if (uTK > 0.) {
-    vec3 A = vec3(.2, .32, -.25), B = uBucketAt;
+    vec3 A = vec3(sign(uBucketAt.x + .001)*.2, .32, -.25), B = uBucketAt;   // from her side nearest the thing she holds
     float best = 1e5;
     for (int k = 0; k < 2; k++) {
       float ph = float(k)*3.14159;
@@ -546,8 +546,9 @@ export class PixelNova {
     // blink every few seconds
     if (s > this.nextBlink + 0.16) this.nextBlink = s + 2.5 + Math.random() * 3;
     const blink = s > this.nextBlink ? 0.1 : 1;
+    this.lastBob = this.bob(s) + this.lift;   // NovaMate places things she holds from it
     this.gl.draw(
-      { uTime: s, uYaw: this.yaw, uView: this.view, uBlink: this.m.id === 4 ? 1 : blink, uBob: this.bob(s) + this.lift, uSway: this.sway, uMood: this.m.id, uEnergy: this.m.energy,
+      { uTime: s, uYaw: this.yaw, uView: this.view, uBlink: this.m.id === 4 ? 1 : blink, uBob: this.lastBob, uSway: this.sway, uMood: this.m.id, uEnergy: this.m.energy,
         uOrb: this.idle.orb, uPortal: this.idle.portal, uBucket: this.idle.bucket, uChomp: this.idle.chomp, uKern: this.idle.kern,
         uOrbR: this.idle.orbR, uRingK: this.idle.ringK, uRingR: this.idle.ringR, uRingSpin: this.idle.spin, uShake: this.idle.shake,
         uBurst: this.idle.burst, uBurstAt: this.idle.burstAt, uImplode: this.idle.implode, uTear: this.idle.tear, uTK: this.idle.tk, uBucketAt: this.idle.bucketAt },
