@@ -56,16 +56,39 @@ L = find("Green Forest", "Layers")
 for k in ("back", "middle", "front"): shutil.copy(f"{L}/{k}1.png", f"{dst}/bg/forest/{k}.png")
 
 # ---- enemies: rows of frames, all padded to one frame size ----
-g3, g5 = "Gothicvania enemies pack 3 files", "Enemies Pack 5 Files/sprites"
-EN = {   # id: ({row: frames}, faces right in the art?, flies?, ms)
+# Isaac 2026-10-23: only enemies about Kaela's height (55 px) or bigger; the small ones (ghost,
+# zombie, firebat, skull, warlock, biceraptor, eye, shell) are left out.
+def unshadow(f):   # Monster Pack sprites carry a drawn pure-black ellipse under their feet (the page draws its own):
+    f = f.copy(); H, W = f.shape[:2]   # remove a flat, wide pure-black blob near the bottom, nothing else
+    blk = (f[..., 3] > 0) & (f[..., :3].max(-1) == 0); seen = np.zeros_like(blk)
+    for y0, x0 in zip(*np.nonzero(blk)):
+        if seen[y0, x0]: continue
+        comp, st = [], [(y0, x0)]; seen[y0, x0] = True
+        while st:
+            y, x = st.pop(); comp.append((y, x))
+            for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                yy, xx = y + dy, x + dx
+                if 0 <= yy < H and 0 <= xx < W and blk[yy, xx] and not seen[yy, xx]: seen[yy, xx] = True; st.append((yy, xx))
+        ys = [p[0] for p in comp]; xs = [p[1] for p in comp]
+        if max(ys) >= H - 12 and max(ys) - min(ys) <= 16 and max(xs) - min(xs) >= 20:
+            for y, x in comp: f[y, x, 3] = 0
+    return f
+g3, g4, g5, mp_ = "Gothicvania enemies pack 3 files", "Gothicvania Enemies Pack 4", "Enemies Pack 5 Files/sprites", "Monster Pack Files/Characters/Sprites"
+def pick(fs, idx): return [fs[i] for i in idx]
+jd, wolf, garg = frames(find(mp_, "Jumping-Demon")), frames(find(g4, "Ghost Wolf/energized")), frames(find(g4, "Gargoyle/gargoyle"))
+EN = {   # id: ({row: frames}, faces right in the art?, flies?, ms). An "attack" row, where there is one, plays during its lunge.
     "flame": ({"idle": frames(find(g3, "Flame/sprites"))}, True, False, 110),
-    "ghost": ({"idle": frames(find(g3, "ghost/sprites"))}, False, True, 120),
-    "warlock": ({"idle": frames(find(g3, "Warlock/idle-sprites")), "walk": frames(find(g3, "Warlock/walk-sprites"))}, False, False, 140),
     "mage": ({"idle": frames(find(g5, "Mage"))}, False, False, 120),
     "mage-b": ({"idle": frames(find(g5, "Mage-B"))}, False, False, 120),
-    "zombie": ({"walk": frames(find(g5, "Zombie"))}, False, False, 130),
-    "firebat": ({"idle": frames(find(g5, "firebat"))}, False, True, 90),
-    "skull": ({"idle": frames(find(g5, "skull"))}, False, False, 120),
+    "red-demon": ({"idle": [unshadow(f) for f in frames(find(mp_, "Demon"))]}, False, False, 140),
+    "fireshaunt": ({"idle": [unshadow(f) for f in frames(find(mp_, "Fireshaunt"))]}, True, False, 120),
+    "jumper": ({"idle": [unshadow(f) for f in pick(jd, [0, 1])], "attack": [unshadow(f) for f in jd]}, False, False, 160),   # crouch, leap, land
+    "treant": ({"idle": [unshadow(f) for f in frames(find(mp_, "Treant"))]}, False, False, 150),
+    "vampire": ({"idle": [unshadow(f) for f in frames(find(mp_, "Vampire"))]}, False, False, 140),
+    "witch": ({"idle": [unshadow(f) for f in frames(find(mp_, "Witch"))]}, True, True, 120),
+    "fire-skull": ({"idle": frames(find(g4, "Flames/flames"))}, False, True, 90),
+    "gargoyle": ({"idle": pick(garg, [1, 2, 3, 4, 5]), "attack": pick(garg, [6, 6, 3, 4])}, False, True, 110),   # flaps; wings spread, then the swoop
+    "wolf": ({"idle": pick(wolf, [0, 1, 2, 3]), "attack": pick(wolf, [4, 5, 6, 7, 8, 9])}, False, False, 100),       # stands; the pounce
 }
 os.makedirs(f"{dst}/enemies", exist_ok=True)
 for k, (rows, right, fly, ms) in EN.items():
@@ -77,4 +100,5 @@ for k, (rows, right, fly, ms) in EN.items():
             out[y:y + h, x:x + w] = f
         meta["rows"][name] = [ri, len(fs)]
     save(out, f"{dst}/enemies/{k}", meta)
+json.dump(list(EN), open(f"{dst}/enemies/list.json", "w"))
 print("fx", list(FX), "enemies", list(EN))

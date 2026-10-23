@@ -275,6 +275,18 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - Every melee hit puts a red crescent from the slash pack across the enemy, flipped differently each time.
     - Test hook `__go("<enemy>,<card|bite>[,1]")`.
   - Video `previews/kaela-forest-v1.mp4`.
+  - **Round 2 of the forest test (Isaac 2026-10-23):**
+    - "Looks like they're standing on the trees": the front layer's giant trunks, tiled, landed behind the fighters. Now only its grass is used: columns 72–248, rows 140 down, mirror-tiled (`GRASS`). Back and middle layers are tiled behind.
+    - "Some enemies are too small": only enemies about her height (55 px) or bigger. Roster (`assets/enemies/list.json`, built by `tools/prepare-packs.py`):
+      - Isaac's red flyer `demon` (his favourite, the default; now committed: "all from Ansimuz")
+      - flame, mage, mage-b
+      - Monster Pack: red-demon (144 px), fireshaunt, jumper (its crouch-leap-land is its attack), treant, vampire, witch (throws a red orb)
+      - Gothicvania 4: fire-skull, gargoyle (wings spread + swoop attack), wolf (pounce attack)
+    - Dropped: ghost, zombie, firebat, skull, warlock, biceraptor, eye, shell.
+    - Monster Pack shadows are stripped (`unshadow`: a flat, wide pure-black blob at the bottom).
+    - She stands clear of big enemies (`eHalf() + 32`), and their lunges stop short of her.
+    - Video `previews/kaela-forest-v2.mp4`.
+  - **Deploy:** Vercel is linked to the GitHub repo, so every push to main redeploys. The test page is `/kaela-moves`.
   - Enemy redraw: still to do (Isaac: "find already done enemies and tweak"); asset sites (itch.io, opengameart) are blocked by this environment's network policy, so he would have to upload a pack or allow the domains.
 - Planetfall round 11 + Addendum K extras (2026-10-22, pushed): NOVA powers up and drives a beam into the sky to open Jupiter's portal, then bears down on it; GOLEM only braces until Jupiter appears, holds it (sinking unchanged), strains, one thruster push snaps her beam; the portal swallows Jupiter (it shrinks into the vortex). Planets crack (glowing seams, frozen beat) then shatter into Voronoi rock chunks with molten edges (`voronoi`, `breakApart`). Rotcap has stumpy legs and round feet. Each biome has its own music (`THEMES` in sound.js, `playTheme`; the boss keeps `SONG`). All 18 enemies verified and in the course (`READY`).
 - Planetfall round 10 (2026-10-22): planets burst through their portals (clipped at the portal surface), with a fire bow shock, a plasma tail and slow motion just before impact; on impact they break into burning wedges (`breakApart`), and GOLEM is knocked back. Uranus is drawn as `uranusRingBack` + `uranusBody` + `uranusRingFront` (planets-px.js `uPart`/`uTumble`), so its ring tumbles in flight and snaps into pieces. Jupiter is now drawn **behind** GOLEM (`sprBack`) and rests on his raised hands. He pushes it back in three heaves (gather, then thrusters blast fire and dust out of the floor, a surge up, and the weight wins some back), then a slow-motion final shove. The sinking is unchanged (Isaac liked it). About 20 s.
