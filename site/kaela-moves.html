@@ -11,9 +11,6 @@ main { max-width: 1300px; margin: 0 auto; padding: 16px; }
 h1 { font-size: 20px; margin: 0 0 4px; } p { color: #9aa3b5; margin: 0 0 12px; font-size: 14px; }
 #wrap { position: relative; height: 440px; border-radius: 12px; overflow: hidden; background: #06070c; }
 #stage { position: absolute; inset: 0; will-change: transform; }
-.lb { position: absolute; left: 0; right: 0; height: 0; background: #000; z-index: 5; transition: height .35s ease; }
-.lb.top { top: 0; } .lb.bot { bottom: 0; }
-#wrap.cine .lb { height: 9%; }
 #stage canvas.layer { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; z-index: 2; }
 .bar { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
 button { font: 600 14px system-ui; border: 1px solid #3a4150; background: #1a1f29; color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
@@ -24,7 +21,7 @@ button.go { background: #7a1424; border-color: #c2142e; }
 <main>
   <h1>Kaela: her real moves (PRD Addendum L)</h1>
   <p>Isaac's 7 cards (2026-10-23), chained from the creator's moves with smooth joins, restyled (tools/kaela_style.py). Background: Green Forest (3 parallax layers). Effects: Magic Pack 4 and the slash pack, recoloured to her reds (tools/prepare-packs.py). Enemies: Isaac's red flyer, Ansimuz Gothicvania 3, 4 and 5, Monster Pack (only ones about her size or bigger).</p>
-  <div id="wrap"><div id="stage"></div><div class="lb top"></div><div class="lb bot"></div></div>
+  <div id="wrap"><div id="stage"></div></div>
   <div class="bar" id="moves"></div>
   <div class="bar" id="foes"></div>
   <div class="bar"><button id="bite">Enemy attacks</button></div>
@@ -109,13 +106,13 @@ const S = (id, from = 0, to = null, o = {}) => ({ id, from, to, ...o });
 const CARDS = [
   { name: "Crimson Slash", tip: "a simple slash", seq: [S("quick")] },
   { name: "Twin Fang", tip: "a double slash", seq: [S("quick", 0, 6), S("dash")] },
-  { name: "Blood Orb", tip: "she charges a crimson orb on her blade and flings it; it explodes on the enemy", ranged: true, orb: true, cine: true,
+  { name: "Blood Orb", tip: "she charges a crimson orb on her blade and flings it; it explodes on the enemy", ranged: true, orb: true,
     seq: [S("quick", 0, 0, { hold: 560, charge: true }), S("quick", 1)] },
   { name: "Scarlet Whirl", tip: "the claw-like whirl", seq: [S("spin")] },
-  { name: "Fang Whirl", tip: "double slash, then Scarlet Whirl", heavy: true, cine: true, seq: [S("quick", 0, 6), S("dash", 0, 3), S("spin", 1)] },
-  { name: "Rising Moon", tip: "an uppercut throws the enemy up; she follows and cuts it a thousand times in the air", heavy: true, juggle: true, reach: 50, cine: true,
+  { name: "Fang Whirl", tip: "double slash, then Scarlet Whirl", heavy: true, seq: [S("quick", 0, 6), S("dash", 0, 3), S("spin", 1)] },
+  { name: "Rising Moon", tip: "an uppercut throws the enemy up; she follows and cuts it a thousand times in the air", heavy: true, juggle: true, reach: 50,
     seq: [S("upper", 0, 9, { launch: true }), S("combo", 1, 33, { dy: 52, speed: 1.15 }), S("upper", 11)] },
-  { name: "Skyfall", tip: "Thousand Cuts into an uppercut into the slam down", heavy: true, reach: 46, cine: true,
+  { name: "Skyfall", tip: "Thousand Cuts into an uppercut into the slam down", heavy: true, reach: 46,
     seq: [S("combo", 0, 33), S("upper", 0, 10, { launch: true, hang: 110 }), S("slam", 11, null, { slamDown: true, blend: 60, hits: [14] })] },
 ];
 const LIFT = -56;   // how high a launched enemy flies
@@ -202,7 +199,6 @@ let gt = 0, last = performance.now(), hitstop = 0, shake = 0, flash = 0, meFlash
 let act = null, foeAct = null, kx = 0, ky = 0, frame = IDLE[0], moveFrame = null, dark = 0, orb = null;
 // cinema: slowmo (real ms left at 0.3x), camera zoom/focus, impact frames (black screen, white silhouettes), smoke
 let speed = null, slowmo = 0, impactF = 0, impactAt = null, smoke = [], cam = { z: 1, x: 0.5, y: 0.5 }, camT = null;
-const wrapEl = document.getElementById("wrap");
 const camKick = (z, x, y, ms) => { camT = { z, x: x / WA, y: y / HA, until: gt + ms }; };
 let ex = 0, ey = 0, lift = 0, eFrame = FOE.idle[0], eAlpha = 1, dead = false, knock = -1e9, eDissolve = 0, shot = null;
 // where the enemy stands: flyers hover above the floor; its middle is where hits land
@@ -252,7 +248,6 @@ function update() {
     } else {
       const mt = t - IN;
       if (c.dark) dark = 1;
-      if (c.cine) wrapEl.classList.add("cine");
       if (c.slowAt != null && mt >= c.slowAt && !act.slowed) { act.slowed = true; slowmo = c.orb ? 560 : 420; }
       lifted = keyed(c.lift, mt);
       if (mt < c.chain) {
@@ -312,7 +307,6 @@ function update() {
       });
       if (mt >= c.total + (c.ranged ? 0 : 320) && !act.die) act = null;
       else if (act.die && gt - act.die > 1100) act = null;
-      if (!act) wrapEl.classList.remove("cine");
     }
   }
   if (!act) orb = null;
