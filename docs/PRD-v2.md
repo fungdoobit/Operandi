@@ -563,3 +563,38 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 3. GOLEM and NOVA are drawn in the 3D "hi-bit" style. Keep both for now (recommended, since you rated NOVA highly), or redraw GOLEM as 2D pixel art too?
 4. The heroine's name? (A few ideas: Scarlet, Rook, Kaela, Vex.)
 5. The cards above: OK, or changes?
+
+## Addendum M: back to learning first, one big boss per module (draft 2026-10-23, awaiting answers and "go")
+
+Isaac 2026-10-23: scrap "every level is a fight". Lessons and practice go back to the roaming companion that gives hints and tips, with idle animations and a goal to collect companions. Kaela stays as the main character: she is used through Module 1 and fights its boss. DOT and PYRO stay (their abilities may need a revamp). Each module has one fight, or at most two (an optional mid-boss, then the big boss). Most effort goes into the big boss: higher quality, fun, tense, and it makes you use the module's skills.
+
+1. **Problem.** A fight on every task slows learning down and spreads the art effort thin: dozens of enemies got only basic attacks, and the cards looked copy-pasted (Magic Pack sprites) or showed Kaela's pose instead of the ability.
+2. **Success criteria.**
+   - A lesson or challenge has no fight: just the lesson, the editor and the roaming companion.
+   - Each module ends in a boss fight Isaac calls "fun and tense", whose challenges need every main skill of that module.
+   - Every ability is a custom-designed cinematic (the NOVA standard), with card art that shows the ability, not the character.
+3. **Scope (in).**
+   - Revert lesson/challenge fights. Remove the level-fight flow from app.js; the battle band appears only in boss fights. Lessons go back to the roaming companion (pet.js, idles, hints), as before Addendum K.
+   - **Companion collecting:** DOT (start), PYRO (Shop), NOVA (boss reward) roam the lessons. The Shop and rewards show which ones you have and which are still to find.
+   - **Music:** the forest theme plays in lessons and practice, **off by default** (a Settings switch), so it can be tested on other people first.
+   - **Kaela's kit redesigned:** 7 cards in her red, all effects designed and drawn by me (no Magic Pack sprites), choreographed like NOVA's (wind-up, portal or charge, a big hit, impact frames, aftermath) but with her own identity: blood, blades, crimson moon. Card art = a painted picture of the ability.
+   - **Module 1 boss with Kaela** (see question 1).
+   - **The boss fight, made tense and skill-based:**
+     - Phases: at 2/3 and 1/3 HP the boss changes form or arena and gets new attacks. The challenges get harder too.
+     - Challenges are drawn to cover every lesson of the module; the last phase mixes several skills in one task.
+     - Telegraphs: the boss shows its next attack ("charging a quake in 2 turns") so a fast clean pass matters.
+     - Pressure: a miss is a hit on you. Knocked out means the phase restarts, not the whole fight.
+     - Mana and cards as now (Addendum J).
+   - The Explosions Pack 11 sprites for big hits and deaths in the 2D boss fight.
+4. **Scope (out).** Small enemies in lessons (their abilities stay in code for possible mid-bosses). Other biomes until their bosses exist. DOT/PYRO's revamp (after Kaela's boss). The Undead JRPG pack until it arrives as a .zip.
+5. **Constraints.** Zero cost; pixel art in the 2D engine (js/stage2d); must run on Isaac's PC and iPad.
+6. **Plan.**
+   1. Revert the lesson fights to the roaming companion; music off by default.
+   2. Kaela's 7 abilities redesigned, plus new card art (review after the first 3, as with NOVA).
+   3. The Module 1 boss in 2D: phases, telegraphs, skill-covering challenges.
+   4. A Module 2 boss.
+7. **Open questions.**
+   1. **Module 1's boss.** Kaela is 2D pixel art; GOLEM is a 3D-rendered "hi-bit" mech. Side by side the styles clash. Options: (a) keep GOLEM as Module 1's boss and accept the mix; (b) a new 2D boss for Module 1 and retire GOLEM (or keep him for a later module with DOT/NOVA/PYRO). Recommendation: (b).
+   2. **Who fights which boss?** Fixed per module (Kaela in Module 1, DOT in Module 2, …), or you pick from the characters you own?
+   3. **Does Kaela also roam the lessons** as a companion, or only appear in fights?
+   4. **Mid-boss:** build the system for an optional mid-module boss now, or only the big one per module for now? Recommendation: big one only for now.
