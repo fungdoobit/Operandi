@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PYRO faces</title>
+<style>
+:root { color-scheme: dark; }
+body { margin: 0; background: #4c4c4c; color: #f2f2f2; font-family: system-ui, sans-serif; }
+main { max-width: 1400px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 0 0 4px; } p { color: #d8d8d8; margin: 0 0 14px; font-size: 14px; }
+h2 { font-size: 15px; margin: 22px 0 8px; color: #fff; }
+.row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+.card { background: #3a3a3a; border-radius: 12px; padding: 12px 16px; text-align: center; width: 170px; }
+.card.light { background: #ffffff; color: #222; }
+.card b { display: block; margin-top: 8px; font-size: 12px; line-height: 1.3; }
+canvas { image-rendering: pixelated; display: block; margin: 0 auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PYRO: fire with a face</h1>
+  <p>Letters are just names for each option. Faces sit on the flame's hot core and follow it. All blink.</p>
+  <h2>Devkidd's pixel fire pack, with faces</h2>
+  <div class="row" id="pack"></div>
+  <h2>A fireball painted from scratch (after the anime and pixel references)</h2>
+  <div class="row" id="ball"></div>
+  <h2>On the light lesson page</h2>
+  <div class="row" id="light"></div>
+</main>
+<script type="module">
+const CSS = 4;   // screen px per art px on this page
+const load = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
+
+// ---- faces, drawn pixel by pixel from little templates ----
+// X outline, W white, R pale rim, K dark, S shine, M mouth
+const FACES = {
+  nova:    { eye: [".XXX.", "XWWWX", "XWWWX", "XWWWX", "XWWRX", ".XXX."], gap: 7 },
+  tilt:    { eye: ["..XX.", ".XWWX", "XWWWX", "XWWRX", "XWWX.", ".XX.."], gap: 8, mouth: [".X.", "XWX", ".X."], my: 5 },
+  ring:    { eye: [".XXX.", "XRRRX", "XR.RX", "XRRRX", ".XXX."], gap: 8, ink: "#8a1a10", ring: true, nose: true },
+  kohishi: { eye: [".KKK.", "KSKKK", "KKKKK", ".KKK."], gap: 7, mouth: ["KMK"], my: 4, blush: true },
+  dots:    { eye: ["KK", "KK", "KK"], gap: 6, mouth: ["K.K", ".K."], my: 4 },
+};
+const PAL = { X: "#1a0a06", W: "#ffffff", R: "#fff0c8", K: "#3a1206", S: "#ffffff", M: "#c43a1a" };
+function stamp(g, rows, cx, cy, flip, cols) {
+  const w = rows[0].length, h = rows.length, x0 = Math.round(cx - w / 2), y0 = Math.round(cy - h / 2);
+  rows.forEach((r, y) => [...r].forEach((ch, x) => { const c = cols[ch]; if (c) { g.fillStyle = c; g.fillRect(x0 + (flip ? w - 1 - x : x), y0 + y, 1, 1); } }));
+}
+function face(g, kind, cx, cy, open, t) {
+  const F = FACES[kind], cols = { ...PAL, ...(F.ink ? { X: F.ink } : {}) };
+  const shut = F.eye[0].length === 2 ? ["KK"] : [".XXX.".replace(/X/g, F.eye[0].includes("K") ? "K" : "X")];
+  for (const s of [-1, 1]) {
+    const ex = cx + s * F.gap / 2, ey = cy + (F.tilt ? 0 : 0);
+    if (!open) { stamp(g, shut, ex, ey + 1, false, cols); continue; }
+    stamp(g, F.eye, ex, ey, s < 0, cols);   // the right eye is the left one mirrored (tilted ones lean in)
+  }
+  if (F.mouth) stamp(g, F.mouth, cx, cy + F.my, false, cols);
+  if (F.nose) { g.fillStyle = "#8a1a10"; g.fillRect(Math.round(cx), Math.round(cy + 2), 1, 1); }
+  if (F.blush) { g.fillStyle = "#ff9a6a"; for (const s of [-1, 1]) g.fillRect(Math.round(cx + s * 6 - 1), Math.round(cy + 2), 2, 1); }
+}
+
+// ---- the pack's flames: find the hot core in each frame so the face sits on it ----
+async function packFlame(src) {
+  const img = await load(src), n = 8, fw = img.width / n, fh = img.height;
+  const c = document.createElement("canvas"); c.width = img.width; c.height = fh;
+  const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+  const D = g.getImageData(0, 0, img.width, fh).data, cores = [];
+  for (let f = 0; f < n; f++) {
+    let sx = 0, sy = 0, k = 0, best = 0;
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) { const o = (y * img.width + f * fw + x) * 4; if (D[o + 3] > 0) best = Math.max(best, D[o] + D[o + 1] + D[o + 2]); }
+    for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) { const o = (y * img.width + f * fw + x) * 4; if (D[o + 3] > 0 && D[o] + D[o + 1] + D[o + 2] >= best - 60) { sx += x; sy += y; k++; } }
+    cores.push([sx / k, sy / k]);
+  }
+  // smooth over neighbours so the face glides
+  const sm = cores.map((_, i) => [0, 1].map((j) => (cores[(i + n - 1) % n][j] + cores[i][j] * 2 + cores[(i + 1) % n][j]) / 4));
+  return { img, n, fw, fh, cores: sm };
+}
+
+const cards = [];
+function card(row, label, w, h, draw, light = false) {
+  const c = document.createElement("div"); c.className = "card" + (light ? " light" : "");
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h; cv.style.width = w * CSS + "px";
+  c.append(cv); c.insertAdjacentHTML("beforeend", `<b>${label}</b>`);
+  document.getElementById(row).append(c);
+  cards.push({ g: cv.getContext("2d"), w, h, draw });
+}
+function packCard(row, label, fl, kind, { dy = -2, light = false } = {}) {
+  card(row, label, fl.fw, fl.fh, (g, t) => {
+    const i = Math.floor(t * 10) % fl.n;
+    g.drawImage(fl.img, i * fl.fw, 0, fl.fw, fl.fh, 0, 0, fl.fw, fl.fh);
+    const [cx, cy] = fl.cores[i];
+    face(g, kind, cx, cy + dy, (t % 4.2) < 4.06, t);
+  }, light);
+}
+
+const F42 = await packFlame("assets/pyro/devkidd/red-group4-2.png"), F52 = await packFlame("assets/pyro/devkidd/red-group5-2.png");
+const F62 = await packFlame("assets/pyro/devkidd/red-group6-2.png"), F72 = await packFlame("assets/pyro/devkidd/red-group7-2.png");
+const F45 = await packFlame("assets/pyro/devkidd/red-group4-5.png"), Y42 = await packFlame("assets/pyro/devkidd/yellow-group4-2.png");
+packCard("pack", "A. NOVA eyes (your mock-up 1)", F42, "nova");
+packCard("pack", "B. Tilted eyes + little 'o' (mock-up 2)", F42, "tilt");
+packCard("pack", "C. Ringed eyes + dot (anime)", F62, "ring");
+packCard("pack", "D. Dark shiny eyes + blush (Kohishi)", F52, "kohishi");
+packCard("pack", "E. Short round flame, NOVA eyes", F45, "nova", { dy: -1 });
+packCard("pack", "F. Darker flame, NOVA eyes", F72, "nova");
+packCard("pack", "G. Golden flame, NOVA eyes", Y42, "nova");
+packCard("pack", "H. Tiny dot eyes", F42, "dots");
+
+// ---- the painted fireball: a round hot core, a flickering flame rim, a curling tail ----
+const h1 = (n) => { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); };
+function noise(x, y) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  const a = h1(ix + iy * 57), b = h1(ix + 1 + iy * 57), c = h1(ix + (iy + 1) * 57), d = h1(ix + 1 + (iy + 1) * 57);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const BALL = {
+  anime:   { cols: ["#c8381a", "#ff6a1e", "#ff9a2a", "#ffd23a", "#fff07a", "#fffbd0"], out: "#b02a14", spots: true, tail: 1 },
+  kohishi: { cols: ["#d8441a", "#ff6a14", "#ff9a1e", "#ffc83a", "#fff06a", "#fffbd0"], out: "#4a1606", spikes: true, tail: 0 },
+};
+function fireball(style) {
+  const S = BALL[style], W = 44, H = 60;
+  return { W, H, draw(g, t) {
+    const cx = W / 2 + Math.sin(t * 1.7) * 0.6, cy = 40 + Math.sin(t * 2.3) * 0.8, R = 12.5;
+    const img = g.createImageData(W, H), P = img.data, kind = new Uint8Array(W * H), val = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+      // the flame rim: tongues licking up and out, most on the top half
+      const up = Math.max(0, -Math.sin(a));
+      const lick = (S.spikes ? Math.abs(Math.sin(a * 5 + t * 3)) * 3.2 : 0) + noise(a * 3 + 10, t * 4) * 3.5 * up + noise(a * 6, t * 6 - r * 0.2) * 1.6;
+      let inside = r < R + 2.4 + lick * (0.4 + up);
+      let v = 1 - r / (R + 3);
+      // the tail: a fat curl of flame from the top that leans and whips
+      if (S.tail) {
+        for (let k = 0; k <= 10; k++) {
+          const u = k / 10, tx = cx + Math.sin(u * 3.2 - t * 3) * 4 * u + 6 * u * u, ty = cy - R + 2 - u * 24;
+          const tr = (5.5 * (1 - u) + 1.2) * (1 + 0.15 * Math.sin(t * 8 + k));
+          const d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty);
+          if (d < tr) { inside = true; v = Math.max(v, 0.25 + (1 - d / tr) * 0.35 * (1 - u)); }
+        }
+      }
+      if (!inside) continue;
+      const i = y * W + x; kind[i] = 1;
+      // a hot round core, offset a little down: the face lives there
+      const core = 1 - Math.hypot(dx * 1.05, (dy - 1.5) * 1.1) / (R * 0.82);
+      v = Math.max(v * 0.55, core) + (noise(x * 0.4, y * 0.4 + t * 7) - 0.5) * 0.25;
+      val[i] = v;
+    }
+    for (let i = 0; i < W * H; i++) {
+      if (!kind[i]) continue;
+      const v = val[i], band = Math.max(0, Math.min(5, Math.floor(v * 6.2 + 1.2)));
+      let c = S.cols[band];
+      // the anime look: pale blotches of heat floating in the orange rim
+      const x = i % W, y = (i / W) | 0;
+      if (S.spots && band <= 2 && noise(x * 0.35 + 50, y * 0.35 - t * 2) > 0.74) c = S.cols[4];
+      const n = parseInt(c.slice(1), 16); P[i * 4] = n >> 16; P[i * 4 + 1] = (n >> 8) & 255; P[i * 4 + 2] = n & 255; P[i * 4 + 3] = 255;
+    }
+    // outline
+    const on = parseInt(S.out.slice(1), 16);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x; if (kind[i]) continue;
+      if ((x && kind[i - 1]) || (x < W - 1 && kind[i + 1]) || (y && kind[i - W]) || (y < H - 1 && kind[i + W])) { P[i * 4] = on >> 16; P[i * 4 + 1] = (on >> 8) & 255; P[i * 4 + 2] = on & 255; P[i * 4 + 3] = 255; }
+    }
+    // embers
+    for (let e = 0; e < 4; e++) {
+      const u = (t * 0.5 + e * 0.27) % 1, x = Math.round(cx + Math.sin(e * 2.3 + t) * 14), y = Math.round(cy - 10 - u * 30);
+      if (x >= 0 && x < W && y >= 0 && y < H && !kind[y * W + x] && u < 0.8) { const i = y * W + x; P[i * 4] = 255; P[i * 4 + 1] = 154; P[i * 4 + 2] = 42; P[i * 4 + 3] = 255; }
+    }
+    g.putImageData(img, 0, 0);
+    this.cx = cx; this.cy = cy;
+  } };
+}
+function ballCard(row, label, style, kind, light = false) {
+  const b = fireball(style);
+  card(row, label, b.W, b.H, (g, t) => { b.draw(g, t); face(g, kind, b.cx, b.cy, (t % 4.2) < 4.06, t); }, light);
+}
+ballCard("ball", "I. Anime fireball, ringed eyes", "anime", "ring");
+ballCard("ball", "J. Anime fireball, NOVA eyes", "anime", "nova");
+ballCard("ball", "K. Anime fireball, tilted eyes + 'o'", "anime", "tilt");
+ballCard("ball", "L. Spiky fireball, shiny eyes (Kohishi)", "kohishi", "kohishi");
+ballCard("ball", "M. Spiky fireball, NOVA eyes", "kohishi", "nova");
+
+packCard("light", "A on white", F42, "nova", { light: true });
+packCard("light", "D on white", F52, "kohishi", { light: true });
+ballCard("light", "I on white", "anime", "ring", true);
+ballCard("light", "L on white", "kohishi", "kohishi", true);
+
+let manual = null;
+const t0 = performance.now();
+(function loop(now) {
+  const t = manual ?? Math.max(0, now - t0) / 1000;
+  for (const c of cards) { c.g.clearRect(0, 0, c.w, c.h); c.draw(c.g, t); }
+  requestAnimationFrame(loop);
+})(t0);
+window.__t = (t) => { manual = t; };
+</script>
+</body>
+</html>
