@@ -324,6 +324,11 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - chunk: a smaller canvas stretched back. 440/180 gives Kaela's pixel size.
     - flat: pixel-gl `uFlat`: 4 flat tones (shadow, base, light, rim), no dithering, inner lines in the darkest tone, lone pixels replaced by their neighbours' material.
     - Preview `site/golem2d-preview.html`; still `previews/golem-2d-v1.png`. Remaining flaw: red cracks turn into small square blotches.
+  - 2026-10-23 (Isaac: "not pushed, still the old boss"): the **real boss fight now uses the 2D GOLEM** (boss-fight.js: chunk 440/180, flat).
+    - His red nodes and lights are subtle rust in 2D (`RUST` ramp for materials 5–6; no node halo when flat). Only his eye glows red.
+    - Claw tip straight, no hook.
+    - Shop has a **Characters** section above "Your teammate": Kaela with `portrait-red.png`.
+    - Portrait redone by `tools/recolour-portrait.py`: the horn tip is erased; the horn inside the hair is filled with the hair's median colour (an edge fill had carried the horn's shadow); hair = clearly-blue-over-red pixels in big areas, plus thin strands above her eye.
   - Next: the fighter-picker boss fight with Kaela in it; Kaela's 7 abilities redesigned (review after 3); phases, telegraphs, skill-covering challenges.
   - Original summary:
   - Scrap "every level is a fight". Back to the roaming companion in lessons, with companion collecting.

@@ -19,6 +19,10 @@ const PALETTES = [
 // 2026-10-22 (Isaac: "much more threatening"): red-hot eye, red warning lights and nodes, darker armour and ice.
 const GLOW = ["#8a0d06", "#ff3a14", "#ffb08a", "#7a0d0a", "#ff3a24", "#ffb0a0"];
 const EXTRA = ["#c9d3dc", "#ffffff", "#0b0910"]; // exhaust grey, exhaust white, outline
+// The 2D style (Isaac 2026-10-23): the red nodes and lights become subtle rust, dark maroon-brown
+// close to his armour; his eye keeps its red glow.
+const RUST = ["#0e0a0b", "#170f10", "#211415", "#2b1918", "#36201c", "#432821"];
+const PALETTES_2D = PALETTES.map((ramp, i) => (i === 4 || i === 5 ? RUST : ramp));
 
 // Shared with the JS that finds points on him (keep in step with the GLSL).
 const SH = [1.12, -0.1, 0.05]; // shoulder, in body space (x mirrored per arm)
@@ -258,7 +262,7 @@ export class PixelGolem {
     Object.assign(this.canvas.style, { width: w * px + "px", height: h * px + "px", imageRendering: "pixelated", display: "block" });
     host.appendChild(this.canvas);
     this.canvas.width = Math.round(w / chunk); this.canvas.height = Math.round(h / chunk);
-    this.gl = new PixelGL(this.canvas, { model: MODEL, palettes: PALETTES, glow: GLOW, extra: EXTRA });
+    this.gl = new PixelGL(this.canvas, { model: MODEL, palettes: flat ? PALETTES_2D : PALETTES, glow: GLOW, extra: EXTRA });
     this.view = view;
     this.pose = { ...REST };
     this.fxv = { flash: 0, block: 1, glitch: 0 };

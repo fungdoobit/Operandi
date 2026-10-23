@@ -74,6 +74,7 @@ void main(){
     if (edge) { o = vec4(uPal[63], 1.); return; }
     // Glow halos: core (a) and crystals (r), three dithered steps each.
     for (int k = 0; k < 2; k++) {
+      if (k == 1 && uFlat > 0.) break;   // flat: no halo round the nodes (they're rust now)
       float g = k == 0 ? t.a : t.r;
       float lv = g*3. + (d-.5)*.45;
       if (lv > 2.) { o = vec4(uGlowCol[k*3+2], .8); return; }
