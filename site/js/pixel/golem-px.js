@@ -51,14 +51,14 @@ void arm(vec3 q, inout float d){
   U(d, length(q - EL) - .18, 2., q);
 }
 
-// Left forearm: a huge armoured gauntlet tapering to a pointed claw, with a thumb hook.
+// Left forearm: a huge armoured gauntlet tapering to a straight pointed claw.
 void claw(vec3 e, inout float d){
   U(d, sdRBox(e - vec3(0., -.24, 0.), vec3(.34, .26, .33), .12), 1., e);
   U(d, sdCylY(e - vec3(0., -.53, 0.), .32, .05), 2., e);
   vec3 b = e - vec3(0., -.58, 0.);
   b.z *= 1.15;
   float blade = sdCapT(b, vec3(0.), vec3(-.06, -.9, -.06), .32, .06);
-  blade = smin(blade, sdCapT(b, vec3(-.06, -.88, -.06), vec3(.16, -1.16, -.04), .07, .005), .05);   // the tip hooks inward
+  blade = smin(blade, sdCapT(b, vec3(-.06, -.88, -.06), vec3(-.08, -1.18, -.06), .07, .005), .05);   // the tip runs straight on (Isaac 2026-10-23: no hook)
   blade = max(blade, -sdBox(b - vec3(-.02, -.5, -.3), vec3(.4, .014, .07)));   // plate seams
   blade = max(blade, -sdBox(b - vec3(-.03, -.25, -.3), vec3(.4, .014, .07)));
   U(d, blade, 1., b);

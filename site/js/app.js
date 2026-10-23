@@ -534,7 +534,7 @@ function openLesson(id, section) {
   if (!S().seenIntro) {
     S().seenIntro = true; store.save();
     const v = V().welcome(S().items);
-    dot.say(`${v.text} Every lesson is a fight: pass a task, then pick a card to strike the enemy.`, { title: v.title, mood: "happy" });
+    dot.say(v.text, { title: v.title, mood: "happy" });
   } else if (!sectionDone(l, section) && section === 0) {
     dot.say(V().lessonIntro(i + 1, l.title).text, { mood: "idle" });
   }
@@ -701,6 +701,10 @@ function renderShop() {
   };
   $("briefInner").innerHTML = `<p class="eyebrow">Shop</p><h1>Spend your Bits</h1>
     <p>You have <b>◆ ${st.bits} Bits</b>. Error explanations, typo spotting and the FAQ are always free. Items here are for an extra push, or to make your teammate look sharp.</p>
+    <h3>Characters</h3>
+    <div class="team-grid">
+      <div class="team-card char-card"><img class="char-portrait" src="assets/kaela/portrait-red.png" alt="Kaela's portrait"><div><h4>Kaela</h4><p>A red-haired swordswoman, quick and fierce. She fights the bosses: pick her when a boss fight starts.</p><span class="owned">Yours</span></div></div>
+    </div>
     <h3>Your teammate</h3>
     <div class="team-grid">
       ${teamCard("dot", "DOT", "Digital Operandi Teammate. Calm, patient, a little goopy.")}
