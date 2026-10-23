@@ -79,13 +79,15 @@ def recolour(rgba):
     code = rgba[..., 0].astype(np.int64) * 65536 + rgba[..., 1].astype(np.int64) * 256 + rgba[..., 2]
     fx = (rgba[..., 3] > 0) & ~np.isin(code, HERK)
     green = fx & (hue > 90) & (hue < 195) & (s > 0.12)
-    blue = fx & (hue >= 195) & (hue < 285) & (v > 0.45) & (s > 0.12)
+    blue = fx & (hue >= 195) & (hue < 300) & (v > 0.45) & (s > 0.08)
     sel = green | blue
-    def put(mask, col): out[mask, 0], out[mask, 1], out[mask, 2] = col
-    pale = sel & (s < 0.3) & (v > 0.9)
-    put(pale, RED["pale"]); put(sel & (s < 0.45) & ~pale, RED["mid"])
-    put(sel & (s >= 0.45) & (s < 0.7), RED["deep"])
-    put(sel & (s >= 0.7) & (v > 0.85), RED["light"]); put(sel & (s >= 0.7) & (v <= 0.85), RED["dark"])
+    # pick the red by BRIGHTNESS, so the swing keeps the artist's shading: a bright core,
+    # lighter fading edges and trails, darker undersides (by saturation, fading trails went dark)
+    L = 0.3 * r + 0.59 * g + 0.11 * b
+    ramp = [(0.86, RED["pale"]), (0.70, RED["light"]), (0.52, RED["mid"]), (0.36, RED["deep"]), (-1, RED["dark"])]
+    left = sel.copy()
+    for t, col in ramp:
+        m = left & (L > t); out[m, 0], out[m, 1], out[m, 2] = col; left &= ~m
     return restyle(out)
 PAL = None
 def snap(rgba):   # video only: snap to her original palette plus effect colours, to strip compression noise

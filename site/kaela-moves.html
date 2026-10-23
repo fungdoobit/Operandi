@@ -20,7 +20,7 @@ button.go { background: #7a1424; border-color: #c2142e; }
 <body>
 <main>
   <h1>Kaela: her real moves (PRD Addendum L)</h1>
-  <p>Cut frame by frame from the creator's motion-test videos at her native pixel size, snapped to her palette, restyled (tools/kaela_style.py: darker red hair, red eyes, leather coat and boots, no horns), effects red. One button per ability card. Enemy: Isaac's red fanged flyer.</p>
+  <p>Ground moves only, cut losslessly from the creator's GIF; every card chains them. Cut frame by frame from the creator's motion-test videos at her native pixel size, snapped to her palette, restyled (tools/kaela_style.py: darker red hair, red eyes, leather coat and boots, no horns), effects red. One button per ability card. Enemy: Isaac's red fanged flyer.</p>
   <div id="wrap"><div id="stage"></div></div>
   <div class="bar" id="moves"></div>
   <div class="bar"><button id="bite">Enemy bites</button></div>
@@ -71,28 +71,33 @@ function ghost(f, col) {
   return c;
 }
 
-// Her ability cards, each one a move cut from the videos (extract.py wrote the sheet and its
-// timing: per-frame ms, the frames where it lands and how far in front of her, screen-dark frames).
+// Her three ground moves, cut losslessly from the creator's GIF (tools/extract-moves.py: per-frame
+// ms, the frames where it lands and how far in front of her). Isaac 2026-10-23: no jumping or
+// flying about, and the video-only moves looked rough, so every card is built from these three.
+const MOVES = {};
+for (const id of ["quick", "dash", "spin"]) {
+  const [img, m] = await Promise.all([load(`./assets/kaela/moves/${id}.png`), fetch(`./assets/kaela/moves/${id}.json`).then((r) => r.json())]);
+  MOVES[id] = { m, frames: cut(img, m.fw, m.fh, m.n, m.n), ax: m.fw - m.anchor[0], reach: -m.hitx[0], hit: m.hits[0],
+    starts: m.ms.reduce((a, d) => (a.push(a[a.length - 1] + d), a), [0]) };
+}
+// Each card is a chain of moves; speed > 1 plays faster. dark: the world dims; slow: slow motion.
 const CARDS = [
-  { id: "quick", name: "Crimson Slash" },
-  { id: "combo", name: "Twin Fang" },
-  { id: "dash", name: "Piercing Lunge" },
-  { id: "spin", name: "Scarlet Whirl" },
-  { id: "air", name: "Rising Moon", reach: 30 },   // reach set by hand: the tool reads her air-dash afterimage as the hit
-  { id: "flurry", name: "Thousand Cuts", hits: [0, 1] },
-  { id: "ult", name: "Skyfall Lance" },
+  { name: "Crimson Slash", seq: ["quick"] },
+  { name: "Twin Fang", seq: ["quick", "dash"] },
+  { name: "Piercing Lunge", seq: ["dash"], heavy: true },
+  { name: "Scarlet Whirl", seq: ["spin"] },
+  { name: "Rising Moon", seq: ["dash", "spin"], speed: 1.15 },
+  { name: "Thousand Cuts", seq: ["quick", "dash", "quick", "dash", "spin"], speed: 1.45 },
+  { name: "Skyfall Lance", seq: ["quick", "dash", "spin"], dark: true, slow: 0.7, heavy: true },
 ];
+for (const c of CARDS) {   // lay the chain out on one timeline
+  let at = 0; const sp = c.speed || 1;
+  c.segs = c.seq.map((id) => { const mv = MOVES[id], dur = mv.starts[mv.starts.length - 1] / sp, seg = { mv, start: at, dur, hitAt: at + mv.starts[mv.hit] / sp }; at += dur; return seg; });
+  c.total = at; c.reach = Math.min(...c.segs.map((g) => g.mv.reach));
+}
 const [idleImg, walkImg, demonImg] = await Promise.all([load("./assets/kaela/moves/idle.png"), load("./assets/kaela/moves/walk.png"), load("./assets/enemies/demon.png")]);
 const IDLE = cut(idleImg, 46, 55, 10, 10), WALK = cut(walkImg, 45, 58, 4, 24);   // already restyled (tools/restyle-sheet.py)
 const FOE = { idle: cut(demonImg, 64, 64, 8, 6), bite: cut(demonImg, 64, 64, 8, 4, { row: 2 }), die: cut(demonImg, 64, 64, 8, 8, { row: 3 }) };
-for (const c of CARDS) {
-  const [img, m] = await Promise.all([load(`./assets/kaela/moves/${c.id}.png`), fetch(`./assets/kaela/moves/${c.id}.json`).then((r) => r.json())]);
-  c.m = m; c.frames = cut(img, m.fw, m.fh, m.n, m.n);
-  c.ax = m.fw - m.anchor[0];                       // her start position in the mirrored window
-  const keep = c.hits ? c.hits.map((i) => i) : m.hits.map((_, i) => i);
-  c.hitAt = keep.map((i) => m.hits[i]); c.hitX = keep.map((i) => -m.hitx[i]);
-  c.starts = m.ms.reduce((a, d) => (a.push(a[a.length - 1] + d), a), [0]);   // when each frame begins
-}
 
 // ---- the clock: game time stops during hit-stop ----
 const ease = { out: (t) => 1 - (1 - t) ** 3, io: (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2) };
@@ -107,7 +112,7 @@ document.getElementById("kill").onclick = () => cast(CARDS[6], true);
 document.getElementById("bite").onclick = bite;
 function cast(c, finish = false) { if (act || foeAct) return; if (dead) { dead = false; eAlpha = 1; } sound.unlock(); act = { c, t0: gt, phase: "in", done: new Set(), finish }; }
 function bite() { if (act || foeAct) return; if (dead) { dead = false; eAlpha = 1; } sound.unlock(); foeAct = { t0: gt }; }
-window.__cast = (id, finish) => cast(CARDS.find((c) => c.id === id), finish); window.__bite = bite;
+window.__cast = (i, finish) => cast(CARDS[+i], finish); window.__bite = bite;
 
 function update() {
   const kxBase = WA * 0.24, exBase = WA * 0.7;
@@ -116,26 +121,28 @@ function update() {
   if (!act) { kx = 0; frame = IDLE[Math.floor(gt / 100) % 10]; }
   else {
     const { c } = act, t = gt - act.t0;
-    // where her feet must be for the slash to land on the enemy
-    const spot = exBase - kxBase - (c.reach ?? c.hitX[0]);
+    // where her feet must be for the slashes to land on the enemy (she stays put through the chain)
+    const spot = exBase - kxBase - c.reach;
     const IN = 220;
     if (t < IN) {   // dash in: walk frames at speed, red afterimages
       const k = ease.out(t / IN); kx = spot * k; frame = WALK[(Math.floor(t / 25) + 6) % 24];
       if (!act.whoosh) { act.whoosh = true; sound.sfx("whoosh", { theme: "fire" }); }
       if (Math.abs(spot) > 20) trail.push({ x: kx, f: frame, t: gt });
     } else {
-      const mt = t - IN, total = c.starts[c.starts.length - 1];
+      const mt = (t - IN) * (c.slow || 1), total = c.total;
+      if (c.dark) dark = 1;
       if (mt < total) {
-        let j = 0; while (j < c.m.n - 1 && c.starts[j + 1] <= mt) j++;
-        moveFrame = { f: c.frames[j], x: kxBase + spot - c.ax };
-        if (c.m.dark.includes(j)) dark = 1;
-        c.hitAt.forEach((h, i) => {
-          if (j >= h && !act.done.has(i)) {
+        const si = c.segs.findIndex((g) => mt < g.start + g.dur), g = c.segs[si], mv = g.mv;
+        const lt = (mt - g.start) * (c.speed || 1);
+        let j = 0; while (j < mv.m.n - 1 && mv.starts[j + 1] <= lt) j++;
+        moveFrame = { f: mv.frames[j], x: kxBase + spot - mv.ax };
+        c.segs.forEach((h, i) => {
+          if (mt >= h.hitAt && !act.done.has(i)) {
             act.done.add(i);
-            const last = i === c.hitAt.length - 1;
-            hitstop = last ? 150 : 80; flash = 140; shake = last ? 5 : 3; knock = gt;
-            sound.sfx("slash"); sound.sfx(last ? "impact" : "hit", { size: last ? 1.2 : 0.8 });
-            parts.push(...shards(last ? 22 : 10, exBase - 4, FLOOR - 34, Math.floor(gt) + i));
+            const last = i === c.segs.length - 1, big = last && c.heavy;
+            hitstop = big ? 220 : last ? 150 : 70; flash = 140; shake = big ? 8 : last ? 5 : 3; knock = gt;
+            sound.sfx("slash"); sound.sfx(last ? "impact" : "hit", { size: big ? 1.6 : last ? 1.2 : 0.8 });
+            parts.push(...shards(big ? 30 : last ? 22 : 10, exBase - 4, FLOOR - 34, Math.floor(gt) + i));
             if (last && act.finish) { act.die = gt; sound.sfx("screech"); }
           }
         });
