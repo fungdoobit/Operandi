@@ -179,19 +179,19 @@ print(7 ** 2)  # power: 49</pre>
 <pre data-run>print(2 + 3 * 4)    # 14: 3 * 4 happens first
 print((2 + 3) * 4)  # 20: brackets go first</pre>`,
         task: {
-      text: `<p>A party has <code>pizzas = 2</code> pizzas with 8 slices each, shared by <code>friends = 3</code> friends.</p><ol><li>Make <code>slices</code>: the total number of slices, <b>calculated</b> from <code>pizzas</code>.</li><li>Print how many whole slices each friend gets.</li><li>Print how many slices are left over.</li></ol>`,
-      starter: "pizzas = 2\nfriends = 3\n\n# Calculate slices\n\n# Print the slices each, then the slices left over\n",
-      solution: "pizzas = 2\nfriends = 3\nslices = pizzas * 8\nprint(slices // friends)\nprint(slices % friends)",
+      text: `<p>A party has <code>pizzas = 2</code> pizzas, each cut into <code>slices_each = 8</code> slices, shared by <code>friends = 3</code> friends. All three numbers are already in the editor.</p><ol><li>Make <code>slices</code>: the total number of slices, <b>calculated</b> from <code>pizzas</code> and <code>slices_each</code>.</li><li>Print how many whole slices each friend gets.</li><li>Print how many slices are left over.</li></ol>`,
+      starter: "pizzas = 2\nslices_each = 8\nfriends = 3\n\n# Calculate slices (the total)\n\n# Print the slices each, then the slices left over\n",
+      solution: "pizzas = 2\nslices_each = 8\nfriends = 3\nslices = pizzas * slices_each\nprint(slices // friends)\nprint(slices % friends)",
       noHardcode: true,
       checks: [
-        { name: "pizzas and friends unchanged", code: `assert globals().get("pizzas") == 2 and globals().get("friends") == 3, "Keep pizzas = 2 and friends = 3."`, peek: "pizzas must stay 2 and friends must stay 3." },
-        { name: "slices is right", code: `assert "slices" in globals(), "Make a variable called slices."\nassert slices == 16, "slices isn't right yet: there are 8 slices per pizza."`, peek: "slices should be 16 (2 × 8)." },
+        { name: "pizzas and friends unchanged", code: `assert globals().get("pizzas") == 2 and globals().get("slices_each") == 8 and globals().get("friends") == 3, "Keep pizzas = 2, slices_each = 8 and friends = 3."`, peek: "pizzas must stay 2, slices_each 8 and friends 3." },
+        { name: "slices is right", code: `assert "slices" in globals(), "Make a variable called slices."\nassert slices == 16, "slices isn't right yet: it's the number of pizzas times the slices in each."`, peek: "slices = pizzas * slices_each, which is 16." },
         { name: "Uses // and %", code: `assert "//" in SOURCE and "%" in SOURCE, "Use // for the whole slices each and % for the leftovers."`, peek: "print(slices // friends), then print(slices % friends)." },
       ],
       hints: [
-        "slices = pizzas * 8",
-        "// divides and drops the remainder, which gives the whole slices each.",
-        "% gives only the remainder: the slices left over. print(slices % friends).",
+        "The total is the number of pizzas times the slices in each pizza. Both are variables already.",
+        "slices = pizzas * slices_each. Then // divides and drops the remainder: the whole slices each friend gets.",
+        "% gives only the remainder: the slices left over. print(slices // friends), then print(slices % friends).",
       ],
     },
       },
