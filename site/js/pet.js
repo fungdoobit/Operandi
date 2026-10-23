@@ -7,6 +7,7 @@
 import { sound } from "./sound.js";
 import { Dot } from "./dot.js";
 import { NovaMate } from "./pixel/nova-mate.js";
+import { novaWarp, canWarp } from "./pixel/nova-warp.js";
 
 const SPEED = 46;            // px per second while wandering
 const MARGIN = 8;
@@ -98,10 +99,10 @@ export class Pet {
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
     let bob = 0;
-    if (this.mode === "roam" && !this.speaking) {
+    if (this.mode === "roam" && !this.speaking && !this.warping) {
       if (this.wait > 0) this.wait -= dt;
       else {
-        this.target ||= this.pickTarget();
+        if (!this.target) { this.target = this.pickTarget(); this.maybeWarp(); }
         const dx = this.target.x - this.x, dy = this.target.y - this.y, dist = Math.hypot(dx, dy);
         if (dist < 2) { this.target = null; this.wait = 2 + Math.random() * 5; }
         else {
@@ -124,6 +125,26 @@ export class Pet {
     requestAnimationFrame(this.tick);
   }
 
+  // NOVA only: heading off sideways, now and then she takes a portal instead
+  // (pixel/nova-warp.js). Not more than once every 40 s (8 s with ?test=nova).
+  maybeWarp() {
+    if (this.skin !== "nova" || this.warping || this.dot.busy || this.root.style.visibility === "hidden") return;
+    const dx = this.target.x - this.x, dy = this.target.y - this.y;
+    if (Math.abs(dx) < 120 || Math.abs(dx) < Math.abs(dy)) return;   // mostly sideways trips only
+    const now = performance.now(), gap = Pet.fastIdles ? 8000 : 40000;
+    if (now - (this.lastWarp || -gap * 0.5) < gap || Math.random() > (Pet.fastIdles ? 0.8 : 0.35)) return;
+    const dir = Math.sign(dx);
+    if (!canWarp(this, dir)) return;
+    this.lastWarp = now;
+    this.warping = true; this.target = null;
+    novaWarp(this, dir).finally(() => { this.warping = false; this.wait = 1.5; });
+  }
+  // test hook: operandiPet.warpNow(1 | -1)
+  warpNow(dir = this.x < innerWidth / 2 ? 1 : -1) {
+    if (this.skin !== "nova" || this.warping) return;
+    this.warping = true; this.target = null; this.lastWarp = performance.now();
+    return novaWarp(this, dir).finally(() => { this.warping = false; this.wait = 1.5; });
+  }
   place(bob = 0) {
     this.root.style.transform = `translate3d(${this.x.toFixed(1)}px, ${(this.y + bob).toFixed(1)}px, 0)`;
     if (this.speaking) this.placeBubble();
@@ -139,7 +160,7 @@ export class Pet {
 
   // ----- Picking up and dropping -----
   grab(e) {
-    if (e.button !== undefined && e.button !== 0) return;
+    if ((e.button !== undefined && e.button !== 0) || this.warping) return;
     e.preventDefault();
     this.dot.figure.setPointerCapture(e.pointerId);
     this.before = this.mode;
