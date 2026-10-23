@@ -314,6 +314,19 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Enemy redraw: still to do (Isaac: "find already done enemies and tweak"); asset sites (itch.io, opengameart) are blocked by this environment's network policy, so he would have to upload a pack or allow the domains.
 - Planetfall round 11 + Addendum K extras (2026-10-22, pushed): NOVA powers up and drives a beam into the sky to open Jupiter's portal, then bears down on it; GOLEM only braces until Jupiter appears, holds it (sinking unchanged), strains, one thruster push snaps her beam; the portal swallows Jupiter (it shrinks into the vortex). Planets crack (glowing seams, frozen beat) then shatter into Voronoi rock chunks with molten edges (`voronoi`, `breakApart`). Rotcap has stumpy legs and round feet. Each biome has its own music (`THEMES` in sound.js, `playTheme`; the boss keeps `SONG`). All 18 enemies verified and in the course (`READY`).
 - Planetfall round 10 (2026-10-22): planets burst through their portals (clipped at the portal surface), with a fire bow shock, a plasma tail and slow motion just before impact; on impact they break into burning wedges (`breakApart`), and GOLEM is knocked back. Uranus is drawn as `uranusRingBack` + `uranusBody` + `uranusRingFront` (planets-px.js `uPart`/`uTumble`), so its ring tumbles in flight and snaps into pieces. Jupiter is now drawn **behind** GOLEM (`sprBack`) and rests on his raised hands. He pushes it back in three heaves (gather, then thrusters blast fire and dust out of the floor, a surge up, and the weight wins some back), then a slow-motion final shove. The sinking is unchanged (Isaac liked it). About 20 s.
+- [ ] **Addendum M (Isaac 2026-10-23, big change; draft in `docs/PRD-v2.md`, awaiting answers and "go")**:
+  - Scrap "every level is a fight". Back to the roaming companion in lessons, with companion collecting.
+  - Forest music in lessons, off by default.
+  - One big boss per module, maybe a mid-boss, made tense and skill-based. Kaela fights Module 1's boss.
+  - Kaela's abilities to be redesigned as custom cinematics (no Magic Pack: Isaac says it "doesn't look good"). Card art shows the ability, not Kaela.
+  - Explosions Pack 11 (Ansimuz, six ~64 px blasts) to use in the 2D fights; unzipped in the scratchpad only.
+  - Done already: lesson 3's pizza task has `slices_each = 8` in the starter, and its hints build up to the answer (Isaac: "how am I supposed to know it's *8").
+  - Animation survey for bosses:
+    - Ghost Wolf: 2 sets of 13 frames (calm + energized), a ready-made phase 2
+    - red flyer: idle, mouth open, bite, death
+    - gargoyle: 7
+    - jumper: 6
+    - red-demon and vampire: idle only (4–5 frames)
 - [ ] Phase 2: Module 2 (if/elif/else, booleans, comparisons, and/or/not) with about 30 templates, plus mistake rules and FAQ for it. Then tune the economy from Isaac's real numbers.
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).
 - [ ] v1: Isaac's first real use inside claude.ai is still unconfirmed.
