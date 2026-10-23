@@ -71,11 +71,11 @@ function ghost(f, col) {
   return c;
 }
 
-// Her three ground moves, cut losslessly from the creator's GIF (tools/extract-moves.py: per-frame
+// Her moves, cut losslessly from the creator's GIF (tools/extract-moves.py: per-frame
 // ms, the frames where it lands and how far in front of her). Isaac 2026-10-23: no jumping or
 // flying about, and the video-only moves looked rough, so every card is built from these three.
 const MOVES = {};
-for (const id of ["quick", "dash", "spin"]) {
+for (const id of ["quick", "dash", "spin", "slam"]) {
   const [img, m] = await Promise.all([load(`./assets/kaela/moves/${id}.png`), fetch(`./assets/kaela/moves/${id}.json`).then((r) => r.json())]);
   MOVES[id] = { m, frames: cut(img, m.fw, m.fh, m.n, m.n), ax: m.fw - m.anchor[0], reach: -m.hitx[0], hit: m.hits[0],
     starts: m.ms.reduce((a, d) => (a.push(a[a.length - 1] + d), a), [0]) };
@@ -88,12 +88,12 @@ const CARDS = [
   { name: "Scarlet Whirl", seq: ["spin"] },
   { name: "Rising Moon", seq: ["dash", "spin"], speed: 1.15 },
   { name: "Thousand Cuts", seq: ["quick", "dash", "quick", "dash", "spin"], speed: 1.45 },
-  { name: "Skyfall Lance", seq: ["quick", "dash", "spin"], dark: true, slow: 0.7, heavy: true },
+  { name: "Skyfall Lance", seq: ["slam"], heavy: true, reach: 0 },   // the jump-slam (Isaac 2026-10-23): she lands on the enemy and erupts; the move dims the screen itself
 ];
 for (const c of CARDS) {   // lay the chain out on one timeline
   let at = 0; const sp = c.speed || 1;
   c.segs = c.seq.map((id) => { const mv = MOVES[id], dur = mv.starts[mv.starts.length - 1] / sp, seg = { mv, start: at, dur, hitAt: at + mv.starts[mv.hit] / sp }; at += dur; return seg; });
-  c.total = at; c.reach = Math.min(...c.segs.map((g) => g.mv.reach));
+  c.total = at; c.reach ??= Math.min(...c.segs.map((g) => g.mv.reach));
 }
 const [idleImg, walkImg, demonImg] = await Promise.all([load("./assets/kaela/moves/idle.png"), load("./assets/kaela/moves/walk.png"), load("./assets/enemies/demon.png")]);
 const IDLE = cut(idleImg, 46, 55, 10, 10), WALK = cut(walkImg, 45, 58, 4, 24);   // already restyled (tools/restyle-sheet.py)
@@ -136,6 +136,7 @@ function update() {
         const lt = (mt - g.start) * (c.speed || 1);
         let j = 0; while (j < mv.m.n - 1 && mv.starts[j + 1] <= lt) j++;
         moveFrame = { f: mv.frames[j], x: kxBase + spot - mv.ax };
+        if (mv.m.dark.includes(j)) dark = 1;   // a move's own dark-screen frames
         c.segs.forEach((h, i) => {
           if (mt >= h.hitAt && !act.done.has(i)) {
             act.done.add(i);
