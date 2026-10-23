@@ -132,9 +132,11 @@ export class Pet {
   maybeWarp() {
     if (this.skin !== "nova" || this.warping || this.dot.busy || this.root.style.visibility === "hidden") return;
     const dx = this.target.x - this.x, dy = this.target.y - this.y;
-    if (Math.abs(dx) < 120 || Math.abs(dx) < Math.abs(dy)) return;   // mostly sideways trips only
-    const now = performance.now(), gap = Pet.fastIdles ? 8000 : 40000;
-    if (now - (this.lastWarp || -gap * 0.5) < gap || Math.random() > (Pet.fastIdles ? 0.8 : 0.35)) return;
+    if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) * 0.6) return;   // sideways-ish trips only (TESTING: was 120 and |dy|)
+    // TESTING (Isaac 2026-10-23: "make this more common so I can see it"): every 10 s at most, 90% of the time.
+    // Normal values to go back to: gap 40000, chance 0.35.
+    const now = performance.now(), gap = Pet.fastIdles ? 8000 : 10000;
+    if (now - (this.lastWarp || -gap) < gap || Math.random() > 0.9) return;
     const dir = Math.sign(dx);
     if (!canWarp(this, dir)) return;
     this.lastWarp = now;
