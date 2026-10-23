@@ -127,7 +127,7 @@ function render(now) {
 let tick = 0;
 function loop(now) {
   requestAnimationFrame(loop);
-  const real = Math.min(50, now - last); last = now;
+  const real = Math.max(0, Math.min(50, now - last)); last = now;
   if (hitstop > 0) hitstop -= real; else gt += real * speed;
   if (flash > 0) flash -= real;
   shake *= 0.86;

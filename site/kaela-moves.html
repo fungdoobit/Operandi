@@ -20,7 +20,7 @@ button.go { background: #7a1424; border-color: #c2142e; }
 <body>
 <main>
   <h1>Kaela: her real moves (PRD Addendum L)</h1>
-  <p>Cut frame by frame from the creator's motion-test videos at her native pixel size, snapped to her palette, hair and effects recoloured red. One button per ability card. Enemy: Isaac's red fanged flyer.</p>
+  <p>Cut frame by frame from the creator's motion-test videos at her native pixel size, snapped to her palette, restyled (tools/kaela_style.py: darker red hair, red eyes, leather coat and boots, no horns), effects red. One button per ability card. Enemy: Isaac's red fanged flyer.</p>
   <div id="wrap"><div id="stage"></div></div>
   <div class="bar" id="moves"></div>
   <div class="bar"><button id="bite">Enemy bites</button></div>
@@ -78,12 +78,12 @@ const CARDS = [
   { id: "combo", name: "Twin Fang" },
   { id: "dash", name: "Piercing Lunge" },
   { id: "spin", name: "Scarlet Whirl" },
-  { id: "air", name: "Rising Moon" },
+  { id: "air", name: "Rising Moon", reach: 30 },   // reach set by hand: the tool reads her air-dash afterimage as the hit
   { id: "flurry", name: "Thousand Cuts", hits: [0, 1] },
   { id: "ult", name: "Skyfall Lance" },
 ];
-const [idleImg, walkImg, demonImg] = await Promise.all([load("./assets/kaela/idle.png"), load("./assets/kaela/walk.png"), load("./assets/enemies/demon.png")]);
-const IDLE = cut(idleImg, 46, 55, 10, 10, { recolour: true }), WALK = cut(walkImg, 45, 58, 4, 24, { recolour: true });
+const [idleImg, walkImg, demonImg] = await Promise.all([load("./assets/kaela/moves/idle.png"), load("./assets/kaela/moves/walk.png"), load("./assets/enemies/demon.png")]);
+const IDLE = cut(idleImg, 46, 55, 10, 10), WALK = cut(walkImg, 45, 58, 4, 24);   // already restyled (tools/restyle-sheet.py)
 const FOE = { idle: cut(demonImg, 64, 64, 8, 6), bite: cut(demonImg, 64, 64, 8, 4, { row: 2 }), die: cut(demonImg, 64, 64, 8, 8, { row: 3 }) };
 for (const c of CARDS) {
   const [img, m] = await Promise.all([load(`./assets/kaela/moves/${c.id}.png`), fetch(`./assets/kaela/moves/${c.id}.json`).then((r) => r.json())]);
@@ -117,7 +117,7 @@ function update() {
   else {
     const { c } = act, t = gt - act.t0;
     // where her feet must be for the slash to land on the enemy
-    const spot = exBase - kxBase - c.hitX[0];
+    const spot = exBase - kxBase - (c.reach ?? c.hitX[0]);
     const IN = 220;
     if (t < IN) {   // dash in: walk frames at speed, red afterimages
       const k = ease.out(t / IN); kx = spot * k; frame = WALK[(Math.floor(t / 25) + 6) % 24];
@@ -187,7 +187,7 @@ function render() {
 let tick = 0;
 function loop(now) {
   requestAnimationFrame(loop);
-  const real = Math.min(50, now - last); last = now;
+  const real = Math.max(0, Math.min(50, now - last)); last = now;
   if (hitstop > 0) hitstop -= real; else gt += real;
   if (flash > 0) flash -= real;
   if (meFlash > 0) meFlash -= real;
