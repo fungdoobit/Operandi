@@ -35,8 +35,9 @@ export class Pixelizer {
   layout() {
     const w = this.svg.clientWidth, h = this.svg.clientHeight;
     if (!w || !h) return false;
-    // One art pixel is 2 screen pixels when he's big (battle), 1 when he's roaming size.
-    const k = w >= 130 ? 2 : 1;
+    // One art pixel is 2 of his own CSS pixels, roaming and in battle (where the whole stage is
+    // scaled), the same size as GOLEM's and NOVA's (Isaac 2026-10-23: one consistent pixel size).
+    const k = 2;
     const W = Math.round(w * (1 + 2 * this.pad) / k), H = Math.round(h * (1 + 2 * this.pad) / k);
     if (this.canvas.width !== W || this.canvas.height !== H || this.k !== k) {
       this.canvas.width = W; this.canvas.height = H; this.k = k;

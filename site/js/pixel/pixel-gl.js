@@ -105,7 +105,7 @@ void main(){
   float dz = max(abs(at(p+ivec2(1,0)).b - t.b), abs(at(p+ivec2(0,1)).b - t.b));
   int nm = max(matOf(at(p+ivec2(1,0))), matOf(at(p+ivec2(0,1))));
   float idx = floor(clamp(sh*6. + (d-.5)*.9, 0., 5.99));
-  if (uFlat > 0.) idx = sh < .34 ? 1. : sh < .66 ? 2. : sh < .9 ? 3. : 4.;   // flat: shadow, base, light, and a thin rim where it's brightest
+  if (uFlat > 0.) idx = sh < .26 ? 1. : sh < .48 ? 2. : sh < .7 ? 3. : sh < .9 ? 4. : 5.;   // flat: five tones (Isaac 2026-10-23: "a little more higher bit")
   if (dz > .025 && m != 3 && m != 4) idx = uFlat > 0. ? 0. : max(idx-2., 0.);   // flat: inner lines in the darkest tone
   vec3 c = uPal[(m-1)*6 + int(idx)];
   if (uFlash > 0. && (d < uFlash)) c = vec3(1.);

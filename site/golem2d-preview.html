@@ -31,7 +31,7 @@ import { PixelGolem } from "./js/pixel/golem-px.js";
 const wrap = document.getElementById("wrap"), host = document.getElementById("golem");
 const eng = createEngine(wrap, await loadArt("./"), { ha: 180 });
 eng.hideFoe();
-const LOOKS = { "Now (hi-bit)": { chunk: 1, flat: false }, "2D, Kaela's pixel size": { chunk: 440 / 180, flat: true }, "2D, a bit finer": { chunk: 2, flat: true } };
+const LOOKS = { "Hi-bit (before)": { chunk: 1, flat: false }, "2D (in the game)": { chunk: 2, flat: true }, "2D, chunkier": { chunk: 440 / 180, flat: true } };
 let golem = null;
 function show(name) {
   host.replaceChildren();
@@ -42,7 +42,7 @@ function show(name) {
   document.querySelectorAll("#looks button").forEach((b) => b.classList.toggle("on", b.textContent === name));
 }
 for (const name of Object.keys(LOOKS)) { const b = document.createElement("button"); b.textContent = name; b.onclick = () => show(name); document.getElementById("looks").append(b); }
-show("2D, Kaela's pixel size");
+show("2D (in the game)");
 window.__look = (i) => show(Object.keys(LOOKS)[+i]);
 </script>
 </body>

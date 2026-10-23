@@ -128,7 +128,7 @@ export class BattleStage {
     this.fx = new BattleFX(this.stage, world, { floor: 0.8 });
     // 512 art px wide (default 416): room for his arms when they swing out, so they don't run off his canvas
     if (this.isBoss) {
-      this.golem = new PixelGolem(foeEl, { px: 1, w: GOLEM_W, chunk: 440 / 180, flat: true });   // the 2D GOLEM (Addendum M): Kaela-sized pixels, flat tones
+      this.golem = new PixelGolem(foeEl, { px: 1, w: GOLEM_W, chunk: 2, flat: true });   // the 2D GOLEM (Addendum M): 2-px art pixels like everyone else, flat tones
       this.boss = new PixelBoss({ golem: this.golem, fx: this.fx, figure: foeEl });
     } else {
       // a small enemy: the same interface as GOLEM (enemy-px.js), so every ability works on it

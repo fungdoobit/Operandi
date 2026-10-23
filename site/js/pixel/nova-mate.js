@@ -31,7 +31,8 @@ export class NovaMate {
     const k = size / 96;
     this.figure.style.width = size + "px"; this.figure.style.height = 115 * k + "px";
     // The canvas is bigger than the figure so the planets and the portal have room.
-    const W = 160, H = 170;
+    // drawn at half size and shown 2x: art pixels 2 CSS px, like DOT, PYRO and GOLEM (Isaac 2026-10-23)
+    const W = 80, H = 85;
     this.nova = new PixelNova(this.figure, { kind: "mooncloak", w: W, h: H, px: k, view: 4.79, half: true, shadow: false });   // view 4.79 (was 5.03): 5% bigger, Isaac 2026-10-21
     this.resize(size);
     this.tweens = [];
@@ -46,7 +47,7 @@ export class NovaMate {
 
   // Show her at a new size (the battle stage scales with its height).
   resize(size) {
-    const k = size / 96, W = this.nova.canvas.width, H = this.nova.canvas.height;
+    const k = size / 96, W = this.nova.canvas.width * 2, H = this.nova.canvas.height * 2;   // (the canvas is half size)
     this.figure.style.width = size + "px"; this.figure.style.height = 115 * k + "px";
     Object.assign(this.nova.canvas.style, { width: W * k + "px", height: H * k + "px", left: (size - W * k) / 2 + "px", top: (115 * k - H * k) / 2 + "px" });
   }

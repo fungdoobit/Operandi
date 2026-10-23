@@ -329,6 +329,15 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - Claw tip straight, no hook.
     - Shop has a **Characters** section above "Your teammate": Kaela with `portrait-red.png`.
     - Portrait redone by `tools/recolour-portrait.py`: the horn tip is erased; the horn inside the hair is filled with the hair's median colour (an edge fill had carried the horn's shadow); hair = clearly-blue-over-red pixels in big areas, plus thin strands above her eye.
+  - 2026-10-23, consistency round (Isaac: GOLEM "a little more higher bit", DOT, PYRO and NOVA "a little more lower bit"): **every character has 2-px art pixels.**
+    - GOLEM: chunk 2 with 5 flat tones.
+    - DOT and PYRO: the Pixelizer always uses k = 2.
+    - NOVA: her canvas is 80×85, shown at 2× (`resize` doubles it).
+  - Kaela's portrait, round 3 (`tools/recolour-portrait.py`):
+    - A hand-set outline for the top of her head (`TOP`); everything above it goes.
+    - The horn and its dark leftovers inside the hair are cloned over from lit hair further along the strands.
+    - The horn's cast shadow is lifted to typical hair brightness.
+    - Hair brightness is mapped onto a 7-step red ramp, deep maroon to soft coral, so the shine survives.
   - Next: the fighter-picker boss fight with Kaela in it; Kaela's 7 abilities redesigned (review after 3); phases, telegraphs, skill-covering challenges.
   - Original summary:
   - Scrap "every level is a fight". Back to the roaming companion in lessons, with companion collecting.
