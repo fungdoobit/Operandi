@@ -40,11 +40,26 @@ def native_video(d):
     ys = np.minimum(479, np.floor((np.arange(H) + 0.5) * 480 / H).astype(int))
     fs = sorted(glob.glob(f"{d}/*.png"))
     return [np.asarray(Image.open(f).convert("RGB")).astype(int)[ys][:, xs] for f in fs], [33] * len(fs)
+def native_vid(d, s, fps):
+    # frames of a clip that is an exact s-times enlargement (lossy): find the grid phase on the
+    # first frame (the offset where s x s blocks are flattest), then read each block's centre
+    fs = sorted(glob.glob(f"{d}/*.png"))
+    a = np.asarray(Image.open(fs[0]).convert("RGB")).astype(int); best = None
+    for oy in range(s):
+        for ox in range(s):
+            b = a[oy:oy + (a.shape[0] - oy) // s * s, ox:ox + (a.shape[1] - ox) // s * s]
+            bl = b.reshape(b.shape[0] // s, s, b.shape[1] // s, s, 3)
+            err = np.abs(bl - bl.mean(axis=(1, 3), keepdims=True)).mean()
+            if best is None or err < best[0]: best = (err, ox, oy)
+    _, ox, oy = best
+    return [np.asarray(Image.open(f).convert("RGB")).astype(int)[oy + s // 2::s, ox + s // 2::s] for f in fs], [round(1000 / fps)] * len(fs)
 kind = src.split(":")[0]
 if kind == "gif": frames, ms = native_gif(src.split(":")[1], int(src.split(":")[2]))
+elif kind == "vid": frames, ms = native_vid(src.split(":")[1], int(src.split(":")[2]), float(src.split(":")[3]))
 else: frames, ms = native_video(src.split(":", 1)[1])
+scene0 = frames[0]; sceneN = frames[-1]
 frames, ms = frames[f0:f1 + 1], ms[f0:f1 + 1]
-lossy = kind == "video"
+lossy = kind in ("video", "vid")
 
 # ---- background, dark screen, floor ----
 BG = tuple(int(v) for v in frames[0][3, 3]); DARK = (41, 36, 31)
@@ -104,11 +119,60 @@ def is_fx(fr):
     px = fr[..., :3].astype(int)
     return (fr[..., 3] > 0) & ((((px[..., None, :] - REDS[None, None]) ** 2).sum(-1).min(-1)) < 30)
 
+# vid: the scenery's colours are learned from the clip's first frame (every colour there that
+# isn't hers); a pixel stays if it is nearer her palette than the scenery (and close to hers),
+# or far from both (an effect: slash, spark)
+if kind == "vid":
+    HERA = np.array(sorted(HER)).astype(int)
+    def nearest(cols, pal):
+        d = np.full(len(cols), 1e9)
+        for i in range(0, len(pal), 256):
+            p = pal[i:i + 256]; d = np.minimum(d, ((cols[:, None, :] - p[None]) ** 2).sum(2).min(1))
+        return np.sqrt(d)
+    sc = np.unique(np.vstack([scene0.reshape(-1, 3), sceneN.reshape(-1, 3)]), axis=0)
+    SCENE = sc[nearest(sc, HERA) > 26]
+    for dc in ((41, 36, 31), (27, 26, 29), (30, 28, 30)): SCENE = np.vstack([SCENE, np.array(dc)])   # the dimmed screen
+    # --dummy x0,x1: the training dummy stands between these columns of the first frame; it is
+    # tracked as the camera pans (best sideways match of its shape) and erased wherever a pixel
+    # still looks like the dummy, so only she (and effects) survive in front of it
+    DUM = None
+    if opt("--dummy"):
+        dx0, dx1 = (int(v) for v in opt("--dummy").split(","))
+        bg0 = np.array(scene0[3, 3])
+        rows0 = (np.abs(scene0 - bg0).sum(2) > 40).mean(1)
+        fl = next(y for y in range(len(rows0) // 2, len(rows0)) if rows0[y] > 0.5)
+        m = np.zeros(scene0.shape[:2], bool); m[:fl + 6, dx0:dx1] = np.abs(scene0[:fl + 6, dx0:dx1] - bg0).sum(2) > 40
+        ys, xs = np.nonzero(m); DUM = (ys, xs, scene0[ys, xs])
+    def keep_vid(n):
+        cols, inv = np.unique(n.reshape(-1, 3), axis=0, return_inverse=True)
+        dh, ds = nearest(cols, HERA), nearest(cols, SCENE)
+        keep = ((dh <= ds) & (dh < 45)) | ((dh > 45) & (ds > 30))
+        keep = keep[inv.reshape(-1)].reshape(n.shape[:2])
+        if DUM is not None:
+            ys, xs, cv = DUM; W = n.shape[1]; best = None
+            for dx in range(-160, 161):
+                x2 = xs + dx; ok = (x2 >= 0) & (x2 < W)
+                if ok.sum() < len(xs) * 0.6: continue
+                err = np.abs(n[ys[ok], x2[ok]] - cv[ok]).sum(1); score = (err < 40).mean()
+                if best is None or score > best[0]: best = (score, dx)
+            if best and best[0] > 0.3:
+                dx = best[1]; x2 = xs + dx; ok = (x2 >= 0) & (x2 < W)
+                same = np.abs(n[ys[ok], x2[ok]] - cv[ok]).sum(1) < 60
+                keep[ys[ok][same], x2[ok][same]] = False
+        # drop lone specks (compression leftovers): kept pixels with fewer than 2 kept neighbours
+        k = keep.astype(int); nb = np.zeros_like(k)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dy or dx: nb += np.roll(np.roll(k, dy, 0), dx, 1)
+        return keep & (nb >= 2)
+
 # ---- key, recolour, merge repeats ----
 cut, darks = [], []
 for n in frames:
-    dark = bool(np.abs(n[3, 3] - np.array(DARK)).sum() < 20)
-    if lossy:   # video: key the flat background and the dark screen, cut at the floor line
+    dark = bool(np.abs(n[3, 3] - np.array(DARK)).sum() < 20) or (kind == "vid" and n[3, 3].sum() < 200)
+    if kind == "vid":   # scenery (background, floor, dummy) keyed by colour; see SCENE below
+        alpha = keep_vid(n)
+    elif lossy:   # video: key the flat background and the dark screen, cut at the floor line
         alpha = (np.abs(n - np.array(BG)).sum(2) > 36) & (np.abs(n - np.array(DARK)).sum(2) > 30)
         alpha[FLOOR:] = False
     else:       # gif: exact colours, so drop the background, floor and shadow colours wherever they are
@@ -138,7 +202,7 @@ for fr, s in zip(keep, shift):
 u = np.zeros(placed[0].shape[:2], bool)
 for fr in placed: u |= fr[..., 3] > 0
 yy, xx = np.nonzero(u)
-x0, x1, y0, y1 = max(0, xx.min() - 2), xx.max() + 3, max(0, yy.min() - 2), (FLOOR if lossy else yy.max() + 1)
+x0, x1, y0, y1 = max(0, xx.min() - 2), xx.max() + 3, max(0, yy.min() - 2), (FLOOR if kind == "video" else yy.max() + 1)
 fw, fh = int(x1 - x0), int(y1 - y0)
 win = [f[y0:y1, x0:x1] for f in placed]
 sheet = Image.new("RGBA", (fw * len(win), fh))
