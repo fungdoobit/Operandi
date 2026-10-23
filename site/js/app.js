@@ -6,8 +6,10 @@ import { Dot, DOT_CSS } from "./dot.js";
 import { Runner } from "./runner.js";
 import { Store } from "./store.js";
 import { SHOP, LEVELS, DIFFS, EARN, BOSS, MANA, TIERS, LEVEL, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
-import { ENEMIES, enemyFor, MODULE_BIOME } from "./enemies.js";
+import { MODULE_BIOME } from "./enemies.js";
 import { BattleStage, pixelateOut } from "./boss-fight.js";
+import { LevelStage2D } from "./stage2d/stage.js";
+import { FOES2D, foeFor } from "./stage2d/foes.js";
 import { sound } from "./sound.js";
 import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard, countersFirewall } from "./boss-rules.js";
 import { Pet } from "./pet.js";
@@ -771,8 +773,7 @@ function openFaq(id) {
 
 /* ---------- Level fights (PRD Addendum K) ---------- */
 
-// Every lesson and challenge is a fight against small enemies from the
-// module's biome, with the same cards, mana and no-tips rule as the boss.
+// Every lesson and challenge is a fight: Kaela against the 2D enemies (stage2d/, PRD Addendum L), with the same cards, mana and no-tips rule as the boss.
 // A lesson is one fight across all its sections (your HP carries over); a
 // challenge is one fight. A pass casts a card; an enemy that survives strikes
 // back, one that dies makes way for the next (a wave). The last pass of a
@@ -789,8 +790,8 @@ function testFill() { return S().testMode ? `<div class="note"><b>Test mode</b>F
 function fillAnswer() { if (!task) return; setCode(task.solution); lsSet("operandi:draft:" + task.key, task.solution); }
 
 function newLevelFight(key) {
-  const module = levelModule(), seed = Math.floor(Math.random() * 1e6), enemy = enemyFor(module, seed, 0);
-  S().fight = { key, module, seed, wave: 0, enemy, foe: ENEMIES[enemy].hp, me: LEVEL.hp, beaten: 0, hand: null };
+  const module = levelModule(), seed = Math.floor(Math.random() * 1e6), enemy = foeFor(module, seed, 0);
+  S().fight = { key, module, seed, wave: 0, enemy, foe: FOES2D[enemy].hp, me: LEVEL.hp, beaten: 0, hand: null };
   store.save();
   return S().fight;
 }
@@ -799,12 +800,13 @@ function newLevelFight(key) {
 function enterLevelFight() {
   const key = fightKey();
   let f = S().fight, created = false;
-  if (!f || f.key !== key || !ENEMIES[f.enemy]) { f = newLevelFight(key); created = true; }
+  if (!f || f.key !== key || !FOES2D[f.enemy]) { f = newLevelFight(key); created = true; }
   if (!battle || battleKey !== key) {
     leaveBoss({ keepMusic: true });
     $("arena").hidden = false;
     document.querySelector(".body").classList.add("boss-mode");
-    battle = new BattleStage($("arena"), $("bossSay"), { skin: S().equipped.teammate || "dot", accessories: wearing(), foe: f.enemy, max: { me: LEVEL.hp, foe: ENEMIES[f.enemy].hp } });
+    // Kaela against the 2D enemies in the Green Forest (PRD Addendum L, stage2d/)
+    battle = new LevelStage2D($("arena"), $("bossSay"), { foe: f.enemy, max: { me: LEVEL.hp, foe: FOES2D[f.enemy].hp } });
     battleKey = key;
     dot.root.style.visibility = "hidden";
     dot.sayOverride = (text, opts) => battle?.say(text, opts);
@@ -823,7 +825,7 @@ function enterLevelFight() {
 async function levelTurn(passed, mark, r, extra) {
   const f = S().fight;
   if (!battle || !f || f.key !== fightKey()) return;
-  const E = ENEMIES[f.enemy];
+  const E = FOES2D[f.enemy];
   if (!passed) {   // a miss: the enemy attacks
     f.me = Math.max(0, f.me - E.hit);
     store.save();
@@ -841,7 +843,7 @@ async function levelTurn(passed, mark, r, extra) {
 
 // The card hand, the cast, and what follows: a strike back, a new wave, or the win.
 async function castLevel() {
-  const f = S().fight, kit = S().kit, h = f.hand, E = ENEMIES[f.enemy];
+  const f = S().fight, kit = S().kit, h = f.hand, E = FOES2D[f.enemy];
   battle.mana(kit.mana);
   const v = V().passed(h.mark);
   battle.say(`${h.flawless ? "Flawless: whatever you cast now is a critical hit!" : v.text} Pick an ability card.`, { title: `${h.mark}/10 · +${h.gain} mana`, mood: "fierce" });
@@ -857,11 +859,11 @@ async function castLevel() {
   f.me = Math.max(0, f.me - back);
   let bounty = 0;
   if (killed) { f.beaten += 1; if (!h.already) { bounty = LEVEL.bounty; store.earn(bounty); } }
-  if (killed && !h.last) { f.wave += 1; f.enemy = enemyFor(f.module, f.seed, f.wave); f.foe = ENEMIES[f.enemy].hp; }
+  if (killed && !h.last) { f.wave += 1; f.enemy = foeFor(f.module, f.seed, f.wave); f.foe = FOES2D[f.enemy].hp; }
   if (h.last) S().fight = null;   // the level is won
   store.save();
   battle.mana(kit.mana);
-  await battle.attack(strike, () => battle.hp(f.me + back, foeLeft), card, { short });
+  await battle.attack(strike, () => battle.hp(f.me + back, foeLeft), card, { short, lethal: killed });
   if (killed && h.last) await battle.victory();
   else if (killed) { await battle.beaten(); await battle.spawn(f.enemy, f.foe); }
   else if (back) await battle.counter(back, () => battle.hp(f.me, f.foe));
@@ -869,7 +871,7 @@ async function castLevel() {
   if (f.me <= 0) return knockedOut();
   // the praise and the rewards, with the way on
   const paid = h.already ? "You'd already finished this one, so no Bits this time." : rec()?.solutionUsed ? "You used the solution, so no Bits for this one." : `${h.rewardLine}${bounty ? ` and +${bounty} for beating ${E.name}` : ""}.`;
-  const what = killed ? (h.last ? `${E.name} is beaten: level cleared!` : `${E.name} is beaten! ${ENEMIES[f.enemy].name === E.name ? `Another ${E.name}` : ENEMIES[f.enemy].name} steps in.`) : `${card.name} hit ${E.name}${back ? `, and it struck back` : ", and it's staggered"}.`;
+  const what = killed ? (h.last ? `${E.name} is beaten: level cleared!` : `${E.name} is beaten! ${FOES2D[f.enemy].name === E.name ? `Another ${E.name}` : FOES2D[f.enemy].name} steps in.`) : `${card.name} hit ${E.name}${back ? `, and it struck back` : ", and it's staggered"}.`;
   const tip = h.tips ? ` ${h.tips === 1 ? "One small style tip" : "A few style tips"} in Feedback.` : "";
   battle.say(`${what} ${paid}${tip}`, { title: h.last ? "Victory" : `${strike.dmg} damage`, mood: killed ? "celebrate" : "happy", actions: [nextAction()] });
   renderTop(); renderRail();
@@ -879,7 +881,7 @@ async function castLevel() {
 async function knockedOut() {
   const f = S().fight;
   await battle.defeat();
-  f.me = LEVEL.hp; f.wave += 1; f.enemy = enemyFor(f.module, f.seed, f.wave); f.foe = ENEMIES[f.enemy].hp;
+  f.me = LEVEL.hp; f.wave += 1; f.enemy = foeFor(f.module, f.seed, f.wave); f.foe = FOES2D[f.enemy].hp;
   store.save();
   battleKey = null;   // a new stage (your teammate gets back up)
   enterLevelFight();

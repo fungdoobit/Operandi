@@ -27,6 +27,14 @@ def redden(a):
     for t, c in RED:
         m = left & (L > t); a[m, :3] = c; left &= ~m
     return a
+# fire: the same idea with an orange-to-yellow ramp (the water geyser becomes a pillar of fire)
+FIRE = [(0.90, (255, 244, 196)), (0.75, (255, 214, 92)), (0.55, (255, 150, 40)), (0.38, (226, 82, 24)), (-1, (140, 36, 18))]
+def ignite(a):
+    a = a.copy(); px = a[..., :3].astype(float) / 255
+    L = 0.3 * px[..., 0] + 0.59 * px[..., 1] + 0.11 * px[..., 2]; left = a[..., 3] > 0
+    for t, c in FIRE:
+        m = left & (L > t); a[m, :3] = c; left &= ~m
+    return a
 def strip(fs):
     h, w = fs[0].shape[:2]; out = np.zeros((h, w * len(fs), 4), np.uint8)
     for i, f in enumerate(fs): out[:, i * w:(i + 1) * w] = f
@@ -44,6 +52,7 @@ FX = {   # id: (frames, red?, ms per frame)
     "burst-raw": (frames(find(mp, "Radial Explosion/sprites")), False, 45),
     "wisp": (frames(find(mp, "wisp/sprites")), False, 40),            # magenta flare (the warlock's spell)
     "slash": (frames(find("slash", "slash")), True, 35),              # a clean crescent slash
+    "pillar": ([ignite(f)[::-1] for f in frames(find(mp, "Water/sprites"))[13:]], False, 45),   # the splash frames of "Water", upside down: fire erupting from the ground (flame enemies)
 }
 os.makedirs(f"{dst}/fx", exist_ok=True)
 for k, (fs, red, ms) in FX.items():
@@ -57,7 +66,9 @@ for k in ("back", "middle", "front"): shutil.copy(f"{L}/{k}1.png", f"{dst}/bg/fo
 
 # ---- enemies: rows of frames, all padded to one frame size ----
 # Isaac 2026-10-23: only enemies about Kaela's height (55 px) or bigger; the small ones (ghost,
-# zombie, firebat, skull, warlock, biceraptor, eye, shell) are left out.
+# zombie, firebat, skull, warlock, biceraptor, eye, shell) are left out, and so are the treant and
+# fireshaunt (idle frames only, nothing to build real attacks from). red-demon and vampire are the
+# planned bosses of modules 2 and 3.
 def unshadow(f):   # Monster Pack sprites carry a drawn pure-black ellipse under their feet (the page draws its own):
     f = f.copy(); H, W = f.shape[:2]   # remove a flat, wide pure-black blob near the bottom, nothing else
     blk = (f[..., 3] > 0) & (f[..., :3].max(-1) == 0); seen = np.zeros_like(blk)
@@ -81,9 +92,7 @@ EN = {   # id: ({row: frames}, faces right in the art?, flies?, ms). An "attack"
     "mage": ({"idle": frames(find(g5, "Mage"))}, False, False, 120),
     "mage-b": ({"idle": frames(find(g5, "Mage-B"))}, False, False, 120),
     "red-demon": ({"idle": [unshadow(f) for f in frames(find(mp_, "Demon"))]}, False, False, 140),
-    "fireshaunt": ({"idle": [unshadow(f) for f in frames(find(mp_, "Fireshaunt"))]}, True, False, 120),
     "jumper": ({"idle": [unshadow(f) for f in pick(jd, [0, 1])], "attack": [unshadow(f) for f in jd]}, False, False, 160),   # crouch, leap, land
-    "treant": ({"idle": [unshadow(f) for f in frames(find(mp_, "Treant"))]}, False, False, 150),
     "vampire": ({"idle": [unshadow(f) for f in frames(find(mp_, "Vampire"))]}, False, False, 140),
     "witch": ({"idle": [unshadow(f) for f in frames(find(mp_, "Witch"))]}, True, True, 120),
     "fire-skull": ({"idle": frames(find(g4, "Flames/flames"))}, False, True, 90),

@@ -288,6 +288,29 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - Video `previews/kaela-forest-v2.mp4`.
   - **Deploy:** Vercel is linked to the GitHub repo, so every push to main redeploys. The test page is `/kaela-moves`.
   - Isaac 2026-10-23: **no black letterbox bars** (removed from kaela-moves).
+  - **Kaela is in the course (Isaac 2026-10-23 "go": "I still can't use Kaela, and the enemies are still the old poorly drawn ones").** Every lesson and challenge fight is now Kaela against the 2D enemies in the Green Forest. The GOLEM boss fight is unchanged (DOT, NOVA or PYRO on BattleStage).
+    - `js/stage2d/`:
+      - `art.js`: loads and cuts all sheets once; `cut`, `ghost` (cached), `dissolved`
+      - `engine.js` `createEngine(host, art, {ha: 180})`: the test page's engine, generalised. Closer camera: art 180 tall (was 220), fight zone ≤ 2.9× the height. Promise-returning `cast`, `foeAttack`, `setFoe`, `foeEnter`, `foeDie`, `meKO`, `meWin`, `where`, `cardArt`.
+      - `kaela-kit.js` `KAELA_KIT`: the 7 cards with tiers basic, light, medium, medium, heavy, ultimate, ultimate2 (economy.js TIERS)
+      - `foes.js` `FOES2D`: name, hp, hit, moves, proj; `foeFor`
+      - `stage.js` `LevelStage2D`: the same methods app.js calls on BattleStage
+    - app.js "Level fights" uses LevelStage2D, FOES2D and foeFor. A lethal pass plays the finish.
+    - cards.js: a card can carry its own picture (`card.img`, Kaela's pose); new `blood` theme.
+    - **Enemy abilities** (no more plain lunge-and-retreat):
+      - demon: bite, spit (open-mouth row + fireball)
+      - jumper: leap (crouch-leap-land frames + dust), quake (jump + a ground shock wave)
+      - gargoyle: swoop (dive with afterimages), gust (wings spread, wind shoves her back)
+      - wolf: pounce (its frames), howl (ghost waves)
+      - witch: shot, rain (4 fireballs from the sky), volley (3 in a row)
+      - mage: shot, bolt (screen dims, lightning from the sky, impact frame), circle (summoning circle under her, then an eruption)
+      - mage-b: shot, circle, volley
+      - flame: pillars (three fire eruptions toward her: `fx/pillar`, the Water pack's splash upside down, fire ramp), rain
+      - fire-skull: pillars, charge (fire afterimages)
+    - Dropped: treant, fireshaunt (idle only).
+    - Bosses planned: red-demon (Module 2), vampire (Module 3). Not built yet.
+    - Test page `kaela-moves.html` now runs the same engine, with buttons for cards, enemies and each enemy's abilities. Video `previews/enemy-abilities-v1.mp4`.
+    - The Undead JRPG pack came as .rar; nothing here can open it. Asked Isaac for a .zip.
   - Enemy redraw: still to do (Isaac: "find already done enemies and tweak"); asset sites (itch.io, opengameart) are blocked by this environment's network policy, so he would have to upload a pack or allow the domains.
 - Planetfall round 11 + Addendum K extras (2026-10-22, pushed): NOVA powers up and drives a beam into the sky to open Jupiter's portal, then bears down on it; GOLEM only braces until Jupiter appears, holds it (sinking unchanged), strains, one thruster push snaps her beam; the portal swallows Jupiter (it shrinks into the vortex). Planets crack (glowing seams, frozen beat) then shatter into Voronoi rock chunks with molten edges (`voronoi`, `breakApart`). Rotcap has stumpy legs and round feet. Each biome has its own music (`THEMES` in sound.js, `playTheme`; the boss keeps `SONG`). All 18 enemies verified and in the course (`READY`).
 - Planetfall round 10 (2026-10-22): planets burst through their portals (clipped at the portal surface), with a fire bow shock, a plasma tail and slow motion just before impact; on impact they break into burning wedges (`breakApart`), and GOLEM is knocked back. Uranus is drawn as `uranusRingBack` + `uranusBody` + `uranusRingFront` (planets-px.js `uPart`/`uTumble`), so its ring tumbles in flight and snaps into pieces. Jupiter is now drawn **behind** GOLEM (`sprBack`) and rests on his raised hands. He pushes it back in three heaves (gather, then thrusters blast fire and dust out of the floor, a surge up, and the weight wins some back), then a slow-motion final shove. The sinking is unchanged (Isaac liked it). About 20 s.

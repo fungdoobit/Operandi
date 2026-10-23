@@ -13,7 +13,7 @@ import { toonStill } from "./pixel/toon-fx.js";
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // Card colours per teammate theme: [card body, edge, glow].
-const LOOK = { void: ["#170a2c", "#a066f0", "#7838d0", "#5a2fa0"], fire: ["#2a0f06", "#ff8a2a", "#d0401a", "#6a2410"], water: ["#071c34", "#5fd0ff", "#2f8fe0", "#1d4f86"] };
+const LOOK = { blood: ["#2a0608", "#ff5a5a", "#c2142e", "#5a0d14"], void: ["#170a2c", "#a066f0", "#7838d0", "#5a2fa0"], fire: ["#2a0f06", "#ff8a2a", "#d0401a", "#6a2410"], water: ["#071c34", "#5fd0ff", "#2f8fe0", "#1d4f86"] };
 
 export const CARDS_CSS = `
 .bhand { position: fixed; z-index: 60; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
@@ -66,6 +66,7 @@ export const CARDS_CSS = `
 // Painted art for each card, cached by teammate + ability id.
 const artCache = new Map();
 function artFor(card, theme) {
+  if (card.img) return card.img;   // a picture made by the fighter itself (Kaela: her own pose, stage2d/engine.js)
   const key = theme + ":" + card.id;
   if (!artCache.has(key)) {
     const c = toonStill(80, 60, (pen, w, h) => card.art?.(pen, w, h), { palette: theme === "water" ? "water" : "fire" });
