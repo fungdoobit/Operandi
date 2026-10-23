@@ -52,13 +52,16 @@ def native_vid(d, s, fps):
             err = np.abs(bl - bl.mean(axis=(1, 3), keepdims=True)).mean()
             if best is None or err < best[0]: best = (err, ox, oy)
     _, ox, oy = best
+    VIDGRID.update(files=fs, s=s, ox=ox, oy=oy)   # kept so each art pixel can be re-read by a vote of its whole block (block_vote)
     return [np.asarray(Image.open(f).convert("RGB")).astype(int)[oy + s // 2::s, ox + s // 2::s] for f in fs], [round(1000 / fps)] * len(fs)
+VIDGRID = {}
 kind = src.split(":")[0]
 if kind == "gif": frames, ms = native_gif(src.split(":")[1], int(src.split(":")[2]))
 elif kind == "vid": frames, ms = native_vid(src.split(":")[1], int(src.split(":")[2]), float(src.split(":")[3]))
 else: frames, ms = native_video(src.split(":", 1)[1])
 scene0 = frames[0]; sceneN = frames[-1]
 frames, ms = frames[f0:f1 + 1], ms[f0:f1 + 1]
+files = VIDGRID.get("files", [])[f0:f1 + 1]
 lossy = kind in ("video", "vid")
 
 # ---- background, dark screen, floor ----
@@ -105,12 +108,17 @@ def recolour(rgba):
         m = left & (L > t); out[m, 0], out[m, 1], out[m, 2] = col; left &= ~m
     return restyle(out)
 PAL = None
-def snap(rgba):   # video only: snap to her original palette plus effect colours, to strip compression noise
+def palette():
     global PAL
     if PAL is None:
         fxcols = {(255, 255, 255), (232, 232, 232), (200, 200, 204), (160, 160, 168), (110, 110, 120),
                   (120, 230, 190), (70, 200, 160), (40, 150, 130), (170, 240, 220), (150, 150, 255), (110, 110, 230), (80, 70, 200), (200, 200, 255)}
-        PAL = np.array(sorted(HER | fxcols))
+        # (47,24,80), the sword's dark shade, is all but the coat's dark fold in video colours and
+        # the restyle sends it to steel, so on video it read as grey blotches on her coat: left out
+        PAL = np.array(sorted((HER - {(47, 24, 80)}) | fxcols))
+    return PAL
+def snap(rgba):   # video only: snap to her original palette plus effect colours, to strip compression noise
+    PAL = palette()
     on = rgba[..., 3] > 0; px = rgba[on][:, :3].astype(int)
     d = ((px[:, None, :] - PAL[None]) ** 2).sum(2); i = d.argmin(1); ok = d[np.arange(len(px)), i] < 70 ** 2
     px[ok] = PAL[i[ok]]; o = rgba.copy(); o[on, :3] = px
@@ -142,7 +150,8 @@ if kind == "vid":
         rows0 = (np.abs(scene0 - bg0).sum(2) > 40).mean(1)
         fl = next(y for y in range(len(rows0) // 2, len(rows0)) if rows0[y] > 0.5)
         m = np.zeros(scene0.shape[:2], bool); m[:fl + 6, dx0:dx1] = np.abs(scene0[:fl + 6, dx0:dx1] - bg0).sum(2) > 40
-        ys, xs = np.nonzero(m); DUM = (ys, xs, scene0[ys, xs])
+        m2 = m.copy(); m2[1:] |= m[:-1]; m2[:-1] |= m[1:]; m2[:, 1:] |= m[:, :-1]; m2[:, :-1] |= m[:, 1:]   # one pixel wider: its edges blur
+        ys, xs = np.nonzero(m2); DUM = (ys, xs, scene0[ys, xs])
     def keep_vid(n):
         cols, inv = np.unique(n.reshape(-1, 3), axis=0, return_inverse=True)
         dh, ds = nearest(cols, HERA), nearest(cols, SCENE)
@@ -166,19 +175,86 @@ if kind == "vid":
                 if dy or dx: nb += np.roll(np.roll(k, dy, 0), dx, 1)
         return keep & (nb >= 2)
 
+# ---- clean-up for lossy sources (Isaac 2026-10-23: "very artifact-y") ----
+# block_vote (vid): an art pixel is an s x s block on screen; read only its centre and one
+# compression error decides its colour. Instead snap all s*s screen pixels to her palette and
+# take the colour most of them agree on (the centre's own if nothing gets a majority).
+def ycc(c):
+    c = np.asarray(c, float); r, g, b = c[..., 0], c[..., 1], c[..., 2]
+    y = 0.299 * r + 0.587 * g + 0.114 * b
+    return np.stack([y, 0.564 * (b - y), 0.713 * (r - y)], -1)
+def block_vote(n, keep, path):
+    s, ox, oy = VIDGRID["s"], VIDGRID["ox"], VIDGRID["oy"]
+    a = np.asarray(Image.open(path).convert("RGB")).astype(int)
+    h, w = n.shape[:2]
+    b = a[oy:oy + h * s, ox:ox + w * s][: h * s, : w * s].reshape(h, s, w, s, 3).transpose(0, 2, 1, 3, 4).reshape(h, w, s * s, 3)
+    ys, xs = np.nonzero(keep); sub = b[ys, xs]                       # (k, s*s, 3)
+    # matched mostly by brightness: video keeps brightness per pixel but colour only per 2x2
+    # pixels, so colour bleeds across edges while brightness stays sharp
+    pal = palette(); P = ycc(pal)
+    flat = ycc(sub.reshape(-1, 3)); idx = np.empty(len(flat), int); dist = np.empty(len(flat))
+    for i in range(0, len(flat), 20000):
+        dd = flat[i:i + 20000, None, :] - P[None]
+        d = 4 * dd[..., 0] ** 2 + dd[..., 1] ** 2 + dd[..., 2] ** 2; idx[i:i + 20000] = d.argmin(1); dist[i:i + 20000] = d.min(1)
+    idx[dist > 4 * 40 ** 2] = -1; idx = idx.reshape(len(ys), s * s)
+    out = n.copy()
+    for k in range(len(ys)):
+        v = idx[k][idx[k] >= 0]
+        if len(v) == 0: continue
+        c = np.bincount(v); best = c.argmax()
+        if c[best] * 2 >= s * s * 0.6: out[ys[k], xs[k]] = pal[best]   # a clear majority of the block
+    return out
+# despeckle: on her body (not effects), a pixel that at most one of its 8 neighbours agrees with,
+# where four or more share another colour, is noise: it takes that colour (two passes). Then blobs of 12 pixels or fewer that
+# aren't effect colours (floor and dummy crumbs) are dropped.
+def despeckle(fr):
+    on = fr[..., 3] > 0; code = fr[..., 0].astype(np.int64) * 65536 + fr[..., 1].astype(np.int64) * 256 + fr[..., 2]
+    code = np.where(on, code, -1); fx = is_fx(fr)
+    H, W = code.shape; P = np.pad(code, 1, constant_values=-1)
+    nb = np.stack([P[1 + dy:H + 1 + dy, 1 + dx:W + 1 + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx], -1)
+    out = fr.copy()
+    for _ in range(2):   # twice: a pixel at most one neighbour agrees with, where 4+ share another colour
+        same = (nb == code[..., None]).sum(-1)
+        cand = on & ~fx & (same <= 1)
+        changed = False
+        for y, x in zip(*np.nonzero(cand)):
+            v = nb[y, x][nb[y, x] >= 0]
+            if len(v) < 4: continue
+            u, c = np.unique(v, return_counts=True)
+            if c.max() < 4: continue
+            m = u[c.argmax()]; out[y, x, :3] = (m >> 16, (m >> 8) & 255, m & 255); code[y, x] = m; changed = True
+        if not changed: break
+        P = np.pad(code, 1, constant_values=-1)
+        nb = np.stack([P[1 + dy:H + 1 + dy, 1 + dx:W + 1 + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx], -1)
+    on = out[..., 3] > 0; seen = np.zeros_like(on)
+    for y0, x0 in zip(*np.nonzero(on)):
+        if seen[y0, x0]: continue
+        comp, st = [], [(y0, x0)]; seen[y0, x0] = True
+        while st:
+            y, x = st.pop(); comp.append((y, x))
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    yy, xx = y + dy, x + dx
+                    if 0 <= yy < H and 0 <= xx < W and on[yy, xx] and not seen[yy, xx]: seen[yy, xx] = True; st.append((yy, xx))
+        if len(comp) <= 12 and not any(fx[p] for p in comp):
+            for p in comp: out[p][3] = 0
+    return out
+
 # ---- key, recolour, merge repeats ----
 cut, darks = [], []
-for n in frames:
+for fi, n in enumerate(frames):
     dark = bool(np.abs(n[3, 3] - np.array(DARK)).sum() < 20) or (kind == "vid" and n[3, 3].sum() < 200)
     if kind == "vid":   # scenery (background, floor, dummy) keyed by colour; see SCENE below
         alpha = keep_vid(n)
+        n = block_vote(n, alpha, files[fi])
     elif lossy:   # video: key the flat background and the dark screen, cut at the floor line
         alpha = (np.abs(n - np.array(BG)).sum(2) > 36) & (np.abs(n - np.array(DARK)).sum(2) > 30)
         alpha[FLOOR:] = False
     else:       # gif: exact colours, so drop the background, floor and shadow colours wherever they are
         alpha = ~np.isin(n[..., 0] * 65536 + n[..., 1] * 256 + n[..., 2], KEY)
     rgba = np.zeros(n.shape[:2] + (4,), np.uint8); rgba[..., :3] = n; rgba[..., 3] = alpha * 255
-    cut.append(recolour(rgba)); darks.append(dark)
+    fr = recolour(rgba)
+    cut.append(despeckle(fr) if lossy else fr); darks.append(dark)
 keep, dur, dk = [], [], []
 for fr, d, m in zip(cut, darks, ms):
     if keep and np.abs(fr.astype(int) - keep[-1].astype(int)).mean() < 0.6: dur[-1] += m; continue
