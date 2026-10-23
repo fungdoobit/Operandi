@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PYRO E</title>
+<style>
+:root { color-scheme: dark; }
+body { margin: 0; background: #4c4c4c; color: #f2f2f2; font-family: system-ui, sans-serif; }
+main { max-width: 1300px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 0 0 4px; } p { color: #d8d8d8; margin: 0 0 14px; font-size: 14px; }
+.row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+.card { background: #3a3a3a; border-radius: 12px; padding: 12px 18px; text-align: center; }
+.card.light { background: #f0f1f5; color: #222; }
+.card b { display: block; margin-top: 8px; font-size: 12px; }
+canvas { image-rendering: pixelated; display: block; margin: 0 auto; }
+.bar { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
+button { font: 600 14px system-ui; border: 1px solid #666; background: #2c2c2c; color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+button.on { background: #7a3a14; border-color: #ff8a3c; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PYRO: flame E, flame F when he's fired up</h1>
+  <p>Rounded white eyes like NOVA's, no outline. The eyes stay put with a gentle sway instead of jumping with the flicker. Angry or fierce switches to the bigger, darker flame F.</p>
+  <div class="bar" id="moods"></div>
+  <div class="row" id="row"></div>
+</main>
+<script type="module">
+const load = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
+const W = 32, H = 48;   // one canvas for both flames, bottoms lined up
+
+// A flame sheet (8 frames) and where its hot core sits on average (the face goes there).
+async function flame(src) {
+  const img = await load(src), n = 8, fw = img.width / n, fh = img.height;
+  const c = document.createElement("canvas"); c.width = img.width; c.height = fh;
+  const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+  const D = g.getImageData(0, 0, img.width, fh).data;
+  let sx = 0, sy = 0, k = 0, best = 0, bottom = 0;
+  for (let i = 0; i < D.length; i += 4) if (D[i + 3]) { best = Math.max(best, D[i] + D[i + 1] + D[i + 2]); bottom = Math.max(bottom, Math.floor(i / 4 / img.width)); }
+  for (let i = 0; i < D.length; i += 4) if (D[i + 3] && D[i] + D[i + 1] + D[i + 2] >= best - 60) { sx += (i / 4) % img.width % fw; sy += Math.floor(i / 4 / img.width); k++; }
+  const dy = H - 3 - bottom;   // shift so its bottom sits on the canvas's floor
+  return { img, n, fw, fh, dy, core: [sx / k, sy / k + dy] };
+}
+const E = await flame("assets/pyro/devkidd/red-group4-5.png");
+const F = await flame("assets/pyro/devkidd/red-group7-2.png");
+
+// Eyes like NOVA's: tall, rounded at both ends, plain white (the bottom row a touch warmer).
+// No outline. Each mood reshapes them the way NOVA's do.
+const W_ = "#ffffff", C_ = "#fff1d6";
+const EYES = {
+  idle:   [".WW.", "WWWW", "WWWW", "WWWW", "CCCC", ".CC."],
+  angry:  ["W...", "WW..", "WWW.", "WWWW", "CCCC", ".CC."],   // cut down toward the middle (left eye; the right is mirrored)
+  sad:    ["...W", "..WW", ".WWW", "WWWW", "CCCC", ".CC."],   // cut down toward the outside
+  happy:  [".WW.", "WWWW", "W..W"],                            // an upturned arc
+  sleepy: ["WWWW"],
+  blink:  ["CCCC"],
+};
+function eye(g, rows, cx, cy, mirror) {
+  const w = rows[0].length, x0 = Math.round(cx - w / 2), y0 = Math.round(cy - rows.length / 2);
+  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === ".") return; g.fillStyle = ch === "W" ? W_ : C_; g.fillRect(x0 + (mirror ? w - 1 - x : x), y0 + y, 1, 1); }));
+}
+
+let mood = "idle";
+const cards = [];
+function add(label, css, light = false) {
+  const c = document.createElement("div"); c.className = "card" + (light ? " light" : "");
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H; cv.style.width = W * css + "px";
+  c.append(cv); c.insertAdjacentHTML("beforeend", `<b>${label}</b>`);
+  document.getElementById("row").append(c);
+  cards.push(cv.getContext("2d"));
+}
+add("Roaming size (3 px)", 3);
+add("Same, light page", 3, true);
+add("Bigger (5 px)", 5);
+add("Big, to see the pixels", 9);
+
+function draw(t) {
+  const fl = mood === "angry" ? F : E;
+  const i = Math.floor(t * 10) % fl.n;
+  // a gentle sway: about one pixel, slowly, instead of following every flicker
+  const sx = Math.round(Math.sin(t * 1.3) * 0.6), sy = Math.round(Math.sin(t * 1.9 + 1) * 0.6);
+  const blink = mood === "idle" && (t % 4.2) > 4.06;
+  const rows = blink ? EYES.blink : EYES[mood] || EYES.idle;
+  const [cx, cy] = fl.core;
+  for (const g of cards) {
+    g.clearRect(0, 0, W, H);
+    g.drawImage(fl.img, i * fl.fw, 0, fl.fw, fl.fh, Math.round((W - fl.fw) / 2), fl.dy, fl.fw, fl.fh);
+    eye(g, rows, cx - 3.5 + sx, cy - 1 + sy, false);
+    eye(g, rows, cx + 3.5 + sx, cy - 1 + sy, true);
+  }
+}
+let manual = null;
+const t0 = performance.now();
+(function loop(now) { draw(manual ?? Math.max(0, now - t0) / 1000); requestAnimationFrame(loop); })(t0);
+window.__t = (t) => { manual = t; };
+window.__mood = (m) => { mood = m; document.querySelectorAll("#moods button").forEach((b) => b.classList.toggle("on", b.textContent.startsWith(m))); };
+for (const m of ["idle", "happy", "angry (flame F)", "sad", "sleepy"]) {
+  const b = document.createElement("button"); b.textContent = m; b.onclick = () => window.__mood(m.split(" ")[0]);
+  document.getElementById("moods").append(b);
+}
+window.__mood("idle");
+</script>
+</body>
+</html>
