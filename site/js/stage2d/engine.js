@@ -541,6 +541,7 @@ export function createEngine(host, art, { ha = 180 } = {}) {
       return wait((resolve) => { foeAct = { move, t0: gt, onHit, resolve }; });
     },
     setFoe(id) { foeId = id; FOE = FOES[id]; DATA = FOES2D[id] || { moves: ["lunge"] }; dead = false; dying = null; eAlpha = 1; eDissolve = 0; lift = 0; lastMove = null; },
+    hideFoe() { eAlpha = 0; dead = true; },   // a boss drawn by someone else stands there instead (GOLEM)
     foeEnter() { dead = false; eAlpha = 1; eDissolve = 0; return wait((resolve) => { entering = { t0: gt, resolve }; }); },
     foeDie() {
       if (dead) return Promise.resolve();

@@ -40,7 +40,7 @@ float extrude(float d2, float z, float h){ vec2 w=vec2(d2, abs(z)-h); return min
 const PIXEL = `#version 300 es
 precision highp float;
 uniform sampler2D uTex; uniform vec2 uRes; uniform vec3 uPal[64]; uniform vec3 uGlowCol[6];
-uniform float uFlash, uBlock, uGlitch, uTime, uShadow, uShadowX;
+uniform float uFlash, uBlock, uGlitch, uTime, uShadow, uShadowX, uFlat;   // uFlat: the flat 2D style (Addendum M)
 uniform vec4 uPlume; // thruster exhaust: x, y (0..1 of canvas), half-width, strength
 out vec4 o;
 const float B4[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
@@ -55,7 +55,19 @@ void main(){
   // Glitch: some rows slide sideways for a frame.
   float row = floor(float(p.y)/3.);
   if (uGlitch > 0. && h2(vec2(row, floor(uTime*18.))) < uGlitch*.35) p.x += int((h2(vec2(row*1.7, floor(uTime*18.)))-.5)*16.);
-  vec4 t = at(p); int m = matOf(t); float d = bayer(p);
+  vec4 t = at(p); int m = matOf(t); float d = uFlat > 0. ? .5 : bayer(p);   // flat: no dithering
+  if (uFlat > 0.) {
+    // flat: no lone pixels. A pixel at most one of its 4 neighbours agrees with takes the
+    // texel of a neighbour whose material another neighbour shares (cracks and lights only
+    // show where they're 2+ px wide, like hand-drawn pixel art).
+    vec4 nb[4] = vec4[4](at(p+ivec2(1,0)), at(p-ivec2(1,0)), at(p+ivec2(0,1)), at(p-ivec2(0,1)));
+    int same = 0; for (int k = 0; k < 4; k++) if (matOf(nb[k]) == m) same++;
+    if (same <= 1) for (int k = 0; k < 4; k++) {
+      int mk = matOf(nb[k]), agree = 0;
+      for (int j = 0; j < 4; j++) if (matOf(nb[j]) == mk) agree++;
+      if (mk != m && agree >= 2) { t = nb[k]; m = mk; break; }
+    }
+  }
   if (m == 0) {
     // Outline: a background pixel touching the model.
     bool edge = matOf(at(p+ivec2(1,0)))>0 || matOf(at(p-ivec2(1,0)))>0 || matOf(at(p+ivec2(0,1)))>0 || matOf(at(p-ivec2(0,1)))>0;
@@ -92,7 +104,8 @@ void main(){
   float dz = max(abs(at(p+ivec2(1,0)).b - t.b), abs(at(p+ivec2(0,1)).b - t.b));
   int nm = max(matOf(at(p+ivec2(1,0))), matOf(at(p+ivec2(0,1))));
   float idx = floor(clamp(sh*6. + (d-.5)*.9, 0., 5.99));
-  if (dz > .025 && m != 3 && m != 4) idx = max(idx-2., 0.);
+  if (uFlat > 0.) idx = sh < .34 ? 1. : sh < .66 ? 2. : sh < .9 ? 3. : 4.;   // flat: shadow, base, light, and a thin rim where it's brightest
+  if (dz > .025 && m != 3 && m != 4) idx = uFlat > 0. ? 0. : max(idx-2., 0.);   // flat: inner lines in the darkest tone
   vec3 c = uPal[(m-1)*6 + int(idx)];
   if (uFlash > 0. && (d < uFlash)) c = vec3(1.);
   o = vec4(c, 1.);

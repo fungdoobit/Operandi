@@ -248,12 +248,16 @@ const rot = (a, b, t) => { const c = Math.cos(t), s = Math.sin(t); return [c * a
 
 export class PixelGolem {
   // host: element the canvas goes in. w,h: art pixels. px: screen px per art pixel.
-  constructor(host, { w = 416, h = 384, px = 2, view = 4.8 } = {}) {
+  // chunk: draw on a canvas this many times smaller and stretch it back to the same size, so
+  // his pixels are as big as Kaela's; flat: three flat tones, no dithering (the 2D style, Addendum M).
+  // Everything that finds points on him works in canvas units, so it follows either way.
+  constructor(host, { w = 416, h = 384, px = 2, view = 4.8, chunk = 1, flat = false } = {}) {
     this.canvas = document.createElement("canvas");
     this.canvas.className = "px-golem";
+    this.chunk = chunk; this.flat = flat;
     Object.assign(this.canvas.style, { width: w * px + "px", height: h * px + "px", imageRendering: "pixelated", display: "block" });
     host.appendChild(this.canvas);
-    this.canvas.width = w; this.canvas.height = h;
+    this.canvas.width = Math.round(w / chunk); this.canvas.height = Math.round(h / chunk);
     this.gl = new PixelGL(this.canvas, { model: MODEL, palettes: PALETTES, glow: GLOW, extra: EXTRA });
     this.view = view;
     this.pose = { ...REST };
@@ -264,7 +268,7 @@ export class PixelGolem {
     this.render();
     requestAnimationFrame(this.loop);
   }
-  setPx(px) { this.canvas.style.width = this.canvas.width * px + "px"; this.canvas.style.height = this.canvas.height * px + "px"; }
+  setPx(px) { const k = px * this.chunk; this.canvas.style.width = this.canvas.width * k + "px"; this.canvas.style.height = this.canvas.height * k + "px"; }
   // Tween pose (or fx) values to `to` over ms of battle time.
   to(to, ms, ease = "io", obj = this.pose) {
     return new Promise((done) => {
@@ -310,7 +314,7 @@ export class PixelGolem {
     const flick = 0.85 + 0.15 * Math.sin(s * 40);
     this.gl.draw(this.u, {
       uTime: s, uFlash: this.fxv.flash, uBlock: this.fxv.block, uGlitch: this.fxv.glitch,
-      uShadow: 1 - bob * 1.5, uShadowX: mid[0] / this.canvas.width,
+      uFlat: this.flat ? 1 : 0, uShadow: 1 - bob * 1.5, uShadowX: mid[0] / this.canvas.width,
       uPlume: [noz[0] / this.canvas.width, noz[1] / this.canvas.height, 0.028 + 0.012 * P.thrust, P.thrust * flick],
     });
   }

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GOLEM in 2D</title>
+<style>
+:root { color-scheme: dark; }
+body { margin: 0; background: #0f1116; color: #e9ecf2; font-family: system-ui, sans-serif; }
+main { max-width: 1300px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 0 0 4px; } p { color: #9aa3b5; margin: 0 0 12px; font-size: 14px; }
+#wrap { position: relative; height: 440px; border-radius: 12px; overflow: hidden; background: #06070c; }
+#golem { position: absolute; z-index: 2; }
+.bar { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+button { font: 600 14px system-ui; border: 1px solid #3a4150; background: #1a1f29; color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+button.on { background: #7a1424; border-color: #c2142e; }
+</style>
+</head>
+<body>
+<main>
+  <h1>GOLEM in 2D (PRD Addendum M)</h1>
+  <p>The same GOLEM model (so NOVA's abilities still find his claw, cannon and core), drawn in Kaela's 2D style: pixels as big as hers, three flat tones per material, no dithering, dark inner lines.</p>
+  <div id="wrap"><div id="golem"></div></div>
+  <div class="bar" id="looks"></div>
+</main>
+<script type="module">
+import { loadArt } from "./js/stage2d/art.js";
+import { createEngine } from "./js/stage2d/engine.js";
+import { PixelGolem } from "./js/pixel/golem-px.js";
+
+const wrap = document.getElementById("wrap"), host = document.getElementById("golem");
+const eng = createEngine(wrap, await loadArt("./"), { ha: 180 });
+eng.hideFoe();
+const LOOKS = { "Now (hi-bit)": { chunk: 1, flat: false }, "2D, Kaela's pixel size": { chunk: 440 / 180, flat: true }, "2D, a bit finer": { chunk: 2, flat: true } };
+let golem = null;
+function show(name) {
+  host.replaceChildren();
+  golem = new PixelGolem(host, { px: 1, w: 512, ...LOOKS[name] });
+  const k = wrap.clientHeight / 440;   // design px (440 tall) to screen px
+  golem.setPx(k);
+  Object.assign(host.style, { right: Math.max(0, (wrap.clientWidth - wrap.clientHeight * 2.9) / 2) + 10 * k + "px", bottom: (0.2 * 440 - 17) * k + "px" });
+  document.querySelectorAll("#looks button").forEach((b) => b.classList.toggle("on", b.textContent === name));
+}
+for (const name of Object.keys(LOOKS)) { const b = document.createElement("button"); b.textContent = name; b.onclick = () => show(name); document.getElementById("looks").append(b); }
+show("2D, Kaela's pixel size");
+window.__look = (i) => show(Object.keys(LOOKS)[+i]);
+</script>
+</body>
+</html>
