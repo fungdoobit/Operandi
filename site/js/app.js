@@ -8,8 +8,6 @@ import { Store } from "./store.js";
 import { SHOP, LEVELS, DIFFS, EARN, BOSS, MANA, TIERS, LEVEL, WEAR_SLOTS, levelFor, rewardFor, markFor } from "./economy.js";
 import { MODULE_BIOME } from "./enemies.js";
 import { BattleStage, pixelateOut } from "./boss-fight.js";
-import { LevelStage2D } from "./stage2d/stage.js";
-import { FOES2D, foeFor } from "./stage2d/foes.js";
 import { sound } from "./sound.js";
 import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard, countersFirewall } from "./boss-rules.js";
 import { Pet } from "./pet.js";
@@ -233,7 +231,7 @@ async function doRun() {
   try {
     const r = await runner.run(ed.value, { expected: task.expected });
     showOutput(r); showTab("output");
-    if (quietTry()) {   // every fight: no tips until the third Submit
+    if (quietTry()) {   // a boss fight: no tips until the third Submit
       if (task.expected && r.lines.join("\n") === task.expected.join("\n")) { const v = V().outputMatches(); dot.say(v.text, { title: v.title, mood: "happy" }); }
     } else if (r.diagnosis) sayHelp(r.diagnosis.id, r.diagnosis, { mood: "worried" });
     else if (task.expected && r.lines.join("\n") === task.expected.join("\n")) { const v = V().outputMatches(); dot.say(v.text, { title: v.title, mood: "happy" }); }
@@ -247,11 +245,11 @@ async function doRun() {
 
 /* ---------- Submit ---------- */
 
-// No tips on the first two Submits (Addendum J for bosses; Addendum K made
-// every lesson and challenge a fight, so it's everywhere now). Hints and peeks
-// still work. tries = Submits so far (including the one just made).
+// No tips on the first two Submits in a boss fight (Addendum J). Lessons and practice
+// get help straight away (Addendum M: they're not fights any more). Hints and peeks
+// always work. tries = Submits so far (including the one just made).
 const QUIET_TRIES = 2;
-function quietTry(tries = (rec()?.attempts || 0) + 1) { return !!task && tries <= QUIET_TRIES; }
+function quietTry(tries = (rec()?.attempts || 0) + 1) { return task?.kind === "boss" && tries <= QUIET_TRIES; }
 
 function isSolved() {
   if (!task) return false;
@@ -330,8 +328,7 @@ async function doSubmit() {
     if (task.kind === "boss") await bossTurn(passed, mark, r);
     else {
       if (passed && task.kind === "lesson") renderLessonFooter();
-      // a pass casts a card at the enemy (the praise comes after it lands); a miss lets it attack
-      await levelTurn(passed, mark, r, { already, rewardLine, styleLint });
+      if (passed) dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, already, attempts: r.attempts, results });
     }
   } catch (e) {
     toast(e.message || "Something went wrong running your code.");
@@ -522,7 +519,7 @@ function openLesson(id, section) {
     </div>
     ${testFill()}
     <div id="lessonFooter"></div>`;
-  enterLevelFight();
+  calmView();
   $("briefInner").querySelectorAll("[data-sec]").forEach((b) => b.addEventListener("click", () => { if (!busy && !b.disabled) openLesson(id, +b.dataset.sec); }));
   wireExamples();
   $("testFill")?.addEventListener("click", fillAnswer);
@@ -583,7 +580,7 @@ function openPractice() {
     task = challengeTask(cur);
     setWorkVisible(true);
     renderChallenge();
-    enterLevelFight();
+    calmView();
     loadEditor();
     prepareTask();
   } else {
@@ -645,7 +642,7 @@ async function startChallenge() {
     task = candidate;
     setWorkVisible(true);
     renderChallenge();
-    enterLevelFight();
+    calmView();
     loadEditor();
     prepareTask();
     renderRail();
@@ -676,7 +673,7 @@ function renderChallenge() {
   if (cur.solved) { wireDiff(); $("startBtn").addEventListener("click", startChallenge); }
   $("skipBtn")?.addEventListener("click", () => {
     $("skipConfirm").innerHTML = `<div class="inline-confirm"><span>Skip it? Items you used on it aren't refunded.</span><button class="btn" id="skipYes">Skip</button><button class="btn" id="skipNo">Keep going</button></div>`;
-    $("skipYes").addEventListener("click", () => { store.log({ kind: "challenge", id: task.key, title: task.title, skipped: true, attempt: cur.attempts }); S().current = null; S().fight = null; store.save(); openPractice(); });
+    $("skipYes").addEventListener("click", () => { store.log({ kind: "challenge", id: task.key, title: task.title, skipped: true, attempt: cur.attempts }); S().current = null; store.save(); openPractice(); });
     $("skipNo").addEventListener("click", () => ($("skipConfirm").innerHTML = ""));
   });
 }
@@ -771,122 +768,14 @@ function openFaq(id) {
   document.getElementById("faq-" + id)?.scrollIntoView({ block: "start" });
 }
 
-/* ---------- Level fights (PRD Addendum K) ---------- */
+/* ---------- Test mode ---------- */
 
-// Every lesson and challenge is a fight: Kaela against the 2D enemies (stage2d/, PRD Addendum L), with the same cards, mana and no-tips rule as the boss.
-// A lesson is one fight across all its sections (your HP carries over); a
-// challenge is one fight. A pass casts a card; an enemy that survives strikes
-// back, one that dies makes way for the next (a wave). The last pass of a
-// level always finishes the enemy. Mana and cooldowns carry from fight to fight
-// (S().kit). The fight in progress is S().fight.
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
-const fightKey = () => (task.kind === "lesson" ? `lesson:${task.lessonId}` : task.key);
-const levelModule = () => (task.kind === "lesson" ? ALL_LESSONS[lessonIndex(task.lessonId)].module : task.template?.module || 1);
-// Does this pass end the level? A challenge: always. A lesson: once every section is done.
-const levelEnds = () => task.kind !== "lesson" || lessonDone(task.lessonId);
-
+// Lessons and practice are not fights any more (PRD Addendum M, 2026-10-23): the
+// roaming companion helps, and each module ends in one boss fight. (The level-fight
+// code from Addendum K is in git history.)
 // Test mode: a button that fills in a correct answer.
 function testFill() { return S().testMode ? `<div class="note"><b>Test mode</b>Fills the editor with a correct answer.<div style="margin-top:10px"><button class="btn" id="testFill">Fill in the answer</button></div></div>` : ""; }
 function fillAnswer() { if (!task) return; setCode(task.solution); lsSet("operandi:draft:" + task.key, task.solution); }
-
-function newLevelFight(key) {
-  const module = levelModule(), seed = Math.floor(Math.random() * 1e6), enemy = foeFor(module, seed, 0);
-  S().fight = { key, module, seed, wave: 0, enemy, foe: FOES2D[enemy].hp, me: LEVEL.hp, beaten: 0, hand: null };
-  store.save();
-  return S().fight;
-}
-
-// Put the battle band up for the task on screen (or keep the one that's there).
-function enterLevelFight() {
-  const key = fightKey();
-  let f = S().fight, created = false;
-  if (!f || f.key !== key || !FOES2D[f.enemy]) { f = newLevelFight(key); created = true; }
-  if (!battle || battleKey !== key) {
-    leaveBoss({ keepMusic: true });
-    $("arena").hidden = false;
-    document.querySelector(".body").classList.add("boss-mode");
-    // Kaela against the 2D enemies in the Green Forest (PRD Addendum L, stage2d/)
-    battle = new LevelStage2D($("arena"), $("bossSay"), { foe: f.enemy, max: { me: LEVEL.hp, foe: FOES2D[f.enemy].hp } });
-    battleKey = key;
-    dot.root.style.visibility = "hidden";
-    dot.sayOverride = (text, opts) => battle?.say(text, opts);
-    sound.music(MODULE_BIOME[f.module] || "forest");   // the biome's own theme
-    battle.hp(f.me, f.foe); battle.mana(S().kit.mana);
-    battle.intro();
-  } else {
-    battle.sayHost = $("bossSay");
-    if (created) { battle.hp(f.me, f.foe); battle.spawn(f.enemy, f.foe); }   // a fresh fight on the same stage (a replayed lesson)
-  }
-  battle.mana(S().kit.mana);
-  // A pass was saved but no card picked yet (the page was closed): back to the hand.
-  if (f.hand && !busy) { busy = true; castLevel().finally(() => { busy = false; }); }
-}
-
-async function levelTurn(passed, mark, r, extra) {
-  const f = S().fight;
-  if (!battle || !f || f.key !== fightKey()) return;
-  const E = FOES2D[f.enemy];
-  if (!passed) {   // a miss: the enemy attacks
-    f.me = Math.max(0, f.me - E.hit);
-    store.save();
-    await battle.counter(E.hit, () => battle.hp(f.me, f.foe), { miss: true });
-    if (f.me <= 0) await knockedOut();
-    return;
-  }
-  const flawless = mark === 10 && r.attempts === 1 && !r.assisted;
-  const gain = manaFor(mark, r), kit = S().kit;
-  kit.mana = Math.min(MANA.cap, kit.mana + gain);
-  f.hand = { mark, flawless, gain, last: levelEnds(), already: extra.already, rewardLine: extra.rewardLine, tips: extra.styleLint?.length || 0 };
-  store.save();
-  await castLevel();
-}
-
-// The card hand, the cast, and what follows: a strike back, a new wave, or the win.
-async function castLevel() {
-  const f = S().fight, kit = S().kit, h = f.hand, E = FOES2D[f.enemy];
-  battle.mana(kit.mana);
-  const v = V().passed(h.mark);
-  battle.say(`${h.flawless ? "Flawless: whatever you cast now is a critical hit!" : v.text} Pick an ability card.`, { title: `${h.mark}/10 · +${h.gain} mana`, mood: "fierce" });
-  const card = await battle.pickCard(kit, { gain: h.gain, crit: h.flawless, dome: false });
-  const strike = castCard(kit, card, { crit: h.flawless });
-  // ultimates: the full cinematic the first time each day, the short cut after that
-  const ult = card.tier === "ultimate" || card.tier === "ultimate2", short = ult && S().ultSeen[card.id] === today();
-  if (ult) S().ultSeen[card.id] = today();
-  f.hand = null;
-  const foeLeft = h.last ? 0 : Math.max(0, f.foe - strike.dmg), killed = foeLeft <= 0;
-  const back = !killed && strike.result !== "crit" ? Math.round(E.hit * LEVEL.strikeBack) : 0;
-  f.foe = foeLeft;
-  f.me = Math.max(0, f.me - back);
-  let bounty = 0;
-  if (killed) { f.beaten += 1; if (!h.already) { bounty = LEVEL.bounty; store.earn(bounty); } }
-  if (killed && !h.last) { f.wave += 1; f.enemy = foeFor(f.module, f.seed, f.wave); f.foe = FOES2D[f.enemy].hp; }
-  if (h.last) S().fight = null;   // the level is won
-  store.save();
-  battle.mana(kit.mana);
-  await battle.attack(strike, () => battle.hp(f.me + back, foeLeft), card, { short, lethal: killed });
-  if (killed && h.last) await battle.victory();
-  else if (killed) { await battle.beaten(); await battle.spawn(f.enemy, f.foe); }
-  else if (back) await battle.counter(back, () => battle.hp(f.me, f.foe));
-  else battle.staggered();
-  if (f.me <= 0) return knockedOut();
-  // the praise and the rewards, with the way on
-  const paid = h.already ? "You'd already finished this one, so no Bits this time." : rec()?.solutionUsed ? "You used the solution, so no Bits for this one." : `${h.rewardLine}${bounty ? ` and +${bounty} for beating ${E.name}` : ""}.`;
-  const what = killed ? (h.last ? `${E.name} is beaten: level cleared!` : `${E.name} is beaten! ${FOES2D[f.enemy].name === E.name ? `Another ${E.name}` : FOES2D[f.enemy].name} steps in.`) : `${card.name} hit ${E.name}${back ? `, and it struck back` : ", and it's staggered"}.`;
-  const tip = h.tips ? ` ${h.tips === 1 ? "One small style tip" : "A few style tips"} in Feedback.` : "";
-  battle.say(`${what} ${paid}${tip}`, { title: h.last ? "Victory" : `${strike.dmg} damage`, mood: killed ? "celebrate" : "happy", actions: [nextAction()] });
-  renderTop(); renderRail();
-}
-
-// Your teammate went down: the fight restarts with full HP and a fresh enemy. Passed sections stay passed.
-async function knockedOut() {
-  const f = S().fight;
-  await battle.defeat();
-  f.me = LEVEL.hp; f.wave += 1; f.enemy = foeFor(f.module, f.seed, f.wave); f.foe = FOES2D[f.enemy].hp;
-  store.save();
-  battleKey = null;   // a new stage (your teammate gets back up)
-  enterLevelFight();
-  battle.say("Your teammate was knocked out, so the fight starts again with full HP. Anything you've passed stays passed. Read the error and the failing tests, then try again.", { title: "Knocked out", mood: "sad" });
-}
 
 /* ---------- Boss fight ---------- */
 
@@ -894,6 +783,13 @@ async function knockedOut() {
 // turn: a pass is your strike, a failed Submit is a miss and the boss hits back.
 let battle = null;
 let battleKey = null;   // which lesson / challenge fight the stage on screen belongs to
+
+// Lessons and practice (Addendum M): no battle band, the roaming companion is back,
+// and the forest theme plays if "Music in lessons" is on (off by default).
+function calmView() {
+  leaveBoss({ keepMusic: true });
+  sound.music(sound.settings.lessonMusic ? "forest" : null);
+}
 
 // keepMusic: we're going straight into another fight view, so the music carries on.
 function leaveBoss({ keepMusic = false } = {}) {
@@ -1200,6 +1096,8 @@ function wireSettings() {
     $(vol).addEventListener("input", () => sound.set({ [volKey]: $(vol).value / 100 }));
   };
   bind("setMusic", "setMusicVol", "music", "musicVol");
+  $("setLessonMusic").checked = s.lessonMusic;
+  $("setLessonMusic").addEventListener("change", () => { sound.set({ lessonMusic: $("setLessonMusic").checked }); sound.unlock(); if (!battle) sound.music(s.lessonMusic ? "forest" : null); });
   bind("setSfx", "setSfxVol", "sfx", "sfxVol");
   // a short test sound when you let go of the effects slider
   $("setSfxVol").addEventListener("change", () => sound.sfx("hit"));

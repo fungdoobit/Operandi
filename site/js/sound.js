@@ -9,7 +9,7 @@
 // Settings (on/off and volume for each) are saved per device.
 
 const KEY = "operandi:sound";
-const DEFAULTS = { music: true, musicVol: 0.6, sfx: true, sfxVol: 0.8, roamVol: 0.6, grabVol: 0.8 };
+const DEFAULTS = { music: true, lessonMusic: false, musicVol: 0.6, sfx: true, sfxVol: 0.8, roamVol: 0.6, grabVol: 0.8 };
 const load = () => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || "{}") }; } catch { return { ...DEFAULTS }; } };
 const midi = (n) => 440 * 2 ** ((n - 69) / 12);
 

@@ -564,7 +564,7 @@ Asked by Isaac on 2026-10-20: "take heavy inspo from Hollow Knight for everythin
 4. The heroine's name? (A few ideas: Scarlet, Rook, Kaela, Vex.)
 5. The cards above: OK, or changes?
 
-## Addendum M: back to learning first, one big boss per module (draft 2026-10-23, awaiting answers and "go")
+## Addendum M: back to learning first, one big boss per module ("go" 2026-10-23)
 
 Isaac 2026-10-23: scrap "every level is a fight". Lessons and practice go back to the roaming companion that gives hints and tips, with idle animations and a goal to collect companions. Kaela stays as the main character: she is used through Module 1 and fights its boss. DOT and PYRO stay (their abilities may need a revamp). Each module has one fight, or at most two (an optional mid-boss, then the big boss). Most effort goes into the big boss: higher quality, fun, tense, and it makes you use the module's skills.
 
@@ -598,3 +598,9 @@ Isaac 2026-10-23: scrap "every level is a fight". Lessons and practice go back t
    2. **Who fights which boss?** Fixed per module (Kaela in Module 1, DOT in Module 2, …), or you pick from the characters you own?
    3. **Does Kaela also roam the lessons** as a companion, or only appear in fights?
    4. **Mid-boss:** build the system for an optional mid-module boss now, or only the big one per module for now? Recommendation: big one only for now.
+
+**Isaac's answers (2026-10-23, with "go"):**
+1. Module 1's boss is a **2D GOLEM based on the one we have**, so all the work on NOVA's interactions with him (Grasp, Chains, Planetfall) carries over.
+2. **You pick your fighter** from the characters you own: Kaela, DOT, PYRO, and NOVA once won. Players may want to rematch GOLEM after getting NOVA.
+3. **Kaela only fights**; she doesn't roam the lessons.
+4. **Big boss only** for now.
