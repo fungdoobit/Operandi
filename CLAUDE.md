@@ -314,7 +314,18 @@ Isaac's boot.dev-style Python learning app. There are two versions:
   - Enemy redraw: still to do (Isaac: "find already done enemies and tweak"); asset sites (itch.io, opengameart) are blocked by this environment's network policy, so he would have to upload a pack or allow the domains.
 - Planetfall round 11 + Addendum K extras (2026-10-22, pushed): NOVA powers up and drives a beam into the sky to open Jupiter's portal, then bears down on it; GOLEM only braces until Jupiter appears, holds it (sinking unchanged), strains, one thruster push snaps her beam; the portal swallows Jupiter (it shrinks into the vortex). Planets crack (glowing seams, frozen beat) then shatter into Voronoi rock chunks with molten edges (`voronoi`, `breakApart`). Rotcap has stumpy legs and round feet. Each biome has its own music (`THEMES` in sound.js, `playTheme`; the boss keeps `SONG`). All 18 enemies verified and in the course (`READY`).
 - Planetfall round 10 (2026-10-22): planets burst through their portals (clipped at the portal surface), with a fire bow shock, a plasma tail and slow motion just before impact; on impact they break into burning wedges (`breakApart`), and GOLEM is knocked back. Uranus is drawn as `uranusRingBack` + `uranusBody` + `uranusRingFront` (planets-px.js `uPart`/`uTumble`), so its ring tumbles in flight and snaps into pieces. Jupiter is now drawn **behind** GOLEM (`sprBack`) and rests on his raised hands. He pushes it back in three heaves (gather, then thrusters blast fire and dust out of the floor, a surge up, and the weight wins some back), then a slow-motion final shove. The sinking is unchanged (Isaac liked it). About 20 s.
-- [ ] **Addendum M (Isaac 2026-10-23, big change; draft in `docs/PRD-v2.md`, awaiting answers and "go")**:
+- [ ] **Addendum M ("go" 2026-10-23).** Isaac's answers:
+  - The boss is a 2D GOLEM based on the existing one, so NOVA's interactions carry over.
+  - You pick your fighter from the ones you own (Kaela, DOT, PYRO, NOVA); GOLEM can be rematched.
+  - Kaela only fights (she doesn't roam).
+  - Big boss only.
+  - **Step 1 built:** lessons and practice are no longer fights. The roaming companion and help from the first Submit are back; `quietTry` is boss-only; `calmView()` in app.js. The Settings switch "Music in lessons" (`lessonMusic`, default off) plays the forest theme. The old level-fight code is in git history (before 72a1f57).
+  - **2D GOLEM prototype, waiting on Isaac's verdict:** `PixelGolem({chunk, flat})`.
+    - chunk: a smaller canvas stretched back. 440/180 gives Kaela's pixel size.
+    - flat: pixel-gl `uFlat`: 4 flat tones (shadow, base, light, rim), no dithering, inner lines in the darkest tone, lone pixels replaced by their neighbours' material.
+    - Preview `site/golem2d-preview.html`; still `previews/golem-2d-v1.png`. Remaining flaw: red cracks turn into small square blotches.
+  - Next: the fighter-picker boss fight with Kaela in it; Kaela's 7 abilities redesigned (review after 3); phases, telegraphs, skill-covering challenges.
+  - Original summary:
   - Scrap "every level is a fight". Back to the roaming companion in lessons, with companion collecting.
   - Forest music in lessons, off by default.
   - One big boss per module, maybe a mid-boss, made tense and skill-based. Kaela fights Module 1's boss.
