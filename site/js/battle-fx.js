@@ -26,6 +26,8 @@ export const THEMES = {
   water: { deep: "#3a76a2", mid: "#9ccbdc", light: "#e3f4fa", foam: "#ffffff", glow: "#a9dcef" },
   fire: { deep: "#c8321b", mid: "#ff7a2f", light: "#ffd28a", foam: "#fff3c4", glow: "#ff9a3c" },
   void: { deep: "#3b1a78", mid: "#8a5cf0", light: "#d6c2ff", foam: "#f3eaff", glow: "#a57cff" },   // NOVA
+  blood: { deep: "#8a1420", mid: "#e03a34", light: "#ff9a88", foam: "#fff0ec", glow: "#ff5a4a" },   // Kaela
+  bloodFoam: { deep: "#e03a34", mid: "#ffd8d0", light: "#ffffff", foam: "#ffffff", glow: "#fff0ec" },
   // White water: the foam on a wave's crest and a splash's edges (and fire's hot core).
   foam: { deep: "#9ccbdc", mid: "#f6fcfe", light: "#ffffff", foam: "#ffffff", glow: "#ffffff" },
   fireFoam: { deep: "#ff9a3c", mid: "#fff1c9", light: "#ffffff", foam: "#ffffff", glow: "#fff3c4" },
@@ -489,18 +491,20 @@ export class BattleFX {
   // An explosion: a burst of cel-shaded fire (the liquid layer with the fire
   // palette, so flames merge and tear like the water does), a white-hot core,
   // sparks, a shock ring and smoke that rolls up afterwards.
-  explosion(c, { size = 1 } = {}) {
+  // theme "blood": Kaela's red version.
+  explosion(c, { size = 1, theme = "fire" } = {}) {
+    const red = theme === "blood";
     for (let i = 0; i < Math.round(16 * size); i++) {
       const a = rand(0, Math.PI * 2), sp = rand(2, 6.5) * size;
-      this.blob("fire", { x: c.x + rand(-6, 6), y: c.y + rand(-6, 6), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.5, r: rand(9, 18) * size, max: rand(380, 560), g: -0.06, drag: 0.9, streak: false });
+      this.blob(red ? "blood" : "fire", { x: c.x + rand(-6, 6), y: c.y + rand(-6, 6), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.5, r: rand(9, 18) * size, max: rand(380, 560), g: -0.06, drag: 0.9, streak: false });
     }
     for (let i = 0; i < Math.round(6 * size); i++) {
       const a = rand(0, Math.PI * 2), sp = rand(1, 3) * size;
-      this.blob("fireFoam", { x: c.x, y: c.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1, r: rand(7, 12) * size, max: rand(220, 320), g: -0.04, drag: 0.88, streak: false });
+      this.blob(red ? "bloodFoam" : "fireFoam", { x: c.x, y: c.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1, r: rand(7, 12) * size, max: rand(220, 320), g: -0.04, drag: 0.88, streak: false });
     }
-    this.sparks(c, Math.round(18 * size), { power: 1.3 * size });
-    this.ring(c, { color: "#fff1d0", size: 110 * size, ms: 340, width: 7 });
-    this.glowBurst(c, "fire", 70 * size, 320);
+    this.sparks(c, Math.round(18 * size), { power: 1.3 * size, ...(red && { colors: ["#ffffff", "#ffb0a0", "#ff5a4a"] }) });
+    this.ring(c, { color: red ? "#ffe0d8" : "#fff1d0", size: 110 * size, ms: 340, width: 7 });
+    this.glowBurst(c, red ? "blood" : "fire", 70 * size, 320);
     this.wait(180).then(() => this.smoke(c, Math.round(6 * size), size));
   }
 

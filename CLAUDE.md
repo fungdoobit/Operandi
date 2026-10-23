@@ -338,7 +338,18 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - The horn and its dark leftovers inside the hair are cloned over from lit hair further along the strands.
     - The horn's cast shadow is lifted to typical hair brightness.
     - Hair brightness is mapped onto a 7-step red ramp, deep maroon to soft coral, so the shine survives.
-  - Next: the fighter-picker boss fight with Kaela in it; Kaela's 7 abilities redesigned (review after 3); phases, telegraphs, skill-covering challenges.
+  - 2026-10-23, round after (Isaac: companions "too low res" at 2 px, Kaela higher-bit, Kaela vs GOLEM, portrait eyes):
+    - DOT and PYRO: Pixelizer k = 1.5. NOVA: `CHUNK = 1.5` in nova-mate.js. Roaming NOVA is size 101 (5% bigger, pet.js).
+    - Portrait: only the iris is red, eye whites white; the face box is never counted as hair (the red "scar" on her cheek is gone).
+    - **Fighter picker** (`chooseFighter` in app.js): a fresh fight or a rematch asks who goes in: Kaela, DOT, NOVA, and PYRO if owned. Saved as `S().boss.fighter`; the last pick is `S().lastFighter`. Fights saved before the picker use the equipped teammate.
+    - Kaela in the boss fight:
+      - `js/stage2d/kaela-fighter.js` `KaelaFighter`: her sprite frames with DOT's battle interface (nudge, hurt, swarmed, ko, win). Her art pixel = 2 stage px, the same as GOLEM's. Runs on `battleTime`, so hit-stop freezes her.
+      - `js/stage2d/kaela-boss-kit.js` `KAELA_BOSS_KIT`: the same 7 cards; she dashes in to his claw, cuts, and walks back; Blood Orb is a straight shot into his core.
+      - Effects are the stage's own (slash, sparks, explosion) in a new red `blood` theme (`THEMES.blood`/`bloodFoam` in battle-fx.js, `explosion({theme})`).
+      - Card art is painted abilities (toon pen), with a new `blood` palette in toon-fx.js (`uPal` 2).
+      - HP bar label "KAELA", red fill.
+    - kaela-moves.html runs its engine at art height 220 (GOLEM's pixel size).
+  - Next: Kaela's 7 abilities redesigned as cinematics (review after 3); phases, telegraphs, skill-covering challenges.
   - Original summary:
   - Scrap "every level is a fight". Back to the roaming companion in lessons, with companion collecting.
   - Forest music in lessons, off by default.

@@ -22,6 +22,8 @@ import { kitFor } from "./abilities.js";
 import { pickCard, CARDS_CSS } from "./cards.js";
 import { MANA } from "./economy.js";
 import { sound, wireBattleSounds } from "./sound.js";
+import { KaelaFighter } from "./stage2d/kaela-fighter.js";
+import { KAELA_BOSS_KIT } from "./stage2d/kaela-boss-kit.js";
 
 const GOLEM_W = 512, GOLEM_EXTRA = (GOLEM_W - 416) / 2;   // the extra width on each side of him, in art px
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -51,6 +53,7 @@ export const BATTLE_CSS = `
 .bhp.me .fill { background: linear-gradient(90deg, #5bb7e4, #b3ebfc); }
 .bhp.me.fire .fill { background: linear-gradient(90deg, #ff7a2f, #ffd28a); }
 .bhp.me.void .fill { background: linear-gradient(90deg, #6a35c8, #cba2ff); }
+.bhp.me.blood .fill { background: linear-gradient(90deg, #b0222a, #ff7868); }
 /* Mana (Addendum J): a thin bar of gems under your HP bar. */
 .bhp .mana { display: flex; align-items: center; gap: calc(6px * var(--k, 1)); font-size: max(10px, calc(11px * var(--k, 1))); color: #9be7ff; }
 .bhp .mana .mbar { flex: 1; height: calc(6px * var(--k, 1)); border-radius: 99px; background: #1a2333; overflow: hidden; }
@@ -114,10 +117,10 @@ export class BattleStage {
     this.max = max || { me: BOSS.hp, foe: this.isBoss ? BOSS.hp : this.enemy.hp };
     ensureFilters();
     if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS + CARDS_CSS; document.head.append(st); }
-    const who = { pyro: "PYRO", nova: "NOVA" }[skin] || "DOT";
+    const who = { pyro: "PYRO", nova: "NOVA", kaela: "KAELA" }[skin] || "DOT";
     host.innerHTML = `<div class="bstage" role="img" aria-label="${this.isBoss ? "Boss battle" : "Battle"}: ${who} against ${esc(name)}">
       <div class="bworld"><div class="bfloor"></div><div class="bfoe"></div><div class="bmate"></div></div>
-      <div class="bhp me ${skin === "pyro" ? "fire" : skin === "nova" ? "void" : ""}"><div class="row"><span>${who}</span><small></small></div><div class="bar"><div class="fill"></div></div><div class="mana"><span>Mana</span><div class="mbar"><i></i></div><b>0</b></div></div>
+      <div class="bhp me ${{ pyro: "fire", nova: "void", kaela: "blood" }[skin] || ""}"><div class="row"><span>${who}</span><small></small></div><div class="bar"><div class="fill"></div></div><div class="mana"><span>Mana</span><div class="mbar"><i></i></div><b>0</b></div></div>
       <div class="bhp foe"><div class="row"><span>${esc(name)}</span><small></small></div><div class="bar"><div class="fill"></div></div></div>
     </div>`;
     this.sayHost = sayHost;
@@ -135,8 +138,8 @@ export class BattleStage {
       this.golem = new PixelEnemy(foeEl, foe);
       this.boss = new EnemyFoe({ model: this.golem, fx: this.fx, figure: foeEl, name });
     }
-    // NOVA fights as her pixel self (NovaFighter); DOT and PYRO share dot.js
-    this.dot = skin === "nova" ? new NovaFighter(mateEl) : new Dot(mateEl, { facing: "right", battle: true, skin });
+    // NOVA fights as her pixel self (NovaFighter), Kaela as her sprite (stage2d/kaela-fighter.js); DOT and PYRO share dot.js
+    this.dot = skin === "nova" ? new NovaFighter(mateEl) : skin === "kaela" ? new KaelaFighter(mateEl) : new Dot(mateEl, { facing: "right", battle: true, skin });
     this.dot.setAccessory(accessories);
     this.px = new PixelFX(world);   // hi-bit effects for the abilities (pixel/pixel-fx.js)
     this.pxBack = new PixelFX(world, { z: 0, before: foeEl });   // a layer behind the fighters (the far side of a portal...)
@@ -146,8 +149,8 @@ export class BattleStage {
     // 3D props already in pixel art (props-px.js): in front of everything, and behind GOLEM (the back of a chain's coil)
     this.spr = new PixelFX(world, { z: 9, raw: true });
     this.sprBack = new PixelFX(world, { z: 0, before: foeEl, raw: true });
-    this.kit = kitFor(skin);
-    this.ctx = { isBoss: this.isBoss, fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, toonBack: this.toonBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void" }[skin] || "water" };
+    this.kit = skin === "kaela" ? KAELA_BOSS_KIT : kitFor(skin);
+    this.ctx = { isBoss: this.isBoss, fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, toonBack: this.toonBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void", kaela: "blood" }[skin] || "water" };
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
     sound.music(this.isBoss ? "battle" : biome || this.enemy.biome);   // each biome has its own theme (Addendum K)

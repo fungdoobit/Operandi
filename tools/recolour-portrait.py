@@ -7,7 +7,8 @@
 #          painted over by cloning real hair from further along the strands (down and to the right)
 #   hair   bright, cool-toned pixels: each one's brightness is mapped onto a red ramp from deep
 #          maroon to pale coral, so the shine and the strands of the original survive
-#   eyes   the saturated cyan iris -> red;  coat  saturated blue -> leather brown
+#   eyes   the cyan iris -> red, the pale lavender eye whites -> white; her face is never hair
+#   coat   saturated blue -> leather brown
 # Isaac 2026-10-23: earlier versions left the horn's tip, a horn-shaped patch and flat hair.
 # usage: python3 -I recolour-portrait.py <in.png> <out.png>
 import sys, colorsys, numpy as np
@@ -25,7 +26,8 @@ on = im[..., 3] > 0
 hue, s, v = hsv(im)
 R, B = im[..., 0], im[..., 2]
 low = yy > H * 0.62   # her hand and the orb stay as they are
-cool = on & ~low & (v > 0.5) & ((B >= R + 8) | ((s < 0.12) & (v > 0.8)))
+face = (xx >= 64) & (xx < 136) & (yy >= 172) & (yy < 232)   # her eye and cheek: never hair (Isaac: red eye whites, a "scar")
+cool = on & ~low & ~face & (v > 0.5) & ((B >= R + 8) | ((s < 0.12) & (v > 0.8)))
 
 # ---- the top of her head where the horn crossed it (x: the outline's y), set by hand ----
 TOP = [(0, 96), (16, 86), (32, 76), (48, 66), (64, 56), (80, 46), (96, 40), (112, 39)]
@@ -70,10 +72,13 @@ i0 = np.floor(k).astype(int).clip(0, len(RAMP) - 2); f = (k - i0)[..., None]
 red = RAMP[i0] * (1 - f) + RAMP[i0 + 1] * f
 out = im.copy()
 out[hair, :3] = red[hair]
-iris = on & (hue > 175) & (hue < 205) & (s > 0.6) & (v > 0.4) & ~low
+eye = (xx >= 60) & (xx < 112) & (yy >= 170) & (yy < 200)
+iris = on & eye & (hue > 150) & (hue < 215) & (s > 0.45) & (v > 0.1)   # the whole iris, dark teal too
+whites = on & eye & ~iris & (B > R + 12) & (v > 0.6)                    # the pale lavender eye whites
+out[whites, :3] = (236, 236, 244)
 coat = on & (hue > 215) & (hue < 265) & (s > 0.6) & ~hair
 for y, x in zip(*np.nonzero(iris)):
-    R_, G_, B_ = colorsys.hsv_to_rgb(0.985, 0.85, min(1, v[y, x] * 0.95)); out[y, x, :3] = (R_ * 255, G_ * 255, B_ * 255)
+    R_, G_, B_ = colorsys.hsv_to_rgb(0.985, 0.85, min(1, 0.25 + v[y, x] * 0.8)); out[y, x, :3] = (R_ * 255, G_ * 255, B_ * 255)
 for y, x in zip(*np.nonzero(coat)):   # leather: warm brown
     R_, G_, B_ = colorsys.hsv_to_rgb(0.07, 0.55, min(1, 0.18 + v[y, x] * 0.45)); out[y, x, :3] = (R_ * 255, G_ * 255, B_ * 255)
 Image.fromarray(out.astype(np.uint8)).save(sys.argv[2])

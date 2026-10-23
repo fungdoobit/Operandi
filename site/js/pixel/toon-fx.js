@@ -20,7 +20,7 @@ in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
 
 const FRAG = `#version 300 es
 precision highp float;
-uniform sampler2D uF; uniform vec2 uRes; uniform float uT, uS; uniform int uPal;   // uPal 0 fire, 1 water
+uniform sampler2D uF; uniform vec2 uRes; uniform float uT, uS; uniform int uPal;   // uPal 0 fire, 1 water, 2 blood (Kaela)
 out vec4 o;
 const float B4[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
 float bayer(vec2 p){ ivec2 q = ivec2(p); return (B4[(q.y&3)*4+(q.x&3)]+.5)/16.; }
@@ -47,9 +47,11 @@ void main(){
   if (hn > .2) {
     if (uPal == 1) col = vec4(hn > .97 ? hex(255.,255.,255.) : hn > .8 ? hex(214.,246.,255.) : hn > .55 ? hex(132.,214.,255.)
              : hn > .36 ? hex(58.,156.,238.) : hn > .27 ? hex(34.,92.,196.) : hex(20.,50.,128.), 1.);
+    else if (uPal == 2) col = vec4(hn > .97 ? hex(255.,244.,240.) : hn > .8 ? hex(255.,176.,160.) : hn > .55 ? hex(255.,104.,88.)
+             : hn > .36 ? hex(224.,52.,48.) : hn > .27 ? hex(168.,24.,36.) : hex(96.,10.,22.), 1.);
     else col = vec4(hn > .97 ? hex(255.,252.,236.) : hn > .8 ? hex(255.,236.,150.) : hn > .55 ? hex(255.,196.,58.)
              : hn > .36 ? hex(255.,128.,28.) : hn > .27 ? hex(236.,64.,26.) : hex(160.,26.,20.), 1.);
-  } else if (gw > .05 && min(.55, gw*2.2) > d) col = vec4(uPal == 1 ? hex(18.,48.,116.) : hex(120.,26.,14.), 1.);   // dithered glow
+  } else if (gw > .05 && min(.55, gw*2.2) > d) col = vec4(uPal == 1 ? hex(18.,48.,116.) : uPal == 2 ? hex(90.,8.,20.) : hex(120.,26.,14.), 1.);   // dithered glow
 
   // ---- smoke (over the fire) ----
   vec2 ws = vec2(fbm(q*.03+vec2(t*.3,-t*.9)), fbm(q*.03+vec2(3.1,-t*.9))) - .5;
@@ -137,7 +139,7 @@ export function toonStill(w, h, draw, { scale = 0.45, time = 1.3, palette = "fir
   f.fillStyle = "#000"; f.fillRect(0, 0, w, h);
   f.globalCompositeOperation = "lighter";
   f.save(); draw(still.pen, w, h); f.restore();
-  renderField(still, still.field, w, h, time, scale, palette === "water" ? 1 : 0);
+  renderField(still, still.field, w, h, time, scale, { water: 1, blood: 2 }[palette] || 0);
   out.getContext("2d").drawImage(still.canvas, 0, 0);
   return out;
 }
@@ -147,7 +149,7 @@ const CH = { heat: "255,0,0", smoke: "0,255,0", void: "0,0,255" };
 export class ToonFX {
   constructor(world, { z = 7, before = null, palette = "fire" } = {}) {
     this.world = world;
-    this.pal = palette === "water" ? 1 : 0;
+    this.pal = { water: 1, blood: 2 }[palette] || 0;
     this.canvas = document.createElement("canvas");
     Object.assign(this.canvas.style, { position: "absolute", left: 0, top: 0, width: "100%", height: "100%", imageRendering: "pixelated", pointerEvents: "none", zIndex: z });
     if (before) world.insertBefore(this.canvas, before); else world.append(this.canvas);

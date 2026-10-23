@@ -37,7 +37,8 @@ export class Pet {
   build(skin) {
     this.skin = skin;
     // NOVA is pixel art with his own idles (pixel/nova-mate.js); DOT and PYRO share dot.js
-    this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles }) : new Dot(this.root, { skin });
+    // NOVA's size 101 is 5% bigger than the default 96 (Isaac 2026-10-23)
+    this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles, size: 101 }) : new Dot(this.root, { skin });
     this.dot.setAccessory(this.accessories);
     this.dot.onSay = (hasActions) => {
       this.speaking = true;

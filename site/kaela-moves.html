@@ -33,7 +33,7 @@ import { KAELA_KIT } from "./js/stage2d/kaela-kit.js";
 import { FOES2D } from "./js/stage2d/foes.js";
 import { sound } from "./js/sound.js";
 
-const eng = createEngine(document.getElementById("wrap"), await loadArt("./"), { ha: 180 });
+const eng = createEngine(document.getElementById("wrap"), await loadArt("./"), { ha: 220 });
 let busy = false;
 const run = async (p) => { if (busy) return; busy = true; sound.unlock(); try { await p(); } finally { busy = false; } };
 const btn = (bar, text, cls, fn) => { const b = document.createElement("button"); b.textContent = text; if (cls) b.className = cls; b.onclick = fn; document.getElementById(bar).append(b); return b; };

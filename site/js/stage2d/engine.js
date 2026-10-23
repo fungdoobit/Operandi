@@ -21,7 +21,7 @@ const LIFT = -56;   // how high a launched enemy flies
 
 // A card's chain laid out on one timeline (see kaela-kit.js), cached per card.
 const layouts = new WeakMap();
-function layoutCard(card, MOVES) {
+export function layoutCard(card, MOVES) {
   if (layouts.has(card)) return layouts.get(card);
   const c = { ...card };
   let at = 0; c.hits = []; c.lift = [];

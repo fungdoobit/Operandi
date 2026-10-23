@@ -852,6 +852,12 @@ async function openBoss(m = 1, { again = false } = {}) {
   view = { kind: "boss", module: m };
   let f = S().boss;
   if (!f || f.module !== m) { if (bossBeaten(m)) return renderBossPanel("beaten"); startFight(m); f = S().boss; }
+  // a fresh fight (or a rematch): pick who goes in
+  if (!f.fighter) {
+    if (f.turn > 0 || f.cur.attempts) f.fighter = S().equipped.teammate || "dot";   // a fight saved before the picker existed
+    else { f.fighter = await chooseFighter(m); if (view.kind !== "boss") return; }
+    store.save();
+  }
   renderBossStage();
   if (f.over === "lost") return renderBossPanel("lost");
   task = bossTask(f.cur);
@@ -869,6 +875,30 @@ async function openBoss(m = 1, { again = false } = {}) {
     : "Welcome back. The fight's right where you left it.", { title: f.turn === 0 && !f.cur.attempts ? `${BOSSES[m].name} blocks the way` : "Fight resumed", mood: "fierce" });
 }
 
+// Who fights the boss (Addendum M): Kaela, or a teammate you own. The last pick is remembered.
+function chooseFighter(m) {
+  const st = S(), name = BOSSES[m].name;
+  const owned = (id) => id === "kaela" || id === "dot" || id === "nova" || st.owned[id];
+  const all = [
+    ["kaela", "Kaela", "A red-haired swordswoman. Fast blade cuts, a blood orb and a skyfall slam."],
+    ["dot", "DOT", "Water: blades, tidal dives and a wave he rides into the boss."],
+    ["pyro", "PYRO", "Fire: embers, eruptions and a sunfire halo."],
+    ["nova", "NOVA", "Void: shadow bolts, grasping hands, chains and Planetfall."],
+  ].filter(([id]) => owned(id));
+  const last = all.some(([id]) => id === st.lastFighter) ? st.lastFighter : "kaela";
+  setWorkVisible(false);
+  $("arena").hidden = true;
+  $("briefInner").innerHTML = `<p class="eyebrow">Module ${m} · Boss fight</p><h1>Who fights ${esc(name)}?</h1>
+    <p>Pick your fighter. Each one has their own seven ability cards.</p>
+    <div class="team-grid pick-grid">${all.map(([id, n, d]) => `<button class="team-card pick ${id === last ? "active" : ""}" data-fighter="${id}">
+      ${id === "kaela" ? `<img class="char-portrait" src="assets/kaela/portrait-red.png" alt="">` : `<div class="team-dot" id="pick-${id}"></div>`}
+      <div><h4>${n}</h4><p>${d}</p></div></button>`).join("")}</div>`;
+  for (const [id] of all) if (id !== "kaela") id === "nova" ? new NovaMate($(`pick-${id}`), { size: 96, idles: false }) : new Dot($(`pick-${id}`), { size: 96, skin: id });
+  return new Promise((res) => $("briefInner").querySelectorAll("[data-fighter]").forEach((b) => b.addEventListener("click", () => {
+    st.lastFighter = b.dataset.fighter; res(b.dataset.fighter);
+  })));
+}
+
 function renderBossStage() {
   const f = S().boss;
   $("briefInner").innerHTML = `<div class="bsay" id="bossSay" hidden></div><p class="eyebrow">Module ${view.module} · Boss fight${f && f.number > 1 ? ` · attempt ${f.number}` : ""}</p><div id="bossBody"></div>`;
@@ -876,7 +906,7 @@ function renderBossStage() {
   // you scroll the instructions and type.
   $("arena").hidden = false;
   document.querySelector(".body").classList.add("boss-mode");
-  battle = new BattleStage($("arena"), $("bossSay"), { skin: S().equipped.teammate || "dot", accessories: wearing(), name: BOSSES[view.module].name });
+  battle = new BattleStage($("arena"), $("bossSay"), { skin: f?.fighter || S().equipped.teammate || "dot", accessories: wearing(), name: BOSSES[view.module].name });
   if (f) battle.hp(f.me, f.foe); else battle.hp(BOSS.hp, BOSS.hp);
   battle.mana(f?.mana || 0);
   if (f?.dome) battle.restoreDome();

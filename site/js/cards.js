@@ -69,7 +69,7 @@ function artFor(card, theme) {
   if (card.img) return card.img;   // a picture made by the fighter itself (Kaela: her own pose, stage2d/engine.js)
   const key = theme + ":" + card.id;
   if (!artCache.has(key)) {
-    const c = toonStill(80, 60, (pen, w, h) => card.art?.(pen, w, h), { palette: theme === "water" ? "water" : "fire" });
+    const c = toonStill(80, 60, (pen, w, h) => card.art?.(pen, w, h), { palette: theme === "water" || theme === "blood" ? theme : "fire" });
     artCache.set(key, c.toDataURL());
   }
   return artCache.get(key);
