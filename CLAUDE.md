@@ -239,6 +239,20 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - The dummy mask grows by 1 px. (47,24,80) is left out of the lossy palette: it turned dark coat folds into steel blotches.
     - Clip 002's slam is still unusable (dim floor leaks, green spikes lost); the video-1 slam was re-cut instead.
   - Preview videos are now encoded at 4× nearest-neighbour, crf 12: the 2× yuv420 export had been smearing the red pixel art.
+  - **Round 8 (Isaac 2026-10-23: "missing pixels and weird grey pixels, it looks corrupted"; the orb "a bit plain"; make everything more cinematic; licence: commercial and personal use allowed).**
+    - `repair()` in `extract-moves.py`, for video moves only:
+      - fills see-through holes inside her (they were keyed out as beige background)
+      - greys: small grey bits take her colour or go; big mid-grey patches (slash shading, incl. the light steel (120,122,132)) become dark reds; big light greys (smoke) stay
+      - redraws her silhouette edge in her outline colours (44,28,18), dark red on hair, as in the clean GIF frames
+    - Result: holes in combo/upper went from 3,694/1,571 to about 450/170 (the rest are in dithered effects). Mid greys: 0. Her thin sword in video frames is now dark, not steel.
+    - Cinema in `kaela-moves.html`:
+      - slow motion (0.3×) just before the finishing hit of heavy cards and the orb
+      - an impact frame: 2 frames of black screen, white silhouettes and red burst lines
+      - a camera zoom kick toward each hit (`camKick`); letterbox bars (`cine` cards)
+      - speed lines: horizontal on the dash in, vertical on the launch
+      - a dust ring along the floor and rising dark smoke puffs on big hits
+    - Blood Orb: the screen dims and the camera leans in. A rune circle draws itself round the blade (runes plus a dashed counter-turning ring), lightning crackles, motes pour in. A ring bursts on launch; the orb has a glow halo and a twisting two-strand flame tail; the camera follows it. Then slow motion, the impact frame, and a 1.5× explosion with a second ring, dust ring and smoke column.
+    - Video `previews/kaela-cards-v8.mp4`. Assets still gitignored: the licence allows use, but whether the raw files may sit in the repo is Isaac's call.
   - Enemy redraw: still to do (Isaac: "find already done enemies and tweak"); asset sites (itch.io, opengameart) are blocked by this environment's network policy, so he would have to upload a pack or allow the domains.
 - Planetfall round 11 + Addendum K extras (2026-10-22, pushed): NOVA powers up and drives a beam into the sky to open Jupiter's portal, then bears down on it; GOLEM only braces until Jupiter appears, holds it (sinking unchanged), strains, one thruster push snaps her beam; the portal swallows Jupiter (it shrinks into the vortex). Planets crack (glowing seams, frozen beat) then shatter into Voronoi rock chunks with molten edges (`voronoi`, `breakApart`). Rotcap has stumpy legs and round feet. Each biome has its own music (`THEMES` in sound.js, `playTheme`; the boss keeps `SONG`). All 18 enemies verified and in the course (`READY`).
 - Planetfall round 10 (2026-10-22): planets burst through their portals (clipped at the portal surface), with a fire bow shock, a plasma tail and slow motion just before impact; on impact they break into burning wedges (`breakApart`), and GOLEM is knocked back. Uranus is drawn as `uranusRingBack` + `uranusBody` + `uranusRingFront` (planets-px.js `uPart`/`uTumble`), so its ring tumbles in flight and snaps into pieces. Jupiter is now drawn **behind** GOLEM (`sprBack`) and rests on his raised hands. He pushes it back in three heaves (gather, then thrusters blast fire and dust out of the floor, a surge up, and the weight wins some back), then a slow-motion final shove. The sinking is unchanged (Isaac liked it). About 20 s.

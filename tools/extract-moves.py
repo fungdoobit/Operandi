@@ -240,6 +240,80 @@ def despeckle(fr):
             for p in comp: out[p][3] = 0
     return out
 
+# repair (lossy sources; Isaac 2026-10-23: "missing pixels and weird grey pixels, it looks corrupted"):
+#   holes   see-through pixels inside her (keyed out because they looked like the beige
+#           background) are filled from their neighbours, and small enclosed gaps closed
+#   greys   her edge blended with the background reads as grey: small grey bits touching her take
+#           the colour around them, loose ones go (big grey areas, like the slam's smoke, stay)
+#   outline the clean GIF frames have a dark outline (hair: dark red); the video's blurred edge is
+#           redrawn in it
+OUTLINE, HAIR_EDGE = (44, 28, 18), (98, 16, 28)
+HAIRC = {(150, 30, 36), (98, 16, 28), (196, 58, 54), (226, 104, 92)}
+def nb8(m):
+    P = np.pad(m, 1); H, W = m.shape
+    return [P[1 + dy:H + 1 + dy, 1 + dx:W + 1 + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx]
+def comps(mask):
+    H, W = mask.shape; seen = np.zeros_like(mask); out = []
+    for y0, x0 in zip(*np.nonzero(mask)):
+        if seen[y0, x0]: continue
+        comp, st = [], [(y0, x0)]; seen[y0, x0] = True
+        while st:
+            y, x = st.pop(); comp.append((y, x))
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    yy, xx = y + dy, x + dx
+                    if 0 <= yy < H and 0 <= xx < W and mask[yy, xx] and not seen[yy, xx]: seen[yy, xx] = True; st.append((yy, xx))
+        out.append(comp)
+    return out
+def fill_from(out, pts, src):   # each point takes the most common colour among its src neighbours
+    H, W = src.shape
+    for y, x in pts:
+        cs = [tuple(out[yy, xx, :3]) for yy in range(max(0, y - 1), min(H, y + 2)) for xx in range(max(0, x - 1), min(W, x + 2)) if src[yy, xx] and (yy, xx) != (y, x)]
+        if cs:
+            c = max(set(cs), key=cs.count); out[y, x, :3] = c; out[y, x, 3] = 255
+def repair(fr):
+    out = fr.copy(); H, W = out.shape[:2]
+    px = out[..., :3].astype(int); on = out[..., 3] > 0
+    # light greys and near-whites are effects (smoke, fading slash streaks): kept as drawn, never outlined
+    efx = lambda o: is_fx(o) | ((o[..., 3] > 0) & ((o[..., :3].max(-1).astype(int) - o[..., :3].min(-1)) < 24) & (o[..., :3].max(-1) >= 150))
+    code = px[..., 0] * 65536 + px[..., 1] * 256 + px[..., 2]
+    # only the sword's dark steel is kept: on video its light steel (120,122,132) is mostly the slash's
+    # shading and blurred edges snapped to it (a big grey patch beside her hair on the uppercut)
+    steel = code == 58 * 65536 + 60 * 256 + 70
+    grey = on & ~steel & ((px.max(-1) - px.min(-1)) < 24) & (px.max(-1) > 64) & (px.max(-1) < 248)
+    body = on & ~is_fx(out) & ~grey
+    # greys: small bits (any shade) are noise: they take her colour where they touch her, else go;
+    # big mid-grey patches are an effect's shading the recolour missed: dark reds, like the rest of it;
+    # big light-grey patches (smoke, fading streaks) stay
+    mid = grey & (px.max(-1) < 150)   # judged apart from the light greys, which a slash's white can join into one big area
+    for g, is_mid in ((mid, True), (grey & ~mid, False)):
+        for comp in comps(g):
+            if len(comp) < 30:
+                for y, x in comp: out[y, x, 3] = 0
+                fill_from(out, [p for p in comp if sum(n[p] for n in nb8(body)) >= 3], body)
+            elif is_mid:
+                for y, x in comp: out[y, x, :3] = RED["deep"] if px[y, x].max() > 105 else RED["dark"]
+    fx = efx(out)
+    # holes: two passes of "3+ of 4 sides are her", then enclosed gaps up to 40 px
+    for _ in range(2):
+        on = out[..., 3] > 0; body = on & ~efx(out)
+        P = np.pad(body, 1); n4 = P[:-2, 1:-1].astype(int) + P[2:, 1:-1] + P[1:-1, :-2] + P[1:-1, 2:]
+        fill_from(out, list(zip(*np.nonzero(~on & (n4 >= 3)))), body)
+    on = out[..., 3] > 0; body = on & ~efx(out)
+    for comp in comps(~on):
+        if len(comp) > 40 or any(y in (0, H - 1) or x in (0, W - 1) for y, x in comp): continue
+        if sum(1 for y, x in comp for n in nb8(body) if n[y, x]) < len(comp): continue   # mostly ringed by her, not by effects
+        fill_from(out, comp, body)
+    # outline: her silhouette edge (next to see-through) in her outline colours
+    on = out[..., 3] > 0; body = on & ~efx(out)
+    P = np.pad(on, 1); inner = P[:-2, 1:-1] & P[2:, 1:-1] & P[1:-1, :-2] & P[1:-1, 2:]
+    edge = body & ~inner
+    for y, x in zip(*np.nonzero(edge)):
+        c = tuple(int(v) for v in out[y, x, :3])
+        if c in ((36, 24, 16), OUTLINE, (58, 60, 70)): continue
+        out[y, x, :3] = HAIR_EDGE if c in HAIRC else OUTLINE
+    return out
+
 # ---- key, recolour, merge repeats ----
 cut, darks = [], []
 for fi, n in enumerate(frames):
@@ -254,7 +328,7 @@ for fi, n in enumerate(frames):
         alpha = ~np.isin(n[..., 0] * 65536 + n[..., 1] * 256 + n[..., 2], KEY)
     rgba = np.zeros(n.shape[:2] + (4,), np.uint8); rgba[..., :3] = n; rgba[..., 3] = alpha * 255
     fr = recolour(rgba)
-    cut.append(despeckle(fr) if lossy else fr); darks.append(dark)
+    cut.append(repair(despeckle(fr)) if lossy else fr); darks.append(dark)
 keep, dur, dk = [], [], []
 for fr, d, m in zip(cut, darks, ms):
     if keep and np.abs(fr.astype(int) - keep[-1].astype(int)).mean() < 0.6: dur[-1] += m; continue

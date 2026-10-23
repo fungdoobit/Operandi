@@ -10,7 +10,10 @@ body { margin: 0; background: #0f1116; color: #e9ecf2; font-family: system-ui, s
 main { max-width: 1300px; margin: 0 auto; padding: 16px; }
 h1 { font-size: 20px; margin: 0 0 4px; } p { color: #9aa3b5; margin: 0 0 12px; font-size: 14px; }
 #wrap { position: relative; height: 440px; border-radius: 12px; overflow: hidden; background: #06070c; }
-#stage { position: absolute; inset: 0; }
+#stage { position: absolute; inset: 0; will-change: transform; }
+.lb { position: absolute; left: 0; right: 0; height: 0; background: #000; z-index: 5; transition: height .35s ease; }
+.lb.top { top: 0; } .lb.bot { bottom: 0; }
+#wrap.cine .lb { height: 9%; }
 #stage canvas.layer { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; z-index: 2; }
 .bar { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
 button { font: 600 14px system-ui; border: 1px solid #3a4150; background: #1a1f29; color: #fff; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
@@ -21,7 +24,7 @@ button.go { background: #7a1424; border-color: #c2142e; }
 <main>
   <h1>Kaela: her real moves (PRD Addendum L)</h1>
   <p>Isaac's 7 cards (2026-10-23), chained from the creator's moves with smooth joins. Cut frame by frame from the creator's motion-test videos at her native pixel size, snapped to her palette, restyled (tools/kaela_style.py: darker red hair, red eyes, leather coat and boots, no horns), effects red. One button per ability card. Enemy: Isaac's red fanged flyer.</p>
-  <div id="wrap"><div id="stage"></div></div>
+  <div id="wrap"><div id="stage"></div><div class="lb top"></div><div class="lb bot"></div></div>
   <div class="bar" id="moves"></div>
   <div class="bar"><button id="bite">Enemy bites</button></div>
 </main>
@@ -107,13 +110,13 @@ const S = (id, from = 0, to = null, o = {}) => ({ id, from, to, ...o });
 const CARDS = [
   { name: "Crimson Slash", tip: "a simple slash", seq: [S("quick")] },
   { name: "Twin Fang", tip: "a double slash", seq: [S("quick", 0, 6), S("dash")] },
-  { name: "Blood Orb", tip: "she charges a crimson orb on her blade and flings it; it explodes on the enemy", ranged: true, orb: true,
+  { name: "Blood Orb", tip: "she charges a crimson orb on her blade and flings it; it explodes on the enemy", ranged: true, orb: true, cine: true,
     seq: [S("quick", 0, 0, { hold: 560, charge: true }), S("quick", 1)] },
   { name: "Scarlet Whirl", tip: "the claw-like whirl", seq: [S("spin")] },
-  { name: "Fang Whirl", tip: "double slash, then Scarlet Whirl", heavy: true, seq: [S("quick", 0, 6), S("dash", 0, 3), S("spin", 1)] },
-  { name: "Rising Moon", tip: "an uppercut throws the enemy up; she follows and cuts it a thousand times in the air", heavy: true, juggle: true, reach: 50,
+  { name: "Fang Whirl", tip: "double slash, then Scarlet Whirl", heavy: true, cine: true, seq: [S("quick", 0, 6), S("dash", 0, 3), S("spin", 1)] },
+  { name: "Rising Moon", tip: "an uppercut throws the enemy up; she follows and cuts it a thousand times in the air", heavy: true, juggle: true, reach: 50, cine: true,
     seq: [S("upper", 0, 9, { launch: true }), S("combo", 1, 33, { dy: 52, speed: 1.15 }), S("upper", 11)] },
-  { name: "Skyfall", tip: "Thousand Cuts into an uppercut into the slam down", heavy: true, reach: 46,
+  { name: "Skyfall", tip: "Thousand Cuts into an uppercut into the slam down", heavy: true, reach: 46, cine: true,
     seq: [S("combo", 0, 33), S("upper", 0, 10, { launch: true, hang: 200 }), S("slam", 12, null, { slamDown: true, blend: 60, hits: [15] })] },
 ];
 const LIFT = -56;   // how high a launched enemy flies
@@ -144,8 +147,10 @@ for (const c of CARDS) {   // lay the chain out on one timeline
   c.reach = c.ranged ? null : c.reach ?? Math.min(...c.segs.map((g) => g.reach));   // a card can set its own stance distance
   if (c.orb) {   // the hit is the orb landing, not the swing
     const g = c.segs[1], launch = g.start + g.starts[MOVES.quick.hits[0] - g.from];
-    c.launch = launch; c.flight = 330; c.hits = [launch + c.flight]; c.total = Math.max(c.chain, launch + c.flight + 520);
+    c.launch = launch; c.flight = 380; c.hits = [launch + c.flight]; c.total = Math.max(c.chain, launch + c.flight + 900);
   }
+  // cinematic beats: slow motion just before the finishing hit of the big cards
+  if (c.heavy || c.orb) c.slowAt = c.hits[c.hits.length - 1] - (c.orb ? 170 : 110);
 }
 const [idleImg, walkImg, demonImg] = await Promise.all([load("./assets/kaela/moves/idle.png"), load("./assets/kaela/moves/walk.png"), load("./assets/enemies/demon.png")]);
 const IDLE = cut(idleImg, 46, 55, 10, 10), WALK = cut(walkImg, 45, 58, 4, 24);   // already restyled (tools/restyle-sheet.py)
@@ -155,6 +160,10 @@ const FOE = { idle: cut(demonImg, 64, 64, 8, 6), bite: cut(demonImg, 64, 64, 8, 
 const ease = { out: (t) => 1 - (1 - t) ** 3, in: (t) => t ** 3, io: (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2) };
 let gt = 0, last = performance.now(), hitstop = 0, shake = 0, flash = 0, meFlash = 0, parts = [], trail = [], booms = [];
 let act = null, foeAct = null, kx = 0, ky = 0, frame = IDLE[0], moveFrame = null, dark = 0, orb = null;
+// cinema: slowmo (real ms left at 0.3x), camera zoom/focus, impact frames (black screen, white silhouettes), smoke
+let speed = null, slowmo = 0, impactF = 0, impactAt = null, smoke = [], cam = { z: 1, x: 0.5, y: 0.5 }, camT = null;
+const wrapEl = document.getElementById("wrap");
+const camKick = (z, x, y, ms) => { camT = { z, x: x / WA, y: y / HA, until: gt + ms }; };
 let ex = 0, ey = 0, lift = 0, eFrame = FOE.idle[0], eAlpha = 1, dead = false, knock = -1e9;
 
 const bar = document.getElementById("moves");
@@ -188,10 +197,12 @@ function update() {
     if (t < IN) {   // dash in: walk frames at speed, red afterimages
       const k = ease.out(t / IN); kx = spot * k; frame = WALK[(Math.floor(t / 25) + 6) % 24];
       if (!act.whoosh) { act.whoosh = true; sound.sfx("whoosh", { theme: "fire" }); }
-      if (Math.abs(spot) > 20) trail.push({ f: frame, x: kxBase + kx - frame.w / 2, y: FLOOR - frame.bottom, t: gt });
+      if (Math.abs(spot) > 20) { trail.push({ f: frame, x: kxBase + kx - frame.w / 2, y: FLOOR - frame.bottom, t: gt }); speed = { v: false, until: gt + 60 }; }
     } else {
       const mt = t - IN;
       if (c.dark) dark = 1;
+      if (c.cine) wrapEl.classList.add("cine");
+      if (c.slowAt != null && mt >= c.slowAt && !act.slowed) { act.slowed = true; slowmo = c.orb ? 560 : 420; }
       lifted = keyed(c.lift, mt);
       if (mt < c.chain) {
         const g = c.segs.find((g) => mt < g.start + g.dur), lt = mt - g.start, mv = g.mv;
@@ -203,9 +214,11 @@ function update() {
         moveFrame = { f, x: Math.round(kxBase + spot - mv.ax), y: FLOOR - f.h - ky };
         if (mv.m.dark.includes(j)) dark = 1;   // a move's own dark-screen frames
         if (Math.abs(dy - (act.lastDy ?? dy)) > 1.5 || (g.id === "upper" && j >= 2 && j <= 7)) trail.push({ f, x: moveFrame.x, y: moveFrame.y, t: gt });   // afterimages while she flies
+        if ((g.launch && j >= 2 && j <= 7) || (g.dy && dy - (act.lastDy ?? dy) > 1.5)) speed = { v: true, until: gt + 90 };   // rising: vertical speed lines
         act.lastDy = dy;
-        if (g.charge) {   // the orb gathers on her blade
+        if (g.charge) {   // the orb gathers on her blade; the world dims and the camera leans in
           if (!act.hum) { act.hum = true; sound.sfx("magic"); }
+          dark = Math.max(dark, 0.6 * Math.min(1, lt / 200)); camT = { z: 1.08, x: blade().x / WA, y: blade().y / HA, until: gt + 80 };
           orb = { x: blade().x, y: blade().y, r: 1 + 4 * ease.out(Math.min(1, lt / g.dur)), charge: lt, trail: [] };
         }
       } else if (c.ranged) { kx = 0; frame = IDLE[Math.floor(mt / 100) % 10]; }
@@ -218,21 +231,30 @@ function update() {
         const k = ease.in(Math.min(1, (mt - c.launch) / c.flight) ** 0.8), b = blade(), tx = exBase - 6, ty = FLOOR - 34 + lift;
         if (!act.thrown) { act.thrown = true; sound.sfx("whoosh", { theme: "fire" }); }
         const x = b.x + (tx - b.x) * k, y = b.y + (ty - b.y) * k - Math.sin(k * Math.PI) * 12;
-        orb = { x, y, r: 5, trail: [...(orb?.trail || []), { x, y }].slice(-12) };
+        const tr = [...(orb?.trail || [])], lp = tr[tr.length - 1];
+        if (lp) { const n = Math.max(1, Math.round(Math.hypot(x - lp.x, y - lp.y) / 2)); for (let i = 1; i < n; i++) tr.push({ x: lp.x + (x - lp.x) * i / n, y: lp.y + (y - lp.y) * i / n }); }   // every 2 px, so the tail is one streak
+        tr.push({ x, y });
+        orb = { x, y, r: 6, trail: tr.slice(-40) };
+        if (!act.ring) { act.ring = true; booms.push({ t: gt, x: b.x, y: b.y, ring: true }); shake = 4; }   // the launch: a ring bursts off her blade
+        camT = { z: 1.05, x: x / WA, y: y / HA, until: gt + 80 };   // the camera follows it
       } else if (c.orb && mt >= c.hits[0]) orb = null;
       c.hits.forEach((h, i) => {
         if (mt >= h && !act.done.has(i)) {
           act.done.add(i);
           const last = i === c.hits.length - 1, big = last && c.heavy;
           hitstop = big ? 220 : last ? 150 : 70; flash = 140; shake = big ? 8 : last ? 5 : 3; knock = gt;
-          if (c.orb) { booms.push({ t: gt, x: exBase - 4, y: FLOOR - 34 + lift }); hitstop = 120; shake = 9; sound.sfx("impact", { size: 1.5 }); }
-          else { sound.sfx("slash"); sound.sfx(last ? "impact" : "hit", { size: big ? 1.6 : last ? 1.2 : 0.8 }); }
+          const hx = exBase - 4, hy = FLOOR - 34 + lift;
+          if (c.orb) { booms.push({ t: gt, x: hx, y: hy, big: 1.5 }); hitstop = 160; shake = 11; sound.sfx("impact", { size: 1.8 }); }
+          if (last && (c.heavy || c.orb)) { impactF = 2; impactAt = { x: hx, y: hy }; camKick(1.16, hx, hy, 520); puffs(hx, Math.min(FLOOR - 6, hy + 10), c.orb ? 9 : 6); if (!c.orb) booms.push({ t: gt, x: hx, y: FLOOR - 2, dust: true }); }
+          else camKick(1.04, hx, hy, 160);
+          if (!c.orb) { sound.sfx("slash"); sound.sfx(last ? "impact" : "hit", { size: big ? 1.6 : last ? 1.2 : 0.8 }); }
           parts.push(...shards(big || c.orb ? 30 : last ? 22 : 10, exBase - 4, FLOOR - 34 + lift, Math.floor(gt) + i));
           if (last && act.finish) { act.die = gt; sound.sfx("screech"); }
         }
       });
       if (mt >= c.total + (c.ranged ? 0 : 320) && !act.die) act = null;
       else if (act.die && gt - act.die > 1100) act = null;
+      if (!act) wrapEl.classList.remove("cine");
     }
   }
   if (!act) orb = null;
@@ -271,6 +293,35 @@ function disc(img, cx, cy, r, band, wobble = 0, seed = 0) {   // band(d) -> colo
   }
 }
 function drawOrb(img, o) {
+  if (o.charge != null) {   // the rune circle draws itself round her blade, then turns
+    const p = Math.min(1, o.charge / 300), rot = gt / 500;
+    for (let a = 0; a < p * 6.283; a += 0.06) {
+      put(img, o.x + Math.cos(a - 1.57) * 14, o.y + Math.sin(a - 1.57) * 14, C.light);
+      put(img, o.x + Math.cos(a - 1.57) * 15, o.y + Math.sin(a - 1.57) * 15, C.deep);
+    }
+    for (let k = 0; k < 8; k++) {   // runes: little ticks riding the ring
+      const a = rot + k * 0.785; if (((a + 1.57) % 6.283 + 6.283) % 6.283 > p * 6.283) continue;
+      for (let r = 10; r <= 12; r++) put(img, o.x + Math.cos(a) * r, o.y + Math.sin(a) * r, k % 2 ? C.pale : C.light);
+    }
+    if (p > 0.5) for (let a = 0; a < 6.283; a += 0.045) {   // the outer ring, dashed, turning the other way
+      if (Math.floor((a - rot * 1.6) * 20 / 6.283 * 2) % 2) continue;
+      put(img, o.x + Math.cos(a) * 20, o.y + Math.sin(a) * 20, C.mid);
+    }
+    // lightning: a few short zigzags crackling out of the orb, re-rolled every 70 ms
+    let sd = Math.floor(gt / 70) * 9301 + 49297; const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
+    for (let k = 0; k < 2; k++) {
+      let a = rnd() * 6.283, x = o.x, y = o.y; const L = 8 + rnd() * 10;
+      for (let i = 0; i < L; i++) { a += (rnd() - 0.5) * 1.2; x += Math.cos(a); y += Math.sin(a); put(img, x, y, i < L / 2 ? C.white : C.pale); }
+    }
+  }
+  // the glow round it (a dithered halo)
+  disc(img, o.x, o.y, o.r * 2, (d, x, y) => (d > 0.62 && d < 1 && !((x + y) & 1) ? C.deep : null));
+  // a twisting flame tail: two strands wound round the trail
+  o.trail?.forEach((p, i, A) => {
+    const k = i / A.length, q = A[Math.max(0, i - 1)], dx = p.x - q.x, dy = p.y - q.y, L = Math.hypot(dx, dy) || 1, w = Math.sin(i * 1.1 - gt / 40) * 4 * k;
+    put(img, p.x - dy / L * w, p.y + dx / L * w, k > 0.6 ? C.pale : C.light);
+    put(img, p.x + dy / L * w, p.y - dx / L * w, k > 0.6 ? C.light : C.mid);
+  });
   // trail: shrinking blobs, fading through the reds into a checker dither
   o.trail?.forEach((p, i, A) => {
     const k = i / A.length, r = o.r * (0.35 + 0.55 * k);
@@ -290,18 +341,34 @@ function drawOrb(img, o) {
   }
 }
 function drawBoom(img, b) {
-  const t = (gt - b.t) / 560; if (t > 1) return false;
+  if (b.ring) {   // the launch: a quick ring off her blade
+    const t = (gt - b.t) / 220; if (t > 1) return false;
+    const r = 4 + 16 * ease.out(t);
+    for (let a = 0; a < 6.283; a += 0.05) if (!(t > 0.5 && Math.floor(a * 10) % 2)) put(img, b.x + Math.cos(a) * r, b.y + Math.sin(a) * r * 0.7, t < 0.4 ? C.pale : C.light);
+    return true;
+  }
+  if (b.dust || b.big) {   // a dust ring racing out along the floor
+    const t = (gt - b.t) / 700;
+    if (t <= 1) { const rx = 8 + 80 * ease.out(t), ry = 2 + 4 * t;
+      for (let a = 0; a < 6.283; a += 0.02) { const x = b.x + Math.cos(a) * rx, y = FLOOR - 1 + Math.sin(a) * ry; if (t > 0.5 && ((Math.round(x) + Math.round(y)) & 1)) continue; put(img, x, y, t < 0.3 ? [236, 214, 200] : [190, 160, 150]); } }
+    if (b.dust) return t <= 1;
+  }
+  const S = b.big || 1, t = (gt - b.t) / (560 * S); if (t > 1) return false;
   const seed = b.t % 7;
+  if (S > 1 && t > 0.12) {   // a second, wider ring
+    const t2 = (t - 0.12) / 0.88, r2 = 10 + 70 * ease.out(t2);
+    for (let a = 0; a < 6.283; a += 0.02) if (!(t2 > 0.4 && Math.floor(a * 24) % 2)) put(img, b.x + Math.cos(a) * r2, b.y + Math.sin(a) * r2 * 0.8, t2 < 0.3 ? C.light : C.deep);
+  }
   // shock ring
-  const rr = 6 + 36 * ease.out(t), w = 3 * (1 - t) + 0.6;
+  const rr = 6 + 36 * S * ease.out(t), w = 3 * (1 - t) + 0.6;
   disc(img, b.x, b.y, rr + w, (d, x, y) => { if (d > 1) return null; const r = d * (rr + w); if (r < rr - w) return null; if (t > 0.55 && (x + y) & 1) return null; return t < 0.25 ? C.pale : t < 0.5 ? C.light : C.mid; });
   // spikes
   if (t < 0.4) for (let k = 0; k < 9; k++) {
-    const a = k * 0.698 + seed, L0 = 8, L1 = 8 + 22 * ease.out(t / 0.4) * (1 - t * 0.8) * (k % 2 ? 0.7 : 1);
+    const a = k * 0.698 + seed, L0 = 8, L1 = 8 + 22 * S * ease.out(t / 0.4) * (1 - t * 0.8) * (k % 2 ? 0.7 : 1);
     for (let r = L0; r < L1; r++) { put(img, b.x + Math.cos(a) * r, b.y + Math.sin(a) * r, r > L1 - 3 ? C.light : C.pale); }
   }
   // fireball: grows fast, then shrinks and breaks up
-  const rf = 15 * ease.out(Math.min(1, t / 0.2)) * Math.pow(1 - Math.max(0, (t - 0.35) / 0.65), 0.7);
+  const rf = 15 * S * ease.out(Math.min(1, t / 0.2)) * Math.pow(1 - Math.max(0, (t - 0.35) / 0.65), 0.7);
   if (rf > 0.8) disc(img, b.x, b.y, rf, (d, x, y) => {
     if (d > 1.14) return null;
     if (t > 0.6 && ((x * 3 + y * 5 + Math.floor(gt / 66)) % 4 === 0)) return null;   // breaking up
@@ -309,7 +376,23 @@ function drawBoom(img, b) {
     const hot = t < 0.18 ? 0.75 : t < 0.35 ? 0.45 : 0.2;
     return d < hot * 0.6 ? C.white : d < hot ? C.pale : d < 0.72 ? C.light : d < 0.88 ? C.mid : C.deep;
   }, 0.12, seed);
-  if (t < 0.07) disc(img, b.x, b.y, 18 * (t / 0.07) + 4, (d) => (d < 1 ? C.white : null));   // the first white flash
+  if (t < 0.07) disc(img, b.x, b.y, 18 * S * (t / 0.07) + 4, (d) => (d < 1 ? C.white : null));   // the first white flash
+  return true;
+}
+
+// smoke: dark puffs that swell, rise and dither away
+function puffs(x, y, n) {
+  for (let i = 0; i < n; i++) { const a = -1.57 + (i / (n - 1 || 1) - 0.5) * 2.4; smoke.push({ x, y, vx: Math.cos(a) * (14 + (i % 3) * 8), vy: Math.sin(a) * 26 - 10, r: 4 + (i % 3), t0: gt + i * 18 }); }
+}
+function drawPuff(img, p) {
+  const t = (gt - p.t0) / 1300; if (t > 1) return false; if (t < 0) return true;
+  const x = p.x + p.vx * t * 1.6, y = p.y + p.vy * t * 1.6 - 18 * t * t, r = p.r * (1 + 1.8 * ease.out(t));
+  disc(img, x, y, r, (d, X, Y) => {
+    if (d > 1) return null;
+    const thin = t > 0.75 ? 2 : t > 0.5 ? 1 : 0;   // fades out through dithering
+    if (thin === 2 && (X + Y) & 1 || thin === 2 && (X & 1)) return null; if (thin === 1 && ((X + Y) & 1)) return null;
+    return d < 0.55 && t < 0.25 ? [150, 44, 40] : d > 0.85 ? [40, 18, 22] : [72, 30, 34];
+  }, 0.15, p.r);
   return true;
 }
 
@@ -328,20 +411,48 @@ function render() {
   if (moveFrame) ga.drawImage(moveFrame.f.c, moveFrame.x, moveFrame.y);
   else ga.drawImage(meFlash > 0 ? ghost(frame, "#ffffff") : frame.c, Math.round(kxBase + kx - frame.w / 2), FLOOR - frame.bottom);
   const img = gf.createImageData(WA, HA), dt = 1 / 30;
+  if (speed && gt < speed.until) {   // speed lines: thin pale streaks, re-rolled each frame
+    let sd = Math.floor(gt / 33) * 7919 + 13; const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
+    for (let k = 0; k < 14; k++) {
+      const L = 18 + rnd() * 50, a = rnd(), b = rnd();
+      for (let i = 0; i < L; i += 1) {
+        if (i % 3 === 2) continue;
+        const c = i < L * 0.3 ? [255, 230, 222] : [196, 150, 150];
+        if (speed.v) put(img, a * WA, b * HA * 1.2 - i, c); else put(img, b * WA * 1.2 - i, 20 + a * (FLOOR - 24), c);
+      }
+    }
+  }
+  smoke = smoke.filter((p) => drawPuff(img, p));
   if (orb) drawOrb(img, orb);
   booms = booms.filter((b) => drawBoom(img, b));
   parts = parts.filter((s) => { if (hitstop <= 0) { s.vy += 380 * dt; s.x += s.vx * dt; s.y += s.vy * dt; } s.life = (s.life || 0) + dt; return s.life < 0.8 && s.y < FLOOR + 4; });
   for (const s of parts) { const c = [parseInt(s.c.slice(1, 3), 16), parseInt(s.c.slice(3, 5), 16), parseInt(s.c.slice(5, 7), 16)]; for (let i = 0; i < s.s; i++) for (let j = 0; j < s.s; j++) put(img, s.x + i, s.y + j, c); }
+  if (impactF > 0) {   // impact frame: the world goes black, both fighters white, red burst lines
+    impactF--;
+    ga.fillStyle = "#000"; ga.fillRect(0, 0, WA, HA);
+    ga.drawImage(ghost(eFrame, "#ffffff"), Math.round(exBase + ex - 32), Math.round(FLOOR - 62 + ey + lift));
+    if (moveFrame) ga.drawImage(ghost(moveFrame.f, "#ffffff"), moveFrame.x, moveFrame.y);
+    else ga.drawImage(ghost(frame, "#ffffff"), Math.round(kxBase + kx - frame.w / 2), FLOOR - frame.bottom);
+    img.data.fill(0);
+    for (let k = 0; k < 28; k++) {
+      const a = k * 0.2244 + (k % 3) * 0.05, r0 = 14 + (k % 4) * 6;
+      for (let r = r0; r < 260; r++) put(img, impactAt.x + Math.cos(a) * r, impactAt.y + Math.sin(a) * r, k % 2 ? C.mid : C.deep);
+    }
+  }
   gf.putImageData(img, 0, 0);
   const sx = shake > 0.3 ? Math.round((Math.random() - 0.5) * shake) * 2 : 0, sy = shake > 0.3 ? Math.round((Math.random() - 0.5) * shake) * 2 : 0;
-  stage.style.transform = `translate(${sx * (stage.clientHeight / HA) / 2}px, ${sy * (stage.clientHeight / HA) / 2}px)`;
+  stage.style.transformOrigin = `${(cam.x * 100).toFixed(2)}% ${(cam.y * 100).toFixed(2)}%`;
+  stage.style.transform = `translate(${sx * (stage.clientHeight / HA) / 2}px, ${sy * (stage.clientHeight / HA) / 2}px) scale(${cam.z.toFixed(4)})`;
 }
 
 let tick = 0;
 function loop(now) {
   requestAnimationFrame(loop);
   const real = Math.max(0, Math.min(50, now - last)); last = now;
-  if (hitstop > 0) hitstop -= real; else gt += real;
+  if (hitstop > 0) hitstop -= real; else gt += real * (slowmo > 0 ? 0.3 : 1);
+  if (slowmo > 0 && hitstop <= 0) slowmo -= real;
+  const on = camT && gt < camT.until, tz = on ? camT.z : 1;
+  cam.z += (tz - cam.z) * 0.12; if (on) { cam.x += (camT.x - cam.x) * 0.2; cam.y += (camT.y - cam.y) * 0.2; }
   if (flash > 0) flash -= real;
   if (meFlash > 0) meFlash -= real;
   shake *= 0.86;
