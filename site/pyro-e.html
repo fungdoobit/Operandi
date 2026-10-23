@@ -22,7 +22,7 @@ button.on { background: #7a3a14; border-color: #ff8a3c; }
 <body>
 <main>
   <h1>PYRO: flame E, flame F when he's fired up</h1>
-  <p>Rounded white eyes like NOVA's, no outline. The eyes stay put with a gentle sway instead of jumping with the flicker. Angry or fierce switches to the bigger, darker flame F.</p>
+  <p>Rounded white eyes like NOVA's, no outline, on a slightly darker core. The eyes stay put with a gentle sway instead of jumping with the flicker. Angry or fierce switches to the bigger, darker flame F.</p>
   <div class="bar" id="moods"></div>
   <div class="row" id="row"></div>
 </main>
@@ -34,13 +34,17 @@ const W = 32, H = 48;   // one canvas for both flames, bottoms lined up
 async function flame(src) {
   const img = await load(src), n = 8, fw = img.width / n, fh = img.height;
   const c = document.createElement("canvas"); c.width = img.width; c.height = fh;
-  const g = c.getContext("2d"); g.drawImage(img, 0, 0);
+  const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
   const D = g.getImageData(0, 0, img.width, fh).data;
   let sx = 0, sy = 0, k = 0, best = 0, bottom = 0;
   for (let i = 0; i < D.length; i += 4) if (D[i + 3]) { best = Math.max(best, D[i] + D[i + 1] + D[i + 2]); bottom = Math.max(bottom, Math.floor(i / 4 / img.width)); }
   for (let i = 0; i < D.length; i += 4) if (D[i + 3] && D[i] + D[i + 1] + D[i + 2] >= best - 60) { sx += (i / 4) % img.width % fw; sy += Math.floor(i / 4 / img.width); k++; }
   const dy = H - 3 - bottom;   // shift so its bottom sits on the canvas's floor
-  return { img, n, fw, fh, dy, core: [sx / k, sy / k + dy] };
+  // its colours, palest first: the core behind the eyes gets toned down one step
+  const cols = new Map();
+  for (let i = 0; i < D.length; i += 4) if (D[i + 3]) cols.set((D[i] << 16) | (D[i + 1] << 8) | D[i + 2], D[i] + D[i + 1] + D[i + 2]);
+  const tones = [...cols].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  return { img, n, fw, fh, dy, core: [sx / k, sy / k + dy], tones };
 }
 const E = await flame("assets/pyro/devkidd/red-group4-5.png");
 const F = await flame("assets/pyro/devkidd/red-group7-2.png");
@@ -68,7 +72,7 @@ function add(label, css, light = false) {
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H; cv.style.width = W * css + "px";
   c.append(cv); c.insertAdjacentHTML("beforeend", `<b>${label}</b>`);
   document.getElementById("row").append(c);
-  cards.push(cv.getContext("2d"));
+  cards.push(cv.getContext("2d", { willReadFrequently: true }));
 }
 add("Roaming size (3 px)", 3);
 add("Same, light page", 3, true);
@@ -86,6 +90,16 @@ function draw(t) {
   for (const g of cards) {
     g.clearRect(0, 0, W, H);
     g.drawImage(fl.img, i * fl.fw, 0, fl.fw, fl.fh, Math.round((W - fl.fw) / 2), fl.dy, fl.fw, fl.fh);
+    // a slightly darker core behind the eyes, so the white reads without an outline:
+    // the palest flame colour round them steps down to the next tone
+    const ex = cx + sx, ey = cy - 1 + sy, img = g.getImageData(0, 0, W, H), P = img.data;
+    const [p0, p1] = fl.tones, r = (p1 >> 16) & 255, gg = (p1 >> 8) & 255, b = p1 & 255;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (((x + 0.5 - ex) / 7.5) ** 2 + ((y + 0.5 - ey) / 5) ** 2 > 1) continue;
+      const o = (y * W + x) * 4;
+      if (P[o + 3] && ((P[o] << 16) | (P[o + 1] << 8) | P[o + 2]) === p0) { P[o] = r; P[o + 1] = gg; P[o + 2] = b; }
+    }
+    g.putImageData(img, 0, 0);
     eye(g, rows, cx - 3.5 + sx, cy - 1 + sy, false);
     eye(g, rows, cx + 3.5 + sx, cy - 1 + sy, true);
   }
