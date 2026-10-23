@@ -1,7 +1,7 @@
 // A big floppy slice of pizza for NOVA's warp idle (Isaac 2026-10-23), painted
 // straight in art pixels so it matches her: flat colours, a light edge top-left,
 // a shaded edge bottom-right and a 1-px dark outline. She holds it by the crust
-// with telekinesis; the tip droops and wobbles, and cheese strings hang off it.
+// with telekinesis (her own see-through purple haze round it); the tip droops and wobbles.
 // Each bite takes the tip back a step, with a bite mark.
 
 const PAL = {
@@ -9,6 +9,15 @@ const PAL = {
   crustLt: [228, 152, 82], crust: [180, 100, 42], crustDk: [120, 58, 24], pep: [196, 46, 40], pepLt: [234, 92, 70],
 };
 const KEYS = Object.keys(PAL);
+// her haze levels (nova-px.js GLOW, deep to light violet) with the pixel pass's opacities
+const HAZE = [[[44, 18, 88], 72], [[90, 42, 166], 128], [[154, 98, 234], 204]];
+const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const h1 = (n) => { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); };
+function vnoise(x, y) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  const a = h1(ix + iy * 57), b = h1(ix + 1 + iy * 57), c = h1(ix + (iy + 1) * 57), d = h1(ix + 1 + (iy + 1) * 57);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
 
 const off = document.createElement("canvas");
 const og = off.getContext("2d", { willReadFrequently: true });
@@ -64,14 +73,6 @@ export function drawPizza(g, x, y, { dir = 1, aim = 0, flop = 0, bites = 0, t = 
   og.fillStyle = col("crust");
   og.beginPath(); og.ellipse(cx, cy, W / 2 + 1.5, 3.4 * scale, -dir * 0.1, 0, 7); og.fill();
   og.fillStyle = col("crustLt"); og.fillRect(Math.round(cx - W / 2 + 2), Math.round(cy - 2 * scale), Math.round(W * 0.55), 1);
-  // cheese strings hanging off the end, swinging
-  for (let k = 0; k < 2; k++) {
-    const [ex, ey] = pts[N], len = (4 + 3 * k + Math.sin(t * 3 + k * 2) * 1.5) * scale;
-    og.fillStyle = col("cheeseLt");
-    const sx = ex + (k ? -2 : 1.5) * dir * scale;
-    for (let j = 0; j < len; j++) og.fillRect(Math.round(sx + Math.sin(t * 4 + j * 0.5 + k) * 0.6), Math.round(ey + j), 1, 1);
-    og.fillStyle = col("cheese"); og.fillRect(Math.round(sx) - 1, Math.round(ey + len), 2, 2);
-  }
   // pixel pass: hard alpha, snap to the palette, light/shade edges, outline
   const img = og.getImageData(0, 0, size, size), D = img.data;
   const at = (X, Y) => X >= 0 && Y >= 0 && X < size && Y < size && D[(Y * size + X) * 4 + 3] > 127;
@@ -89,20 +90,22 @@ export function drawPizza(g, x, y, { dir = 1, aim = 0, flop = 0, bites = 0, t = 
       const c = PAL.outline; out[o] = c[0]; out[o + 1] = c[1]; out[o + 2] = c[2]; out[o + 3] = 255;
     }
   }
-  // her telekinesis round it: a flickering 2-px aura in her magic purples, dithered on the outside
+  // her telekinesis round it: the same see-through dithered purple haze she has round
+  // herself (nova-px.js: her glow colours at 28 / 50 / 80 % opacity, broken up by drifting noise)
+  const dist = new Float32Array(size * size).fill(99);
+  for (let Y = 0; Y < size; Y++) for (let X = 0; X < size; X++) if (out[(Y * size + X) * 4 + 3]) dist[Y * size + X] = 0;
+  for (let pass = 0; pass < 2; pass++) for (let Y = 0; Y < size; Y++) for (let X = 0; X < size; X++) {
+    const yy = pass ? size - 1 - Y : Y, xx = pass ? size - 1 - X : X, i = yy * size + xx, s2 = pass ? -1 : 1;
+    const a1 = xx - s2 >= 0 && xx - s2 < size ? dist[i - s2] + 1 : 99, a2 = yy - s2 >= 0 && yy - s2 < size ? dist[i - s2 * size] + 1 : 99;
+    dist[i] = Math.min(dist[i], a1, a2);
+  }
   for (let Y = 0; Y < size; Y++) for (let X = 0; X < size; X++) {
-    const o = (Y * size + X) * 4;
-    if (out[o + 3]) continue;
-    let near = 9;
-    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-      const q = ((Y + dy) * size + X + dx) * 4;
-      if (Y + dy >= 0 && Y + dy < size && X + dx >= 0 && X + dx < size && out[q + 3] && PAL.outline[0] === out[q] && out[q + 1] === PAL.outline[1]) near = Math.min(near, Math.max(Math.abs(dx), Math.abs(dy)));
-    }
-    if (near > 2) continue;
-    const flick = ((X * 7 + Y * 13 + Math.floor(t * 12)) % 5) === 0;
-    if (near === 2 && ((X + Y) & 1 || flick)) continue;
-    const c = near === 1 ? (flick ? [243, 230, 255] : [160, 102, 240]) : [120, 56, 208];
-    out[o] = c[0]; out[o + 1] = c[1]; out[o + 2] = c[2]; out[o + 3] = 255;
+    const i = Y * size + X, o = i * 4, d = dist[i];
+    if (!d || d > 6) continue;
+    const gas = Math.exp(-(d - 1) * 0.42) * (0.3 + 0.85 * vnoise(X * 0.28, Y * 0.28 + t * 1.6));
+    const lv = gas * 3 + (B4[(Y & 3) * 4 + (X & 3)] / 16 - 0.5) * 0.45;
+    const [c, a] = lv > 2 ? HAZE[2] : lv > 1 ? HAZE[1] : lv > 0.5 ? HAZE[0] : [null, 0];
+    if (c) { out[o] = c[0]; out[o + 1] = c[1]; out[o + 2] = c[2]; out[o + 3] = a; }
   }
   img.data.set(out); og.putImageData(img, 0, 0);
   g.drawImage(off, Math.round(x - cx), Math.round(y - cy));
