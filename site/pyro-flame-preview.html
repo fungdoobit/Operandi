@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PYRO flame</title>
+<style>
+:root { color-scheme: dark; }
+body { margin: 0; background: #14161d; color: #e9ecf2; font-family: system-ui, sans-serif; }
+main { max-width: 1300px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 0 0 4px; } p { color: #9aa3b5; margin: 0 0 14px; font-size: 14px; }
+.row { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+.card { background: #0d0f14; border: 1px solid #262b36; border-radius: 12px; padding: 16px 24px; text-align: center; }
+.card.light { background: #ffffff; color: #222; }
+.card b { display: block; margin-top: 8px; font-size: 13px; }
+canvas { image-rendering: pixelated; display: block; margin: 0 auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PYRO: the flame loop with eyes</h1>
+  <p>Ansimuz's Magic Pack fire loop, with two blank white eyes like NOVA's in its biggest round part. The eyes follow the flame and blink.</p>
+  <div class="row" id="row"></div>
+</main>
+<script type="module">
+const meta = await (await fetch("assets/pyro/flame.json")).json();
+const sheet = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = "assets/pyro/flame.png"; });
+const FRAME_MS = 90;
+const EYE = "#ffffff", RIM = "#fff1c8", INK = "#7a1408";
+const cards = [];
+function add(label, css, light = false) {
+  const c = document.createElement("div"); c.className = "card" + (light ? " light" : "");
+  const cv = document.createElement("canvas"); cv.width = meta.w; cv.height = meta.h;
+  cv.style.width = meta.w * css + "px";
+  c.append(cv); c.insertAdjacentHTML("beforeend", `<b>${label}</b>`);
+  document.getElementById("row").append(c);
+  cards.push(cv.getContext("2d"));
+}
+add("Roaming size (3 px)", 3);
+add("Same, light page", 3, true);
+add("Bigger (5 px)", 5);
+add("Big, to see the pixels", 8);
+
+// One eye: a blank tall oval like NOVA's, drawn pixel by pixel: white, a pale warm shade
+// low on one side, and a dark outline so it reads on the bright fire.
+const OPEN = [".XXX.", "XWWWX", "XWWWX", "XWWWX", "XWWRX", ".XXX."];
+const SHUT = [".XXX.", "XRRRX", ".XXX."];
+const COL = { X: INK, W: EYE, R: RIM };
+function eye(g, cx, cy, open) {
+  const rows = open ? OPEN : SHUT, x0 = Math.round(cx) - 2, y0 = Math.round(cy) - (rows.length >> 1);
+  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (COL[ch]) { g.fillStyle = COL[ch]; g.fillRect(x0 + x, y0 + y, 1, 1); } }));
+}
+let manual = null;
+const t0 = performance.now();
+function draw(ms) {
+  ms = Math.max(0, ms);   // (a stale rAF time can be negative)
+  const i = Math.floor(ms / FRAME_MS) % meta.n, [ex, ey] = meta.eyes[i];
+  const open = (ms % 4200) < 4050;
+  for (const g of cards) {
+    g.clearRect(0, 0, meta.w, meta.h);
+    g.drawImage(sheet, i * meta.w, 0, meta.w, meta.h, 0, 0, meta.w, meta.h);
+    // in the middle of the round part, 7 px apart
+    eye(g, ex - 3.5, ey, open);
+    eye(g, ex + 3.5, ey, open);
+  }
+}
+(function loop(now) { draw(manual ?? now - t0); requestAnimationFrame(loop); })(t0);
+window.__draw = (ms) => { manual = ms; };
+</script>
+</body>
+</html>
