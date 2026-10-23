@@ -23,48 +23,47 @@ button.go { background: #7a1424; border-color: #c2142e; }
 <body>
 <main>
   <h1>Kaela: her real moves (PRD Addendum L)</h1>
-  <p>Isaac's 7 cards (2026-10-23), chained from the creator's moves with smooth joins. Cut frame by frame from the creator's motion-test videos at her native pixel size, snapped to her palette, restyled (tools/kaela_style.py: darker red hair, red eyes, leather coat and boots, no horns), effects red. One button per ability card. Enemy: Isaac's red fanged flyer.</p>
+  <p>Isaac's 7 cards (2026-10-23), chained from the creator's moves with smooth joins, restyled (tools/kaela_style.py). Background: Green Forest (3 parallax layers). Effects: Magic Pack 4 and the slash pack, recoloured to her reds (tools/prepare-packs.py). Enemies: Ansimuz Gothicvania packs 3 and 5.</p>
   <div id="wrap"><div id="stage"></div><div class="lb top"></div><div class="lb bot"></div></div>
   <div class="bar" id="moves"></div>
-  <div class="bar"><button id="bite">Enemy bites</button></div>
+  <div class="bar" id="foes"></div>
+  <div class="bar"><button id="bite">Enemy attacks</button></div>
 </main>
 <script type="module">
-import { ForestScene } from "./js/pixel/biome-scenes/forest.js";
 import { shards } from "./js/pixel2d/slash.js";
 import { sound } from "./js/sound.js";
 
 const stage = document.getElementById("stage");
-new ForestScene(stage);
 const HA = 220, FLOOR = 176;
-const art = document.createElement("canvas"), fx = document.createElement("canvas");
-art.className = fx.className = "layer"; fx.style.zIndex = 3;
-stage.append(art, fx);
+const bg = document.createElement("canvas"), art = document.createElement("canvas"), fx = document.createElement("canvas");
+bg.className = art.className = fx.className = "layer"; bg.style.zIndex = 1; fx.style.zIndex = 3;
+stage.append(bg, art, fx);
 let WA = 400;
-const fit = () => { WA = Math.max(200, Math.round(stage.clientWidth / stage.clientHeight * HA)); for (const c of [art, fx]) { c.width = WA; c.height = HA; } };
+const fit = () => { WA = Math.max(200, Math.round(stage.clientWidth / stage.clientHeight * HA)); for (const c of [bg, art, fx]) { c.width = WA; c.height = HA; } };
 fit(); new ResizeObserver(fit).observe(stage);
-const ga = art.getContext("2d"), gf = fx.getContext("2d");
+const gb = bg.getContext("2d"), ga = art.getContext("2d"), gf = fx.getContext("2d");
 
 // ---- sprite sheets: cut into frames and mirrored (the sheets face left; she faces the enemy on the right) ----
 const HAIR = { "178,178,255": [224, 58, 52], "158,160,250": [176, 34, 42] };
 const load = (src) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = src; });
-function cut(img, fw, fh, cols, n, { recolour = false, row = 0 } = {}) {
+function cut(img, fw, fh, cols, n, { recolour = false, row = 0, mirror = true } = {}) {
   const out = [];
   for (let k = 0; k < n; k++) {
     const c = document.createElement("canvas"); c.width = fw; c.height = fh;
     const g = c.getContext("2d");
-    g.translate(fw, 0); g.scale(-1, 1);
+    if (mirror) { g.translate(fw, 0); g.scale(-1, 1); }
     g.drawImage(img, (k % cols) * fw, (Math.floor(k / cols) + row) * fh, fw, fh, 0, 0, fw, fh);
     const d = g.getImageData(0, 0, fw, fh), D = d.data;
-    let bottom = 0;
+    let bottom = 0, top = -1;
     for (let y = 0; y < fh; y++) for (let x = 0; x < fw; x++) {
       const o = (y * fw + x) * 4; if (!D[o + 3]) continue;
-      bottom = y;
+      bottom = y; if (top < 0) top = y;
       if (!recolour) continue;
       const key = `${D[o]},${D[o + 1]},${D[o + 2]}`, to = HAIR[key] || (key === "255,255,255" && y < 16 ? [255, 128, 96] : null);
       if (to) { D[o] = to[0]; D[o + 1] = to[1]; D[o + 2] = to[2]; }
     }
     g.setTransform(1, 0, 0, 1, 0, 0); g.putImageData(d, 0, 0);
-    out.push({ c, w: fw, h: fh, bottom });
+    out.push({ c, w: fw, h: fh, bottom, top: Math.max(0, top) });
   }
   return out;
 }
@@ -152,9 +151,42 @@ for (const c of CARDS) {   // lay the chain out on one timeline
   // cinematic beats: slow motion just before the finishing hit of the big cards
   if (c.heavy || c.orb) c.slowAt = c.hits[c.hits.length - 1] - (c.orb ? 45 : 110);
 }
-const [idleImg, walkImg, demonImg] = await Promise.all([load("./assets/kaela/moves/idle.png"), load("./assets/kaela/moves/walk.png"), load("./assets/enemies/demon.png")]);
+const [idleImg, walkImg] = await Promise.all([load("./assets/kaela/moves/idle.png"), load("./assets/kaela/moves/walk.png")]);
 const IDLE = cut(idleImg, 46, 55, 10, 10), WALK = cut(walkImg, 45, 58, 4, 24);   // already restyled (tools/restyle-sheet.py)
-const FOE = { idle: cut(demonImg, 64, 64, 8, 6), bite: cut(demonImg, 64, 64, 8, 4, { row: 2 }), die: cut(demonImg, 64, 64, 8, 8, { row: 3 }) };
+
+// ---- enemies (tools/prepare-packs.py): one row per animation; turned to face her (left) ----
+// cast: casters throw their pack's spell; the rest lunge. No hurt or death frames in these packs:
+// a hit is a white flash and a knock back, a death is a flash, a dither dissolve and a burst.
+const FOES = {}, CAST = { warlock: "wisp", mage: "orb-raw", "mage-b": "orb-raw" };
+for (const id of ["flame", "ghost", "warlock", "mage", "mage-b", "zombie", "firebat", "skull"]) {
+  const [img, m] = await Promise.all([load(`./assets/enemies/${id}.png`), fetch(`./assets/enemies/${id}.json`).then((r) => r.json())]);
+  const rows = {}; for (const [k, [ri, n]] of Object.entries(m.rows)) rows[k] = cut(img, m.fw, m.fh, n, n, { row: ri, mirror: m.right });
+  FOES[id] = { id, rows, idle: rows.idle || rows.walk, fly: m.fly, ms: m.ms, cast: CAST[id] };
+}
+try {   // Isaac's red flyer (source unknown, kept out of git): only where the file exists
+  const demonImg = await load("./assets/enemies/demon.png");
+  if (demonImg.width) FOES.demon = { id: "demon", fly: true, ms: 110, rows: {}, idle: cut(demonImg, 64, 64, 8, 6), bite: cut(demonImg, 64, 64, 8, 4, { row: 2 }), die: cut(demonImg, 64, 64, 8, 8, { row: 3 }) };
+} catch {}
+let FOE = FOES.ghost;
+
+// ---- effect sprites (Magic Pack 4, slash pack): orb/burst/slash in her reds, *-raw and wisp as drawn ----
+const FX = {};
+for (const id of ["orb", "orb-raw", "burst", "burst-raw", "wisp", "slash"]) {
+  const [img, m] = await Promise.all([load(`./assets/fx/${id}.png`), fetch(`./assets/fx/${id}.json`).then((r) => r.json())]);
+  FX[id] = { ...m, frames: cut(img, m.fw, m.fh, m.n, m.n, { mirror: false }) };
+}
+let sprites = [];   // effect sprites playing: {id, t, x, y, from, to, ms, flipX, flipY, loop}
+const spawnFx = (id, x, y, o = {}) => sprites.push({ id, t: gt, x, y, from: 0, to: FX[id].n - 1, ms: FX[id].ms, ...o });
+
+// ---- the forest (Green Forest): three layers tiled across, drawn 12 px down so its ground meets the floor line ----
+const FOREST = await Promise.all(["back", "middle", "front"].map((k) => load(`./assets/bg/forest/${k}.png`)));
+function drawForest(pan) {
+  gb.fillStyle = "rgb(145,165,161)"; gb.fillRect(0, 0, WA, 12); gb.fillStyle = "rgb(17,24,3)"; gb.fillRect(0, HA - 4, WA, 4);
+  FOREST.forEach((img, i) => {   // each layer slides a different amount: depth
+    const off = Math.round(pan * [0.15, 0.4, 0.8][i]), w = img.width;
+    for (let x = -((off % w) + w) % w - w; x < WA; x += w) gb.drawImage(img, x, 12);
+  });
+}
 
 // ---- the clock: game time stops during hit-stop ----
 const ease = { out: (t) => 1 - (1 - t) ** 3, in: (t) => t ** 3, io: (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2) };
@@ -164,15 +196,24 @@ let act = null, foeAct = null, kx = 0, ky = 0, frame = IDLE[0], moveFrame = null
 let speed = null, slowmo = 0, impactF = 0, impactAt = null, smoke = [], cam = { z: 1, x: 0.5, y: 0.5 }, camT = null;
 const wrapEl = document.getElementById("wrap");
 const camKick = (z, x, y, ms) => { camT = { z, x: x / WA, y: y / HA, until: gt + ms }; };
-let ex = 0, ey = 0, lift = 0, eFrame = FOE.idle[0], eAlpha = 1, dead = false, knock = -1e9;
+let ex = 0, ey = 0, lift = 0, eFrame = FOE.idle[0], eAlpha = 1, dead = false, knock = -1e9, eDissolve = 0, shot = null;
+// where the enemy stands: flyers hover above the floor; its middle is where hits land
+const footY = () => FOE.fly ? FLOOR - 16 : FLOOR;
+const eDrawY = () => Math.round(footY() - FOE.idle[0].bottom - 1 + ey + lift);
+const hitY = () => { const f = FOE.idle[0]; return Math.round(footY() - (f.bottom - f.top) / 2 + lift); };
 
 const bar = document.getElementById("moves");
 CARDS.forEach((c, i) => { const b = document.createElement("button"); b.className = "go"; b.textContent = `${i + 1}. ${c.name}`; b.title = c.tip; b.onclick = () => cast(c); bar.append(b); });
 bar.insertAdjacentHTML("beforeend", `<button id="kill">Finishing blow (Skyfall)</button>`);
 document.getElementById("kill").onclick = () => cast(CARDS[6], true);
 document.getElementById("bite").onclick = bite;
-function cast(c, finish = false) { if (act || foeAct) return; if (dead) { dead = false; eAlpha = 1; } sound.unlock(); act = { c, t0: gt, done: new Set(), finish }; }
-function bite() { if (act || foeAct) return; if (dead) { dead = false; eAlpha = 1; } sound.unlock(); foeAct = { t0: gt }; }
+const foeBar = document.getElementById("foes");
+for (const id of Object.keys(FOES)) { const b = document.createElement("button"); b.textContent = id; b.onclick = () => setFoe(id); foeBar.append(b); }
+function setFoe(id) { if (act || foeAct) return; FOE = FOES[id]; dead = false; eAlpha = 1; eDissolve = 0; foeBar.querySelectorAll("button").forEach((b) => (b.className = b.textContent === id ? "go" : "")); }
+setFoe("ghost"); window.__foe = setFoe;
+window.__go = (q) => { const [f, i, fin] = q.split(","); setFoe(f); if (i === "bite") bite(); else cast(CARDS[+i], fin === "1"); };   // test hook: "<enemy>,<card or bite>[,1 = finishing blow]"
+function cast(c, finish = false) { if (act || foeAct) return; if (dead) { dead = false; eAlpha = 1; eDissolve = 0; } sound.unlock(); act = { c, t0: gt, done: new Set(), finish }; }
+function bite() { if (act || foeAct) return; if (dead) { dead = false; eAlpha = 1; eDissolve = 0; } sound.unlock(); foeAct = { t0: gt }; }
 window.__cast = (i, finish) => cast(CARDS[+i], finish); window.__bite = bite;
 
 // a value from keyframes [[t, v, ease], ...] at time t (before the first key: `from`)
@@ -219,13 +260,13 @@ function update() {
         if (g.charge) {   // the orb gathers on her blade; the world dims and the camera leans in
           if (!act.hum) { act.hum = true; sound.sfx("magic"); }
           dark = Math.max(dark, 0.6 * Math.min(1, lt / 200)); camT = { z: 1.08, x: blade().x / WA, y: blade().y / HA, until: gt + 80 };
-          orb = { x: blade().x, y: blade().y, r: 1 + 4 * ease.out(Math.min(1, lt / g.dur)), charge: lt, trail: [] };
+          orb = { x: blade().x, y: blade().y, r: 6, charge: lt, f: Math.min(11, Math.floor(lt / g.dur * 12)), trail: [] };   // the Sparks sprite gathers (frames 0-11)
         }
       } else if (c.ranged) { kx = 0; frame = IDLE[Math.floor(mt / 100) % 10]; }
       else if (mt < c.total + 320) {   // back to her place
         const k = ease.io(Math.min(1, (mt - c.total) / 320)); kx = spot * (1 - k); frame = WALK[Math.floor(mt / 40) % 24];
       }
-      if (c.orb && orb && mt >= c.segs[0].dur && mt < c.launch) orb.charge = null;   // charged: it waits on the blade for the swing
+      if (c.orb && orb && mt >= c.segs[0].dur && mt < c.launch) { orb.charge = null; orb.f = 10 + (Math.floor(gt / 60) % 2); }   // charged: it waits on the blade, crackling
       // the orb flies from her blade to the enemy on a low arc
       if (c.orb && mt >= c.launch && mt < c.hits[0]) {
         const k = Math.min(1, (mt - c.launch) / c.flight), b = blade(), tx = exBase - 6, ty = FLOOR - 34 + lift;   // a fast straight shot (Isaac: not a lob)
@@ -234,21 +275,28 @@ function update() {
         const tr = [...(orb?.trail || [])], lp = tr[tr.length - 1];
         if (lp) { const n = Math.max(1, Math.round(Math.hypot(x - lp.x, y - lp.y) / 2)); for (let i = 1; i < n; i++) tr.push({ x: lp.x + (x - lp.x) * i / n, y: lp.y + (y - lp.y) * i / n }); }   // every 2 px, so the tail is one streak
         tr.push({ x, y });
-        orb = { x, y, r: 6, trail: tr.slice(-50) };
+        orb = { x, y, r: 6, f: 10 + (Math.floor(gt / 50) % 2), trail: tr.slice(-50) };
         if (!act.ring) { act.ring = true; booms.push({ t: gt, x: b.x, y: b.y, ring: true }); shake = 4; }   // the launch: a ring bursts off her blade
         camT = { z: 1.05, x: x / WA, y: y / HA, until: gt + 80 };   // the camera follows it
       } else if (c.orb && mt >= c.hits[0]) orb = null;
+      if (c.orb && !act.thrownSet && mt >= c.launch) act.thrownSet = true;
       c.hits.forEach((h, i) => {
         if (mt >= h && !act.done.has(i)) {
           act.done.add(i);
           const last = i === c.hits.length - 1, big = last && c.heavy;
           hitstop = big ? 220 : last ? 150 : 70; flash = 140; shake = big ? 8 : last ? 5 : 3; knock = gt;
-          const hx = exBase - 4, hy = FLOOR - 34 + lift;
-          if (c.orb) { booms.push({ t: gt, x: hx, y: hy, big: 1.5 }); hitstop = 160; shake = 11; sound.sfx("impact", { size: 1.8 }); }
+          const hx = exBase - 4, hy = hitY();
+          if (c.orb) {   // the orb bursts (its own sprite, frames 13-20) inside the red radial explosion
+            booms.push({ t: gt, x: hx, y: hy, big: 1.5, sprite: true }); hitstop = 160; shake = 11; sound.sfx("impact", { size: 1.8 });
+            spawnFx("orb", hx, hy, { from: 13, to: 20, ms: 60 }); spawnFx("burst", hx, hy, { ms: 55 });
+          } else {   // a crisp red crescent across the enemy on every cut, flipped a different way each time
+            spawnFx("slash", hx, hy, { from: 2, to: 11, flipX: (i + h) % 2 === 1, flipY: i % 3 === 1 });
+            if (last) spawnFx("burst", hx, hy, { ms: 45 });
+          }
           if (last && (c.heavy || c.orb)) { impactF = 2; impactAt = { x: hx, y: hy }; camKick(1.16, hx, hy, 520); puffs(hx, Math.min(FLOOR - 6, hy + 10), c.orb ? 9 : 6); if (!c.orb) booms.push({ t: gt, x: hx, y: FLOOR - 2, dust: true }); }
           else camKick(1.04, hx, hy, 160);
           if (!c.orb) { sound.sfx("slash"); sound.sfx(last ? "impact" : "hit", { size: big ? 1.6 : last ? 1.2 : 0.8 }); }
-          parts.push(...shards(big || c.orb ? 30 : last ? 22 : 10, exBase - 4, FLOOR - 34 + lift, Math.floor(gt) + i));
+          parts.push(...shards(big || c.orb ? 30 : last ? 22 : 10, hx, hy, Math.floor(gt) + i));
           if (last && act.finish) { act.die = gt; sound.sfx("screech"); }
         }
       });
@@ -261,24 +309,56 @@ function update() {
   // the enemy: launched, juggled and smashed by the keyframes; otherwise it drifts back to hovering
   lift = lifted ?? lift * 0.85;
   if (Math.abs(lift) < 0.3) lift = 0;
-  const bob = Math.round(Math.sin(gt / 260) * 2);
+  const bob = FOE.fly ? Math.round(Math.sin(gt / 260) * 2) : 0, idleF = (t) => FOE.idle[Math.floor(t / FOE.ms) % FOE.idle.length];
   if (act?.die || dead) {
     const k = act?.die ? (gt - act.die) / 900 : 1.2;
-    eFrame = FOE.die[Math.min(7, Math.floor(k * 10))]; ex = 10 * Math.min(1, k * 2); ey = 20 * Math.min(1, k) - lift;
-    eAlpha = k < 0.8 ? 1 : Math.max(0, 1 - (k - 0.8) / 0.4);
+    if (FOE.die) { eFrame = FOE.die[Math.min(7, Math.floor(k * 10))]; ex = 10 * Math.min(1, k * 2); ey = 20 * Math.min(1, k) - lift; eAlpha = k < 0.8 ? 1 : Math.max(0, 1 - (k - 0.8) / 0.4); }
+    else {   // no death frames: white flash, then it dissolves in a dither and bursts
+      eFrame = idleF(act?.die ?? 0); ex = 6 * Math.min(1, k * 3); ey = 0; eDissolve = Math.max(0, Math.min(1, (k - 0.15) / 0.6));
+      flash = k < 0.15 ? 60 : 0; eAlpha = eDissolve >= 1 ? 0 : 1;
+      if (act?.die && !act.boom && k > 0.15) { act.boom = true; spawnFx("burst", exBase - 4, hitY(), { ms: 60 }); puffs(exBase - 4, hitY() + 6, 7); sound.sfx("impact", { size: 1.2 }); }
+    }
     if (k >= 1.2) dead = true;
   } else if (gt - knock < 420) {
-    const k = (gt - knock) / 420; ex = 9 * Math.sin(k * Math.PI) * (1 - k * 0.3); ey = lift ? -3 * Math.sin(k * Math.PI) : bob; eFrame = FOE.bite[0];
+    const k = (gt - knock) / 420; ex = 9 * Math.sin(k * Math.PI) * (1 - k * 0.3); ey = lift ? -3 * Math.sin(k * Math.PI) : bob; eFrame = FOE.bite ? FOE.bite[0] : idleF(gt);
   } else if (foeAct) {
-    const t = gt - foeAct.t0, reach = -(exBase - kxBase - 34);
-    if (t < 260) { ex = 8 * ease.out(t / 260); eFrame = FOE.idle[Math.floor(t / 90) % 6]; }
-    else if (t < 420) { const k = (t - 260) / 160; ex = 8 + (reach - 8) * k ** 3; eFrame = FOE.bite[Math.min(1, Math.floor(k * 2))]; if (!foeAct.g) { foeAct.g = true; sound.sfx("growl"); } }
-    else if (t < 640) { ex = reach; eFrame = FOE.bite[2 + Math.min(1, Math.floor((t - 420) / 110))]; }
-    else if (t < 1000) { ex = reach * (1 - ease.io((t - 640) / 360)); eFrame = FOE.idle[Math.floor(t / 90) % 6]; }
-    else foeAct = null;
-    if (foeAct && !foeAct.hit && t >= 430) { foeAct.hit = true; hitstop = 120; meFlash = 140; shake = 3; sound.sfx("bite"); parts.push(...shards(14, kxBase + 6, FLOOR - 30, Math.floor(gt))); }
-    ey = bob;
-  } else { ex = 0; ey = lift ? 0 : bob; eFrame = lift ? FOE.bite[0] : FOE.idle[Math.floor(gt / 110) % 6]; }
+    const t = gt - foeAct.t0, reach = -(exBase - kxBase - 34), me = { x: kxBase + 4, y: FLOOR - 28 };
+    if (FOE.cast) {   // casters: rise a little, glow, throw their spell straight at her; it bursts on her
+      ex = 0; eFrame = idleF(t * 2);
+      ey = -6 * Math.sin(Math.min(1, t / 700) * Math.PI);
+      if (!foeAct.g) { foeAct.g = true; sound.sfx("magic"); }
+      if (t >= 380 && !foeAct.thrown) { foeAct.thrown = true; sound.sfx("whoosh"); }
+      if (t >= 380 && t < 640) { const k = (t - 380) / 260, sx = exBase - 18, sy = hitY() - 4; shot = { x: sx + (me.x - sx) * k, y: sy + (me.y - sy) * k, id: FOE.cast }; }
+      else shot = null;
+      if (t >= 640 && !foeAct.hit) { foeAct.hit = true; hitstop = 120; meFlash = 140; shake = 4; sound.sfx("impact", { size: 1 }); spawnFx("burst-raw", me.x, me.y, { ms: 45 }); parts.push(...shards(14, me.x, me.y, Math.floor(gt))); }
+      if (t >= 1000) foeAct = null;
+    } else {   // the rest lunge in and hit her
+      if (t < 260) { ex = 8 * ease.out(t / 260); eFrame = idleF(t); }
+      else if (t < 420) { const k = (t - 260) / 160; ex = 8 + (reach - 8) * k ** 3; eFrame = FOE.bite ? FOE.bite[Math.min(1, Math.floor(k * 2))] : idleF(t * 2); if (!foeAct.g) { foeAct.g = true; sound.sfx("growl"); } }
+      else if (t < 640) { ex = reach; eFrame = FOE.bite ? FOE.bite[2 + Math.min(1, Math.floor((t - 420) / 110))] : idleF(t * 2); }
+      else if (t < 1000) { ex = reach * (1 - ease.io((t - 640) / 360)); eFrame = idleF(t); }
+      else foeAct = null;
+      if (foeAct && !foeAct.hit && t >= 430) { foeAct.hit = true; hitstop = 120; meFlash = 140; shake = 3; sound.sfx(FOE.bite ? "bite" : "hit"); spawnFx("burst-raw", me.x, me.y, { ms: 40 }); parts.push(...shards(14, me.x, me.y, Math.floor(gt))); }
+      ey = bob;
+    }
+  } else { ex = 0; ey = lift ? 0 : bob; eFrame = lift && FOE.bite ? FOE.bite[0] : idleF(gt); shot = null; }
+}
+
+// the enemy in a dither dissolve: pixels drop out in a 4x4 Bayer order as k goes 0 -> 1
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+function dissolved(f, k) {
+  const c = document.createElement("canvas"); c.width = f.w; c.height = f.h; const g = c.getContext("2d"); g.drawImage(f.c, 0, 0);
+  const d = g.getImageData(0, 0, f.w, f.h);
+  for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) if (BAYER[(y & 3) * 4 + (x & 3)] < k * 16) d.data[(y * f.w + x) * 4 + 3] = 0;
+  g.putImageData(d, 0, 0); return c;
+}
+function drawSprite(sp) {   // on the effects layer, centred on (x, y); false when it has finished
+  const F = FX[sp.id], n = sp.to - sp.from + 1, i = Math.floor((gt - sp.t) / sp.ms);
+  if (i >= n && !sp.loop) return false;
+  const f = F.frames[sp.from + (i % n)];
+  gf.save(); gf.translate(Math.round(sp.x), Math.round(sp.y)); gf.scale(sp.flipX ? -1 : 1, sp.flipY ? -1 : 1);
+  gf.drawImage(f.c, -Math.round(f.w / 2), -Math.round(f.h / 2)); gf.restore();
+  return true;
 }
 
 // ---- pixel painting on the effects layer (crisp, her red ramp) ----
@@ -307,12 +387,6 @@ function drawOrb(img, o) {
       if (Math.floor((a - rot * 1.6) * 20 / 6.283 * 2) % 2) continue;
       put(img, o.x + Math.cos(a) * 20, o.y + Math.sin(a) * 20, C.mid);
     }
-    // lightning: a few short zigzags crackling out of the orb, re-rolled every 70 ms
-    let sd = Math.floor(gt / 70) * 9301 + 49297; const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
-    for (let k = 0; k < 2; k++) {
-      let a = rnd() * 6.283, x = o.x, y = o.y; const L = 8 + rnd() * 10;
-      for (let i = 0; i < L; i++) { a += (rnd() - 0.5) * 1.2; x += Math.cos(a); y += Math.sin(a); put(img, x, y, i < L / 2 ? C.white : C.pale); }
-    }
   }
   // the glow round it (a dithered halo)
   disc(img, o.x, o.y, o.r * 2, (d, x, y) => (d > 0.62 && d < 1 && !((x + y) & 1) ? C.deep : null));
@@ -327,13 +401,7 @@ function drawOrb(img, o) {
     const k = i / A.length, r = o.r * (0.35 + 0.55 * k);
     disc(img, p.x, p.y, r, (d, x, y) => d > 1 ? null : k < 0.35 && (x + y) & 1 ? null : d < 0.5 && k > 0.6 ? C.light : k > 0.5 ? C.mid : k > 0.25 ? C.deep : C.dark);
   });
-  const pulse = 1 + 0.12 * Math.sin(gt / 55);
-  disc(img, o.x, o.y, o.r * pulse, (d) => d < 0.32 ? C.white : d < 0.58 ? C.pale : d < 0.8 ? C.light : d < 1 ? C.mid : d < 1.22 ? C.dark : null);
-  for (let k = 0; k < 3; k++) {   // sparks orbiting it
-    const a = gt / 90 + k * 2.094, r = o.r + 4;
-    put(img, o.x + Math.cos(a) * r, o.y + Math.sin(a) * r * 0.7, C.pale);
-    put(img, o.x + Math.cos(a - 0.35) * r, o.y + Math.sin(a - 0.35) * r * 0.7, C.mid);
-  }
+  // the orb itself is the Sparks sprite, drawn over this layer in render()
   if (o.charge != null) for (let k = 0; k < 12; k++) {   // charging: motes drawn in from all round
     const ph = (o.charge / 420 + k / 12) % 1, a = k * 2.4 + 0.6, r = 30 * (1 - ph);
     const c = ph > 0.7 ? C.pale : ph > 0.35 ? C.light : C.mid;
@@ -362,6 +430,7 @@ function drawBoom(img, b) {
   // shock ring
   const rr = 6 + 36 * S * ease.out(t), w = 3 * (1 - t) + 0.6;
   disc(img, b.x, b.y, rr + w, (d, x, y) => { if (d > 1) return null; const r = d * (rr + w); if (r < rr - w) return null; if (t > 0.55 && (x + y) & 1) return null; return t < 0.25 ? C.pale : t < 0.5 ? C.light : C.mid; });
+  if (b.sprite) return true;   // the orb's own sprite burst does the fireball
   // spikes
   if (t < 0.4) for (let k = 0; k < 9; k++) {
     const a = k * 0.698 + seed, L0 = 8, L1 = 8 + 22 * S * ease.out(t / 0.4) * (1 - t * 0.8) * (k % 2 ? 0.7 : 1);
@@ -398,14 +467,18 @@ function drawPuff(img, p) {
 
 function render() {
   const kxBase = WA * 0.24, exBase = WA * 0.7;
+  drawForest(-(kx + (moveFrame ? 0 : 0)) * 0.25);
   ga.clearRect(0, 0, WA, HA);
   if (dark > 0.05) { ga.fillStyle = `rgba(6,4,10,${0.72 * Math.min(1, dark)})`; ga.fillRect(0, 0, WA, HA); }   // the ultimate dims the world
   // shadows (smaller the higher they are)
   ga.fillStyle = "rgba(0,0,0,0.35)";
   const shadows = [[kxBase + kx, Math.max(5, 14 - ky / 5)]];
-  if (eAlpha > 0.2) shadows.push([exBase + ex, Math.max(4, 10 + lift / 8)]);
+  if (eAlpha > 0.2) shadows.push([exBase + ex, Math.max(4, Math.round(FOE.idle[0].w / 5) + lift / 8 - (FOE.fly ? 3 : 0))]);
   for (const [x, w] of shadows) for (let i = -Math.round(w); i <= w; i++) { const k = 1 - (i / w) ** 2; ga.fillRect(Math.round(x + i), FLOOR, 1, k > 0.5 ? 2 : 1); }
-  if (eAlpha > 0) { ga.globalAlpha = eAlpha; ga.drawImage(flash > 0 && !act?.die ? ghost(eFrame, "#ffffff") : eFrame.c, Math.round(exBase + ex - 32), Math.round(FLOOR - 62 + ey + lift)); ga.globalAlpha = 1; }
+  if (eAlpha > 0) {
+    const src = flash > 0 && (!act?.die || !FOE.die) ? ghost(eFrame, "#ffffff") : eDissolve > 0 ? dissolved(eFrame, eDissolve) : eFrame.c;
+    ga.globalAlpha = eAlpha; ga.drawImage(src, Math.round(exBase + ex - eFrame.w / 2), eDrawY()); ga.globalAlpha = 1;
+  }
   for (const g of trail) { ga.globalAlpha = 0.4 * (1 - (gt - g.t) / 180); ga.drawImage(ghost(g.f, "#ff3a44"), g.x, g.y); }
   ga.globalAlpha = 1;
   if (moveFrame) ga.drawImage(moveFrame.f.c, moveFrame.x, moveFrame.y);
@@ -430,7 +503,7 @@ function render() {
   if (impactF > 0) {   // impact frame: the world goes black, both fighters white, red burst lines
     impactF--;
     ga.fillStyle = "#000"; ga.fillRect(0, 0, WA, HA);
-    ga.drawImage(ghost(eFrame, "#ffffff"), Math.round(exBase + ex - 32), Math.round(FLOOR - 62 + ey + lift));
+    ga.drawImage(ghost(eFrame, "#ffffff"), Math.round(exBase + ex - eFrame.w / 2), eDrawY());
     if (moveFrame) ga.drawImage(ghost(moveFrame.f, "#ffffff"), moveFrame.x, moveFrame.y);
     else ga.drawImage(ghost(frame, "#ffffff"), Math.round(kxBase + kx - frame.w / 2), FLOOR - frame.bottom);
     img.data.fill(0);
@@ -440,6 +513,11 @@ function render() {
     }
   }
   gf.putImageData(img, 0, 0);
+  if (impactF <= 0) {   // sprites over the painted effects
+    if (orb) drawSprite({ id: "orb", t: gt, x: orb.x, y: orb.y, from: orb.f, to: orb.f, ms: 1e9 });
+    if (shot) drawSprite({ id: shot.id, t: gt, x: shot.x, y: shot.y, from: shot.id === "wisp" ? 8 : 10, to: shot.id === "wisp" ? 8 : 10, ms: 1e9, flipX: shot.id !== "wisp" });
+    sprites = sprites.filter(drawSprite);
+  }
   const sx = shake > 0.3 ? Math.round((Math.random() - 0.5) * shake) * 2 : 0, sy = shake > 0.3 ? Math.round((Math.random() - 0.5) * shake) * 2 : 0;
   stage.style.transformOrigin = `${(cam.x * 100).toFixed(2)}% ${(cam.y * 100).toFixed(2)}%`;
   stage.style.transform = `translate(${sx * (stage.clientHeight / HA) / 2}px, ${sy * (stage.clientHeight / HA) / 2}px) scale(${cam.z.toFixed(4)})`;

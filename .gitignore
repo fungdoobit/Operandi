@@ -6,6 +6,6 @@ site/_*.html
 *.mp4
 previews/
 
-# third-party character art, licence unconfirmed (Isaac 2026-10-22): keep out of the public repo
-site/assets/kaela/
-site/assets/enemies/
+# third-party art: Kaela's sheets (Merakintsugi) and the Ansimuz / slash packs are cleared (Isaac 2026-10-23:
+# "he allows, do it"); the red flyer's source and licence are unknown, so it stays out
+site/assets/enemies/demon.png

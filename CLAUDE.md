@@ -262,6 +262,19 @@ Isaac's boot.dev-style Python learning app. There are two versions:
     - Tried and dropped: rebuilding her body from 5×5 patches of the clean frames. It changed almost nothing visibly.
     - Limit: the video moves (Thousand Cuts, uppercut, slam) can't reach GIF quality from video. **Asked Isaac to get them from the creator as GIFs or PNG sheets.**
     - Video `previews/kaela-cards-v9.mp4`.
+  - **New art packs (Isaac 2026-10-23; "he allows, do it" = go for the order below and for committing the packs):** Ansimuz Magic Pack 4, Gothicvania enemies pack 3, Enemies Pack 5, Green Forest, a slash pack, and an unidentified "Sprites" pack (a blond swordsman: Crouch Attack, Special Attack, Drink; not used yet; ask Isaac who made it). The unzipped packs are in the scratchpad only. **`tools/prepare-packs.py <unzipped folder> site/assets`** builds:
+    - `assets/fx/`: orb (Sparks), burst (Radial Explosion), slash, recoloured to her reds by brightness (thresholds above extract-moves.py's; the bright yellows came out pale pink); `orb-raw`, `burst-raw` and `wisp` stay in their own colours for enemy spells.
+    - `assets/bg/forest/back|middle|front.png`: these tile seamlessly; drawn 12 px down so the ground meets FLOOR 176.
+    - `assets/enemies/<id>.png/.json`: flame, ghost, warlock, mage, mage-b, zombie, firebat, skull. One row per animation; `right` = the art faces right (mirrored to face Kaela); `fly`.
+  - `kaela-moves.html` now uses them:
+    - Forest parallax replaces ForestScene (layers slide 0.15/0.4/0.8 of her pan).
+    - An enemy picker; ground enemies stand on the floor, flyers hover 16 px up.
+    - Casters (warlock: wisp, mages: orb-raw) throw a straight spell; the rest lunge. Hits are a white flash and knockback.
+    - Deaths without frames: a white flash, a burst, smoke and a 4×4 Bayer dither dissolve (`dissolved()`).
+    - Blood Orb: the Sparks sprite in red (frames 0–11 gather on the blade, 10–11 crackle in flight, 13–20 burst) plus the red radial burst. My rune circle, rings, dust and smoke stay; the painted fireball is skipped for it.
+    - Every melee hit puts a red crescent from the slash pack across the enemy, flipped differently each time.
+    - Test hook `__go("<enemy>,<card|bite>[,1]")`.
+  - Video `previews/kaela-forest-v1.mp4`.
   - Enemy redraw: still to do (Isaac: "find already done enemies and tweak"); asset sites (itch.io, opengameart) are blocked by this environment's network policy, so he would have to upload a pack or allow the domains.
 - Planetfall round 11 + Addendum K extras (2026-10-22, pushed): NOVA powers up and drives a beam into the sky to open Jupiter's portal, then bears down on it; GOLEM only braces until Jupiter appears, holds it (sinking unchanged), strains, one thruster push snaps her beam; the portal swallows Jupiter (it shrinks into the vortex). Planets crack (glowing seams, frozen beat) then shatter into Voronoi rock chunks with molten edges (`voronoi`, `breakApart`). Rotcap has stumpy legs and round feet. Each biome has its own music (`THEMES` in sound.js, `playTheme`; the boss keeps `SONG`). All 18 enemies verified and in the course (`READY`).
 - Planetfall round 10 (2026-10-22): planets burst through their portals (clipped at the portal surface), with a fire bow shock, a plasma tail and slow motion just before impact; on impact they break into burning wedges (`breakApart`), and GOLEM is knocked back. Uranus is drawn as `uranusRingBack` + `uranusBody` + `uranusRingFront` (planets-px.js `uPart`/`uTumble`), so its ring tumbles in flight and snaps into pieces. Jupiter is now drawn **behind** GOLEM (`sprBack`) and rests on his raised hands. He pushes it back in three heaves (gather, then thrusters blast fire and dust out of the floor, a surge up, and the weight wins some back), then a slow-motion final shove. The sinking is unchanged (Isaac liked it). About 20 s.
