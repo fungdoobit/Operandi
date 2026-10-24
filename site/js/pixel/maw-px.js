@@ -6,6 +6,8 @@
 // whole stage. The canvas is a child of the foe element, so abilities that move or fade the foe (fx.move, opacity) carry it along.
 //   the cat: every sprite frame goes through one hi-bit pass (Scale3x smoothing, a 1-cell outline, rim light, dithered shading)
 //   the tentacles: round tubes shaded from the blurred silhouette, in the colours of the cat's mouth, with cup suckers
+// A second, smaller-z canvas sits IN FRONT of your fighter (the front layer): an attack can put part of an arm there, so a
+// tentacle can coil round a body, passing in front of it and behind it (Grab and Slam, maw-grab.js).
 import { battleTime } from "../battle-time.js";
 
 export const CELL = 2;        // design px per cell (GOLEM's art pixels are 2 px too)
@@ -139,8 +141,9 @@ export class PixelMaw {
     this.cat = { mode: "gone", x: 0, t0: 0 };   // modes: gone, run, stand, sit, lieYawn, sleep
     this.extra = [];      // extra arms an attack adds: { pts(), w:[a,b], pal, u }
     this.override = {};   // an attack can take over one of the real arms: override[i](idlePts) -> pts
-    this.wOv = {};        // ...and thicken it (wOv[i] = [root, tip])
-    this.palOv = {};      // ...and recolour it
+    this.hooks = new Set();   // functions run every frame after the tweens (an attack's springs)
+    this.draws = new Set();   // functions run just before each drawing (an attack moving your fighter with an arm: only on the frames
+                              // that are drawn, so on a slow machine that draws every other frame the two still match)
     this.W = 0; this.H = 0; this.F = null;
     this.sheets = null; this.ready = loadSheets().then((s) => { this.sheets = s; });
     this.loop = this.loop.bind(this);
@@ -156,6 +159,16 @@ export class PixelMaw {
     Object.assign(this.foeEl.style, { left: left + "px", top: top + "px", right: "auto", bottom: "auto", width: w + "px", height: h + "px" });
     this.view.width = this.W; this.view.height = this.H;
     Object.assign(this.view.style, { left: -left + "px", top: -top + "px", width: this.W * CELL + "px", height: this.H * CELL + "px" });
+    // the front layer: in the world, over your fighter (z 3: above the fighters, under the darkening and the effects)
+    if (!this.fview) {
+      this.fview = document.createElement("canvas");
+      Object.assign(this.fview.style, { position: "absolute", left: "0", top: "0", imageRendering: "pixelated", pointerEvents: "none", zIndex: 3 });
+      this.foeEl.parentElement.append(this.fview);
+      this.fg = this.fview.getContext("2d");
+    }
+    this.F2 = new Uint8ClampedArray(this.W * this.H * 4); this.img2 = new ImageData(this.F2, this.W, this.H); this.f2dirty = true;
+    this.fview.width = this.W; this.fview.height = this.H;
+    Object.assign(this.fview.style, { width: this.W * CELL + "px", height: this.H * CELL + "px", transformOrigin: `${left + w / 2}px ${top + h / 2}px` });
     this.floorC = Math.round(floorY / CELL) + 2;
     this.xSit = Math.round((left + 70) / CELL);          // the sitting cat's anchor, in cells
     this.mouth = [this.xSit - 7, this.floorC - 37];       // where the tentacles come out
@@ -213,6 +226,7 @@ export class PixelMaw {
       if (tw.t >= tw.ms) { tw.done(); return false; }
       return true;
     });
+    for (const h of this.hooks) h(dt);
     if (!this.skip) this.render();
     requestAnimationFrame(this.loop);
   }
@@ -246,23 +260,37 @@ export class PixelMaw {
     for (let yy = 0; yy < f.NH; yy++) for (let xx = 0; xx < f.NW; xx++) { const col = f.cells[yy * f.NW + xx]; if (col) this.put(Math.round(x + (a.anchor - xx)), Math.round(y - (a.base - yy)), col); }
   }
   // One arm: pts are absolute cells; u is how much has grown.
-  tentacle(pts, w0, w1, pal, u, seed = 0) {
+  // part: only draw these stretches of it ([[t0, t1], ...] along the arm, 0 root .. 1 tip); the arm a little past each end is still
+  // used for the shading and the outline, so two parts drawn on different layers join with no seam.
+  tentacle(pts, w0, w1, pal, u, seed = 0, part = null) {
     if (u <= 0.01) return;
     const rad = (t) => { const base = lerp(w0, w1, t ** 0.75) * (1 + 0.07 * Math.sin(t * 15 + seed * 2.3)), tipRound = clamp((u - t) / 0.07 + 0.3, 0, 1); return base * (u < 1 ? Math.sqrt(tipRound) : 1) * (0.45 + 0.55 * clamp(u * 2.2)); };
+    const STEP = 0.0015, EXT = 0.035;
+    const paint = part ? part.map(([a2, b2]) => [Math.max(0, a2), Math.min(u, b2)]).filter(([a2, b2]) => b2 > a2) : [[0, u]];
+    if (!paint.length) return;
+    const ctxR = part ? paint.map(([a2, b2]) => [Math.max(0, a2 - EXT), Math.min(u, b2 + EXT)]) : paint;
+    const inP = (t) => paint.some(([a2, b2]) => t >= a2 && t <= b2);
     // the arm's box: only this part of the world is blurred and shaded
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    if (part) for (const [a2, b2] of ctxR) for (let t = a2; t <= b2 + 0.004; t += 0.004) { const [x, y] = spl(pts, Math.min(t, b2)); x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    else for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
     const pad = Math.ceil(Math.max(w0, w1) + 9);
     x0 = Math.max(0, Math.floor(x0 - pad)); y0 = Math.max(0, Math.floor(y0 - pad)); x1 = Math.min(this.W, Math.ceil(x1 + pad)); y1 = Math.min(this.H, Math.ceil(y1 + pad));
     const w = x1 - x0, h = y1 - y0; if (w < 4 || h < 4) return;
     if (maskCv.width < w || maskCv.height < h) { maskCv.width = Math.max(maskCv.width, w); maskCv.height = Math.max(maskCv.height, h); }
-    mg.clearRect(0, 0, maskCv.width, maskCv.height); mg.fillStyle = "#fff";
     const lp = pts.map(([x, y]) => [x - x0, y - y0]);
-    for (let t = 0; t <= u; t += 0.0015) { const [x, y] = spl(lp, t); mg.beginPath(); mg.arc(x, y, rad(t), 0, 7); mg.fill(); }
-    const a = mg.getImageData(0, 0, w, h).data, mask = new Float32Array(w * h), solid = new Uint8Array(w * h);
-    for (let i = 0; i < w * h; i++) { solid[i] = a[i * 4 + 3] > 127 ? 1 : 0; mask[i] = solid[i]; }
-    const B2 = boxBlur(mask, w, h, 5), B1 = boxBlur(mask, w, h, 2), B3 = boxBlur(mask, w, h, 4);
+    const raster = (ranges) => {
+      mg.clearRect(0, 0, maskCv.width, maskCv.height); mg.fillStyle = "#fff";
+      for (const [a2, b2] of ranges) for (let t = a2; t <= b2 + STEP / 2; t += STEP) { const tt = Math.min(t, b2), [x, y] = spl(lp, tt); mg.beginPath(); mg.arc(x, y, rad(tt), 0, 7); mg.fill(); }
+      const d = mg.getImageData(0, 0, w, h).data, out = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) out[i] = d[i * 4 + 3] > 127 ? 1 : 0;
+      return out;
+    };
+    const solid = raster(paint), around = part ? raster(ctxR) : solid;   // around: the drawn part plus a little of the arm past its ends
+    const mask = Float32Array.from(around), own = part ? Float32Array.from(solid) : mask;
+    const B2 = boxBlur(mask, w, h, 5), B1 = boxBlur(mask, w, h, 2), B3 = boxBlur(own, w, h, 4);
     const m = (x, y) => x >= 0 && y >= 0 && x < w && y < h && solid[y * w + x];
+    const mA = (x, y) => x >= 0 && y >= 0 && x < w && y < h && around[y * w + x];
     const F = this.F, W = this.W;
     // it casts a soft shadow on whatever is under it (other arms, the cat): that separates the overlapping arms
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { if (solid[y * w + x]) continue; const sh = B3[Math.min(h - 1, y + 2) * w + Math.max(0, x - 2)]; if (sh > 0.15) { const o = ((y + y0) * W + x + x0) * 4; if (F[o + 3]) { const k = 1 - 0.38 * clamp(sh * 1.6); F[o] *= k; F[o + 1] *= k; F[o + 2] *= k; } } }
@@ -278,13 +306,14 @@ export class PixelMaw {
       this.put(x + x0, y + y0, pal[qq]);
     }
     const root = this.mouth;
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!m(x, y) && (m(x - 1, y) || m(x + 1, y) || m(x, y - 1) || m(x, y + 1))) { if (Math.hypot(x + x0 - root[0] - this.pose.hx, y + y0 - root[1] - this.pose.hy) < 14) continue; this.put(x + x0, y + y0, OUTL); }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!mA(x, y) && (m(x - 1, y) || m(x + 1, y) || m(x, y - 1) || m(x, y + 1))) { if (Math.hypot(x + x0 - root[0] - this.pose.hx, y + y0 - root[1] - this.pose.hy) < 14) continue; this.put(x + x0, y + y0, OUTL); }
     // suckers: little cups, bigger near the root
     let last = null, dist = 1e9;
     for (let t = 0.05; t < u - 0.025; t += 0.002) {
       const [x, y] = spl(lp, t); if (last) dist += Math.hypot(x - last[0], y - last[1]); last = [x, y];
       const r = rad(t); if (r < 2.6) continue;
       const rr = clamp(r * 0.5, 2, 5.6); if (dist < rr * 2.6 + 1) continue; dist = 0;
+      if (part && !inP(t)) continue;   // (counted all the same, so the suckers sit in the same places on every layer)
       const [x2, y2] = spl(lp, Math.min(1, t + 0.01)), tx = x2 - x, ty = y2 - y, tl = Math.hypot(tx, ty) || 1, ux = tx / tl, uy = ty / tl;
       let nx = -uy, ny = ux; if (ny + 0.3 * nx < 0) { nx = -nx; ny = -ny; }
       const cx = x + nx * r * 0.3, cy = y + ny * r * 0.3;
@@ -310,18 +339,42 @@ export class PixelMaw {
     const abs = pts.map(([x, y]) => [M[0] + P.hx + x, M[1] + P.hy + y]);
     return this.override[i] ? this.override[i](abs) : abs;
   }
+  // An arm: an override may return { pts, front: [[t0, t1], ...] }; those stretches go on the front layer, the rest here.
+  drawArm(i, u) {
+    const A = ARMS[i], r = this.armPts(i), pal = A.pal || PAL_F;
+    if (Array.isArray(r)) return this.tentacle(r, A.w[0] * SK, A.w[1], pal, u, i);
+    const fr = r.front || [], back = [];
+    let at = 0; for (const [a2, b2] of fr) { if (a2 > at) back.push([at, a2]); at = Math.max(at, b2); } if (at < 1) back.push([at, 1]);
+    for (const seg of back) this.tentacle(r.pts, A.w[0] * SK, A.w[1], pal, u, i, [seg]);   // one at a time: crossings stay apart
+    for (const seg of fr) this.fronts.push([r.pts, A.w[0] * SK, A.w[1], pal, u, i, [seg]]);
+  }
   render() {
     if (!this.sheets || !this.F) return;
+    for (const d of this.draws) d();
     const P = this.pose, F = this.F, W = this.W;
-    F.fill(0);
-    for (let i = 0; i < ARMS.length; i++) if (ARMS[i].back) this.tentacle(this.armPts(i), (this.wOv[i] || ARMS[i].w)[0] * SK, (this.wOv[i] || ARMS[i].w)[1], this.palOv[i] || ARMS[i].pal || PAL_F, clamp(P.tent * 1.7 - i * 0.1), i);
+    F.fill(0); this.fronts = [];
+    for (let i = 0; i < ARMS.length; i++) if (ARMS[i].back) this.drawArm(i, clamp(P.tent * 1.7 - i * 0.1));
     this.drawCat();
-    for (let i = 0; i < ARMS.length; i++) if (!ARMS[i].back) this.tentacle(this.armPts(i), (this.wOv[i] || ARMS[i].w)[0] * SK, (this.wOv[i] || ARMS[i].w)[1], this.palOv[i] || ARMS[i].pal || PAL_F, eout3(clamp(P.tent * 1.7 - i * 0.1)), i);
+    for (let i = 0; i < ARMS.length; i++) if (!ARMS[i].back) this.drawArm(i, eout3(clamp(P.tent * 1.7 - i * 0.1)));
     for (const e of this.extra) this.tentacle(e.pts(), e.w[0] * SK, e.w[1], e.pal || PAL_F, e.u ? e.u() : 1, e.seed || 9);
-    const fl = this.fxv.flash;
-    if (fl > 0.02) for (let i = 0; i < W * this.H; i++) { const o = i * 4; if (F[o + 3]) { F[o] += (255 - F[o]) * fl * 0.7; F[o + 1] += (255 - F[o + 1]) * fl * 0.7; F[o + 2] += (255 - F[o + 2]) * fl * 0.7; } }
+    this.flashOver(F);
     if (this.fxv.glitch > 0.05) this.glitch(this.fxv.glitch);
     this.vg.putImageData(this.img, 0, 0);
+    // the front layer (over your fighter): only redrawn while something is on it
+    if (this.fronts.length || this.f2dirty) {
+      this.F2.fill(0);
+      const keep = this.F; this.F = this.F2;
+      for (const a of this.fronts) this.tentacle(...a);
+      this.F = keep;
+      this.flashOver(this.F2);
+      this.fg.putImageData(this.img2, 0, 0);
+      this.f2dirty = this.fronts.length > 0;
+      this.fview.style.transform = this.foeEl.style.transform; this.fview.style.opacity = this.foeEl.style.opacity;
+    }
+  }
+  flashOver(F) {
+    const fl = this.fxv.flash; if (fl <= 0.02) return;
+    for (let i = 0; i < this.W * this.H; i++) { const o = i * 4; if (F[o + 3]) { F[o] += (255 - F[o]) * fl * 0.7; F[o + 1] += (255 - F[o + 1]) * fl * 0.7; F[o + 2] += (255 - F[o + 2]) * fl * 0.7; } }
   }
   // Glitch: a few rows slide sideways.
   glitch(g) {

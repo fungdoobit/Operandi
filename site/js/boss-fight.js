@@ -160,7 +160,7 @@ export class BattleStage {
     this.spr = new PixelFX(world, { z: 9, raw: true });
     this.sprBack = new PixelFX(world, { z: 0, before: foeEl, raw: true });
     this.kit = skin === "kaela" ? KAELA_BOSS_KIT : skin === "pyro" ? PYRO_BOSS_KIT : kitFor(skin);
-    this.ctx = { isBoss: this.isBoss, fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, toonBack: this.toonBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void", kaela: "blood" }[skin] || "water", heat: (a) => this.addHeat(a) };
+    this.ctx = { skin, isBoss: this.isBoss, fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, toonBack: this.toonBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void", kaela: "blood" }[skin] || "water", heat: (a) => this.addHeat(a) };
     this.ctx.setName = (n) => { this.stage.querySelector(".bhp.foe .row span").textContent = n; this.boss.b.name = n; };   // the Maw is called MITTENS until he opens his mouth
     this.heatAmt = 0;
     this.fx.place(mateEl, { x: 0, y: 0 });
