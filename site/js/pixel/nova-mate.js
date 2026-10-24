@@ -9,7 +9,7 @@
 import { PixelNova } from "./nova-px.js";
 import { Dot } from "../dot.js";
 import { sound } from "../sound.js";
-import { drawPizza } from "./nova-pizza.js";
+import { drawPizza, pizzaLen, crustHalfWidth } from "./nova-pizza.js";
 
 export const NOVA_CSS = `
 .nova-figure { width: 96px; height: 115px; flex: none; touch-action: none; position: relative; }
@@ -255,8 +255,11 @@ const HOLD_P = (dir) => [dir * 1.2, 0.5, -0.25];
 // Where to hold the crust so the end of what's left reaches her mouth (the slice
 // tipped toward her: it points down and in at about 68 degrees).
 function biteAt(mate, P) {
-  const unit = mate.nova.canvas.height / mate.nova.view, l = (30 * (1 - P.bites * 0.27)) / unit;
-  return [FACE[0] + P.dir * (0.37 * l + 0.1), FACE[1] + 0.93 * l - 0.05, FACE[2]];
+  const unit = mate.nova.canvas.height / mate.nova.view, l = pizzaLen(P.bites, P.scale) / unit;
+  if (l > 0.05) return [FACE[0] + P.dir * (0.37 * l + 0.1), FACE[1] + 0.93 * l - 0.05, FACE[2]];
+  // only crust left: hold it at the side of her face with the end she bites just touching her cheek
+  const half = crustHalfWidth(P.scale) / unit, near = 0.3;
+  return [FACE[0] + P.dir * (near + (P.bites >= 4 ? 0 : half)), FACE[1] - 0.08, FACE[2]];
 }
 Object.assign(NovaMate.prototype, {
   // She's already holding it in telekinesis as she comes out (dir: the side it's on).
@@ -270,7 +273,7 @@ Object.assign(NovaMate.prototype, {
     const I = this.nova.idle, P = this.pizza;
     if (!P) return;
     this.setMood("happy");
-    for (let b = 1; b <= 3; b++) {
+    for (let b = 1; b <= 5; b++) {
       await this.wait(b === 1 ? 500 : 380);
       sound.sfx("telekinesis");
       const to = biteAt(this, P);
@@ -279,7 +282,7 @@ Object.assign(NovaMate.prototype, {
       P.bites = b;
       await this.anim(320, (e) => { I.chomp = Math.sin(e * Math.PI * 3) * (1 - e); }, "lin");
       I.chomp = 0;
-      if (b < 3) await this.anim(420, (e) => { I.bucketAt = lerp3(to, HOLD_P(P.dir), e); P.aim = 1 - e; }, "io");
+      if (b < 5) await this.anim(420, (e) => { I.bucketAt = lerp3(to, HOLD_P(P.dir), e); P.aim = 1 - e; }, "io");
     }
     this.pizza = null;
     await this.anim(220, (e) => { I.tk = 1 - e; }, "in");

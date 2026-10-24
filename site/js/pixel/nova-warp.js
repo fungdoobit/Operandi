@@ -24,9 +24,12 @@ class Portal {
     this.cv = document.createElement("canvas");
     this.cv.width = this.cv.height = CELL;
     Object.assign(this.cv.style, { position: "fixed", left: x - ANCHOR.x * px + "px", top: y - ANCHOR.y * px + "px", width: CELL * px + "px", height: CELL * px + "px",
-      imageRendering: "pixelated", pointerEvents: "none", zIndex: 41 });   // in front of her (the pet is 40): she vanishes into the swirl, not over it
+      imageRendering: "pixelated", pointerEvents: "none", zIndex: 39 });   // behind her (the pet is 40): she is IN the swirl; the rim is drawn again in front, see rim()
     document.body.append(this.cv);
-    this.g = this.cv.getContext("2d");
+    this.g = this.cv.getContext("2d", { willReadFrequently: true });
+    // the portal's front rim: only its dark outline pixels, on a second canvas in front of her
+    this.rimCv = this.cv.cloneNode(); this.rimCv.style.zIndex = 41; document.body.append(this.rimCv);
+    this.rimG = this.rimCv.getContext("2d"); this.rimSide = 0;   // rimSide: -1 / 1 = which half of the oval shows (0 none)
     this.state = "open"; this.t0 = performance.now();
     this.tick = this.tick.bind(this);
     this.done = null;
@@ -34,7 +37,7 @@ class Portal {
   }
   play(state) { this.state = state; this.t0 = performance.now(); return new Promise((ok) => (this.done = ok)); }
   tick(now) {
-    if (!this.cv.isConnected) return;
+    if (!this.cv.isConnected) { this.rimCv.remove(); return; }
     const f = Math.floor((now - this.t0) / (FRAME_MS * slow())), n = FRAMES[this.state];
     let i = f;
     if (this.state === "loop") i = f % n;
@@ -42,11 +45,20 @@ class Portal {
       i = n - 1;
       const ok = this.done; this.done = null;
       if (this.state === "open") { this.state = "loop"; this.t0 = now; }
-      else if (this.state === "close") { this.cv.remove(); ok?.(); return; }
+      else if (this.state === "close") { this.cv.remove(); this.rimCv.remove(); ok?.(); return; }
       ok?.();
     }
     this.g.clearRect(0, 0, CELL, CELL);
     if (sheet) this.g.drawImage(sheet, i * CELL, ROWS[this.state] * CELL, CELL, CELL, 0, 0, CELL, CELL);
+    this.rimG.clearRect(0, 0, CELL, CELL);
+    if (sheet && this.rimSide) {
+      const d = this.g.getImageData(0, 0, CELL, CELL), D = d.data;
+      for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) {
+        const o = (y * CELL + x) * 4, side = x < ANCHOR.x ? -1 : 1;
+        if (side !== this.rimSide || !D[o + 3] || D[o] !== 30 || D[o + 1] !== 8) D[o + 3] = 0;   // keep outline-coloured pixels on that half only
+      }
+      this.rimG.putImageData(d, 0, 0);
+    }
     requestAnimationFrame(this.tick);
   }
 }
@@ -82,13 +94,24 @@ export async function novaWarp(pet, dir) {
     const cx = x - pet.x;
     root.style.clipPath = keep > 0 ? `polygon(${cx}px -3000px, 3000px -3000px, 3000px 3000px, ${cx}px 3000px)` : `polygon(-3000px -3000px, ${cx}px -3000px, ${cx}px 3000px, -3000px 3000px)`;
   };
+  // Depth: the closer her middle is to a portal's middle the smaller she is (as if going away into it)
+  // and a little darker; scaled round the portal's middle on her inner wrapper (the root keeps the clip).
+  const wrap = mate.figure.parentElement, w0 = wrap.getBoundingClientRect();
+  const wOffX = w0.left - pet.x, wOffY = w0.top - pet.y, pw = 56 * px;   // the oval is about 56 art px wide
+  const depth = (cx, cy, k) => {   // k: 0 = outside, 1 = at the portal's middle
+    const s = 1 - 0.55 * k;
+    wrap.style.transformOrigin = `${cx - pet.x - wOffX}px ${cy - pet.y - wOffY}px`;
+    wrap.style.transform = k > 0 ? `scale(${s.toFixed(3)})` : "";
+    wrap.style.filter = k > 0 ? `brightness(${(1 - 0.45 * k).toFixed(2)})` : "";
+  };
+  const near = (cx, d) => Math.max(0, Math.min(1, 1 - Math.abs((pet.x + offX + fw / 2) - cx) / (pw / 2 + fw / 2) * 1)) ;
   mate.playing = true;
   try {
     // 1. a portal opens just ahead of her, and she glides into it
     mate.face(dir > 0 ? "right" : "left");
     mate.setMood("angry");
     const A = { x: (dir > 0 ? r.right : r.left) + dir * 26, y: r.top + fh * 0.5 };
-    const pa = new Portal(A.x, A.y, px);
+    const pa = new Portal(A.x, A.y, px); pa.rimSide = -dir;
     sound.sfx("portalTear");
     await pa.play("open");
     sound.sfx("portal");
@@ -97,7 +120,8 @@ export async function novaWarp(pet, dir) {
     clip(A.x, -dir);
     sound.sfx("novaUnsummon");
     const x0 = pet.x, x1 = A.x - offX - fw / 2 + dir * (fw * 0.75);
-    await tween(900, (e) => { pet.x = x0 + (x1 - x0) * e; pet.place(0); clip(A.x, -dir); }, "in");
+    await tween(900, (e) => { pet.x = x0 + (x1 - x0) * e; pet.place(0); clip(A.x, -dir); depth(A.x, A.y, near(A.x)); }, "in");
+    depth(A.x, A.y, 0);
     root.style.visibility = "hidden";
     await wait(200);
     sound.sfx("portalClose");
@@ -116,7 +140,7 @@ export async function novaWarp(pet, dir) {
     const out = B.x < innerWidth / 2 ? 1 : -1;   // she comes out heading toward the middle of the screen
     pet.x = B.x - offX - fw / 2 - out * (fw * 0.75); pet.y = B.y - offY - fh / 2; pet.place(0);
     clip(B.x, out);
-    const pb = new Portal(B.x, B.y, px);
+    const pb = new Portal(B.x, B.y, px); pb.rimSide = out;
     sound.sfx("portalTear");
     await pb.play("open");
     sound.sfx("portal");
@@ -128,14 +152,15 @@ export async function novaWarp(pet, dir) {
     sound.sfx("novaSummon");
     sound.sfx("telekinesis");
     const x2 = pet.x, x3 = B.x - offX - fw / 2 + out * (fw * 0.5 + 34);
-    await tween(1000, (e) => { pet.x = x2 + (x3 - x2) * e; pet.place(0); clip(B.x, out); }, "out");
+    await tween(1000, (e) => { pet.x = x2 + (x3 - x2) * e; pet.place(0); clip(B.x, out); depth(B.x, B.y, near(B.x)); }, "out");
+    depth(B.x, B.y, 0);
     root.style.clipPath = "";
     await wait(250);
     sound.sfx("portalClose");
     pb.play("close");
     await mate.eatPizza();
   } finally {
-    root.style.clipPath = ""; root.style.visibility = "";
+    root.style.clipPath = ""; root.style.visibility = ""; wrap.style.transform = ""; wrap.style.filter = "";
     mate.pizza = null; mate.nova.idle.tk = 0;
     mate.playing = false;
     pet.save();

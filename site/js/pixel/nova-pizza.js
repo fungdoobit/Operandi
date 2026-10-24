@@ -2,7 +2,8 @@
 // straight in art pixels so it matches her: flat colours, a light edge top-left,
 // a shaded edge bottom-right and a 1-px dark outline. She holds it by the crust
 // with telekinesis (her own see-through purple haze round it); the tip droops and wobbles.
-// Each bite takes the tip back a step, with a bite mark.
+// Five bites (Isaac 2026-10-24): three take the slice back to just the crust, the fourth
+// takes half the crust (the half nearest her), the fifth the last piece.
 
 const PAL = {
   outline: [42, 18, 8], cheeseLt: [255, 228, 140], cheese: [246, 196, 74], cheeseDk: [214, 146, 40],
@@ -25,10 +26,14 @@ const og = off.getContext("2d", { willReadFrequently: true });
 // g: the art-pixel canvas to draw on. (x, y): where the crust's middle is held.
 // dir: 1 = the slice hangs out to the right of the crust, -1 to the left.
 // aim: 0 = it hangs out away from her, 1 = tipped back toward her mouth for a bite.
-// flop: extra droop (radians, from its wobble spring). bites: 0..3. t: seconds.
+// flop: extra droop (radians, from its wobble spring). bites: 0..4 (5 = nothing left). t: seconds.
+// pizzaLen(bites, scale): how much slice is left in art px (0 once only crust is left).
+export const pizzaLen = (bites, scale = 1) => (bites >= 3 ? 0 : 30 * scale * (1 - 0.32 * bites));
+export const crustHalfWidth = (scale = 1) => 11 * scale + 1.5;
 export function drawPizza(g, x, y, { dir = 1, aim = 0, flop = 0, bites = 0, t = 0, scale = 1 } = {}) {
-  const S = 30 * scale, W = 22 * scale, L = S * (1 - bites * 0.27);   // full length, crust width, what's left
-  if (L <= 2) return;
+  const S = 30 * scale, W = 22 * scale, L = pizzaLen(bites, scale);   // full length, crust width, what's left
+  const crustLeft = bites <= 3 ? 1 : bites === 4 ? 0.5 : 0;   // 1 whole crust, 0.5 its far half
+  if (!L && !crustLeft) return;
   const size = Math.ceil(S * 2 + 24);
   off.width = off.height = size;
   const cx = size / 2, cy = 10;
@@ -53,9 +58,9 @@ export function drawPizza(g, x, y, { dir = 1, aim = 0, flop = 0, bites = 0, t = 
   });
   const col = (k) => `rgb(${PAL[k].join(",")})`;
   og.fillStyle = col("cheese");
-  og.beginPath(); left.forEach(([X, Y], i) => (i ? og.lineTo(X, Y) : og.moveTo(X, Y))); right.reverse().forEach(([X, Y]) => og.lineTo(X, Y)); og.closePath(); og.fill();
+  if (L) { og.beginPath(); left.forEach(([X, Y], i) => (i ? og.lineTo(X, Y) : og.moveTo(X, Y))); right.reverse().forEach(([X, Y]) => og.lineTo(X, Y)); og.closePath(); og.fill(); }
   // bite marks: round bites out of the end
-  if (bites > 0) {
+  if (L && bites > 0) {
     const [ex, ey] = pts[N];
     og.globalCompositeOperation = "destination-out";
     for (const o of [-0.45, 0.1, 0.55]) { const h = half(1) * o * 2; og.beginPath(); og.arc(ex + h * Math.cos(a0), ey + h * Math.sin(a0) * 0.3, 3.2 * scale, 0, 7); og.fill(); }
@@ -63,7 +68,7 @@ export function drawPizza(g, x, y, { dir = 1, aim = 0, flop = 0, bites = 0, t = 
   }
   // pepperoni, where there's still pizza under them
   for (const [u, v] of [[0.3, -0.25], [0.42, 0.3], [0.68, 0.02]]) {
-    if (u * S > L - 3 * scale) continue;
+    if (!L || u * S > L - 3 * scale) continue;
     const i = Math.round((u * S / L) * N), [X, Y] = pts[Math.min(N, i)], [lx, ly] = left[Math.min(N, i)];
     const r = 3 * scale * (1 - u * 0.3);
     og.fillStyle = col("pep"); og.beginPath(); og.arc(X + (lx - X) * v * 1.6, Y + (ly - Y) * v * 1.6, r, 0, 7); og.fill();
@@ -73,6 +78,14 @@ export function drawPizza(g, x, y, { dir = 1, aim = 0, flop = 0, bites = 0, t = 
   og.fillStyle = col("crust");
   og.beginPath(); og.ellipse(cx, cy, W / 2 + 1.5, 3.4 * scale, -dir * 0.1, 0, 7); og.fill();
   og.fillStyle = col("crustLt"); og.fillRect(Math.round(cx - W / 2 + 2), Math.round(cy - 2 * scale), Math.round(W * 0.55), 1);
+  // the fourth bite takes the half of the crust nearest her face: a scalloped cut straight across the middle
+  if (crustLeft < 1) {
+    og.globalCompositeOperation = "destination-out";
+    const rx = W / 2 + 2;
+    og.fillRect(dir > 0 ? cx - rx - 2 : cx, cy - 8, rx + 2, 16);   // dir 1: her face is on the left, so the left half goes
+    for (let k = -1; k <= 1; k++) { og.beginPath(); og.arc(cx + dir * 1.5, cy + k * 3 * scale, 2.4 * scale, 0, 7); og.fill(); }
+    og.globalCompositeOperation = "source-over";
+  }
   // pixel pass: hard alpha, snap to the palette, light/shade edges, outline
   const img = og.getImageData(0, 0, size, size), D = img.data;
   const at = (X, Y) => X >= 0 && Y >= 0 && X < size && Y < size && D[(Y * size + X) * 4 + 3] > 127;
