@@ -8,7 +8,7 @@ import { sound } from "./sound.js";
 import { Dot } from "./dot.js";
 import { NovaMate } from "./pixel/nova-mate.js";
 import { PyroMate } from "./pixel/pyro-mate.js";
-import { novaWarp, canWarp } from "./pixel/nova-warp.js";
+import { novaWarp, canWarp, novaVisit, visitSide } from "./pixel/nova-warp.js";
 
 const SPEED = 46;            // px per second while wandering
 const MARGIN = 8;
@@ -43,6 +43,7 @@ export class Pet {
     // PYRO is the flame sprite (pixel/pyro-mate.js, Isaac 2026-10-23); DOT (dot.js) is in storage for now
     this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles, size: 101 }) : skin === "pyro" ? new PyroMate(this.root, { size: 96, fast: Pet.fastIdles }) : new Dot(this.root, { skin });
     this.dot.setAccessory(this.accessories);
+    if (skin === "pyro") { this.dot.visitOk = () => this.canVisit(); this.dot.onVisitRequest = () => this.visitNova(); }
     if (skin === "nova") this.dot.onWarpRequest = () => { this.warpWantedAt = performance.now(); };   // her idle rotation asks for the warp
     this.dot.onSay = (hasActions) => {
       this.speaking = true;
@@ -183,6 +184,17 @@ export class Pet {
     if (arrived) { this.x = d.T.x; this.y = d.T.y; }
     this.target = null; this.wait = 2 + Math.random() * 5;
   }
+  // PYRO's rare idle (Isaac 2026-10-24): NOVA visits through her portal with a marshmallow, roasts it on him and leaves.
+  // Only if she is won (Pet.hasNova, set by app.js) and there's room on one side of him.
+  canVisit() {
+    return !!Pet.hasNova?.() && this.skin === "pyro" && this.mode !== "held" && !this.dashing && !this.warping && !this.visiting && !this.speaking && !!visitSide(this);
+  }
+  async visitNova() {
+    this.visiting = true;
+    try { await novaVisit(this); } finally { this.visiting = false; this.wait = 1.5; }
+  }
+  // test hook: operandiPet.visitNow()
+  visitNow() { return this.dot.idle?.("visit"); }
   // test hook: operandiPet.warpNow(1 | -1)
   warpNow(dir = this.x < innerWidth / 2 ? 1 : -1) {
     if (this.skin !== "nova" || this.warping) return;
@@ -204,7 +216,7 @@ export class Pet {
 
   // ----- Picking up and dropping -----
   grab(e) {
-    if ((e.button !== undefined && e.button !== 0) || this.warping) return;
+    if ((e.button !== undefined && e.button !== 0) || this.warping || this.visiting) return;
     if (this.dashing) this.endDash(false);   // picked up mid-snuff: he relights where he is
     e.preventDefault();
     this.dot.figure.setPointerCapture(e.pointerId);

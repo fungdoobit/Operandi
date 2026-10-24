@@ -7,6 +7,7 @@
 // The portal is drawn in front of her and the part of her past its middle is cut off
 // with clip-path, so she goes into the swirl and comes out of it (not over or past it).
 import { sound } from "../sound.js";
+import { NovaMate } from "./nova-mate.js";
 
 const CELL = 128;                 // one frame of assets/nova/portal.png, art px
 const ANCHOR = { x: 60, y: 70 };  // the portal's middle inside a frame
@@ -63,7 +64,7 @@ class Portal {
   }
 }
 
-const ease = { in: (t) => t * t, out: (t) => 1 - (1 - t) ** 2, io: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2) };
+const ease = { lin: (t) => t, in: (t) => t * t, out: (t) => 1 - (1 - t) ** 2, io: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2) };
 function tween(ms, fn, e = "io") {
   ms *= slow();
   return new Promise((ok) => {
@@ -158,5 +159,107 @@ export async function novaWarp(pet, dir) {
     mate.pizza = null; mate.nova.idle.tk = 0;
     mate.playing = false;
     pet.save();
+  }
+}
+
+// ----- NOVA's visit to PYRO (Isaac 2026-10-24) -----
+// One of PYRO's idles (about one in four; only if NOVA is won). She tears a portal open a little way
+// off, glides out holding a marshmallow on a stick in telekinesis, points it into PYRO's flame and
+// roasts it to a golden brown, then takes it with her through a second portal. She is a second NovaMate
+// in her own fixed box (so there are two companions on screen for a moment); the portals are the warp's.
+
+// Which side of PYRO she can come in from (1 = right, -1 = left, 0 = no room).
+export function visitSide(pet) {
+  const r = pet.dot.figure.getBoundingClientRect(), cx = r.left + r.width / 2, need = 460;
+  if (innerWidth < 640 || innerHeight < 420 || !r.width) return 0;
+  const sides = [];
+  if (cx + need < innerWidth - 10) sides.push(1);
+  if (cx - need > 10) sides.push(-1);
+  return sides.length ? sides[Math.floor(Math.random() * sides.length)] : 0;
+}
+
+export async function novaVisit(pet) {
+  const side = visitSide(pet);
+  if (!side) return;
+  await loadSheet();
+  const py = pet.dot, pr = py.figure.getBoundingClientRect(), out = -side;   // out: the way she comes out, toward PYRO
+  const root = document.createElement("div");
+  root.className = "pet"; root.style.pointerEvents = "none"; root.style.visibility = "hidden";
+  root.style.transform = "translate3d(0px, 0px, 0)";
+  document.body.append(root);
+  const mate = new NovaMate(root, { size: 101, idles: false });
+  const G = { x: 0, y: 0, place() { root.style.transform = `translate3d(${this.x.toFixed(1)}px, ${this.y.toFixed(1)}px, 0)`; } };
+  const wrap = mate.figure.parentElement;
+  const r = mate.figure.getBoundingClientRect(), offX = r.left, offY = r.top, fw = r.width, fh = r.height;   // (she sits at 0, 0 for now)
+  const px = mate.held2d.getBoundingClientRect().width / mate.held2d.width;   // her art pixel in CSS px
+  const clip = (x, keep) => {   // re-applied every frame: clip-path is measured from her own box, which moves
+    const cx = x - G.x;
+    root.style.clipPath = keep > 0 ? `polygon(${cx}px -3000px, 3000px -3000px, 3000px 3000px, ${cx}px 3000px)` : `polygon(-3000px -3000px, ${cx}px -3000px, ${cx}px 3000px, -3000px 3000px)`;
+  };
+  const pw = 56 * px;
+  const near = (cx) => Math.max(0, Math.min(1, 1 - Math.abs((G.x + offX + fw / 2) - cx) / (pw / 2 + fw / 2)));
+  const depth = (k) => { wrap.style.filter = k > 0 ? `brightness(${(1 - 0.45 * k).toFixed(2)})` : ""; };
+  const tip = { x: pr.left + pr.width / 2 - side * 18, y: pr.bottom - 38 };   // where the marshmallow goes: into his flame, on her side
+  const gcx = pr.left + pr.width / 2 + side * 140, gcy = tip.y + 14;           // where she floats while she roasts
+  try {
+    // 1. a portal opens on her side, and she glides out of it, stick first
+    const B = { x: gcx - out * (fw * 0.5 + 34), y: gcy };
+    G.x = B.x - offX - fw / 2 - out * (fw * 0.75); G.y = B.y - offY - fh / 2; G.place();
+    mate.face(out > 0 ? "right" : "left");
+    clip(B.x, out);
+    const pb = new Portal(B.x, B.y, px); pb.rimSide = out;
+    sound.sfx("portalTear");
+    await pb.play("open");
+    sound.sfx("portal");
+    await wait(200);
+    mate.holdMallow(out, tip);
+    root.style.visibility = "";
+    sound.sfx("novaSummon"); sound.sfx("telekinesis");
+    const x2 = G.x, x3 = B.x - offX - fw / 2 + out * (fw * 0.5 + 34);
+    await tween(1000, (e) => { G.x = x2 + (x3 - x2) * e; G.place(); clip(B.x, out); depth(near(B.x)); }, "out");
+    depth(0); root.style.clipPath = "";
+    await wait(200);
+    sound.sfx("portalClose");
+    pb.play("close");
+    // 2. he notices; she reaches the marshmallow into his flame and roasts it, turning it
+    py.look = side * 3; py.setMood("happy"); mate.setMood("happy");
+    const M = mate.mallow;
+    sound.sfx("telekinesis");
+    await tween(700, (e) => { M.reach = 0.7 + 0.3 * e; }, "io");
+    sound.sfx("flameIgnite", { theme: "fire" });
+    M.turning = true;
+    const bursts = [0.15, 0.45, 0.75]; let b = 0;
+    await tween(5200, (e) => { M.heat = e; if (b < bursts.length && e > bursts[b]) { py.flare = 0.45; b++; } }, "lin");
+    M.heat = 1; M.turning = false;
+    // 3. golden brown: she draws it back, turns away with it held out in front of her
+    sound.sfx("telekinesis");
+    const dir = side, hold = (d) => [d * 1.2, 0.5, -0.25];
+    mate.face(dir > 0 ? "right" : "left");
+    M.carry = [dir * 34, 2];
+    const I = mate.nova.idle, from = hold(out), to = hold(dir);
+    await Promise.all([tween(700, (e) => { M.mix = e; }, "io"), mate.anim(700, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e); }, "io")]);
+    py.look = 0; py.setMood("happy", { revertAfter: 1600 });
+    await wait(500);
+    // 4. a portal opens ahead of her, and she goes in with it
+    const r2 = mate.figure.getBoundingClientRect();
+    const A = { x: (dir > 0 ? r2.right : r2.left) + dir * 26, y: r2.top + fh * 0.5 };
+    const pa = new Portal(A.x, A.y, px); pa.rimSide = -dir;
+    sound.sfx("portalTear");
+    await pa.play("open");
+    sound.sfx("portal");
+    await wait(250);
+    clip(A.x, -dir);
+    sound.sfx("novaUnsummon");
+    const x0 = G.x, x1 = A.x - offX - fw / 2 + dir * (fw * 0.75);
+    await tween(900, (e) => { G.x = x0 + (x1 - x0) * e; G.place(); clip(A.x, -dir); depth(near(A.x)); }, "in");
+    depth(0);
+    root.style.visibility = "hidden";
+    await wait(200);
+    sound.sfx("portalClose");
+    await pa.play("close");
+    await wait(400);
+  } finally {
+    py.look = 0;
+    root.remove();   // her WebGL loop stops by itself once her canvas is out of the page
   }
 }

@@ -10,6 +10,7 @@ import { PixelNova } from "./nova-px.js";
 import { Dot } from "../dot.js";
 import { sound } from "../sound.js";
 import { drawPizza, pizzaLen, crustHalfWidth } from "./nova-pizza.js";
+import { drawMallow } from "./nova-mallow.js";
 
 export const NOVA_CSS = `
 .nova-figure { width: 96px; height: 115px; flex: none; touch-action: none; position: relative; }
@@ -25,7 +26,7 @@ const PORTAL = [1.04, 0.2, 0.05], HOLD = [0.8, 0.4, -0.25], FACE = [0, 0.48, -0.
 const lerp3 = (a, b, e) => a.map((v, i) => v + (b[i] - v) * e);
 
 const CHUNK = 1.5;   // how many CSS px one of her art pixels covers
-const HPAD = 26;     // art px of room round her canvas for things she holds
+const HPAD = 40;     // art px of room round her canvas for things she holds
 
 export class NovaMate {
   constructor(container, { size = 96, idles = true, fast = false } = {}) {
@@ -91,8 +92,16 @@ export class NovaMate {
     this.drawHeld(dt, s);
   }
   drawHeld(dt, s) {
-    const g = this.held2d.getContext("2d"), P = this.pizza;
+    const g = this.held2d.getContext("2d"), P = this.pizza, M = this.mallow;
     g.clearRect(0, 0, this.held2d.width, this.held2d.height);
+    if (M) {   // a marshmallow on a stick (the visit to PYRO): the stick runs from her hold to M.target on screen, or to a carry spot beside her
+      const [hx, hy] = this.project(this.nova.idle.bucketAt), r = this.held2d.getBoundingClientRect(), a = r.width / this.held2d.width;
+      const gx = hx + ((M.target.x - r.left) / a - hx) * M.reach, gy = hy + ((M.target.y - r.top) / a - hy) * M.reach;   // art px on held2d
+      const tx = gx + (hx + M.carry[0] - gx) * M.mix + Math.sin(s * 1.7) * 0.6, ty = gy + (hy + M.carry[1] - gy) * M.mix + Math.cos(s * 1.3) * 0.6;
+      M.spin += dt * (M.turning ? 2.4 : 0.2);
+      drawMallow(g, hx, hy, tx, ty, { heat: M.heat, t: s, spin: M.spin });
+      return;
+    }
     if (!P) return;
     const [x, y] = this.project(this.nova.idle.bucketAt);
     // floppy: the tip lags behind when the slice moves, then wobbles back
@@ -270,6 +279,13 @@ Object.assign(NovaMate.prototype, {
     this.nova.idle.bucketAt = HOLD_P(dir);
     this.nova.idle.tk = 1;
     this.pizza = { dir, aim: 0, bites: 0, flop: 0.5, fv: 0, scale: 1, px: null, py: null };
+  },
+  // She is holding a marshmallow on a stick in telekinesis, pointing at target (a screen point, CSS px).
+  holdMallow(dir, target) {
+    this.face(dir > 0 ? "right" : "left");
+    this.nova.idle.bucketAt = HOLD_P(dir);
+    this.nova.idle.tk = 1;
+    this.mallow = { target, reach: 0.7, mix: 0, carry: [0, 0], heat: 0, spin: 0, turning: false };
   },
   async eatPizza() {
     const I = this.nova.idle, P = this.pizza;

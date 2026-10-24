@@ -43,6 +43,7 @@ const dot = new Pet({
   onPlace: (p) => { S().pet = p; store.save(); },
 });
 window.operandiPet = dot;   // for trying things by hand in the console (idles, warps, moods)
+Pet.hasNova = () => true;   // NOVA counts as won while Isaac tests her (like the Shop's owned checks); with her real unlock this becomes S().owned.nova
 
 function applyCosmetics() {
   dot.setSkin(S().equipped.teammate || "pyro");

@@ -14,7 +14,7 @@ import { Dot } from "../dot.js";
 
 // PYRO's idles (Isaac 2026-10-24): "candle" = he shrinks to a calm tiny flame and sleeps (Zs float up).
 // The NOVA marshmallow visit and "reads your code" come next. One idle every 20-40 s, never the same twice running.
-const IDLES = ["candle"];
+const IDLES = ["candle"];   // the regular ones; "visit" (NOVA brings a marshmallow, pet.js) is the rare special one
 const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
 // A pixel Z, s art px wide: top bar, a slanted middle, bottom bar (bars and slant 2 px thick once it is big enough).
 function zPixels(s) {
@@ -131,7 +131,7 @@ export class PyroMate {
     this.mood = "idle"; this.sz = 1; this.shut = false; this.alpha = 1; this.flash = 0; this.faceDir = 0; this.lean = 0; this.leanV = 0; this.flare = 0; this.sparks = [];
     this.t0 = performance.now(); this.lastX = null; this.lastT = null;
     loadFlames().then((f) => { this.fl = f; });
-    this.zs = []; this.zzz = false; this.swayOn = false; this.lastIdle = null; this.fast = fast; this.playing = false;
+    this.look = 0; this.zs = []; this.zzz = false; this.swayOn = false; this.lastIdle = null; this.fast = fast; this.playing = false;
     this.loop = this.loop.bind(this);
     requestAnimationFrame(this.loop);
     if (idles) this.schedule(fast ? 4000 : 12000);
@@ -189,7 +189,9 @@ export class PyroMate {
     if (!this.figure.isConnected) return;
     if (this.busy) { this.schedule(5000); return; }
     const left = IDLES.filter((w) => w !== this.lastIdle), options = left.length ? left : IDLES;
-    await this.idle(options[Math.floor(Math.random() * options.length)]);
+    // about one idle in four is NOVA's visit (if she is won, and there's room), never twice running
+    const visit = this.lastIdle !== "visit" && Math.random() < 0.25 && this.visitOk?.();
+    await this.idle(visit ? "visit" : options[Math.floor(Math.random() * options.length)]);
     this.schedule(this.fast ? 8000 + Math.random() * 4000 : 20000 + Math.random() * 20000);
   }
   async idle(which) {
@@ -209,6 +211,9 @@ export class PyroMate {
   }
   resetIdle() { this.snuff(1, false); this.zzz = false; this.swayOn = false; }
   cancelIdle() { if (!this.idleTok) return; this.idleTok = null; this.resetIdle(); this.playing = false; }
+
+  // NOVA drops in through her portal with a marshmallow on a stick, roasts it on him and leaves (pet.js runs it: it needs the page).
+  async visit() { await this.onVisitRequest?.(); }
 
   // He shrinks to a calm tiny flame, half asleep, swaying slowly; his eyes shut and Zs float up; then he wakes and grows back.
   async candle({ wait, tween }) {
@@ -266,7 +271,7 @@ export class PyroMate {
     const blink = this.shut || (this.mood === "idle" && (t % 4.2) > 4.06);
     const shape = eyeShape(this.mood, blink);
     if (z >= 0.4) for (const [mirror, mx] of [[false, ex - 7 * zw], [true, ex + 7 * zw]]) for (const [dx, dy, warm] of shape) {
-      const x = Math.round(mx + (mirror ? -dx : dx)), y = ey + dy;
+      const x = Math.round(mx + (mirror ? -dx : dx) + this.look), y = ey + dy;
       if (x < 0 || y < 0 || x >= AW || y >= AH) continue;
       const o = (y * AW + x) * 4, c = warm ? C_ : W_;
       P[o] = c[0]; P[o + 1] = c[1]; P[o + 2] = c[2]; P[o + 3] = 255;
