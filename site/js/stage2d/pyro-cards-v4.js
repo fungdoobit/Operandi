@@ -192,7 +192,7 @@ async function eruption(s) {
   } });
   mate.fly.x = 0; mate.sx.t = 1; mate.sy.t = 1.1;
   sound.sfx("shatter"); fx.hitstop(80); fx.shake(16);   // 2. the ground splits under GOLEM
-  for (const [i, dx] of [-90, 0, 85, -30, 40].entries()) setTimeout(() => { fx.crack(C.x + dx, { width: 230 - i * 20 }); fx.dust(C.x + dx, 6, 1); fx.debris({ x: C.x + dx, y: floor }, 4, { power: 0.9 }); fx.shake(6); }, i * 110);
+  for (const [i, dx] of [-90, 0, 85, -30, 40].entries()) setTimeout(() => { fx.dust(C.x + dx, 6, 1); fx.debris({ x: C.x + dx, y: floor }, 4, { power: 0.9 }); fx.shake(6); }, i * 110);
   await wait(s, 650);
   // 3. the eruption: a column of fire bursts up out of the floor through him, wide at the foot, with a roiling head, and falls back
   fx.hitstop(190); fx.shake(30); fx.punch(0.07, core); fx.flash(0.55, "#ffe8b8"); fx.darken(0.3, 400);
@@ -300,7 +300,7 @@ async function meteorRain(s) {
       m.hit = true;
       sound.sfx("explosion", { size: 0.8 }); fx.hitstop(50); fx.shake(12 + i * 2); fx.punch(0.02, to);
       explode(toon, to.x, to.y - (m.at ? 0 : 14), { size: m.last ? 2.2 : m.at ? 1.15 : 0.95, dur: m.last ? 1900 : 1200, star: false });
-      if (!m.at) { fx.crack(to.x, { width: 90 }); fx.dust(to.x, 7, 1); } else if (m.last) { fx.hitstop(220); fx.shake(30); fx.punch(0.09, to); fx.flash(0.5, "#ffb040"); s.onHit(2); s.heat(0.4); s.golem.rest(1200); } else s.onHit(1);
+      if (!m.at) { fx.dust(to.x, 7, 1); } else if (m.last) { fx.hitstop(220); fx.shake(30); fx.punch(0.09, to); fx.flash(0.5, "#ffb040"); s.onHit(2); s.heat(0.4); s.golem.rest(1200); } else s.onHit(1);
       fx.debris(to, 6, { power: 1.1 }); fx.sparks(to, 10, { colors: SPARK, power: 1.1 });
       if (Math.abs(to.x - core.x) < 200) stagger(s); s.chunk?.(0.08);
     }, ms);
@@ -369,7 +369,8 @@ async function phoenix(s) {
   await relightHome(s, { ms: 900 });
 }
 
-const chunky = (run) => async (s) => { s.toon.chunk = 3; s.toonBack.chunk = 3; try { await run(s); } finally { s.toon.chunk = 1; s.toonBack.chunk = 1; } };
+// every PYRO card draws its fire in 2-px blocks (Isaac 2026-10-24: 3 was too chunky, 1 too smooth; "a little more hi bit")
+export const chunky = (run) => async (s) => { s.toon.chunk = 2; s.toonBack.chunk = 2; try { await run(s); } finally { s.toon.chunk = 1; s.toonBack.chunk = 1; } };
 export const PYRO_V4 = {
   emberShot: { name: "Fireball", run: chunky(fireball), desc: "A core of fire gathers inside him and bursts out of him as a comet." },
   crescentWave: { name: "Flame Orbit", run: chunky(flameOrbit), desc: "Three fireballs spin out of him, circle him, then are thrown at the boss one after another." },

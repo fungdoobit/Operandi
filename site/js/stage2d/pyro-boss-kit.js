@@ -3,6 +3,6 @@
 //   emberShot = Fireball (basic)   crescentWave = Flame Orbit (light)   eruption (medium)   cometKick = Comet Dive (medium)
 //   sunfire = Sunfire Halo (heavy, the old one: the one Isaac likes)   meteorRain (ultimate)   infernoLine = Phoenix (ultimate II)
 import { PYRO_KIT } from "../abilities-pyro.js";
-import { PYRO_V4 } from "./pyro-cards-v4.js";
+import { PYRO_V4, chunky } from "./pyro-cards-v4.js";
 
-export const PYRO_BOSS_KIT = PYRO_KIT.map((c) => (PYRO_V4[c.id] ? { ...c, ...PYRO_V4[c.id] } : c));
+export const PYRO_BOSS_KIT = PYRO_KIT.map((c) => { const k = PYRO_V4[c.id] ? { ...c, ...PYRO_V4[c.id] } : c; return { ...k, run: chunky(k.run) }; });   // all cards, Sunfire and Meteor Rain too, in the same 2-px blocks

@@ -397,7 +397,7 @@ export async function bossSpecial(ctx, move, moveName) {
 export async function bossDefeat(ctx) {
   const { fx, boss, toon } = ctx;
   const c = fx.at(boss.figure.querySelector(".boss-core"));
-  toon.chunk = 3;   // chunky pixels for the cel fire (Isaac: the old explosions were too smooth)
+  toon.chunk = 2;   // chunky pixels for the cel fire (Isaac: the old explosions were too smooth)
   fx.letterbox(true); fx.focus(1.12, c, 700); fx.darken(0.45, 600);
   fx.flash(0.6); fx.shake(18); fx.ring(c, { size: 260, ms: 600 });
   boss.defeat();
@@ -416,7 +416,6 @@ export async function bossDefeat(ctx) {
   explode(toon, c.x - 90, c.y + 30, { size: 1.6, dur: 1700, star: false }); explode(toon, c.x + 100, c.y - 20, { size: 1.5, dur: 1700, star: false });
   fx.ring(c, { size: 420, ms: 700, width: 10 });
   fx.debris(c, 22, { power: 1.6 });
-  fx.crack(c.x, { width: 320 });
   await fx.wait(1100);
   fx.focus(1, null, 700); fx.darken(0, 700);
   await fx.wait(700);
