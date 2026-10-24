@@ -3,6 +3,7 @@
 // read), a very fast strike, a hit-stop freeze on impact with shake and a
 // camera punch, then follow-through and recovery.
 //
+import { explode } from "./pixel/toon-fx.js";
 // ctx = { fx: BattleFX, dot: Dot, boss: Boss, mateEl, theme: "water" | "fire" }
 // The battle decides what a hit does: onHit(n) returns "hit", "crit" or "blocked".
 
@@ -394,8 +395,9 @@ export async function bossSpecial(ctx, move, moveName) {
 
 // The final blow: bars, slow motion, push in on the boss as he breaks apart.
 export async function bossDefeat(ctx) {
-  const { fx, boss } = ctx;
+  const { fx, boss, toon } = ctx;
   const c = fx.at(boss.figure.querySelector(".boss-core"));
+  toon.chunk = 3;   // chunky pixels for the cel fire (Isaac: the old explosions were too smooth)
   fx.letterbox(true); fx.focus(1.12, c, 700); fx.darken(0.45, 600);
   fx.flash(0.6); fx.shake(18); fx.ring(c, { size: 260, ms: 600 });
   boss.defeat();
@@ -404,20 +406,21 @@ export async function bossDefeat(ctx) {
   for (let i = 0; i < 7; i++) {
     fx.wait(i * 190).then(() => {
       const p = { x: c.x + (Math.random() - 0.5) * 220, y: c.y + (Math.random() - 0.5) * 180 };
-      fx.explosion(p, { size: 0.7 + Math.random() * 0.4 }); fx.arcs(p, 2); fx.debris(p, 5); fx.shake(14); fx.flash(0.12, "#ffd9a3");
+      explode(toon, p.x, p.y, { size: 0.8 + Math.random() * 0.5, dur: 1300, star: false }); fx.debris(p, 5); fx.shake(14); fx.flash(0.12, "#ffd9a3");
     });
   }
   await fx.wait(1500);
   // The final blast.
   fx.hitstop(160); fx.flash(0.85); fx.shake(32); fx.punch(0.06, c);
-  fx.explosion(c, { size: 2 });
+  explode(toon, c.x, c.y, { size: 2.8, up: 1.4, dur: 2300, star: false });
+  explode(toon, c.x - 90, c.y + 30, { size: 1.6, dur: 1700, star: false }); explode(toon, c.x + 100, c.y - 20, { size: 1.5, dur: 1700, star: false });
   fx.ring(c, { size: 420, ms: 700, width: 10 });
   fx.debris(c, 22, { power: 1.6 });
   fx.crack(c.x, { width: 320 });
   await fx.wait(1100);
   fx.focus(1, null, 700); fx.darken(0, 700);
   await fx.wait(700);
-  fx.letterbox(false);
+  fx.letterbox(false); toon.chunk = 1;
   await teammateWin(ctx);
 }
 

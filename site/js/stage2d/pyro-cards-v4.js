@@ -70,32 +70,64 @@ async function sinkAway(s, ms = 560) {
   mate.snuff(0, true);
 }
 
+// He rockets straight up and out of the top of the screen (Meteor Rain, Supernova). Isaac called the first version lazy: so, a proper
+// launch: fire is pulled in under his feet and the floor glows (windup), a blast at the feet with hit-stop, flash and dust, and he
+// accelerates up as a bright streak with a column of fire standing in the air where he went, the camera tilting up after him,
+// ending in a flare at the top of the screen.
+async function rocketUp(s, { windup = true, dx = 0 } = {}) {
+  const { fx, mate, toon } = s, F = mate.fly, b = baseOf(s), foot = { x: b.x, y: b.y };
+  if (windup) {
+    mate.sx.t = 1.3; mate.sy.t = 0.7; sound.sfx("laserCharge", { ms: 460 });
+    await toon.add({ dur: 460, draw(pen, k) {
+      for (let i = 0; i < 9; i++) { const u = (k * 1.7 + i / 9) % 1, a = i * 0.8 + u * 5; pen.puff("heat", foot.x + Math.cos(a) * (1 - u) * 80, foot.y - 4 + Math.sin(a) * (1 - u) * 16, 5 + u * 4, 0.9); }
+      pen.oval("heat", foot.x, foot.y - 2, 30 + 50 * k, 6 + 8 * k, 0.8 * k);
+    } });
+  }
+  sound.sfx("whoosh", { theme: "fire" }); sound.sfx("explosion", { size: 0.8 });
+  fx.hitstop(70); fx.shake(14); fx.flash(0.3, "#ffd28a"); fx.dust(foot.x, 7, 1.2);
+  explode(toon, foot.x, foot.y - 10, { size: 0.9, up: 0.6, dur: 800, star: false });
+  mate.sx.t = 0.68; mate.sy.t = 1.55;
+  fx.focus(1.06, { x: foot.x + dx / 2, y: foot.y - 230 }, 520);
+  const H = b.y + 420, T = 480, pos = (u) => { const e = u ** 2.3; return { x: dx * e, y: -H * e }; };
+  toon.add({ dur: T + 800, draw(pen, k, t) {   // the column of fire left standing where he went, and the streak at its head
+    const u = Math.min(1, t / T), hd = pos(u), fade = 1 - clamp01((t - T) / 800), n = 16;
+    for (let i = 0; i < n; i++) {
+      const v = i / (n - 1), p = pos(u * v), r = (30 - 14 * v) * (1 - v * 0.2 * (1 - fade));
+      pen.puff("heat", foot.x + p.x, foot.y - 55 + p.y, r, 0.26 * fade);
+      if (i % 2) pen.puff("heat", foot.x + p.x, foot.y - 55 + p.y, r * 0.5, 0.2 * fade);
+    }
+    if (u < 1) { pen.puff("heat", foot.x + hd.x, foot.y - 55 + hd.y, 52, 0.5); pen.puff("heat", foot.x + hd.x, foot.y - 55 + hd.y, 30, 1.3); }
+  } });
+  await s.spr.add({ dur: T, draw(g, k) { const p = pos(k); F.x = p.x; F.y = p.y; } });
+  fx.flash(0.2, "#ffe8c0"); fx.shake(8); sound.sfx("rumble");
+  toon.add({ dur: 700, draw(pen, k) { const g = 1 - k; pen.puff("heat", foot.x + dx, -6, 100 * g + 20, 0.7 * g); pen.puff("heat", foot.x + dx, -6, 44 * g, 1.2 * g); } });
+  mate.snuff(0, true); mate.fly = null;
+}
+
 // ---- Fireball (basic) ------------------------------------------------------------------------------------------
 // Sunfire's build in small: fire spirals into a point in front of him, an orb swells, a star-flash, and a roaring fireball (white-hot
 // head, a long body of flame with red licks) crosses in a flash, the last stretch in slow motion; it lands in a cel explosion.
 async function fireball(s) {
-  const { fx, mate, toon, pxTop } = s;
-  const me = s.mateC(), core = s.golemC(), hit = lerp2(s.P("claw"), core, 0.55), orb = { x: me.x + 46, y: me.y - 6 };
+  const { fx, mate, toon } = s;
+  const me = s.mateC(), core = s.golemC(), hit = lerp2(s.P("claw"), core, 0.55), orb = { x: me.x + 40, y: me.y - 4 };
   mate.setMood("fierce"); mate.sx.t = 1.12; mate.sy.t = 0.88; mate.fly = { x: -8, y: 0, rot: -0.08, sx: 1, sy: 1 };
-  sound.sfx("flameIgnite"); sound.sfx("laserCharge", { ms: 520 }); fx.darken(0.3, 400);
-  let orbR = 0;
-  await toon.add({ dur: 640, draw(pen, k) {
-    orbR = 20 * ease.out(k);
-    for (let i = 0; i < 9; i++) { const u = (k * 2.2 + i / 9) % 1, a = i * 0.7 + u * 5, r = (1 - u) * 70 + orbR; pen.puff("heat", orb.x + Math.cos(a) * r, orb.y + Math.sin(a) * r * 0.8, 5 + u * 4, 0.9); }
-    pen.puff("heat", orb.x, orb.y, orbR * 1.6, 1.25); pen.puff("heat", orb.x, orb.y, orbR * 2.6, 0.5);
+  sound.sfx("flameIgnite"); sound.sfx("laserCharge", { ms: 420 });
+  await toon.add({ dur: 420, draw(pen, k) {   // fire gathers into a ball in front of him
+    const R = 18 * ease.out(k);
+    for (let i = 0; i < 8; i++) { const u = (k * 2 + i / 8) % 1, a = i * 0.8 + u * 5, r = (1 - u) * 56 + R; pen.puff("heat", orb.x + Math.cos(a) * r, orb.y + Math.sin(a) * r * 0.8, 5 + u * 4, 0.9); }
+    pen.puff("heat", orb.x, orb.y, R * 1.7, 1.2); pen.puff("heat", orb.x, orb.y, R * 2.7, 0.45);
   } });
   mate.sx.t = 0.94; mate.sy.t = 1.08; mate.fly.x = 12; mate.fly.rot = 0.05; mate.flare = 1;
-  fx.hitstop(70); fx.shake(8); fx.flash(0.25, "#ffd28a"); sound.sfx("whoosh", { theme: "fire" });
-  fx.focus(1.04, { x: (orb.x + hit.x) / 2, y: hit.y }, 420);
-  comet(toon, (u) => { const e = ease.in(u * 0.75 + 0.25 * u); return { x: lerp(orb.x, hit.x - 10, e), y: lerp(orb.y, hit.y, e) - Math.sin(u * Math.PI) * 22 }; }, 340, { r: 24, life: 600 });
-  await wait(s, 230); fx.slowmo(0.4, 260); await wait(s, 130);
+  fx.shake(8); fx.flash(0.2, "#ffd28a"); sound.sfx("whoosh", { theme: "fire" });
+  const T = 170, from = { x: orb.x, y: orb.y }, to = { x: hit.x - 14, y: hit.y };
+  comet(toon, (u) => ({ x: lerp(from.x, to.x, u), y: lerp(from.y, to.y, u) }), T, { r: 22, life: 520 });   // dead straight, very fast
+  await wait(s, T);
   mate.sx.t = 1; mate.sy.t = 1; mate.fly = null;
-  sound.sfx("explosion", { size: 1.2 }); fx.hitstop(160); fx.shake(18); fx.punch(0.06, hit); fx.flash(0.4, "#ffb040");
-  explode(toon, hit.x - 8, hit.y, { size: 1.5, dur: 1500 , star: false }); fx.debris(hit, 8, { power: 1.2 }); fx.sparks(hit, 18, { colors: SPARK, power: 1.4 }); stagger(s);
+  sound.sfx("explosion", { size: 1.2 }); fx.hitstop(150); fx.shake(18); fx.punch(0.06, hit); fx.flash(0.4, "#ffb040");
+  explode(toon, hit.x - 8, hit.y, { size: 1.5, dur: 1500, star: false }); fx.debris(hit, 8, { power: 1.2 }); fx.sparks(hit, 18, { colors: SPARK, power: 1.4 }); stagger(s);
   s.onHit(2); s.heat(0.12);
-  await wait(s, 300); explode(toon, hit.x + 34, hit.y - 26, { size: 0.8, dur: 1000 , star: false }); fx.shake(8);
-  await wait(s, 500);
-  fx.darken(0, 500); fx.focus(1, null, 500); mate.setMood("idle");
+  await wait(s, 700);
+  fx.darken(0, 400); mate.setMood("idle");
 }
 
 // ---- Flame Orbit (light) ---------------------------------------------------------------------------------------
@@ -151,26 +183,37 @@ async function eruption(s) {
   const { fx, mate, toon } = s;
   const core = s.golemC(), floor = fx.floorY, b = baseOf(s), C = { x: core.x + 4, y: floor + 20 };
   mate.setMood("fierce"); mate.sx.t = 1.16; mate.sy.t = 0.8; mate.fly = { x: 0, y: 0, rot: 0, sx: 1, sy: 1 }; mate.flare = 1;
-  fx.darken(0.55, 800); fx.focus(1.05, { x: core.x - 60, y: floor - 30 }, 1100);
+  fx.darken(0.55, 800); fx.focus(1.05, { x: core.x - 60, y: floor - 60 }, 1100);
   sound.sfx("rumble"); sound.sfx("laserCharge", { ms: 1500 });
-  await toon.add({ dur: 1500, draw(pen, k, t) {   // 1. the rumble: the stage and the floor heave
+  await toon.add({ dur: 1500, draw(pen, k, t) {   // 1. the rumble: the stage and the floor heave, the floor starts to glow under him
     mate.fly.x = Math.sin(t * 0.09) * 2.4 * k; fx.shake(2 + 9 * k);
     if (Math.random() < 0.3 + 0.5 * k) fx.dust(rand(b.x + 40, core.x + 100), 2, 0.6 + k);
-    if (Math.random() < 0.4) pen.puff("heat", rand(b.x, core.x + 60), floor + rand(2, 40), 3, 1);
-    if (k > 0.5) pen.oval("heat", C.x, C.y, 40 + 150 * (k - 0.5) * 2, 6 + 14 * (k - 0.5) * 2, 0.5 * (k - 0.5) * 2);   // the floor starts to glow under him
+    if (k > 0.4) pen.oval("heat", C.x, C.y, 40 + 190 * (k - 0.4) / 0.6, 6 + 14 * (k - 0.4) / 0.6, 0.55 * (k - 0.4) / 0.6);
   } });
   mate.fly.x = 0; mate.sx.t = 1; mate.sy.t = 1.1;
-  sound.sfx("shatter"); fx.hitstop(80); fx.shake(16);   // 2. the ground splits
-  for (const [i, dx] of [-90, 0, 85, -30, 40].entries()) setTimeout(() => { fx.crack(C.x + dx, { width: 230 - i * 20 }); fx.dust(C.x + dx, 6, 1); fx.debris({ x: C.x + dx, y: floor }, 4, { power: 0.9 }); fx.shake(6); }, i * 130);
-  toon.add({ dur: 1500, draw(pen, k, t) { const g = ease.out(clamp01(t / 500)) * (1 - clamp01((t - 1100) / 400)); pen.oval("heat", C.x, C.y, 190 * g, 26 * g, 0.9 * g) } });
-  await wait(s, 1200);
-  // 3. the eruption: one great rising explosion, fire tongues, lava bombs, smoke
-  fx.hitstop(190); fx.shake(28); fx.punch(0.07, core); fx.flash(0.55, "#ffe8b8"); fx.darken(0.3, 400);
+  sound.sfx("shatter"); fx.hitstop(80); fx.shake(16);   // 2. the ground splits under GOLEM
+  for (const [i, dx] of [-90, 0, 85, -30, 40].entries()) setTimeout(() => { fx.crack(C.x + dx, { width: 230 - i * 20 }); fx.dust(C.x + dx, 6, 1); fx.debris({ x: C.x + dx, y: floor }, 4, { power: 0.9 }); fx.shake(6); }, i * 110);
+  await wait(s, 650);
+  // 3. the eruption: a column of fire bursts up out of the floor through him, wide at the foot, with a roiling head, and falls back
+  fx.hitstop(190); fx.shake(30); fx.punch(0.07, core); fx.flash(0.55, "#ffe8b8"); fx.darken(0.3, 400);
   sound.sfx("explosion", { size: 2 }); sound.sfx("impact", { size: 1.8 }); sound.sfx("rumble");
   stagger(s, true); s.onHit(1);
-  explode(toon, C.x, floor - 10, { size: 2.5, up: 2.2, dur: 2400, star: false });
+  explode(toon, C.x, floor + 4, { size: 1.5, up: 0.6, dur: 1200, star: false });   // the blast at the foot
+  const H = 400, DUR = 2300;
+  toon.add({ dur: DUR, draw(pen, k, t) {
+    const rise = ease.out(clamp01(t / 420)), fall = 1 - clamp01((t - 1500) / 800), h = H * rise * (0.25 + 0.75 * fall), w = 0.5 + 0.5 * fall, n = 18;
+    for (let i = 0; i < n; i++) {
+      const v = i / (n - 1), y = floor + 14 - v * h, x = C.x + Math.sin(v * 5 + t * 0.011) * 10 * v + Math.sin(t * 0.017 + i) * 4;
+      const r = (92 - 40 * v + 7 * Math.sin(t * 0.02 + i * 2)) * w;
+      pen.puff("heat", x, y, r, 0.15); pen.puff("heat", x, y, r * 0.5, 0.2);   // the column, hotter in the middle
+    }
+    const top = floor + 14 - h;   // the head of it: a roiling cap that spreads out, with smoke above
+    for (let i = 0; i < 5; i++) { const a = i * 1.26 + t * 0.004; pen.puff("heat", C.x + Math.cos(a) * 80 * w, top + Math.sin(a) * 26 - 8, 62 * w, 0.26); }
+    pen.puff("smoke", C.x + 10, top - 50 * rise, 70 * rise, 0.7 * (1 - clamp01((t - 1700) / 600)));
+    pen.oval("heat", C.x, floor + 18, 230 * w, 22 * w, 0.8 * w);   // the pool of fire it stands in
+  } });
   fx.debris({ x: C.x, y: floor - 20 }, 30, { power: 2.2 }); fx.sparks({ x: C.x, y: floor - 60 }, 36, { colors: SPARK, power: 2 });
-  await wait(s, 380); fx.slowmo(0.4, 900); fx.shake(14);
+  await wait(s, 450); fx.slowmo(0.45, 800); fx.shake(14);
   await wait(s, 700);
   fx.hitstop(100); s.onHit(2); s.heat(0.3); s.golem.rest(1100);
   mate.fly = null; mate.flare = 0.6; mate.setMood("idle");
@@ -181,32 +224,30 @@ async function eruption(s) {
 // Sunfire's ring of fire blazes round him ("flame on"), he launches as a roaring comet with himself visible inside it, the camera
 // pushing in, slow motion as he lands, two blasts like Sunfire's; then he sinks and relights at home.
 async function cometDive(s) {
-  const { fx, mate, toon, pxTop } = s;
+  const { fx, mate, toon } = s;
   const core = s.golemC(), b = baseOf(s), me = s.mateC();
-  const mid = (p) => ({ x: p.x - b.x, y: p.y - (b.y - 55) });
-  const T = mid({ x: core.x - 48, y: core.y + 10 }), F = (mate.fly = { x: 0, y: 0, rot: 0, sx: 1, sy: 1 });
+  const T = { x: core.x - 48 - b.x, y: core.y + 10 - (b.y - 55) }, F = (mate.fly = { x: 0, y: 0, rot: 0, sx: 1, sy: 1 });
   mate.setMood("fierce"); mate.flare = 1; fx.darken(0.45, 500);
   sound.sfx("flameIgnite"); sound.sfx("laserCharge", { ms: 760 });
   mate.sx.t = 1.2; mate.sy.t = 0.78;
   let drawn = 0, burst = 0;
   toon.add({ dur: 1100, draw(pen, k, t) { fireRing(pen, { x: me.x + 2, y: me.y - 8 }, 52, 74, drawn, 0.5 + 0.5 * drawn, burst, t); } });
   await s.spr.add({ dur: 620, draw(g, k) { drawn = ease.out(k); } });
-  sound.sfx("whoosh", { theme: "fire" }); mate.sx.t = 0.85; mate.sy.t = 1.25; fx.shake(8); fx.flash(0.25, "#ffd28a");
+  sound.sfx("whoosh", { theme: "fire" }); fx.shake(8); fx.flash(0.25, "#ffd28a");
   s.spr.add({ dur: 300, draw(g, k) { burst = ease.out(k); } });
-  fx.focus(1.06, { x: (b.x + core.x) / 2, y: core.y }, 700);
-  let prev = { x: 0, y: 0 };
-  comet(s.toonBack, () => ({ x: b.x + F.x, y: b.y - 55 + F.y }), 560, { r: 26, life: 560 });
-  await s.spr.add({ dur: 560, draw(g, k) {
-    const e = ease.in(k * 0.85 + 0.15 * k), x = T.x * e, y = T.y * e - Math.sin(k * Math.PI) * 140, ang = Math.atan2(y - prev.y, x - prev.x); prev = { x, y };
-    F.x = x; F.y = y; F.rot = ang - Math.PI / 2 * 0.95; F.sx = 0.85; F.sy = 1.3;
-    if (k > 0.8 && k < 0.84) fx.slowmo(0.35, 320);
-  } });
+  fx.focus(1.06, { x: (b.x + core.x) / 2, y: core.y }, 500);
+  // he flies dead straight and fast, stretched along the line, inside a big blaze
+  const DUR = 240, ang = Math.atan2(T.y, T.x);
+  mate.sx.t = 1.35; mate.sy.t = 0.8;
+  comet(toon, (u) => ({ x: b.x + T.x * u, y: b.y - 55 + T.y * u }), DUR, { r: 34, life: 520 });
+  toon.add({ dur: DUR, draw(pen, k) { const x = b.x + T.x * k, y = b.y - 55 + T.y * k; pen.puff("heat", x + 14, y, 52, 0.4); } });
+  await s.spr.add({ dur: DUR, draw(g, k) { F.x = T.x * k; F.y = T.y * k; } });
   const hit = { x: core.x - 24, y: core.y + 6 };
   sound.sfx("explosion", { size: 1.5 }); fx.hitstop(220); fx.shake(26); fx.punch(0.08, hit); fx.flash(0.5, "#fff6dc");
-  explode(toon, hit.x, hit.y, { size: 1.8, dur: 1600 , star: false }); fx.debris(hit, 12, { power: 1.5 }); fx.sparks(hit, 24, { colors: SPARK, power: 1.5 }); stagger(s, true);
+  explode(toon, hit.x, hit.y, { size: 1.8, dur: 1600, star: false }); fx.debris(hit, 12, { power: 1.5 }); fx.sparks(hit, 24, { colors: SPARK, power: 1.5 }); stagger(s, true);
   s.onHit(2); s.heat(0.2);
-  await wait(s, 300); fx.hitstop(70); fx.shake(14); explode(toon, hit.x + 40, hit.y - 30, { size: 1, dur: 1100 , star: false });
-  mate.sx.t = 1; mate.sy.t = 1; F.rot *= 0.5; F.sx = 1; F.sy = 1;
+  await wait(s, 300); fx.hitstop(70); fx.shake(14);
+  mate.sx.t = 1; mate.sy.t = 1; F.sx = 1; F.sy = 1;
   fx.darken(0, 600); fx.focus(1, null, 600);
   await sinkAway(s, 520);
   await relightHome(s);
@@ -223,17 +264,13 @@ async function meteorRain(s) {
   fx.letterbox(true); fx.darken(0.6, 500); fx.flash(0.18, "#ff4010"); fx.title("METEOR RAIN", "PYRO · ultimate");
   mate.setMood("fierce"); mate.flare = 1;
   sound.sfx("flameIgnite"); sound.sfx("laserCharge", { ms: 1300 });
-  // 1. he crouches, then rockets up into the sky
-  mate.sx.t = 1.25; mate.sy.t = 0.78; await wait(s, 520);
-  mate.sx.t = 0.78; mate.sy.t = 1.35; sound.sfx("whoosh", { theme: "fire" });
-  comet(s.toonBack, () => ({ x: b.x + F.x, y: b.y - 55 + F.y }), 640, { r: 20, life: 600 });
-  await s.spr.add({ dur: 640, draw(g, k) { const e = ease.in(k); F.y = -(b.y + 330) * e; F.x = 30 * e; } });
-  mate.snuff(0, true); mate.fly = null;
+  // 1. he rockets up into the sky
+  await rocketUp(s, { dx: 30 });
   // 2. the sky: a red glow gathers at the top and the ground trembles; the target circles lock on
   sound.sfx("rumble");
   const targets = [
     { x: core.x - 170, y: floor - 4 }, { x: core.x + 150, y: floor - 4 }, { x: core.x - 80, y: floor - 4 }, { at: () => s.Pt([0, -0.2, -0.2], "claw") },
-    { x: core.x + 70, y: floor - 4 }, { at: () => s.golemC(), last: true },
+    { at: () => s.golemC(), last: true },
   ];
   const where = (m) => (m.at ? m.at() : m);
   toon.add({ dur: 4300, draw(pen, k, t) {
@@ -253,34 +290,24 @@ async function meteorRain(s) {
   fx.focus(1.04, { x: core.x - 30, y: core.y }, 900);
   await wait(s, 1700);
   // 3. the rain: irregular rhythm, different angles and sizes, the camera nudged toward each hit
-  const gaps = [0, 170, 320, 210, 520];
-  for (const [i, m] of targets.slice(0, 5).entries()) {
+  const gaps = [0, 170, 320, 210, 300];
+  for (const [i, m] of targets.entries()) {
     await wait(s, gaps[i]);
-    const to = where(m), side = i % 2 ? 1 : -1, from = { x: to.x + side * rand(60, 360), y: -110 }, ms = rand(300, 440), r = rand(13, 19);
+    const to = where(m), side = i % 2 ? 1 : -1, from = { x: to.x + side * rand(60, 360), y: -110 }, ms = rand(300, 440), r = m.last ? 24 : rand(13, 19);
     sound.sfx("whoosh", { theme: "fire" });
     comet(toon, (u) => ({ x: lerp(from.x, to.x, u * u * 0.4 + u * 0.6), y: lerp(from.y, to.y - 6, u * u * 0.55 + u * 0.45) }), ms, { r, life: 460 });
     setTimeout(() => {
       m.hit = true;
       sound.sfx("explosion", { size: 0.8 }); fx.hitstop(50); fx.shake(12 + i * 2); fx.punch(0.02, to);
-      explode(toon, to.x, to.y - (m.at ? 0 : 14), { size: m.at ? 1.15 : 0.95, dur: 1200 , star: false });
-      if (!m.at) { fx.crack(to.x, { width: 90 }); fx.dust(to.x, 7, 1); } else s.onHit(1);
+      explode(toon, to.x, to.y - (m.at ? 0 : 14), { size: m.last ? 2.2 : m.at ? 1.15 : 0.95, dur: m.last ? 1900 : 1200, star: false });
+      if (!m.at) { fx.crack(to.x, { width: 90 }); fx.dust(to.x, 7, 1); } else if (m.last) { fx.hitstop(220); fx.shake(30); fx.punch(0.09, to); fx.flash(0.5, "#ffb040"); s.onHit(2); s.heat(0.4); s.golem.rest(1200); } else s.onHit(1);
       fx.debris(to, 6, { power: 1.1 }); fx.sparks(to, 10, { colors: SPARK, power: 1.1 });
       if (Math.abs(to.x - core.x) < 200) stagger(s); s.chunk?.(0.08);
     }, ms);
   }
-  await wait(s, 900);
-  // 4. the last: slow motion, a huge meteor growing as it comes straight down onto his core
-  sound.sfx("rumble"); fx.darken(0.75, 300); fx.slowmo(0.4, 1100); fx.focus(1.1, { x: core.x, y: core.y - 20 }, 900);
-  const last = where(targets[5]);
-  comet(toon, (u) => ({ x: lerp(last.x - 70, last.x, u), y: lerp(-180, last.y, u * u) }), 760, { r: 26 + 0, life: 760 });
-  toon.add({ dur: 760, draw(pen, k) { const y = lerp(-180, last.y, k * k), x = lerp(last.x - 70, last.x, k); pen.puff("heat", x, y, 70 * k, 0.5 * k); } });
-  await wait(s, 780);
-  sound.sfx("explosion", { size: 1.9 }); fx.hitstop(260); fx.shake(32); fx.punch(0.1, last); fx.flash(0.6, "#ffb040");
-  stagger(s, true); explode(toon, last.x - 8, last.y, { size: 2.2, dur: 1900 , star: false }); explode(toon, last.x + 50, last.y + 20, { size: 1.2, dur: 1400 , star: false });
-  fx.debris(last, 18, { power: 1.9 }); fx.sparks(last, 30, { colors: SPARK, power: 1.8 }); s.onHit(2); s.heat(0.4); s.golem.rest(1200);
-  await wait(s, 1100);
+  await wait(s, 1500);
   fx.letterbox(false); fx.darken(0, 700); fx.focus(1, null, 700);
-  // 5. he comes back, relighting where he was
+  // 4. he comes back, relighting where he was
   await relightHome(s, { ms: 900 });
 }
 
@@ -301,11 +328,8 @@ async function phoenix(s) {
   mate.sx.t = 0.9; mate.sy.t = 1.15;
   await s.spr.add({ dur: 1300, draw(g, k) { drawn = ease.out(k); power = 0.3 + 0.7 * k; fx.shake(2 + 5 * k); } });
   // 2. he rockets up through the rings and out of the top of the sky
-  sound.sfx("whoosh", { theme: "fire" }); fx.flash(0.3, "#ffd28a"); mate.sx.t = 0.78; mate.sy.t = 1.35;
   s.spr.add({ dur: 400, draw(g, k) { burst = ease.out(k); } });
-  comet(s.toonBack, () => ({ x: b.x + F.x, y: b.y - 55 + F.y }), 700, { r: 22, life: 600 });
-  await s.spr.add({ dur: 700, draw(g, k) { const e = ease.in(k); F.y = -(b.y + 340) * e; F.x = (core.x - b.x) * 0.2 * e; } });
-  mate.snuff(0, true); mate.fly = null;
+  await rocketUp(s, { windup: false, dx: (core.x - b.x) * 0.2 });
   // 3. the sky burns red; a star gathers high above GOLEM, fire spiralling into it
   sound.sfx("rumble");
   const star = { x: core.x - 40, y: 70 };
