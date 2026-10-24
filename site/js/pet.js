@@ -9,7 +9,6 @@ import { Dot } from "./dot.js";
 import { NovaMate } from "./pixel/nova-mate.js";
 import { PyroMate } from "./pixel/pyro-mate.js";
 import { novaWarp, canWarp } from "./pixel/nova-warp.js";
-import { GasTrail, dashProgress } from "./pixel/pyro-dash.js";
 
 const SPEED = 46;            // px per second while wandering
 const MARGIN = 8;
@@ -103,7 +102,7 @@ export class Pet {
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
     let bob = 0;
-    if (this.dashing) { this.stepDash(now); this.place(0); requestAnimationFrame(this.tick); return; }   // PYRO racing along his line of fire
+    if (this.dashing) { this.stepDash(now); this.place(0); requestAnimationFrame(this.tick); return; }   // PYRO snuffing out and relighting
     if (this.mode === "roam" && !this.speaking && !this.warping) {
       if (this.wait > 0) this.wait -= dt;
       else {
@@ -147,35 +146,34 @@ export class Pet {
     this.warping = true; this.target = null;
     novaWarp(this, dir).finally(() => { this.warping = false; this.wait = 1.5; });
   }
-  // PYRO's movement (Isaac 2026-10-24): not a glide but a flash along a line of fire, like flame
-  // racing down a line of flammable gas (pixel/pyro-dash.js). Trips of 140 px or more; shorter ones glide.
+  // PYRO's movement (Isaac 2026-10-24): on trips of 140 px or more he doesn't glide, he snuffs out and
+  // relights. His flame sinks in chunky steps (flickering, eyes shut) until it is out, a beat of nothing,
+  // then a tiny ember at the far spot grows back to his full flame. Shorter trips glide.
   startDash() {
     if (!this.target || this.warping || this.dot.busy) return false;
-    const T = { x: this.target.x, y: this.target.y }, dist = Math.hypot(T.x - this.x, T.y - this.y);
-    if (dist < 140) return false;
-    const r = this.dot.figure.getBoundingClientRect(), k = this.dot.k || 1.5;
-    const bx = r.left + r.width / 2 - this.x, by = r.bottom - this.y - 5 * k;   // where his flame's bottom is, relative to his box
-    const D = Math.max(0.4, Math.min(1.1, dist / 900));
-    this.dashing = { O: { x: this.x, y: this.y }, T, D, t0: performance.now(), p: 0,
-      trail: new GasTrail(k, { x: this.x + bx, y: this.y + by }, { x: T.x + bx, y: T.y + by }) };
-    this.dot.dash?.(true);
+    const T = { x: this.target.x, y: this.target.y };
+    if (Math.hypot(T.x - this.x, T.y - this.y) < 140) return false;
+    this.dashing = { T, t0: performance.now(), moved: false };
     this.dot.face?.(T.x > this.x ? "right" : "left");
-    sound.sfx("flameIgnite", { theme: "fire" });
     return true;
   }
-  stepDash(now) {
-    const d = this.dashing, u = Math.min(1, (performance.now() - d.t0) / 1000 / d.D);
-    d.p = dashProgress(u, d.p);
-    this.x = d.O.x + (d.T.x - d.O.x) * d.p; this.y = d.O.y + (d.T.y - d.O.y) * d.p;
-    d.trail.setFront(d.p, performance.now() / 1000);
-    if (u >= 1) this.endDash(true);
+  stepDash() {
+    const d = this.dashing, t = (performance.now() - d.t0) / 1000;
+    const STEPS = [1, 0.78, 0.58, 0.42, 0.28, 0.16, 0.08], OUT = 0.8, GONE = 0.35, IN = 0.8;
+    // flicker: now and then a step jumps back up, like a flame guttering
+    const idx = (q) => { const i = Math.min(STEPS.length - 1, Math.floor(q * STEPS.length)); return i > 0 && i < STEPS.length - 1 && Math.sin(t * 43 + i) > 0.65 ? i - 1 : i; };
+    if (t < OUT) { const i = idx(t / OUT); this.dot.snuff(STEPS[i], i > 0); }
+    else if (t < OUT + GONE) this.dot.snuff(0, true);
+    else if (t < OUT + GONE + IN) {
+      if (!d.moved) { d.moved = true; this.x = d.T.x; this.y = d.T.y; sound.sfx("flameIgnite", { theme: "fire" }); }
+      const i = idx(1 - (t - OUT - GONE) / IN); this.dot.snuff(STEPS[i], i > 1);
+    } else this.endDash(true);
   }
   endDash(arrived) {
     const d = this.dashing; if (!d) return;
     this.dashing = null;
-    if (arrived) { this.x = d.T.x; this.y = d.T.y; d.trail.setFront(1, performance.now() / 1000); this.dot.arrive?.(); sound.sfx("whoosh", { theme: "fire" }); }
-    else d.trail.cut();
-    this.dot.dash?.(false);
+    this.dot.snuff?.(1, false);
+    if (arrived) { this.x = d.T.x; this.y = d.T.y; }
     this.target = null; this.wait = 2 + Math.random() * 5;
   }
   // test hook: operandiPet.warpNow(1 | -1)
@@ -200,7 +198,7 @@ export class Pet {
   // ----- Picking up and dropping -----
   grab(e) {
     if ((e.button !== undefined && e.button !== 0) || this.warping) return;
-    if (this.dashing) this.endDash(false);   // picked up mid-flash: what's lit burns out where it is
+    if (this.dashing) this.endDash(false);   // picked up mid-snuff: he relights where he is
     e.preventDefault();
     this.dot.figure.setPointerCapture(e.pointerId);
     this.before = this.mode;
