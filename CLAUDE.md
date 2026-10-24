@@ -376,6 +376,9 @@ Isaac's boot.dev-style Python learning app. There are two versions:
 - [ ] Phases 3–6: Modules 3–8 (loops, lists, functions, dicts, files and errors, real-world projects).
 - [ ] v1: Isaac's first real use inside claude.ai is still unconfirmed.
 
+## ECC (lean install, Isaac 2026-10-24)
+Project-only, in `.claude/` (from github.com/affaan-m/everything-claude-code v2.2.3, MIT, licence in `.claude/rules/ecc/LICENSE-ECC`): rules `ecc/common` (code-review, development-workflow, git-workflow, security: always loaded, about 1.5k tokens) and `ecc/web` (6 files, only loaded for web files; `.js` added to their `paths`); skill `product-capability`; agents `planner` and `code-reviewer` (descriptions changed to "use when asked / after big changes", so they don't run after every edit). Trimmed: references to agents, tools and 80% coverage that aren't installed. To remove anything, delete its file in `.claude/`. No MCP servers, hooks or settings changes.
+
 ## Working rules (from Isaac)
 - No building before PRD sign-off ("go" / "looks good").
 - Teach as you build: explain the key parts in plain words.
