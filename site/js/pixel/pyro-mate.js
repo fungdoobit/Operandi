@@ -115,7 +115,7 @@ export class PyroMate {
     this.buf = document.createElement("canvas"); this.buf.width = AW; this.buf.height = AH;
     this.bg = this.buf.getContext("2d", { willReadFrequently: true });
     this.resize(size);
-    this.mood = "idle"; this.sz = 1; this.shut = false; this.faceDir = 0; this.lean = 0; this.leanV = 0; this.flare = 0; this.sparks = [];
+    this.mood = "idle"; this.sz = 1; this.shut = false; this.alpha = 1; this.flash = 0; this.faceDir = 0; this.lean = 0; this.leanV = 0; this.flare = 0; this.sparks = [];
     this.t0 = performance.now(); this.lastX = null; this.lastT = null;
     loadFlames().then((f) => { this.fl = f; });
     this.loop = this.loop.bind(this);
@@ -142,7 +142,16 @@ export class PyroMate {
   face(dir) { this.faceDir = dir === "right" ? 1 : -1; }
   // Snuff and relight (Isaac 2026-10-24): pet.js shrinks him in chunky steps (sz: 1 full .. 0 gone) with his eyes
   // shut, and grows him back at the far spot. Nothing else is drawn: it is only his own flame, smaller.
-  snuff(sz = 1, shut = false) { this.sz = sz; this.shut = shut; }
+  // alpha: the last ember fading; embers: little sparks lifting off him as he dies; flash: 1 = his pale core colour, fading
+  snuff(sz = 1, shut = false, alpha = 1, embers = false) {
+    this.sz = sz; this.shut = shut;
+    if (alpha !== this.alpha) { this.alpha = alpha; this.cv.style.opacity = alpha; }
+    if (embers && sz > 0.1 && Math.random() < 0.14) {
+      const fl = this.fl?.E; if (!fl) return;
+      const h = (AH - 4 - fl.dy) * sz;   // how tall he is now
+      this.sparks.push({ x: AW / 2 + (Math.random() - 0.5) * 22 * sz, y: AH - 4 - h * (0.45 + Math.random() * 0.5), vx: (Math.random() - 0.5) * 8, vy: -(14 + Math.random() * 18), g: -4, life: 0.5 + Math.random() * 0.5, age: 0 });
+    }
+  }
   pickUp() { this.held = true; this.setMood("held"); this.flare = 1; }
   drop() {
     this.held = false;
@@ -166,8 +175,9 @@ export class PyroMate {
     const target = Math.max(-1, Math.min(1, -vx / 45));
     this.leanV += (target - this.lean) * 40 * dt; this.leanV *= Math.pow(0.02, dt); this.lean += this.leanV * dt;
     this.flare = Math.max(0, this.flare - dt * (this.held ? 0 : 1.6));
+    this.flash = Math.max(0, this.flash - dt * 3.2);
     this.sparks = this.sparks.filter((s) => (s.age += dt) < s.life);
-    for (const s of this.sparks) { s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 80 * dt; }
+    for (const s of this.sparks) { s.x += s.vx * dt; s.y += s.vy * dt; s.vy += (s.g ?? 80) * dt; }
     if ((this.tick = !this.tick)) return;   // drawn at 30 fps
     this.draw((now - this.t0) / 1000);
   }
@@ -182,26 +192,27 @@ export class PyroMate {
     // 1. the flame into a buffer, the core behind the eyes toned down a step
     bg.clearRect(0, 0, AW, AH);
     // smaller = his own frame drawn smaller (nearest-neighbour, anchored at his base), in the steps pet.js picks
-    const baseY = AH - 4, dw = Math.round(fl.fw * z), dh = Math.round(fl.fh * z);
+    const baseY = AH - 4, zw = Math.pow(z, 0.85), dw = Math.round(fl.fw * zw), dh = Math.round(fl.fh * z);
     bg.imageSmoothingEnabled = false;
     bg.drawImage(fl.strip, i * fl.fw, 0, fl.fw, fl.fh, fl.dx + Math.round((fl.fw - dw) / 2), baseY - Math.round((baseY - fl.dy) * z) , dw, dh);
     const sx = Math.round(Math.sin(t * 1.3) * 1.2) + this.faceDir * 2, sy = Math.round(Math.sin(t * 1.9 + 1) * 1.2);
-    const cx = AW / 2 + (fl.core[0] - AW / 2) * z, cy = baseY - (baseY - fl.core[1]) * z, ex = Math.round(cx + sx), ey = Math.round(cy - 2 * z + sy);
+    const cx = AW / 2 + (fl.core[0] - AW / 2) * zw, cy = baseY - (baseY - fl.core[1]) * z, ex = Math.round(cx + sx), ey = Math.round(cy - 2 * z + sy);
     const img = bg.getImageData(0, 0, AW, AH), P = img.data, [p0, p1] = fl.tones;
     for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) {
-      if (((x + 0.5 - ex) / (15 * z)) ** 2 + ((y + 0.5 - ey) / (10 * z)) ** 2 > 1) continue;
+      if (((x + 0.5 - ex) / (15 * zw)) ** 2 + ((y + 0.5 - ey) / (10 * z)) ** 2 > 1) continue;
       const o = (y * AW + x) * 4;
       if (P[o + 3] && ((P[o] << 16) | (P[o + 1] << 8) | P[o + 2]) === p0) { P[o] = (p1 >> 16) & 255; P[o + 1] = (p1 >> 8) & 255; P[o + 2] = p1 & 255; }
     }
     // 2. eyes (blinking every few seconds when idle), on the same fine grid
     const blink = this.shut || (this.mood === "idle" && (t % 4.2) > 4.06);
     const shape = eyeShape(this.mood, blink);
-    if (z >= 0.4) for (const [mirror, mx] of [[false, ex - 7 * z], [true, ex + 7 * z]]) for (const [dx, dy, warm] of shape) {
+    if (z >= 0.4) for (const [mirror, mx] of [[false, ex - 7 * zw], [true, ex + 7 * zw]]) for (const [dx, dy, warm] of shape) {
       const x = Math.round(mx + (mirror ? -dx : dx)), y = ey + dy;
       if (x < 0 || y < 0 || x >= AW || y >= AH) continue;
       const o = (y * AW + x) * 4, c = warm ? C_ : W_;
       P[o] = c[0]; P[o + 1] = c[1]; P[o + 2] = c[2]; P[o + 3] = 255;
     }
+    if (this.flash > 0) for (let o = 0; o < P.length; o += 4) if (P[o + 3]) { const f = this.flash * 0.75; P[o] += (255 - P[o]) * f; P[o + 1] += (244 - P[o + 1]) * f; P[o + 2] += (190 - P[o + 2]) * f; }
     bg.putImageData(img, 0, 0);
     // 3. onto a second buffer row by row: rows above his core shift against his movement, more the higher they are
     g.clearRect(0, 0, AW, AH);

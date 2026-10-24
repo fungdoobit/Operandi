@@ -158,16 +158,23 @@ export class Pet {
     return true;
   }
   stepDash() {
-    const d = this.dashing, t = (performance.now() - d.t0) / 1000;
-    const STEPS = [1, 0.78, 0.58, 0.42, 0.28, 0.16, 0.08], OUT = 0.8, GONE = 0.35, IN = 0.8;
-    // flicker: now and then a step jumps back up, like a flame guttering
-    const idx = (q) => { const i = Math.min(STEPS.length - 1, Math.floor(q * STEPS.length)); return i > 0 && i < STEPS.length - 1 && Math.sin(t * 43 + i) > 0.65 ? i - 1 : i; };
-    if (t < OUT) { const i = idx(t / OUT); this.dot.snuff(STEPS[i], i > 0); }
-    else if (t < OUT + GONE) this.dot.snuff(0, true);
-    else if (t < OUT + GONE + IN) {
+    const d = this.dashing, t = (performance.now() - d.t0) / 1000, m = this.dot;
+    const OUT = 0.9, GONE = 0.4, PULSE = 0.4, GROW = 0.8, EMBER = 0.08;
+    const back = (q) => { const c = 1.5, u = q - 1; return 1 + (c + 1) * u * u * u + c * u * u; };   // grows with a slight overshoot, then settles
+    if (t < OUT) {   // sinks fast at first, slowly at the end, guttering as it goes
+      const q = t / OUT, gutter = q > 0.15 && q < 0.95 ? 1 + 0.07 * Math.sin(t * 50) * (1 - q) : 1;
+      m.snuff((EMBER + (1 - EMBER) * (1 - q) ** 1.8) * gutter, q > 0.06, 1, true);
+    } else if (t < OUT + GONE) m.snuff(EMBER, true, 1 - (t - OUT) / GONE);   // the last ember dims out
+    else {
       if (!d.moved) { d.moved = true; this.x = d.T.x; this.y = d.T.y; sound.sfx("flameIgnite", { theme: "fire" }); }
-      const i = idx(1 - (t - OUT - GONE) / IN); this.dot.snuff(STEPS[i], i > 1);
-    } else this.endDash(true);
+      const u = t - OUT - GONE;
+      if (u < PULSE) m.snuff(EMBER * (1 + 0.55 * Math.max(0, Math.sin(u / PULSE * Math.PI * 2.4))), true, Math.min(1, u / 0.08));   // an ember flickers on
+      else if (u < PULSE + GROW) {
+        const q = (u - PULSE) / GROW;
+        if (q > 0.35 && !d.flashed) { d.flashed = true; m.flash = 1; }
+        m.snuff(Math.min(1.05, EMBER + (1 - EMBER) * back(q)), q < 0.45, 1);
+      } else this.endDash(true);
+    }
   }
   endDash(arrived) {
     const d = this.dashing; if (!d) return;
