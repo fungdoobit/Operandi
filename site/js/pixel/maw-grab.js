@@ -36,7 +36,7 @@ const BODY = {
 };
 
 // The fighter's body, the coil round it, and how to carry it.
-function bodyOf(s) {
+export function bodyOf(s) {
   const el = s.mateEl, home = { x: 0, y: 0, r: 0, ...el._pos };
   const box = { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2, w: el.offsetWidth, h: el.offsetHeight };
   let spec = BODY[s.skin];

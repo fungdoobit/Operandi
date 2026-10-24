@@ -5,11 +5,12 @@ import { teammateHurt, bossSpecial } from "../battle-moves.js";
 import { sound } from "../sound.js";
 import { spl, CELL, SK } from "./maw-px.js";
 import { grab } from "./maw-grab.js";
+import { storm } from "./maw-storm.js";
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const rand = (a, b) => a + Math.random() * (b - a);
-const MOVES = ["whip", "grab"];
+const MOVES = ["whip", "grab", "storm"];
 let last = null;
 
 // ---- entrance -------------------------------------------------------------------------------------------------------
@@ -132,6 +133,7 @@ const ATTACKS = {
     g.to({ tense: 0, writhe: 0.55 }, 400, "io");
   },
   grab,   // GRAB AND SLAM: maw-grab.js
+  storm,  // TENTACLE STORM: maw-storm.js
 };
 
 export function mawSpecial(ctx, move, name) {
