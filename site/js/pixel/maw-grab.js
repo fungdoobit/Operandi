@@ -7,14 +7,16 @@
 //   3. the tip coils round their body (in front of them and behind them), then squeezes
 //   4. it lifts them high and swings them back over the stage, hangs for a beat...
 //   5. ...and slams them into the ground: freeze frame, negative flash, shake, dust and shockwaves
-//   6. it uncoils and slides back into the mass
+//   6. up again with a slight pause, then three quick slams, each a little different (Isaac 2026-10-24: "not copy and paste")
+//   7. it uncoils and slides back into the mass
+// No letterbox bars on this one (Isaac 2026-10-24).
 //
 // How the coil works: the coil is part of the arm (the arm is one curve from his mouth to the tip). Its points that are in
 // front of your fighter go on the Maw's front layer (maw-px.js), the rest stay behind them. The coil's size comes from the
 // outline of each fighter (BODY: measured from their idle frames, so it hugs PYRO's flame, NOVA and Kaela without cutting
 // through them). Your fighter is carried by moving their element every frame with the arm (a frame hook), so both stay in step.
 import { sound } from "../sound.js";
-import { bigHit } from "../cine.js";
+import { impactFrame } from "../cine.js";
 import { CELL, SK, spl } from "./maw-px.js";
 
 const ARM = 4;        // the long upper arm
@@ -173,7 +175,7 @@ export async function grab(s) {
 
   try {
     // 1. it rears up
-    fx.letterbox(true); fx.darken(0.2, 500); fx.focus(1.05, s.P("core"), 500);
+    fx.darken(0.2, 500); fx.focus(1.05, s.P("core"), 500);
     sound.sfx("growl", { size: 0.8 });
     g.to({ tense: 1, writhe: 0.9 }, 300, "out");
     await tw({ cock: 1 }, 600, "out");
@@ -196,46 +198,61 @@ export async function grab(s) {
     tw({ sx: 1, sy: 1 }, 320, "back");
     tw({ fight: 1 }, 120, "out");
     await fx.wait(260);
-    // 4. it lifts them high and swings back over the stage
-    sound.sfx("whoosh", { size: 0.8 });
-    tw({ arch: 1, wave: 0.4, fight: 0.4 }, 560, "out");
-    await tw({ dx: 66, dy: -140, rot: -0.24 }, 600, "out");
-    // the hang: everything waits for the drop
-    fx.focus(1.08, { x: feetAt().x + 60, y: feetAt().y - 130 }, 420); fx.darken(0.3, 400);
-    await tw({ dx: 82, dy: -158, rot: -0.42, wave: 0, fight: 0 }, 360, "io");
-    // 5. SLAM: down in an arc, faster and faster
-    sound.sfx("swoosh");
-    const A0 = [st.dx, st.dy], C0 = [st.dx - 70, st.dy + 4];
-    const arc = { u: 0 };   // a curve from the top, out and down onto the spot they were standing on
-    st.path = () => { const u = arc.u, v = 1 - u; st.dx = v * v * A0[0] + 2 * v * u * C0[0]; st.dy = v * v * A0[1] + 2 * v * u * C0[1]; };
-    tw({ rot: 0.22, arch: 0.15 }, 190, "in");
-    await g.to({ u: 1 }, 190, "in", arc);
-    st.path = null; st.dx = 0; st.dy = 0;
-    // impact
-    const at = feetAt();
-    st.sx = 1.24; st.sy = 0.8; st.rot = 0.05;
-    bigHit(fx, at, { stop: 170, shake: 32, punch: 0.075, flash: "#ffd6c8" });
-    sound.sfx("slamImpact", { size: 1.3 }); sound.sfx("rumble", { size: 0.8 });
-    const fl = fx.floorFrac; fx.floorFrac = at.y / fx.h;   // the dust and shockwaves start from where they landed
-    fx.dust(at.x, 18, 1.6);
-    for (let i = 1; i <= 6; i++) fx.wait(i * 40).then(() => { fx.dust(at.x - i * 30, 3, 1.1); fx.dust(at.x + i * 30, 3, 1.1); });   // a cloud rolling out both ways
-    fx.debris({ x: at.x, y: at.y - 6 }, 10, { power: 1.3 });
-    fx.wait(700).then(() => { fx.floorFrac = fl; });
-    fx.ring({ x: at.x, y: at.y }, { color: "#ffd6c8", size: 170, flat: 0.28, ms: 460, width: 7 });
-    fx.ring({ x: at.x, y: at.y - 30 }, { color: "#f59a90", size: 120, ms: 380, width: 5 });
-    fx.sparks({ x: at.x, y: at.y - 20 }, 22, { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1.6, dir: 0 });
+    // 4. it lifts them high and slams them down: once big and slow, then up again for three quick ones, each a little different
+    //    (higher or lower, a wider or straighter swing, a different tilt and landing spot, harder or softer)
     const late = s.skin === "pyro";   // PYRO's hurt look is a smaller flame: it would slip down inside the coil, so he flinches as it lets go
-    s.hit({ crit: true }, { flinch: !late });
-    tw({ sx: 1, sy: 1, rot: 0 }, 420, "back");
-    st.wave = 1.3; tw({ wave: 0 }, 650, "out");   // the shock runs back up the arm
-    await fx.wait(320);
-    // 6. it lets go, uncoils and slides back into the mass
+    const fl = fx.floorFrac; fx.floorFrac = feetAt().y / fx.h;   // the dust and debris start from where they land
+    let first = true;
+    const slam = async (o) => {
+      // up...
+      sound.sfx("whoosh", { size: o.big ? 0.8 : 0.5 });
+      tw({ arch: o.arch, wave: o.big ? 0.4 : 0.2, fight: o.big ? 0.4 : 0.2 }, o.up, "out");
+      await tw({ dx: o.A[0], dy: o.A[1], rot: o.A[2] }, o.up, "out");
+      // ...the hang...
+      if (o.big) { fx.focus(1.08, { x: feetAt().x + 60, y: feetAt().y - 130 }, 420); fx.darken(0.3, 400); }
+      await tw({ dx: o.H[0], dy: o.H[1], rot: o.H[2], wave: 0, fight: 0 }, o.hang, "io");
+      // ...and down in an arc, faster and faster, onto the ground
+      sound.sfx("swoosh");
+      const A0 = [st.dx, st.dy], C0 = [st.dx + o.C[0], st.dy + o.C[1]], E0 = [o.land, 0];
+      const arc = { u: 0 };
+      st.path = () => { const u = arc.u, v = 1 - u; st.dx = v * v * A0[0] + 2 * v * u * C0[0] + u * u * E0[0]; st.dy = v * v * A0[1] + 2 * v * u * C0[1] + u * u * E0[1]; };
+      tw({ rot: o.R, arch: 0.15 }, o.down, "in");
+      await g.to({ u: 1 }, o.down, "in", arc);
+      st.path = null; st.dx = o.land; st.dy = 0;
+      // impact (p = how hard)
+      const p = o.power, at = feetAt();
+      at.x += o.land;
+      st.sx = 1 + 0.24 * p; st.sy = 1 - 0.2 * p; st.rot = 0.05 * Math.sign(o.R);
+      fx.hitstop(Math.round(110 + 60 * p)); fx.shake(Math.round(20 + 12 * p)); fx.punch(0.04 + 0.035 * p, at); fx.flash(0.2 + 0.3 * Math.min(1, p), "#ffd6c8");
+      if (o.invert) impactFrame(fx, { ms: 60, frames: 2 });   // the negative flash: only the first and the last
+      sound.sfx("slamImpact", { size: 0.9 + 0.4 * p }); if (o.big) sound.sfx("rumble", { size: 0.8 });
+      fx.dust(at.x, Math.round(10 + 8 * p), 1 + 0.6 * p);
+      for (let i = 1; i <= 6; i++) fx.wait(i * 40).then(() => { fx.dust(at.x - i * 30 * p, 3, 1.1); fx.dust(at.x + i * 30 * p, 3, 1.1); });   // a cloud rolling out both ways
+      fx.debris({ x: at.x, y: at.y - 6 }, Math.round(5 + 5 * p), { power: 0.9 + 0.4 * p });
+      fx.ring({ x: at.x, y: at.y }, { color: "#ffd6c8", size: 110 + 60 * p, flat: 0.28, ms: 460, width: 7 });
+      if (p > 0.9) fx.ring({ x: at.x, y: at.y - 30 }, { color: "#f59a90", size: 120, ms: 380, width: 5 });
+      fx.sparks({ x: at.x, y: at.y - 20 }, Math.round(10 + 12 * p), { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1 + 0.6 * p, dir: 0 });
+      if (first) s.hit({ crit: true }, { flinch: !late });   // the damage lands on the first slam
+      else if (!late) s.flinch({ crit: p > 1 });
+      first = false;
+      tw({ sx: 1, sy: 1, rot: 0 }, o.big ? 420 : 300, "back");
+      st.wave = 1.3 * p; tw({ wave: 0 }, 650, "out");   // the shock runs back up the arm
+      await fx.wait(o.after);
+    };
+    // the big one (the slam Isaac liked: slow lift, long hang, wide arc)
+    await slam({ big: true, A: [66, -140, -0.24], up: 600, H: [82, -158, -0.42], hang: 360, C: [-70, 4], R: 0.22, down: 190, land: 0, power: 1, invert: true, arch: 1, after: 200 });
+    fx.focus(1, null, 300); fx.darken(0.15, 300);
+    // up again, a slight pause, then three quick ones
+    await slam({ A: [52, -122, -0.3], up: 300, H: [58, -130, -0.36], hang: 150, C: [-55, 10], R: 0.18, down: 150, land: -8, power: 0.72, arch: 0.85, after: 60 });
+    await slam({ A: [24, -96, -0.1], up: 210, H: [26, -102, -0.14], hang: 40, C: [-12, -8], R: 0.08, down: 125, land: 6, power: 0.62, arch: 0.7, after: 50 });
+    await slam({ A: [98, -150, -0.5], up: 270, H: [106, -160, -0.56], hang: 90, C: [-95, 0], R: 0.28, down: 165, land: 0, power: 1.15, invert: true, arch: 1, after: 320 });
+    fx.wait(800).then(() => { fx.floorFrac = fl; });
+    // 5. it lets go, uncoils and slides back into the mass
     fx.focus(1, null, 500); fx.darken(0, 500);
     sound.sfx("squelch");
     if (late) s.flinch({ crit: true });
     await tw({ wrap: 0, loose: 1.4, arch: 0, wave: 0.6 }, 360, "in");
     held = false;
-    fx.letterbox(false);
     tw({ wave: 0 }, 480, "out");
     await tw({ ret: 1 }, 480, "io");
   } finally {
