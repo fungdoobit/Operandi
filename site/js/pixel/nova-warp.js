@@ -199,8 +199,8 @@ export async function novaVisit(pet) {
   const pw = 56 * px;
   const near = (cx) => Math.max(0, Math.min(1, 1 - Math.abs((G.x + offX + fw / 2) - cx) / (pw / 2 + fw / 2)));
   const depth = (k) => { wrap.style.filter = k > 0 ? `brightness(${(1 - 0.45 * k).toFixed(2)})` : ""; };
-  const tip = { x: pr.left + pr.width / 2 - side * 18, y: pr.bottom - 38 };   // where the marshmallow goes: into his flame, on her side
-  const gcx = pr.left + pr.width / 2 + side * 140, gcy = tip.y + 14;           // where she floats while she roasts
+  const tip = { x: pr.left + pr.width / 2 - side * 15, y: pr.top - 8 };   // the stick's end: the marshmallow hovers just above his flame (not in it), a little toward her
+  const gcx = pr.left + pr.width / 2 + side * 140, gcy = tip.y - 17;           // where she floats while she roasts (high, so the stick slopes down to him)
   try {
     // 1. a portal opens on her side, and she glides out of it, stick first
     const B = { x: gcx - out * (fw * 0.5 + 34), y: gcy };
@@ -235,14 +235,14 @@ export async function novaVisit(pet) {
     sound.sfx("telekinesis");
     const dir = side, hold = (d) => [d * 1.2, 0.5, -0.25];
     mate.face(dir > 0 ? "right" : "left");
-    M.carry = [dir * 34, 2];
+    M.carry = [dir * 30, 2];
     const I = mate.nova.idle, from = hold(out), to = hold(dir);
     await Promise.all([tween(700, (e) => { M.mix = e; }, "io"), mate.anim(700, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e); }, "io")]);
     py.look = 0; py.setMood("happy", { revertAfter: 1600 });
     await wait(500);
     // 4. a portal opens ahead of her, and she goes in with it
     const r2 = mate.figure.getBoundingClientRect();
-    const A = { x: (dir > 0 ? r2.right : r2.left) + dir * 26, y: r2.top + fh * 0.5 };
+    const A = { x: (dir > 0 ? r2.right : r2.left) + dir * 96, y: r2.top + fh * 0.5 };   // well clear of the marshmallow held out in front of her
     const pa = new Portal(A.x, A.y, px); pa.rimSide = -dir;
     sound.sfx("portalTear");
     await pa.play("open");
@@ -251,7 +251,7 @@ export async function novaVisit(pet) {
     clip(A.x, -dir);
     sound.sfx("novaUnsummon");
     const x0 = G.x, x1 = A.x - offX - fw / 2 + dir * (fw * 0.75);
-    await tween(900, (e) => { G.x = x0 + (x1 - x0) * e; G.place(); clip(A.x, -dir); depth(near(A.x)); }, "in");
+    await tween(1300, (e) => { G.x = x0 + (x1 - x0) * e; G.place(); clip(A.x, -dir); depth(near(A.x)); }, "in");
     depth(0);
     root.style.visibility = "hidden";
     await wait(200);
