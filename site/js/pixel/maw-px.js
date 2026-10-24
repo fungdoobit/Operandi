@@ -9,7 +9,7 @@
 import { battleTime } from "../battle-time.js";
 
 export const CELL = 2;        // design px per cell (GOLEM's art pixels are 2 px too)
-export const SK = 1.1;        // the tentacles are drawn a bit bigger than the cat (the cat is small next to them)
+export const SK = 0.75;        // the tentacles are drawn a bit bigger than the cat (the cat is small next to them)
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -31,27 +31,22 @@ const SHEETS = {
   sitIdle: ["g94.png", 64, 7, Array(7).fill(350)],
   sleep: ["g95.png", 64, 4, Array(4).fill(450)],
 };
-// One pipeline for EVERY cat frame: Scale3x smooths the diagonals (each sprite pixel becomes 3x3 cells), the thick outline is thinned
-// to one cell, inner dark lines soften to brown, and light from the top-left adds a rim light, a dithered second light band,
-// shadow bands and a touch of fur grain.
+// One pipeline for EVERY cat frame: Scale2x smooths the diagonals (each sprite pixel becomes 2x2 cells, so the cat stands about as
+// tall as PYRO), the thick outline is thinned to one cell, inner dark lines soften to brown, and light from the top-left adds a rim
+// light, a dithered second light band, shadow bands and a touch of fur grain.
 function hiBit(sd, w, h) {
   const key = (x, y) => { if (x < 0 || y < 0 || x >= w || y >= h) return "t"; const o = (y * w + x) * 4; return sd[o + 3] < 128 ? "t" : sd[o] + "," + sd[o + 1] + "," + sd[o + 2]; };
-  const NW = w * 3, NH = h * 3, cat = new Array(NW * NH).fill(null);
+  const NW = w * 2, NH = h * 2, cat = new Array(NW * NH).fill(null);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const A = key(x - 1, y - 1), B = key(x, y - 1), C = key(x + 1, y - 1), D = key(x - 1, y), E = key(x, y), Fk = key(x + 1, y), G = key(x - 1, y + 1), Hh = key(x, y + 1), I = key(x + 1, y + 1);
-    if (E === "t") continue;
+    const E = key(x, y); if (E === "t") continue;
+    const B = key(x, y - 1), D = key(x - 1, y), Fk = key(x + 1, y), Hh = key(x, y + 1);
     const e = [
-      D === B && D !== Hh && B !== Fk ? D : E,
-      (D === B && D !== Hh && B !== Fk && E !== C) || (B === Fk && B !== D && Fk !== Hh && E !== A) ? B : E,
+      D === B && B !== Fk && D !== Hh ? D : E,
       B === Fk && B !== D && Fk !== Hh ? Fk : E,
-      (D === B && D !== Hh && B !== Fk && E !== G) || (D === Hh && D !== B && Hh !== Fk && E !== A) ? D : E,
-      E,
-      (B === Fk && B !== D && Fk !== Hh && E !== I) || (Fk === Hh && Fk !== B && Hh !== D && E !== C) ? Fk : E,
       D === Hh && D !== B && Hh !== Fk ? D : E,
-      (D === Hh && D !== B && Hh !== Fk && E !== I) || (Fk === Hh && Fk !== B && Hh !== D && E !== G) ? Hh : E,
-      Fk === Hh && Fk !== B && Hh !== D ? Fk : E,
+      Hh === Fk && D !== Hh && B !== Fk ? Fk : E,
     ];
-    for (let i = 0; i < 9; i++) if (e[i] !== "t") cat[(y * 3 + ((i / 3) | 0)) * NW + x * 3 + (i % 3)] = e[i].split(",").map(Number);
+    for (let i = 0; i < 4; i++) if (e[i] !== "t") cat[(y * 2 + (i >> 1)) * NW + x * 2 + (i & 1)] = e[i].split(",").map(Number);
   }
   const at = (x, y) => (x < 0 || y < 0 || x >= NW || y >= NH ? null : cat[y * NW + x]);
   const isDark = (c) => c && c[0] + c[1] + c[2] < 130;
@@ -63,9 +58,9 @@ function hiBit(sd, w, h) {
     minX = Math.min(minX, x); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
     const edge = !at(x - 1, y) || !at(x + 1, y) || !at(x, y - 1) || !at(x, y + 1);
     if (isDark(c)) { cells[y * NW + x] = edge ? [20, 8, 3] : [56, 28, 6]; continue; }
-    const lit2 = (!at(x - 5, y - 6) || isDark(at(x - 4, y - 4))) && bay(x, y) < 0.5;
-    const sh = !at(x + 3, y + 3) || isDark(at(x + 3, y + 3)), sh2 = (!at(x + 6, y + 7) || isDark(at(x + 5, y + 5))) && bay(x, y) < 0.5;
-    if (!at(x - 2, y - 2) || !at(x - 1, y - 1)) c = mix(c, [255, 236, 190], 0.3);
+    const lit2 = (!at(x - 3, y - 4) || isDark(at(x - 2, y - 3))) && bay(x, y) < 0.5;
+    const sh = !at(x + 2, y + 2) || isDark(at(x + 2, y + 2)), sh2 = (!at(x + 4, y + 5) || isDark(at(x + 3, y + 3))) && bay(x, y) < 0.5;
+    if (!at(x - 1, y - 1)) c = mix(c, [255, 236, 190], 0.3);
     else if (lit2) c = mix(c, [255, 220, 150], 0.2);
     else if (sh) c = mix(c, [60, 24, 6], 0.38);
     else if (sh2) c = mix(c, [80, 34, 8], 0.2);
@@ -143,6 +138,8 @@ export class PixelMaw {
     this.tweens = []; this.at = 0; this.last = performance.now();
     this.cat = { mode: "gone", x: 0, t0: 0 };   // modes: gone, run, stand, sit, lieYawn, sleep
     this.extra = [];      // extra arms an attack adds: { pts(), w:[a,b], pal, u }
+    this.override = {};   // an attack can take over one of the real arms: override[i](idlePts) -> pts
+    this.palOv = {};      // ...and recolour it
     this.W = 0; this.H = 0; this.F = null;
     this.sheets = null; this.ready = loadSheets().then((s) => { this.sheets = s; });
     this.loop = this.loop.bind(this);
@@ -160,7 +157,7 @@ export class PixelMaw {
     Object.assign(this.view.style, { left: -left + "px", top: -top + "px", width: this.W * CELL + "px", height: this.H * CELL + "px" });
     this.floorC = Math.round(floorY / CELL) + 2;
     this.xSit = Math.round((left + 70) / CELL);          // the sitting cat's anchor, in cells
-    this.mouth = [this.xSit - 11, this.floorC - 55];       // where the tentacles come out
+    this.mouth = [this.xSit - 7, this.floorC - 37];       // where the tentacles come out
     this.rel = null;
   }
   setPx() {}   // BattleStage.fit calls it on every foe
@@ -185,6 +182,7 @@ export class PixelMaw {
     const r = this.foeEl.getBoundingClientRect(), s = r.width / this.foeW;
     return { x: r.left + (x - this.foeLeft) * s, y: r.top + (y - this.foeTop) * s };
   }
+  mouthCells() { return [this.mouth[0] + this.pose.hx, this.mouth[1] + this.pose.hy]; }
   mouthD() { const m = this.mouth || [0, 0]; return { x: (m[0] + this.pose.hx) * CELL, y: (m[1] + this.pose.hy) * CELL }; }
   point(name) {
     const m = this.mouthD();
@@ -297,15 +295,16 @@ export class PixelMaw {
       const wall = sample(wallPts(i, 8).map(([x, y]) => [x * SK * 0.9, y * SK * 0.78]), n), cur = sample(base, n);
       pts = cur.map((p, k) => [lerp(p[0], wall[k][0], P.shield) + Math.sin(s * 3 + i + k) * k * 0.5 * P.shield, lerp(p[1], wall[k][1], P.shield)]);
     }
-    return pts.map(([x, y]) => [M[0] + P.hx + x, M[1] + P.hy + y]);
+    const abs = pts.map(([x, y]) => [M[0] + P.hx + x, M[1] + P.hy + y]);
+    return this.override[i] ? this.override[i](abs) : abs;
   }
   render() {
     if (!this.sheets || !this.F) return;
     const P = this.pose, F = this.F, W = this.W;
     F.fill(0);
-    for (let i = 0; i < ARMS.length; i++) if (ARMS[i].back) this.tentacle(this.armPts(i), ARMS[i].w[0] * SK, ARMS[i].w[1], ARMS[i].pal || PAL_F, clamp(P.tent * 1.7 - i * 0.1), i);
+    for (let i = 0; i < ARMS.length; i++) if (ARMS[i].back) this.tentacle(this.armPts(i), ARMS[i].w[0] * SK, ARMS[i].w[1], this.palOv[i] || ARMS[i].pal || PAL_F, clamp(P.tent * 1.7 - i * 0.1), i);
     this.drawCat();
-    for (let i = 0; i < ARMS.length; i++) if (!ARMS[i].back) this.tentacle(this.armPts(i), ARMS[i].w[0] * SK, ARMS[i].w[1], ARMS[i].pal || PAL_F, eout3(clamp(P.tent * 1.7 - i * 0.1)), i);
+    for (let i = 0; i < ARMS.length; i++) if (!ARMS[i].back) this.tentacle(this.armPts(i), ARMS[i].w[0] * SK, ARMS[i].w[1], this.palOv[i] || ARMS[i].pal || PAL_F, eout3(clamp(P.tent * 1.7 - i * 0.1)), i);
     for (const e of this.extra) this.tentacle(e.pts(), e.w[0] * SK, e.w[1], e.pal || PAL_F, e.u ? e.u() : 1, e.seed || 9);
     const fl = this.fxv.flash;
     if (fl > 0.02) for (let i = 0; i < W * this.H; i++) { const o = i * 4; if (F[o + 3]) { F[o] += (255 - F[o]) * fl * 0.7; F[o + 1] += (255 - F[o + 1]) * fl * 0.7; F[o + 2] += (255 - F[o + 2]) * fl * 0.7; } }
