@@ -202,7 +202,7 @@ export async function novaVisit(pet) {
   // Isaac's picture (2026-10-24): the marshmallow hovers over his upper shoulder on her side, its bottom edge near the top of his flame;
   // she floats about level with him, a little lower, and the stick slopes up to it at about 25 degrees. The stick never changes length.
   const pcx = pr.left + pr.width / 2;
-  const tip = { x: pcx + side * 23, y: pr.top + 15 };   // the stick's end (the marshmallow sits just behind it, toward her)
+  const tip = { x: pcx + side * 23, y: pr.top + 27 };   // the stick's end (the marshmallow sits just behind it, toward her)
   const gcx = pcx + side * 150, gcy = pr.top + 49;      // where she floats while she roasts (level with his middle)
   const unit = mate.nova.canvas.height / mate.nova.view, hm = HOLD_M(out);   // her art px per unit of her own space
   const rv = [(tip.x - (gcx + hm[0] * unit * px)) / px, (tip.y - (gcy - (hm[1] - 0.1) * unit * px)) / px];   // the stick, from where she holds it to its end, in her art px
@@ -241,7 +241,7 @@ export async function novaVisit(pet) {
     const sl = Math.hypot(rv[0], rv[1]);
     M.carry = [dir * sl * 0.82, -sl * 0.57];   // the same stick length as while roasting, held close and tilted up about 35 degrees
     const I = mate.nova.idle, from = HOLD_M(out), to = HOLD_C(dir);
-    await Promise.all([tween(800, (e) => { M.mix = e; }, "io"), mate.anim(800, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e + (i === 1 ? 0.2 * Math.sin(e * Math.PI) : 0)); }, "io")]);
+    await Promise.all([tween(800, (e) => { M.mix = e; }, "io"), mate.anim(800, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e); }, "io")]);
     py.look = 0; py.setMood("happy", { revertAfter: 1600 });
     await wait(500);
     // 4. a portal opens ahead of her, and she goes in with it
