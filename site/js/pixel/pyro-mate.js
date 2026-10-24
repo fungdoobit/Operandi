@@ -12,6 +12,19 @@
 // shifts sideways a little more the higher it is, so it stays crisp pixel art.
 import { Dot } from "../dot.js";
 
+// PYRO's idles (Isaac 2026-10-24): "candle" = he shrinks to a calm tiny flame and sleeps (Zs float up).
+// The NOVA marshmallow visit and "reads your code" come next. One idle every 20-40 s, never the same twice running.
+const IDLES = ["candle"];
+const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
+// A pixel Z, s art px wide: top bar, a slanted middle, bottom bar (bars and slant 2 px thick once it is big enough).
+function zPixels(s) {
+  const px = new Set(), th = s >= 7 ? 2 : 1, add = (x, y) => px.add(x + "," + y);
+  for (let i = 0; i < s; i++) for (let k = 0; k < th; k++) { add(i, k); add(i, s - 1 - k); }
+  for (let r = 1; r < s - 1; r++) for (let k = 0; k < th; k++) add(Math.max(0, Math.min(s - 1, s - 1 - r - k)), r);
+  return px;
+}
+const Z_FILL = [255, 238, 176], Z_EDGE = [226, 112, 36];
+
 export const PYRO_CSS = `
 .pyro-figure { flex: none; touch-action: none; position: relative; cursor: grab; user-select: none; -webkit-user-select: none; }
 .pyro-figure canvas { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); image-rendering: pixelated; pointer-events: none; }
@@ -105,7 +118,7 @@ function loadFlames() {
 }
 
 export class PyroMate {
-  constructor(container, { size = 96, idles = true } = {}) {
+  constructor(container, { size = 96, idles = true, fast = false } = {}) {
     container.innerHTML = `<div class="dot-wrap"><div class="pyro-figure" data-mood="idle"></div><div class="dot-bubble" hidden aria-live="polite"></div></div>`;
     this.figure = container.querySelector(".pyro-figure");
     this.bubble = container.querySelector(".dot-bubble");
@@ -118,8 +131,10 @@ export class PyroMate {
     this.mood = "idle"; this.sz = 1; this.shut = false; this.alpha = 1; this.flash = 0; this.faceDir = 0; this.lean = 0; this.leanV = 0; this.flare = 0; this.sparks = [];
     this.t0 = performance.now(); this.lastX = null; this.lastT = null;
     loadFlames().then((f) => { this.fl = f; });
+    this.zs = []; this.zzz = false; this.swayOn = false; this.lastIdle = null; this.fast = fast; this.playing = false;
     this.loop = this.loop.bind(this);
     requestAnimationFrame(this.loop);
+    if (idles) this.schedule(fast ? 4000 : 12000);
   }
   // The figure is his body's box (what you grab); the canvas hangs over it with room to sway.
   resize(size) {
@@ -152,7 +167,7 @@ export class PyroMate {
       this.sparks.push({ x: AW / 2 + (Math.random() - 0.5) * 22 * sz, y: AH - 4 - h * (0.45 + Math.random() * 0.5), vx: (Math.random() - 0.5) * 8, vy: -(14 + Math.random() * 18), g: -4, life: 0.5 + Math.random() * 0.5, age: 0 });
     }
   }
-  pickUp() { this.held = true; this.setMood("held"); this.flare = 1; }
+  pickUp() { this.cancelIdle(); this.held = true; this.setMood("held"); this.flare = 1; }
   drop() {
     this.held = false;
     this.flare = 0.7;
@@ -162,6 +177,50 @@ export class PyroMate {
   }
   say(text, opts) { Dot.prototype.say.call(this, text, opts); }
   hush() { Dot.prototype.hush.call(this); }
+
+  // ----- idles -----
+  schedule(ms) { clearTimeout(this.idleTimer); this.idleTimer = setTimeout(() => this.maybeIdle(), ms); }
+  get busy() {   // nobody is talking to him, holding him, or watching a different tab; and he isn't mid-trip (the snuff and relight changes his size)
+    const r = this.figure.getBoundingClientRect();
+    return this.held || this.playing || this.sz !== 1 || !this.bubble.hidden || document.hidden || !this.figure.isConnected || !r.width
+      || getComputedStyle(this.figure).visibility === "hidden";
+  }
+  async maybeIdle() {
+    if (!this.figure.isConnected) return;
+    if (this.busy) { this.schedule(5000); return; }
+    const left = IDLES.filter((w) => w !== this.lastIdle), options = left.length ? left : IDLES;
+    await this.idle(options[Math.floor(Math.random() * options.length)]);
+    this.schedule(this.fast ? 8000 + Math.random() * 4000 : 20000 + Math.random() * 20000);
+  }
+  async idle(which) {
+    if (this.playing) return;
+    this.playing = true; this.lastIdle = which;
+    const tok = (this.idleTok = {});   // picking him up swaps this out, which stops the idle where it is
+    const stop = "stop";
+    const wait = (ms) => new Promise((ok, no) => setTimeout(() => (this.idleTok === tok ? ok() : no(stop)), ms));
+    const tween = (ms, fn) => new Promise((ok, no) => {
+      const t0 = performance.now();
+      const f = (n) => { if (this.idleTok !== tok) return no(stop); const u = Math.min(1, (n - t0) / ms); fn(u); u < 1 ? requestAnimationFrame(f) : ok(); };
+      requestAnimationFrame(f);
+    });
+    try { await this[which]({ wait, tween }); }
+    catch (e) { if (e !== stop) throw e; }
+    finally { if (this.idleTok === tok) { this.idleTok = null; this.resetIdle(); } this.playing = false; }
+  }
+  resetIdle() { this.snuff(1, false); this.zzz = false; this.swayOn = false; }
+  cancelIdle() { if (!this.idleTok) return; this.idleTok = null; this.resetIdle(); this.playing = false; }
+
+  // He shrinks to a calm tiny flame, half asleep, swaying slowly; his eyes shut and Zs float up; then he wakes and grows back.
+  async candle({ wait, tween }) {
+    this.setMood("sleepy");
+    await tween(1500, (u) => this.snuff(1 - 0.54 * ease(u), false));
+    this.swayOn = true; await wait(1200);
+    this.snuff(0.46, true); this.zzz = true; await wait(4200);
+    this.zzz = false; this.snuff(0.46, false); await wait(900);
+    this.swayOn = false; this.setMood("happy", { revertAfter: 1500 });
+    await tween(700, (u) => this.snuff(0.46 + 0.58 * (1 - (1 - u) ** 3), false));
+    this.snuff(1, false);
+  }
 
   loop(now) {
     if (!this.cv.isConnected) return;
@@ -173,7 +232,7 @@ export class PyroMate {
     const vx = this.lastX == null || !dt ? 0 : (x - this.lastX) / dt;
     this.lastX = x;
     const target = Math.max(-1, Math.min(1, -vx / 45));
-    this.leanV += (target - this.lean) * 40 * dt; this.leanV *= Math.pow(0.02, dt); this.lean += this.leanV * dt;
+    this.leanV += (target - this.lean) * 40 * dt; this.leanV *= Math.pow(0.02, dt); this.lean += this.leanV * dt; if (this.swayOn) this.lean = 0.14 * Math.sin(now / 1000 * 1.1);
     this.flare = Math.max(0, this.flare - dt * (this.held ? 0 : 1.6));
     this.flash = Math.max(0, this.flash - dt * 3.2);
     this.sparks = this.sparks.filter((s) => (s.age += dt) < s.life);
@@ -251,6 +310,17 @@ export class PyroMate {
       if (hz) { Q[o] = hz[0][0]; Q[o + 1] = hz[0][1]; Q[o + 2] = hz[0][2]; Q[o + 3] = hz[1]; } else Q[o + 3] = 0;
     }
     g.putImageData(out, 0, 0);
+    // sleeping Zs: small, growing as they rise and drift right, dithering away at the end
+    const head = baseY - (baseY - fl.dy) * z;
+    if (this.zzz && (!this.zs.length || t - this.zs[this.zs.length - 1].t0 > 1.0)) this.zs.push({ t0: t });
+    this.zs = this.zs.filter((q) => t - q.t0 < 2.6);
+    for (const q of this.zs) {
+      const age = t - q.t0, u = age / 2.6, sz = age < 0.8 ? 5 : age < 1.6 ? 7 : 9;
+      const ox = Math.round(AW / 2 + 6 + age * 7 + Math.sin(age * 2.4) * 2), oy = Math.round(head - 4 - age * 11);
+      const bits = zPixels(sz), draw = (dx, dy, c) => { const x = ox + dx, y = oy + dy; if (x >= 0 && y >= 0 && x < AW && y < AH && !(u > 0.65 && B4[(y & 3) * 4 + (x & 3)] / 16 < (u - 0.65) * 2.9)) { g.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`; g.fillRect(x, y, 1, 1); } };
+      for (const k of bits) { const [x, y] = k.split(",").map(Number); for (const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) if (!bits.has(`${x + a},${y + b}`)) draw(x + a, y + b, Z_EDGE); }
+      for (const k of bits) { const [x, y] = k.split(",").map(Number); draw(x, y, Z_FILL); }
+    }
     for (const s of this.sparks) { g.fillStyle = s.age / s.life < 0.5 ? "#ffe08a" : "#ff8a30"; g.fillRect(Math.round(s.x), Math.round(s.y), 1, 1); }
   }
 }

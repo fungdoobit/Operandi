@@ -41,7 +41,7 @@ export class Pet {
     // NOVA is pixel art with his own idles (pixel/nova-mate.js); DOT and PYRO share dot.js
     // NOVA's size 101 is 5% bigger than the default 96 (Isaac 2026-10-23)
     // PYRO is the flame sprite (pixel/pyro-mate.js, Isaac 2026-10-23); DOT (dot.js) is in storage for now
-    this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles, size: 101 }) : skin === "pyro" ? new PyroMate(this.root, { size: 96 }) : new Dot(this.root, { skin });
+    this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles, size: 101 }) : skin === "pyro" ? new PyroMate(this.root, { size: 96, fast: Pet.fastIdles }) : new Dot(this.root, { skin });
     this.dot.setAccessory(this.accessories);
     if (skin === "nova") this.dot.onWarpRequest = () => { this.warpWantedAt = performance.now(); };   // her idle rotation asks for the warp
     this.dot.onSay = (hasActions) => {
@@ -103,7 +103,7 @@ export class Pet {
     this.last = now;
     let bob = 0;
     if (this.dashing) { this.stepDash(now); this.place(0); requestAnimationFrame(this.tick); return; }   // PYRO snuffing out and relighting
-    if (this.mode === "roam" && !this.speaking && !this.warping) {
+    if (this.mode === "roam" && !this.speaking && !this.warping && !(this.skin === "pyro" && this.dot.playing)) {   // (he stays put while he is in an idle)
       if (this.wait > 0) this.wait -= dt;
       else {
         if (!this.target) { this.target = this.pickTarget(); this.maybeWarp(); }
