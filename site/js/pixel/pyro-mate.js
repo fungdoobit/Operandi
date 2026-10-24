@@ -6,8 +6,8 @@
 // roaming pet (pet.js) and the Shop use him the same way.
 // Higher bit (Isaac 2026-10-24: "to match NOVA"): the flames are doubled with Scale2x
 // (twice the art pixels, corners rounded) and drawn at 1.5 CSS px each, the same grain as
-// NOVA; on top he gets NOVA's dark 1-px outline and her kind of see-through dithered haze
-// (in ember colours), with finer rounded eyes drawn on the same grid.
+// NOVA; on top he gets her kind of faint see-through dithered haze
+// (in ember colours; no outline), with finer rounded eyes drawn on the same grid.
 // The flame sways against the way he moves, like a real flame: each row of pixels
 // shifts sideways a little more the higher it is, so it stays crisp pixel art.
 import { Dot } from "../dot.js";
@@ -20,9 +20,9 @@ export const PYRO_CSS = `
 const AW = 88, AH = 112;   // canvas in art px (each is half a pixel of the pack's art): the 64 x 96 flame plus room to sway, glow and spark
 const FRAME_MS = 100;
 const W_ = [255, 255, 255], C_ = [255, 241, 214];
-const OUTLINE = [74, 14, 8];   // the dark outline round everything, like NOVA's near-black
-// the see-through ember haze: NOVA's three levels (28 / 50 / 80 % opacity) in fire colours
-const HAZE = [[[120, 24, 8], 72], [[214, 66, 16], 128], [[255, 150, 40], 204]];
+// the see-through ember haze: three dithered levels in fire colours, fainter than NOVA's
+// three (28 / 50 / 80 %), like her purple aura (Isaac 2026-10-24: "less opaque")
+const HAZE = [[[150, 40, 12], 34], [[226, 84, 20], 64], [[255, 160, 50], 104]];
 const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 const h1 = (n) => { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); };
 function vnoise(x, y) {
@@ -203,10 +203,9 @@ export class PyroMate {
       const off = Math.round(this.lean * 14 * h ** 1.3 + Math.sin(t * 2.2 + y * 0.08) * 0.8 * h);
       g.drawImage(this.buf, 0, y, AW, 1, off, y, AW, 1);
     }
-    // 4. the outline and the see-through ember haze, like NOVA's
+    // 4. the faint see-through ember haze, like NOVA's aura
     const out = g.getImageData(0, 0, AW, AH), Q = out.data, N = AW * AH;
-    // loose sparks and wisps (small separate blobs) are left as they are: no outline, no haze (an outline
-    // round a lone pixel turns it into a hollow ring)
+    // loose sparks and wisps (small separate blobs) are left as they are and give off no haze of their own
     const small = new Uint8Array(N), seen = new Uint8Array(N), stack = [];
     for (let p0 = 0; p0 < N; p0++) {
       if (seen[p0] || Q[p0 * 4 + 3] <= 127) continue;
@@ -225,10 +224,9 @@ export class PyroMate {
       const p = y * AW + x, d = dist[p], o = p * 4;
       if (small[p]) { Q[o + 3] = 255; continue; }
       if (!d) { Q[o + 3] = 255; continue; }
-      if (d === 1) { Q[o] = OUTLINE[0]; Q[o + 1] = OUTLINE[1]; Q[o + 2] = OUTLINE[2]; Q[o + 3] = 255; continue; }
       if (d > 7) { Q[o + 3] = 0; continue; }
       // the haze: thickest near the fire, broken up by noise that rises, dithered into three see-through levels
-      const gas = Math.exp(-(d - 2) * 0.5) * (0.3 + 0.85 * vnoise(x * 0.3, y * 0.3 + t * 2.4));
+      const gas = Math.exp(-(d - 1) * 0.5) * (0.3 + 0.85 * vnoise(x * 0.3, y * 0.3 + t * 2.4));
       const lv = gas * 3 + (B4[(y & 3) * 4 + (x & 3)] / 16 - 0.5) * 0.45;
       const hz = lv > 2 ? HAZE[2] : lv > 1 ? HAZE[1] : lv > 0.5 ? HAZE[0] : null;
       if (hz) { Q[o] = hz[0][0]; Q[o + 1] = hz[0][1]; Q[o + 2] = hz[0][2]; Q[o + 3] = hz[1]; } else Q[o + 3] = 0;
