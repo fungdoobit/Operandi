@@ -235,14 +235,14 @@ export async function novaVisit(pet) {
     sound.sfx("telekinesis");
     const dir = side;
     mate.face(dir > 0 ? "right" : "left");
-    M.carry = [dir * 26, -18];   // closer in, at an angle with the marshmallow end pointing up a bit
+    M.carry = [dir * 61, -43];   // the same stick length as while roasting (about 75 art px), held close and tilted up
     const I = mate.nova.idle, from = HOLD_M(out), to = HOLD_C(dir);
     await Promise.all([tween(800, (e) => { M.mix = e; }, "io"), mate.anim(800, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e + (i === 1 ? 0.5 * Math.sin(e * Math.PI) : 0)); }, "io")]);
     py.look = 0; py.setMood("happy", { revertAfter: 1600 });
     await wait(500);
     // 4. a portal opens ahead of her, and she goes in with it
     const r2 = mate.figure.getBoundingClientRect();
-    const A = { x: (dir > 0 ? r2.right : r2.left) + dir * 72, y: r2.top + fh * 0.5 };   // clear of the marshmallow held out in front of her
+    const A = { x: (dir > 0 ? r2.right : r2.left) + dir * 124, y: r2.top + fh * 0.5 };   // clear of the marshmallow held out in front of her of the marshmallow held out in front of her
     const pa = new Portal(A.x, A.y, px); pa.rimSide = -dir;
     sound.sfx("portalTear");
     await pa.play("open");

@@ -97,7 +97,10 @@ export class NovaMate {
     if (M) {   // a marshmallow on a stick (the visit to PYRO): the stick runs from her hold to M.target on screen, or to a carry spot beside her
       const [hx, hy] = this.project(this.nova.idle.bucketAt), r = this.held2d.getBoundingClientRect(), a = r.width / this.held2d.width;
       const gx = hx + ((M.target.x - r.left) / a - hx) * M.reach, gy = hy + ((M.target.y - r.top) / a - hy) * M.reach;   // art px on held2d
-      const tx = gx + (hx + M.carry[0] - gx) * M.mix + Math.sin(s * 1.7) * 0.6, ty = gy + (hy + M.carry[1] - gy) * M.mix + Math.cos(s * 1.3) * 0.6;
+      // the stick keeps its length as it swings from pointing at PYRO to the carry angle (mix 0 -> 1): lerp the angle and the length, not the end point
+      const rx = gx - hx, ry = gy - hy, cx = M.carry[0], cy = M.carry[1], a0 = Math.atan2(ry, rx);
+      const da = Math.atan2(Math.sin(Math.atan2(cy, cx) - a0), Math.cos(Math.atan2(cy, cx) - a0)), l = Math.hypot(rx, ry) * (1 - M.mix) + Math.hypot(cx, cy) * M.mix;
+      const tx = hx + Math.cos(a0 + da * M.mix) * l + Math.sin(s * 1.7) * 0.6, ty = hy + Math.sin(a0 + da * M.mix) * l + Math.cos(s * 1.3) * 0.6;
       M.spin += dt * (M.turning ? 2.4 : 0.2);
       drawMallow(g, hx, hy, tx, ty, { heat: M.heat, t: s, spin: M.spin });
       return;
@@ -264,7 +267,7 @@ export class NovaMate {
 // (nova-warp.js); these are her parts of it.
 const HOLD_P = (dir) => [dir * 1.2, 0.5, -0.25];
 export const HOLD_M = (dir) => [dir * 1.75, 0.35, -0.25];   // where the stick's near end floats while she roasts: just outside her spikes
-export const HOLD_C = (dir) => [dir * 1.3, 0.2, -0.25];     // and where she carries it afterwards: closer in
+export const HOLD_C = (dir) => [dir * 1.1, 0.2, -0.25];     // and where she carries it afterwards: closer in
 // Where to hold the crust so the end of what's left reaches her mouth (the slice
 // tipped toward her: it points down and in at about 68 degrees).
 function biteAt(mate, P) {
