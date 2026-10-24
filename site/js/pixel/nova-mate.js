@@ -266,7 +266,7 @@ export class NovaMate {
 // somewhere else holding a slice of pizza. pet.js moves her and the portals
 // (nova-warp.js); these are her parts of it.
 const HOLD_P = (dir) => [dir * 1.2, 0.5, -0.25];
-export const HOLD_M = (dir) => [dir * 2.04, 0.35, -0.25];   // where the stick's near end floats while she roasts: a clear gap out from her spikes
+export const HOLD_M = (dir) => [dir * 1.8, 0.35, -0.25];   // where the stick's near end floats while she roasts: a small gap out from her spikes
 export const HOLD_C = (dir) => [dir * 1.1, 0.2, -0.25];     // and where she carries it afterwards: closer in
 // Where to hold the crust so the end of what's left reaches her mouth (the slice
 // tipped toward her: it points down and in at about 68 degrees).
