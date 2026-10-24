@@ -9,5 +9,5 @@ import * as swamp from "./swamp.js";
 import * as wasteland from "./wasteland.js";
 import * as castle from "./castle.js";
 import * as maw from "./maw.js";
-import * as vale from "./vale.js";
-export const BIOME_SCENES = { forest: ForestScene, grassland: grassland.Scene, desert: desert.Scene, ice: ice.Scene, beach: beach.Scene, swamp: swamp.Scene, wasteland: wasteland.Scene, castle: castle.Scene, maw: maw.Scene, vale: vale.Scene };
+import * as dusk from "./dusk.js";
+export const BIOME_SCENES = { forest: ForestScene, grassland: grassland.Scene, desert: desert.Scene, ice: ice.Scene, beach: beach.Scene, swamp: swamp.Scene, wasteland: wasteland.Scene, castle: castle.Scene, maw: maw.Scene, dusk: dusk.Scene };
