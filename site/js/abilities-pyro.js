@@ -16,7 +16,7 @@ const rand = (a, b) => a + Math.random() * (b - a);
 // A ring of fire standing upright round PYRO (after Isaac's archer reference):
 // traced from the bottom up both sides (drawn 0..1), then blazing, flame
 // tongues licking outward and up; burst flings it apart.
-function fireRing(pen, c, rx, ry, drawn, power, burst, t) {
+export function fireRing(pen, c, rx, ry, drawn, power, burst, t) {
   const N = 48;
   for (let i = 0; i < N; i++) {
     const side = i % 2 ? 1 : -1, v = Math.floor(i / 2) / (N / 2 - 1);   // 0 at the bottom, 1 at the top
