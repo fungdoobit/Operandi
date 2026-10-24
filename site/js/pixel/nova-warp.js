@@ -7,7 +7,7 @@
 // The portal is drawn in front of her and the part of her past its middle is cut off
 // with clip-path, so she goes into the swirl and comes out of it (not over or past it).
 import { sound } from "../sound.js";
-import { NovaMate, HOLD_M } from "./nova-mate.js";
+import { NovaMate, HOLD_M, HOLD_C } from "./nova-mate.js";
 
 const CELL = 128;                 // one frame of assets/nova/portal.png, art px
 const ANCHOR = { x: 60, y: 70 };  // the portal's middle inside a frame
@@ -233,16 +233,16 @@ export async function novaVisit(pet) {
     M.heat = 1; M.turning = false;
     // 3. golden brown: she draws it back, turns away with it held out in front of her
     sound.sfx("telekinesis");
-    const dir = side, hold = HOLD_M;
+    const dir = side;
     mate.face(dir > 0 ? "right" : "left");
-    M.carry = [dir * 30, 2];
-    const I = mate.nova.idle, from = hold(out), to = hold(dir);
-    await Promise.all([tween(700, (e) => { M.mix = e; }, "io"), mate.anim(700, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e); }, "io")]);
+    M.carry = [dir * 26, -18];   // closer in, at an angle with the marshmallow end pointing up a bit
+    const I = mate.nova.idle, from = HOLD_M(out), to = HOLD_C(dir);
+    await Promise.all([tween(800, (e) => { M.mix = e; }, "io"), mate.anim(800, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e + (i === 1 ? 0.5 * Math.sin(e * Math.PI) : 0)); }, "io")]);
     py.look = 0; py.setMood("happy", { revertAfter: 1600 });
     await wait(500);
     // 4. a portal opens ahead of her, and she goes in with it
     const r2 = mate.figure.getBoundingClientRect();
-    const A = { x: (dir > 0 ? r2.right : r2.left) + dir * 112, y: r2.top + fh * 0.5 };   // well clear of the marshmallow held out in front of her
+    const A = { x: (dir > 0 ? r2.right : r2.left) + dir * 72, y: r2.top + fh * 0.5 };   // clear of the marshmallow held out in front of her
     const pa = new Portal(A.x, A.y, px); pa.rimSide = -dir;
     sound.sfx("portalTear");
     await pa.play("open");
