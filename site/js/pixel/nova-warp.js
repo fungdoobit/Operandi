@@ -7,7 +7,7 @@
 // The portal is drawn in front of her and the part of her past its middle is cut off
 // with clip-path, so she goes into the swirl and comes out of it (not over or past it).
 import { sound } from "../sound.js";
-import { NovaMate } from "./nova-mate.js";
+import { NovaMate, HOLD_M } from "./nova-mate.js";
 
 const CELL = 128;                 // one frame of assets/nova/portal.png, art px
 const ANCHOR = { x: 60, y: 70 };  // the portal's middle inside a frame
@@ -200,7 +200,7 @@ export async function novaVisit(pet) {
   const near = (cx) => Math.max(0, Math.min(1, 1 - Math.abs((G.x + offX + fw / 2) - cx) / (pw / 2 + fw / 2)));
   const depth = (k) => { wrap.style.filter = k > 0 ? `brightness(${(1 - 0.45 * k).toFixed(2)})` : ""; };
   const tip = { x: pr.left + pr.width / 2 - side * 15, y: pr.top - 8 };   // the stick's end: the marshmallow hovers just above his flame (not in it), a little toward her
-  const gcx = pr.left + pr.width / 2 + side * 140, gcy = tip.y - 17;           // where she floats while she roasts (high, so the stick slopes down to him)
+  const gcx = pr.left + pr.width / 2 + side * 150, gcy = pr.top + pr.height * 0.5;   // where she floats while she roasts: level with him, the stick angles up to the marshmallow over his head
   try {
     // 1. a portal opens on her side, and she glides out of it, stick first
     const B = { x: gcx - out * (fw * 0.5 + 34), y: gcy };
@@ -233,7 +233,7 @@ export async function novaVisit(pet) {
     M.heat = 1; M.turning = false;
     // 3. golden brown: she draws it back, turns away with it held out in front of her
     sound.sfx("telekinesis");
-    const dir = side, hold = (d) => [d * 1.2, 0.5, -0.25];
+    const dir = side, hold = HOLD_M;
     mate.face(dir > 0 ? "right" : "left");
     M.carry = [dir * 30, 2];
     const I = mate.nova.idle, from = hold(out), to = hold(dir);
@@ -242,7 +242,7 @@ export async function novaVisit(pet) {
     await wait(500);
     // 4. a portal opens ahead of her, and she goes in with it
     const r2 = mate.figure.getBoundingClientRect();
-    const A = { x: (dir > 0 ? r2.right : r2.left) + dir * 96, y: r2.top + fh * 0.5 };   // well clear of the marshmallow held out in front of her
+    const A = { x: (dir > 0 ? r2.right : r2.left) + dir * 112, y: r2.top + fh * 0.5 };   // well clear of the marshmallow held out in front of her
     const pa = new Portal(A.x, A.y, px); pa.rimSide = -dir;
     sound.sfx("portalTear");
     await pa.play("open");

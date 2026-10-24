@@ -32,11 +32,17 @@ export function drawMallow(g, hx, hy, tx, ty, { heat = 0, t = 0, spin = 0 } = {}
   mg.lineWidth = 2; mg.strokeStyle = "#a06434"; mg.beginPath(); mg.moveTo(hx - x0, hy - y0); mg.lineTo(tx - x0, ty - y0);
   // a little twig sticking out near her end, like the reference
   const bx = hx + ux * len * 0.16 - x0, by = hy + uy * len * 0.16 - y0, ba = Math.atan2(uy, ux) + 0.75;
-  mg.moveTo(bx, by); mg.lineTo(bx + Math.cos(ba) * 7, by + Math.sin(ba) * 7); mg.stroke();
+  mg.moveTo(bx, by); mg.lineTo(bx + Math.cos(ba) * 7, by + Math.sin(ba) * 7);
+  const bx2 = bx + ux * 5, by2 = by + uy * 5; mg.moveTo(bx2, by2); mg.lineTo(bx2 + Math.cos(ba + 0.2) * 4, by2 + Math.sin(ba + 0.2) * 4); mg.stroke();
   // the block sits on the stick with its far end 4 px short of the tip, so the stick pokes out of it
   const cx = tx - ux * (L / 2 + 4) - x0, cy = ty - uy * (L / 2 + 4) - y0;
   kg.save(); kg.translate(cx, cy); kg.rotate(Math.atan2(uy, ux));
-  kg.fillStyle = "#fff"; kg.beginPath(); kg.roundRect(-L / 2, -R, L, 2 * R, 1.8); kg.fill(); kg.restore();
+  // a chunky block with flat ends and a bit of squish in the middle (Isaac's reference): the sides pinch in at the waist, the corners are rounded
+  const half = (q) => { const d = (1 - Math.abs(q)) * (L / 2), rd = d >= 1.8 ? 1 : Math.sqrt(1 - ((1.8 - d) / 1.8) ** 2); return R * (1 - 0.1 * (1 - q * q)) * (0.7 + 0.3 * rd); };   // q: -1 .. 1 along it: a gentle squish at the waist, rounded corners
+  kg.fillStyle = "#fff"; kg.beginPath();
+  for (let i = 0; i <= 24; i++) { const q = -1 + i / 12, y = -half(q); i ? kg.lineTo(q * L / 2, y) : kg.moveTo(q * L / 2, y); }
+  for (let i = 24; i >= 0; i--) { const q = -1 + i / 12; kg.lineTo(q * L / 2, half(q)); }
+  kg.closePath(); kg.fill(); kg.restore();
   const S = mg.getImageData(0, 0, w, h).data, M = kg.getImageData(0, 0, w, h).data, out = new Uint8ClampedArray(w * h * 4);
   const inS = (x, y) => x >= 0 && y >= 0 && x < w && y < h && S[(y * w + x) * 4 + 3] > 127;
   const inM = (x, y) => x >= 0 && y >= 0 && x < w && y < h && M[(y * w + x) * 4 + 3] > 127;
@@ -54,7 +60,7 @@ export function drawMallow(g, hx, hy, tx, ty, { heat = 0, t = 0, spin = 0 } = {}
       c = TOAST[step];
       if (!inM(x - 1, y - 1)) c = mix(c, [255, 255, 250], 0.5);                 // lit edge, top-left
       else if (!inM(x + 1, y + 1)) c = mix(c, mix([140, 160, 182], [120, 70, 40], heat), 0.38);   // shaded edge, bottom-right: cool grey-blue on white, brown once toasted
-      else if (v > 0.45 + Math.sin(spin) * 0.25) c = mix(c, [150, 96, 60], 0.12);   // the turned-away side is a touch darker
+      else if (facing < -0.3) c = mix(c, mix([150, 172, 188], [140, 84, 40], heat), 0.3);   // the top face: cooler and darker, like the reference's two faces
     } else if (inS(x, y)) {
       c = !inS(x - 1, y - 1) ? WOOD[0] : !inS(x + 1, y + 1) ? WOOD[2] : WOOD[1];
     } else if (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)) c = OUTLINE;

@@ -26,7 +26,7 @@ const PORTAL = [1.04, 0.2, 0.05], HOLD = [0.8, 0.4, -0.25], FACE = [0, 0.48, -0.
 const lerp3 = (a, b, e) => a.map((v, i) => v + (b[i] - v) * e);
 
 const CHUNK = 1.5;   // how many CSS px one of her art pixels covers
-const HPAD = 40;     // art px of room round her canvas for things she holds
+const HPAD = 64;     // art px of room round her canvas for things she holds
 
 export class NovaMate {
   constructor(container, { size = 96, idles = true, fast = false } = {}) {
@@ -263,6 +263,7 @@ export class NovaMate {
 // somewhere else holding a slice of pizza. pet.js moves her and the portals
 // (nova-warp.js); these are her parts of it.
 const HOLD_P = (dir) => [dir * 1.2, 0.5, -0.25];
+export const HOLD_M = (dir) => [dir * 1.95, 0.35, -0.25];   // where the stick's near end floats, for the marshmallow
 // Where to hold the crust so the end of what's left reaches her mouth (the slice
 // tipped toward her: it points down and in at about 68 degrees).
 function biteAt(mate, P) {
@@ -283,7 +284,7 @@ Object.assign(NovaMate.prototype, {
   // She is holding a marshmallow on a stick in telekinesis, pointing at target (a screen point, CSS px).
   holdMallow(dir, target) {
     this.face(dir > 0 ? "right" : "left");
-    this.nova.idle.bucketAt = HOLD_P(dir);
+    this.nova.idle.bucketAt = HOLD_M(dir);   // well out from her spikes, so it floats free: telekinesis, not held by a horn
     this.nova.idle.tk = 1;
     this.mallow = { target, reach: 0.7, mix: 0, carry: [0, 0], heat: 0, spin: 0, turning: false };
   },
