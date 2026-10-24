@@ -115,11 +115,12 @@ export class BattleStage {
   // host: where the stage goes. sayHost: where your teammate's messages go.
   // foe: "golem" (the boss) or a small enemy's kind (enemies.js), fought in its
   // biome (PRD Addendum K). max: the HP bars' full values.
-  constructor(host, sayHost, { skin = "dot", accessories = [], name, foe = "golem", biome, max } = {}) {
+  constructor(host, sayHost, { skin = "dot", accessories = [], name, foe = "golem", biome, max, entering = false } = {}) {
     this.isBoss = foe === "golem" || foe === "maw";
     this.maw = foe === "maw";   // Module 2's boss: THE ABYSSAL MAW (pixel/maw-px.js)
     this.enemy = this.isBoss ? null : ENEMIES[foe];
     name ??= this.maw ? "THE ABYSSAL MAW" : this.isBoss ? "GOLEM" : this.enemy.name;
+    if (this.maw && entering) name = "MITTENS";   // the Maw is only a cat until he opens his mouth (his entrance renames him)
     this.max = max || { me: BOSS.hp, foe: this.isBoss ? BOSS.hp : this.enemy.hp };
     ensureFilters();
     if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS + CARDS_CSS; document.head.append(st); }
