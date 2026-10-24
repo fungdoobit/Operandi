@@ -216,6 +216,35 @@ def _print_has_literal(code):
     return lambda text: any(text in lit for lit in literals)
 
 
+def _make_rerun(code):
+    """For checks: run the learner's program again with some top-level variables swapped for new values.
+
+    rerun(score=40) re-runs the code with its `score = ...` line replaced by `score = 40` and returns the
+    printed lines (or None if it errored). This tests the LOGIC (does it still work for other numbers?)
+    and not just the one example, so typed-in answers don't pass.
+    """
+    def rerun(**values):
+        try:
+            tree = ast.parse(code)
+        except SyntaxError:
+            return None
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and node.targets[0].id in values:
+                node.value = ast.Constant(values[node.targets[0].id])
+        ast.fix_missing_locations(tree)
+        buf, old = io.StringIO(), sys.stdout
+        sys.stdout = buf
+        try:
+            exec(compile(tree, "main.py", "exec"), {"__name__": "__main__", "__builtins__": builtins, "input": _no_input})
+        except BaseException:
+            return None
+        finally:
+            sys.stdout = old
+        out = buf.getvalue()
+        return [ln.rstrip() for ln in out.strip("\n").splitlines()] if out.strip() else []
+    return rerun
+
+
 def run_code(code, checks_json="[]", expected_json="null"):
     checks = json.loads(checks_json)
     expected = json.loads(expected_json)
@@ -242,6 +271,7 @@ def run_code(code, checks_json="[]", expected_json="null"):
         env["LINES"] = lines
         env["SOURCE"] = code
         env["print_has_literal"] = _print_has_literal(code)
+        env["rerun"] = _make_rerun(code)
         try:
             exec(c["code"], env)
             results.append({"name": c["name"], "passed": True, "message": "", "peek": ""})

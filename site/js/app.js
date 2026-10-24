@@ -99,11 +99,15 @@ const BOSSES = { 1: { name: "GOLEM" } };
 const bossUnlocked = (m) => MODULE_LESSONS(m).length > 0 && MODULE_LESSONS(m).every((l) => lessonDone(l.id));
 const bossBeaten = (m) => !!S().bossWins[m] || !!S().modulesDone[m];
 
-// Which lesson a template's topics need (Module 1). Challenges only use what you've learned.
+// Which lesson (counted inside its module) a template's topics need. Challenges only use what you've learned.
 function requiredLessons(t) {
   let need = 1;
   for (const topic of t.topics) {
     const x = topic.toLowerCase();
+    if (t.module === 2) {   // Module 2 topics are named exactly: booleans, comparisons, if, else, elif, and, or, not
+      need = Math.max(need, { if: 2, else: 3, elif: 4, and: 5, or: 5, not: 5 }[x] || 1);
+      continue;
+    }
     if (/f-string|:\.|:,/.test(x)) need = Math.max(need, 5);
     else if (/upper|lower|strip|title|len|index|replace|repetition|joining|string/.test(x)) need = Math.max(need, 4);
     else if (/math|\/\/|%|\+=|division|bracket/.test(x)) need = Math.max(need, 3);
@@ -111,7 +115,8 @@ function requiredLessons(t) {
   }
   return need;
 }
-const availableTemplates = (difficulty) => ALL_TEMPLATES.filter((t) => t.difficulty === difficulty && t.module === 1 && requiredLessons(t) <= lessonsDoneCount());
+const lessonsDoneIn = (m) => MODULE_LESSONS(m).filter((l) => lessonDone(l.id)).length;
+const availableTemplates = (difficulty) => ALL_TEMPLATES.filter((t) => t.difficulty === difficulty && requiredLessons(t) <= lessonsDoneIn(t.module));
 
 /* ---------- Current task ---------- */
 
@@ -546,7 +551,7 @@ function openLesson(id, section) {
     const v = V().welcome(S().items);
     dot.say(v.text, { title: v.title, mood: "happy" });
   } else if (!sectionDone(l, section) && section === 0) {
-    dot.say(V().lessonIntro(i + 1, l.title).text, { mood: "idle" });
+    dot.say(V().lessonIntro(MODULE_LESSONS(l.module).indexOf(l) + 1, l.title).text, { mood: "idle" });
   }
 }
 
@@ -1072,7 +1077,8 @@ function renderTop() {
   // Progress inside the current level: modules done plus lessons into the next module.
   let pct = 100;
   if (next) {
-    const partial = modulesDone() - l.modules + (lessonsDoneCount() % ALL_LESSONS.length) / Math.max(1, ALL_LESSONS.length);
+    const cur = MODULES.find((m) => !m.soon && !S().modulesDone[m.id]), n = cur ? MODULE_LESSONS(cur.id).length : 1;
+    const partial = modulesDone() - l.modules + (cur ? lessonsDoneIn(cur.id) % n : 0) / n;
     pct = Math.min(100, (partial / (next.modules - l.modules)) * 100);
   }
   $("lvl").innerHTML = `<div class="lvl-row"><b>${l.name}</b><span>${next ? `next: ${next.name}` : "top level"}</span></div><div class="lvl-bar" title="Levels: ${LEVELS.map((x) => x.name).join(" → ")}"><i style="width:${pct}%"></i></div>`;
@@ -1095,7 +1101,8 @@ function renderRail() {
       return `<li><button class="rail-item ${done ? "done" : ""}" data-lesson="${l.id}" ${open ? "" : "disabled"} aria-current="${cur}"><span class="n">${done ? "✓" : String(lessons.indexOf(l) + 1).padStart(2, "0")}</span><span class="t">${esc(l.title)}<span class="sub">${done ? `Marked ${S().lessons[l.id].mark}/10` : !open ? "Locked" : l.sections && sectionDone(l, 0) ? `Section ${firstOpenSection(l) + 1} of ${l.sections.length}` : esc(l.sub)}</span></span></button></li>`;
     }).join("")}${bossItem}</ol></div>`;
   });
-  $("moduleList").innerHTML = mods[0] + `<div class="rail-group" style="margin-top:14px"><h4>Coming next</h4>${mods.slice(1).join("")}</div>`;
+  const live = mods.filter((_, i) => !MODULES[i].soon), soon = mods.filter((_, i) => MODULES[i].soon);
+  $("moduleList").innerHTML = live.join("") + `<div class="rail-group" style="margin-top:14px"><h4>Coming next</h4>${soon.join("")}</div>`;
   const unlocked = lessonDone(ALL_LESSONS[0].id);
   $("practiceBtn").disabled = !unlocked;
   const solved = Object.values(S().solves).reduce((a, b) => a + b, 0);
@@ -1222,7 +1229,7 @@ if (testMode) {
   history.replaceState(null, "", location.pathname);
   if (testMode === "boss" && confirm("Load the boss test save?\n\nThis replaces your lesson progress with: every Module 1 lesson done, and GOLEM ready to fight. Your Bits and Shop items stay.")) {
     const at = new Date().toISOString();
-    for (const l of ALL_LESSONS) {
+    for (const l of MODULE_LESSONS(1)) {
       sectionsOf(l).forEach((_, i) => { S().lessons[sectionKey(l, i)] = { done: true, mark: 9, attempts: 1, hints: 0, assisted: false, solutionUsed: false, peeked: [], at }; });
       S().lessons[l.id] = { done: true, mark: 9, at };
     }
