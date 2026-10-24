@@ -18,6 +18,8 @@ import { shortUltimate } from "./ult-short.js";
 import { PixelFX } from "./pixel/pixel-fx.js";
 import { ToonFX } from "./pixel/toon-fx.js";
 import { NovaFighter } from "./pixel/nova-mate.js";
+import { PyroFighter } from "./pixel/pyro-fighter.js";
+import { PYRO_BOSS_KIT } from "./stage2d/pyro-boss-kit.js";
 import { kitFor } from "./abilities.js";
 import { pickCard, CARDS_CSS } from "./cards.js";
 import { MANA } from "./economy.js";
@@ -139,7 +141,7 @@ export class BattleStage {
       this.boss = new EnemyFoe({ model: this.golem, fx: this.fx, figure: foeEl, name });
     }
     // NOVA fights as her pixel self (NovaFighter), Kaela as her sprite (stage2d/kaela-fighter.js); DOT and PYRO share dot.js
-    this.dot = skin === "nova" ? new NovaFighter(mateEl) : skin === "kaela" ? new KaelaFighter(mateEl) : new Dot(mateEl, { facing: "right", battle: true, skin });
+    this.dot = skin === "nova" ? new NovaFighter(mateEl) : skin === "pyro" ? new PyroFighter(mateEl) : skin === "kaela" ? new KaelaFighter(mateEl) : new Dot(mateEl, { facing: "right", battle: true, skin });
     this.dot.setAccessory(accessories);
     this.px = new PixelFX(world);   // hi-bit effects for the abilities (pixel/pixel-fx.js)
     this.pxBack = new PixelFX(world, { z: 0, before: foeEl });   // a layer behind the fighters (the far side of a portal...)
@@ -149,8 +151,9 @@ export class BattleStage {
     // 3D props already in pixel art (props-px.js): in front of everything, and behind GOLEM (the back of a chain's coil)
     this.spr = new PixelFX(world, { z: 9, raw: true });
     this.sprBack = new PixelFX(world, { z: 0, before: foeEl, raw: true });
-    this.kit = skin === "kaela" ? KAELA_BOSS_KIT : kitFor(skin);
-    this.ctx = { isBoss: this.isBoss, fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, toonBack: this.toonBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void", kaela: "blood" }[skin] || "water" };
+    this.kit = skin === "kaela" ? KAELA_BOSS_KIT : skin === "pyro" ? PYRO_BOSS_KIT : kitFor(skin);
+    this.ctx = { isBoss: this.isBoss, fx: this.fx, px: this.px, pxBack: this.pxBack, pxTop: this.pxTop, spr: this.spr, sprBack: this.sprBack, toon: this.toon, toonBack: this.toonBack, foeEl, dot: this.dot, boss: this.boss, golem: this.golem, mateEl, theme: { pyro: "fire", nova: "void", kaela: "blood" }[skin] || "water", heat: (a) => this.addHeat(a) };
+    this.heatAmt = 0;
     this.fx.place(mateEl, { x: 0, y: 0 });
     wireBattleSounds(this.fx, this.ctx.theme);
     sound.music(this.isBoss ? "battle" : biome || this.enemy.biome);   // each biome has its own theme (Addendum K)
@@ -198,6 +201,13 @@ export class BattleStage {
     this.stage.style.setProperty("--k", k.toFixed(3));   // text on the stage scales too
     this.mateEl.style.bottom = 0.2 * Hd - 6 + "px";
     if (this.dot.resize) this.dot.resize(72); else this.dot.figure.style.width = "65px";
+  }
+
+  // PYRO's fire heats GOLEM's stone: every fire card makes him glow a little redder for the rest of the fight (looks only).
+  addHeat(a = 0.1) {
+    this.heatAmt = Math.min(1, (this.heatAmt || 0) + a);
+    const h = this.heatAmt;
+    this.golem.canvas.style.filter = `sepia(${(h * 0.45).toFixed(2)}) saturate(${(1 + h * 2).toFixed(2)}) hue-rotate(${(-h * 14).toFixed(0)}deg) brightness(${(1 + h * 0.1).toFixed(2)}) drop-shadow(0 0 ${(4 + h * 12).toFixed(0)}px rgba(255, 96, 28, ${(h * 0.75).toFixed(2)}))`;
   }
 
   hp(me, foe) {
