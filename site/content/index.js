@@ -2,6 +2,7 @@
 import { MODULE_1, M1_LESSONS } from "./m1-lessons.js";
 import { M1_TEMPLATES } from "./m1-templates.js";
 import { MODULE_2, M2_LESSONS } from "./m2-lessons.js";
+import { M2_TEMPLATES } from "./m2-templates.js";
 
 export const MODULES = [
   MODULE_1,
@@ -14,4 +15,4 @@ export const MODULES = [
   { id: 8, title: "Real-world projects", blurb: "Cleaning data and building reports.", soon: true },
 ];
 export const ALL_LESSONS = [...M1_LESSONS, ...M2_LESSONS];
-export const ALL_TEMPLATES = [...M1_TEMPLATES];
+export const ALL_TEMPLATES = [...M1_TEMPLATES, ...M2_TEMPLATES];

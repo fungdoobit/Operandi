@@ -70,8 +70,28 @@ export const HELP = {
   },
   "syntax-indent": {
     title: "Spacing at the start of the line",
-    body: (d) => `Python cares about the spaces at the start of a line. Check ${L(d)}: in this module, lines shouldn't start with spaces. Later, inside if and loops, you'll indent by exactly 4 spaces.`,
+    body: (d) => `Python cares about the spaces at the start of a line. Check ${L(d)}. Lines inside an if, elif or else are indented by exactly 4 spaces. Everything else starts at the left edge.`,
     faq: "indentation",
+  },
+  "syntax-indent-expected": {
+    title: "Nothing indented under the colon",
+    body: (d) => `On ${L(d)} Python expected an indented line. After a line ending in a colon (if, elif, else), the lines that belong to it must start with 4 spaces. The Tab key adds them.`,
+    faq: "indentation",
+  },
+  "syntax-indent-unexpected": {
+    title: "A line is indented by mistake",
+    body: (d) => `${L(d)} starts with spaces, but nothing above it ends in a colon. Only lines inside an if, elif or else are indented. Remove the spaces, or check the line above for a missing if.`,
+    faq: "indentation",
+  },
+  "syntax-indent-mismatch": {
+    title: "The indents don't line up",
+    body: (d) => `On ${L(d)} the spacing doesn't match any line above. Lines in the same block need exactly the same number of spaces, and elif or else must line up with their if.`,
+    faq: "indentation",
+  },
+  "syntax-orphan-branch": {
+    title: "elif or else without an if",
+    body: (d) => `On ${L(d)} there's an elif or else that doesn't follow an if. It must sit directly under the if (or the elif above it), at the same indent, with nothing unindented in between.`,
+    faq: "if-elif-else",
   },
   "syntax-name-digit": {
     title: "A name can't start with a number",
@@ -134,6 +154,11 @@ export const HELP = {
     title: "Wrong number of values in the brackets",
     body: (d) => `A function on ${L(d)} got more or fewer values than it expects. Check what goes inside its brackets.`,
     faq: "functions-call",
+  },
+  "type-compare": {
+    title: "Comparing text with a number",
+    body: (d) => `On ${L(d)} you compared text with a number using < or >. Python can't rank "5" against 5. Make both the same kind of value first, for example int("5") or by leaving the quotes off.`,
+    faq: "types",
   },
   "type-general": {
     title: "Wrong kind of value",

@@ -110,6 +110,14 @@ def diagnose(info, code, g):
             return {"id": "syntax-print-parens", **d}
         if "perhaps you forgot a comma" in low:
             return {"id": "syntax-comma", **d}
+        if "expected an indented block" in low:
+            return {"id": "syntax-indent-expected", **d}
+        if "unexpected indent" in low:
+            return {"id": "syntax-indent-unexpected", **d}
+        if "does not match any outer indentation" in low:
+            return {"id": "syntax-indent-mismatch", **d}
+        if "invalid syntax" in low and re.match(r"^\s*(else|elif)\b", text):
+            return {"id": "syntax-orphan-branch", **d}
         if t == "IndentationError" or "indent" in low:
             return {"id": "syntax-indent", **d}
         if "invalid decimal literal" in low or "invalid syntax" in low and re.match(r"^\s*\d+[A-Za-z_]", text):
@@ -137,6 +145,8 @@ def diagnose(info, code, g):
             return {"id": "type-arg-count", **d}
         if "can't multiply sequence by non-int" in msg:
             return {"id": "type-str-times-float", **d}
+        if "not supported between instances" in msg:
+            return {"id": "type-compare", **d}
         return {"id": "type-general", **d}
 
     if t == "ValueError":

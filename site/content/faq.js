@@ -87,4 +87,20 @@ export const FAQ = [
     a: "Programs are useful because they work things out. If you type <code>print(48)</code>, it's only right for one set of numbers. Calculate it from the variables, and it stays right when the numbers change." },
   { id: "debugging", kind: "faq", q: "I'm stuck. What should I try?", tags: "stuck debug help",
     a: "1. Read your teammate's message and the last line of any error. 2. Press Run and compare your output line by line with the expected output. 3. Add a temporary print() to see what a variable holds. 4. Still stuck? Use a hint." },
+
+  // ----- Decisions (Module 2) -----
+  { id: "booleans", kind: "term", q: "Boolean", tags: "boolean true false bool",
+    a: "A value that is either <code>True</code> or <code>False</code> (capital first letter, no quotes). Comparisons like <code>age &gt; 18</code> give back a boolean." },
+  { id: "comparisons", kind: "faq", q: "What are the comparison operators?", tags: "comparison equal not equal greater less operator ==",
+    a: "<code>==</code> equal, <code>!=</code> not equal, <code>&gt;</code> greater, <code>&lt;</code> less, <code>&gt;=</code> greater or equal, <code>&lt;=</code> less or equal. Each gives back True or False." },
+  { id: "if-elif-else", kind: "faq", q: "What's the difference between if, elif and else?", tags: "if elif else decision branch condition",
+    a: "<code>if</code> starts a decision and runs its block when the condition is True. <code>elif</code> (else if) is checked only when everything above it was False. <code>else</code> has no condition and runs when nothing above did. Python checks from the top and runs only the <b>first</b> block that matches, so put the strictest condition first." },
+  { id: "two-ifs", kind: "faq", q: "Is a second if the same as elif?", tags: "if elif separate two ifs",
+    a: "No. Two separate <code>if</code> lines are both checked, so both blocks can run. An <code>elif</code> only runs when the <code>if</code> above it was False, so at most one block of the chain runs." },
+  { id: "and-or-not", kind: "faq", q: "How do and, or and not work?", tags: "and or not logic combine brackets",
+    a: "<code>and</code> is True when <b>both</b> sides are True. <code>or</code> is True when <b>at least one</b> side is. <code>not</code> flips True and False. Each side must be a full condition: <code>age &gt;= 10 and height &gt;= 120</code>, not <code>age and height &gt;= 10</code>. When you mix <code>and</code> with <code>or</code>, use brackets so it's clear what goes first." },
+  { id: "equals-vs-assign", kind: "faq", q: "When do I use = and when ==?", tags: "equals assign compare == = if",
+    a: "One <code>=</code> <b>stores</b> a value: <code>score = 10</code>. Two <code>==</code> <b>asks</b> whether two things are equal: <code>score == 10</code>. Inside an <code>if</code> you almost always want <code>==</code>." },
+  { id: "colon-indent", kind: "faq", q: "Why does Python need a colon and indenting after if?", tags: "colon indent block if else elif spaces",
+    a: "The colon says \"a block starts here\". The 4 spaces say which lines belong to it. A block ends at the first line that is indented less. There's no other marker: the spaces are the structure." },
 ];
