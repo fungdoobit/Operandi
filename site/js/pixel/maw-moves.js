@@ -8,7 +8,7 @@ import { spl, CELL, SK } from "./maw-px.js";
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const rand = (a, b) => a + Math.random() * (b - a);
-const MOVES = ["whip"];
+const MOVES = ["whip", "grab"];
 let last = null;
 
 // ---- entrance -------------------------------------------------------------------------------------------------------
@@ -56,6 +56,7 @@ export async function mawIntro(ctx) {
 
 // ---- attacks --------------------------------------------------------------------------------------------------------
 export async function mawAttack(ctx, kind, { onHit } = {}) {
+  kind ||= window.__mawMove;   // test hook: window.__mawMove = "grab" forces one attack
   if (!kind) {
     const options = MOVES.filter((m) => m !== last);
     const pool = options.length ? options : MOVES;
@@ -126,6 +127,79 @@ const ATTACKS = {
     await fx.wait(220);
     await tw(st, { ret: 1 }, 520, g, "io");   // it swings back into the mass
     delete g.override[I]; delete g.palOv[I];
+    g.to({ tense: 0, writhe: 0.55 }, 400, "io");
+  },
+  // GRAB AND SLAM: one of his own arms (the long upper one) reaches for your fighter and wraps round them, lifts them off the floor,
+  // swings back over his head (the wind-up), then smashes them into the ground. A heavy hit that counts as a crit.
+  // The arm's tip is the one moving thing: your fighter is placed on it every frame while it holds them.
+  async grab(s) {
+    const { fx, g, mateEl } = s;
+    const I = 4;
+    const T0 = s.cell(s.dotC()), home = mateEl._pos || { x: 0, y: 0 };
+    const st = { reach: 0, lift: 0, wind: 0, slam: 0, ret: 0 };
+    const GRAB_PAL = ["#4a0e1a", "#b83f3f", "#e8706a", "#fbb0a4", "#ffe2d8"].map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+    let held = false, rest = null;
+    // where the tip is: at rest, then on your fighter, then up, then back over his head, then down into the floor
+    const tipAt = () => {
+      const [mx, my] = g.mouthCells();
+      const A = [lerp(rest[0], T0[0], st.reach), lerp(rest[1], T0[1], st.reach)];
+      const B = [A[0], A[1] - 34 * st.lift];
+      const TOP = [lerp(mx, T0[0], 0.55), T0[1] - 74];
+      const C = [lerp(B[0], TOP[0], st.wind), lerp(B[1], TOP[1], st.wind)];
+      return [lerp(C[0], T0[0], st.slam), lerp(C[1], T0[1], st.slam)];
+    };
+    g.override[I] = (base) => {
+      const [mx, my] = g.mouthCells(), n = base.length;
+      rest ||= base[n - 1];
+      const tip = tipAt(), arch = (26 + 52 * st.wind * (1 - st.slam)) * SK * (1 - st.ret);
+      return base.map((b, k) => {
+        const f = k / (n - 1), pk = clamp(st.reach * 1.7 - 0.7 * f);
+        const wav = Math.sin(f * 6 - st.reach * 8) * (1 - st.reach) * 14 * SK * f, E = [lerp(mx, tip[0], f), lerp(my, tip[1], f) - Math.sin(f * Math.PI) * arch + wav];
+        const A = [lerp(b[0], E[0], pk), lerp(b[1], E[1], pk)];
+        return [lerp(A[0], b[0], st.ret), lerp(A[1], b[1], st.ret)];
+      });
+    };
+    g.palOv[I] = GRAB_PAL; g.wOv[I] = [16, 4];   // thicker, so a long reach still looks like muscle
+    // your fighter rides the tip while held
+    const ride = () => {
+      if (!held) return;
+      const tip = tipAt();
+      fx.place(mateEl, { x: home.x + (tip[0] - T0[0]) * CELL, y: home.y + (tip[1] - T0[1]) * CELL, r: (home.r || 0) - 18 * Math.sin(clamp(st.wind) * Math.PI * 0.5) });
+      requestAnimationFrame(ride);
+    };
+    fx.darken(0.3, 400); fx.focus(1.05, s.P("core"), 450);
+    sound.sfx("servo", { ms: 600 });
+    g.to({ tense: 1, writhe: 1.0 }, 300, "out");
+    // 1. it reaches out low along the floor
+    await tw(st, { reach: 1 }, 520, g, "in");
+    // 2. it wraps round them and lifts
+    held = true; ride();
+    sound.sfx("block");
+    fx.shake(8); fx.flash(0.12, "#ffd6c8");
+    fx.sparks(s.dotC(), 8, { colors: ["#ffd6c8", "#f59a90"], power: 0.8, dir: 0 });
+    await fx.wait(120);
+    await tw(st, { lift: 1 }, 380, g, "out");
+    // 3. it swings back over his head and hangs there (the telegraph)
+    sound.sfx("whoosh");
+    fx.focus(1.12, s.P("core"), 600);
+    await tw(st, { wind: 1 }, 560, g, "io");
+    await fx.wait(260);
+    // 4. SLAM
+    await tw(st, { slam: 1 }, 150, g, "in");
+    held = false;
+    fx.place(mateEl, { x: home.x, y: home.y, r: home.r || 0 });
+    const at = s.dotC();
+    sound.sfx("slamImpact", { size: 1 });
+    fx.hitstop(120); fx.shake(26); fx.punch(0.06, at); fx.flash(0.3, "#ffd6c8");
+    fx.dust(at.x, 14, 1.4);
+    fx.groundWave(at.x, at.x - 160, { color: "#f59a90", ms: 380 });
+    fx.groundWave(at.x, at.x + 160, { color: "#f59a90", ms: 380 });
+    fx.sparks(at, 20, { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1.6, dir: 0 });
+    fx.ring(at, { color: "#f59a90", size: 200, ms: 420, width: 5 });
+    s.hurt({ crit: true });
+    await fx.wait(300);
+    await tw(st, { ret: 1 }, 600, g, "io");
+    delete g.override[I]; delete g.palOv[I]; delete g.wOv[I];
     g.to({ tense: 0, writhe: 0.55 }, 400, "io");
   },
 };

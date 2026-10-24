@@ -139,6 +139,7 @@ export class PixelMaw {
     this.cat = { mode: "gone", x: 0, t0: 0 };   // modes: gone, run, stand, sit, lieYawn, sleep
     this.extra = [];      // extra arms an attack adds: { pts(), w:[a,b], pal, u }
     this.override = {};   // an attack can take over one of the real arms: override[i](idlePts) -> pts
+    this.wOv = {};        // ...and thicken it (wOv[i] = [root, tip])
     this.palOv = {};      // ...and recolour it
     this.W = 0; this.H = 0; this.F = null;
     this.sheets = null; this.ready = loadSheets().then((s) => { this.sheets = s; });
@@ -313,9 +314,9 @@ export class PixelMaw {
     if (!this.sheets || !this.F) return;
     const P = this.pose, F = this.F, W = this.W;
     F.fill(0);
-    for (let i = 0; i < ARMS.length; i++) if (ARMS[i].back) this.tentacle(this.armPts(i), ARMS[i].w[0] * SK, ARMS[i].w[1], this.palOv[i] || ARMS[i].pal || PAL_F, clamp(P.tent * 1.7 - i * 0.1), i);
+    for (let i = 0; i < ARMS.length; i++) if (ARMS[i].back) this.tentacle(this.armPts(i), (this.wOv[i] || ARMS[i].w)[0] * SK, (this.wOv[i] || ARMS[i].w)[1], this.palOv[i] || ARMS[i].pal || PAL_F, clamp(P.tent * 1.7 - i * 0.1), i);
     this.drawCat();
-    for (let i = 0; i < ARMS.length; i++) if (!ARMS[i].back) this.tentacle(this.armPts(i), ARMS[i].w[0] * SK, ARMS[i].w[1], this.palOv[i] || ARMS[i].pal || PAL_F, eout3(clamp(P.tent * 1.7 - i * 0.1)), i);
+    for (let i = 0; i < ARMS.length; i++) if (!ARMS[i].back) this.tentacle(this.armPts(i), (this.wOv[i] || ARMS[i].w)[0] * SK, (this.wOv[i] || ARMS[i].w)[1], this.palOv[i] || ARMS[i].pal || PAL_F, eout3(clamp(P.tent * 1.7 - i * 0.1)), i);
     for (const e of this.extra) this.tentacle(e.pts(), e.w[0] * SK, e.w[1], e.pal || PAL_F, e.u ? e.u() : 1, e.seed || 9);
     const fl = this.fxv.flash;
     if (fl > 0.02) for (let i = 0; i < W * this.H; i++) { const o = i * 4; if (F[o + 3]) { F[o] += (255 - F[o]) * fl * 0.7; F[o + 1] += (255 - F[o + 1]) * fl * 0.7; F[o + 2] += (255 - F[o + 2]) * fl * 0.7; } }
