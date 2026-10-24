@@ -134,7 +134,7 @@ export class BattleStage {
     this.stage = host.querySelector(".bstage");
     const world = host.querySelector(".bworld"), foeEl = host.querySelector(".bfoe"), mateEl = host.querySelector(".bmate");
     // the Sunken Foundry for GOLEM (pixel/arena-bg.js), else the enemy's biome (pixel/biomes.js); it shakes with the camera
-    this.bg = biomeBG(world, this.isBoss ? (biome || (this.maw ? "maw" : "foundry")) : biome || this.enemy.biome);
+    this.bg = biomeBG(world, this.isBoss ? (biome || (this.maw ? "vale" : "foundry")) : biome || this.enemy.biome);
     this.fx = new BattleFX(this.stage, world, { floor: 0.8 });
     // 512 art px wide (default 416): room for his arms when they swing out, so they don't run off his canvas
     if (this.maw) {
