@@ -199,8 +199,12 @@ export async function novaVisit(pet) {
   const pw = 56 * px;
   const near = (cx) => Math.max(0, Math.min(1, 1 - Math.abs((G.x + offX + fw / 2) - cx) / (pw / 2 + fw / 2)));
   const depth = (k) => { wrap.style.filter = k > 0 ? `brightness(${(1 - 0.45 * k).toFixed(2)})` : ""; };
-  const tip = { x: pr.left + pr.width / 2 - side * 15, y: pr.top - 8 };   // the stick's end: the marshmallow hovers just above his flame (not in it), a little toward her
-  const gcx = pr.left + pr.width / 2 + side * 150, gcy = pr.top + pr.height * 0.5;   // where she floats while she roasts: level with him, the stick angles up to the marshmallow over his head
+  // Isaac's picture (2026-10-24): the marshmallow hovers over his upper shoulder on her side, its bottom edge near the top of his flame;
+  // she floats about level with him, a little lower, and the stick slopes up to it at about 25 degrees. The stick never changes length.
+  const pcx = pr.left + pr.width / 2;
+  const tip = { x: pcx + side * 23, y: pr.top + 3 };   // the stick's end (the marshmallow sits just behind it, toward her)
+  const gcx = pcx + side * 190, gcy = pr.top + 62;      // where she floats while she roasts
+  const rv = [(tip.x - (gcx + out * 41.3 * px)) / px, (tip.y - (gcy - 5.9 * px)) / px];   // the stick, from her hold to its end, in her art px (41.3 and 5.9: where she holds it, see HOLD_M)
   try {
     // 1. a portal opens on her side, and she glides out of it, stick first
     const B = { x: gcx - out * (fw * 0.5 + 34), y: gcy };
@@ -212,7 +216,7 @@ export async function novaVisit(pet) {
     await pb.play("open");
     sound.sfx("portal");
     await wait(200);
-    mate.holdMallow(out, tip);
+    mate.holdMallow(out, rv);
     root.style.visibility = "";
     sound.sfx("novaSummon"); sound.sfx("telekinesis");
     const x2 = G.x, x3 = B.x - offX - fw / 2 + out * (fw * 0.5 + 34);
@@ -224,8 +228,6 @@ export async function novaVisit(pet) {
     // 2. he notices; she reaches the marshmallow into his flame and roasts it, turning it
     py.look = side * 3; py.setMood("happy"); mate.setMood("happy");
     const M = mate.mallow;
-    sound.sfx("telekinesis");
-    await tween(700, (e) => { M.reach = 0.7 + 0.3 * e; }, "io");
     sound.sfx("flameIgnite", { theme: "fire" });
     M.turning = true;
     const bursts = [0.15, 0.45, 0.75]; let b = 0;
@@ -235,7 +237,8 @@ export async function novaVisit(pet) {
     sound.sfx("telekinesis");
     const dir = side;
     mate.face(dir > 0 ? "right" : "left");
-    M.carry = [dir * 61, -43];   // the same stick length as while roasting (about 75 art px), held close and tilted up
+    const sl = Math.hypot(rv[0], rv[1]);
+    M.carry = [dir * sl * 0.82, -sl * 0.57];   // the same stick length as while roasting, held close and tilted up about 35 degrees
     const I = mate.nova.idle, from = HOLD_M(out), to = HOLD_C(dir);
     await Promise.all([tween(800, (e) => { M.mix = e; }, "io"), mate.anim(800, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e + (i === 1 ? 0.5 * Math.sin(e * Math.PI) : 0)); }, "io")]);
     py.look = 0; py.setMood("happy", { revertAfter: 1600 });

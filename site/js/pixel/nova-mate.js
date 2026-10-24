@@ -94,9 +94,9 @@ export class NovaMate {
   drawHeld(dt, s) {
     const g = this.held2d.getContext("2d"), P = this.pizza, M = this.mallow;
     g.clearRect(0, 0, this.held2d.width, this.held2d.height);
-    if (M) {   // a marshmallow on a stick (the visit to PYRO): the stick runs from her hold to M.target on screen, or to a carry spot beside her
-      const [hx, hy] = this.project(this.nova.idle.bucketAt), r = this.held2d.getBoundingClientRect(), a = r.width / this.held2d.width;
-      const gx = hx + ((M.target.x - r.left) / a - hx) * M.reach, gy = hy + ((M.target.y - r.top) / a - hy) * M.reach;   // art px on held2d
+    if (M) {   // a marshmallow on a stick (the visit to PYRO): a rigid stick, always the same length, pointing M.roast from her hold (art px), swinging round to M.carry
+      const [hx, hy] = this.project(this.nova.idle.bucketAt);
+      const gx = hx + M.roast[0], gy = hy + M.roast[1];
       // the stick keeps its length as it swings from pointing at PYRO to the carry angle (mix 0 -> 1): lerp the angle and the length, not the end point
       const rx = gx - hx, ry = gy - hy, cx = M.carry[0], cy = M.carry[1], a0 = Math.atan2(ry, rx);
       const da = Math.atan2(Math.sin(Math.atan2(cy, cx) - a0), Math.cos(Math.atan2(cy, cx) - a0)), l = Math.hypot(rx, ry) * (1 - M.mix) + Math.hypot(cx, cy) * M.mix;
@@ -285,12 +285,12 @@ Object.assign(NovaMate.prototype, {
     this.nova.idle.tk = 1;
     this.pizza = { dir, aim: 0, bites: 0, flop: 0.5, fv: 0, scale: 1, px: null, py: null };
   },
-  // She is holding a marshmallow on a stick in telekinesis, pointing at target (a screen point, CSS px).
-  holdMallow(dir, target) {
+  // She is holding a marshmallow on a stick in telekinesis; roast = the stick's end relative to where she holds it (art px).
+  holdMallow(dir, roast) {
     this.face(dir > 0 ? "right" : "left");
     this.nova.idle.bucketAt = HOLD_M(dir);   // out past her spikes, so it floats free (just her purple haze round it, no beam: Isaac 2026-10-24)
     this.nova.idle.tk = 0;
-    this.mallow = { target, reach: 0.7, mix: 0, carry: [0, 0], heat: 0, spin: 0, turning: false };
+    this.mallow = { roast, mix: 0, carry: [0, 0], heat: 0, spin: 0, turning: false };
   },
   async eatPizza() {
     const I = this.nova.idle, P = this.pizza;
