@@ -94,16 +94,10 @@ export async function novaWarp(pet, dir) {
     const cx = x - pet.x;
     root.style.clipPath = keep > 0 ? `polygon(${cx}px -3000px, 3000px -3000px, 3000px 3000px, ${cx}px 3000px)` : `polygon(-3000px -3000px, ${cx}px -3000px, ${cx}px 3000px, -3000px 3000px)`;
   };
-  // Depth: the closer her middle is to a portal's middle the smaller she is (as if going away into it)
-  // and a little darker; scaled round the portal's middle on her inner wrapper (the root keeps the clip).
-  const wrap = mate.figure.parentElement, w0 = wrap.getBoundingClientRect();
-  const wOffX = w0.left - pet.x, wOffY = w0.top - pet.y, pw = 56 * px;   // the oval is about 56 art px wide
-  const depth = (cx, cy, k) => {   // k: 0 = outside, 1 = at the portal's middle
-    const s = 1 - 0.55 * k;
-    wrap.style.transformOrigin = `${cx - pet.x - wOffX}px ${cy - pet.y - wOffY}px`;
-    wrap.style.transform = k > 0 ? `scale(${s.toFixed(3)})` : "";
-    wrap.style.filter = k > 0 ? `brightness(${(1 - 0.45 * k).toFixed(2)})` : "";
-  };
+  // Depth: the closer her middle is to a portal's middle the darker she is, as if going into it
+  // (no shrinking, Isaac 2026-10-24).
+  const wrap = mate.figure.parentElement, pw = 56 * px;   // the oval is about 56 art px wide
+  const depth = (cx, cy, k) => { wrap.style.filter = k > 0 ? `brightness(${(1 - 0.45 * k).toFixed(2)})` : ""; };
   const near = (cx, d) => Math.max(0, Math.min(1, 1 - Math.abs((pet.x + offX + fw / 2) - cx) / (pw / 2 + fw / 2) * 1)) ;
   mate.playing = true;
   try {
@@ -160,7 +154,7 @@ export async function novaWarp(pet, dir) {
     pb.play("close");
     await mate.eatPizza();
   } finally {
-    root.style.clipPath = ""; root.style.visibility = ""; wrap.style.transform = ""; wrap.style.filter = "";
+    root.style.clipPath = ""; root.style.visibility = ""; wrap.style.filter = "";
     mate.pizza = null; mate.nova.idle.tk = 0;
     mate.playing = false;
     pet.save();

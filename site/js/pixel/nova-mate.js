@@ -143,12 +143,14 @@ export class NovaMate {
   async maybeIdle() {
     if (!this.figure.isConnected) return;
     if (this.busy) { this.schedule(5000); return; }
-    const which = this.lastIdle === "orrery" ? "popcorn" : this.lastIdle === "popcorn" ? "orrery" : Math.random() < 0.5 ? "orrery" : "popcorn";
-    await this.idle(which);
+    // three idles in a rotation, never the same one twice running (the warp needs the roaming pet: pet.js)
+    const options = ["orrery", "popcorn", ...(this.onWarpRequest ? ["warp"] : [])].filter((w) => w !== this.lastIdle);
+    await this.idle(options[Math.floor(Math.random() * options.length)]);
     this.schedule(this.fast ? 8000 + Math.random() * 4000 : 20000 + Math.random() * 20000);
   }
   async idle(which) {
     if (this.playing) return;
+    if (which === "warp") { this.lastIdle = "warp"; this.onWarpRequest?.(); return; }   // pet.js does it on her next sideways trip
     this.playing = true; this.lastIdle = which;
     try { await (which === "orrery" ? this.orrery() : this.popcorn()); }
     finally { this.playing = false; }

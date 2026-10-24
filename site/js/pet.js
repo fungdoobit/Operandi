@@ -43,6 +43,7 @@ export class Pet {
     // PYRO is the flame sprite (pixel/pyro-mate.js, Isaac 2026-10-23); DOT (dot.js) is in storage for now
     this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles, size: 101 }) : skin === "pyro" ? new PyroMate(this.root, { size: 96 }) : new Dot(this.root, { skin });
     this.dot.setAccessory(this.accessories);
+    if (skin === "nova") this.dot.onWarpRequest = () => { this.warpWantedAt = performance.now(); };   // her idle rotation asks for the warp
     this.dot.onSay = (hasActions) => {
       this.speaking = true;
       clearTimeout(this.hideTimer);
@@ -128,19 +129,18 @@ export class Pet {
     requestAnimationFrame(this.tick);
   }
 
-  // NOVA only: heading off sideways, now and then she takes a portal instead
-  // (pixel/nova-warp.js). Not more than once every 40 s (8 s with ?test=nova).
+  // NOVA only: the warp is the third of her idles (with the orrery and the popcorn: one every
+  // 20-40 s, never the same twice running; nova-mate.js). When her rotation picks it, she does it
+  // on her next mostly-sideways trip (within 90 s), opening a portal ahead instead of walking.
   maybeWarp() {
-    if (this.skin !== "nova" || this.warping || this.dot.busy || this.root.style.visibility === "hidden") return;
-    const dx = this.target.x - this.x;
-    // TESTING (Isaac 2026-10-24: "much much more likely so I can see"): every trip of 40 px or more warps
-    // (100%, no pause between warps). Normal values to go back to: sideways trips only
-    // (|dx| >= 120 and |dx| >= |dy|), at most once every 40 s, 35% chance.
-    if (Math.abs(dx) < 40) return;
-    const now = performance.now();
+    if (this.skin !== "nova" || this.warping || !this.warpWantedAt || this.dot.busy || this.root.style.visibility === "hidden") return;
+    if (performance.now() - this.warpWantedAt > 90000) { this.warpWantedAt = 0; return; }
+    const dx = this.target.x - this.x, dy = this.target.y - this.y;
+    if (Math.abs(dx) < 120 || Math.abs(dx) < Math.abs(dy)) return;   // sideways trips only
     const dir = Math.sign(dx);
     if (!canWarp(this, dir)) return;
-    this.lastWarp = now;
+    this.warpWantedAt = 0;
+    this.lastWarp = performance.now();
     this.warping = true; this.target = null;
     novaWarp(this, dir).finally(() => { this.warping = false; this.wait = 1.5; });
   }
