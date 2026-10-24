@@ -8,6 +8,9 @@ import * as M from "./battle-moves.js";
 import { PixelGolem } from "./pixel/golem-px.js";
 import { PixelBoss } from "./pixel/golem-boss.js";
 import { golemAttack, golemIntro, golemSpecial } from "./pixel/golem-moves.js";
+import { PixelMaw } from "./pixel/maw-px.js";
+import { MawBoss } from "./pixel/maw-boss.js";
+import { mawAttack, mawIntro, mawSpecial } from "./pixel/maw-moves.js";
 import { SPECIALS } from "./boss-rules.js";
 import { BOSS } from "./economy.js";
 import { biomeBG } from "./pixel/biomes.js";
@@ -113,9 +116,10 @@ export class BattleStage {
   // foe: "golem" (the boss) or a small enemy's kind (enemies.js), fought in its
   // biome (PRD Addendum K). max: the HP bars' full values.
   constructor(host, sayHost, { skin = "dot", accessories = [], name, foe = "golem", biome, max } = {}) {
-    this.isBoss = foe === "golem";
+    this.isBoss = foe === "golem" || foe === "maw";
+    this.maw = foe === "maw";   // Module 2's boss: THE ABYSSAL MAW (pixel/maw-px.js)
     this.enemy = this.isBoss ? null : ENEMIES[foe];
-    name ??= this.isBoss ? "GOLEM" : this.enemy.name;
+    name ??= this.maw ? "THE ABYSSAL MAW" : this.isBoss ? "GOLEM" : this.enemy.name;
     this.max = max || { me: BOSS.hp, foe: this.isBoss ? BOSS.hp : this.enemy.hp };
     ensureFilters();
     if (!document.getElementById("battleCss")) { const st = document.createElement("style"); st.id = "battleCss"; st.textContent = BATTLE_CSS + CARDS_CSS; document.head.append(st); }
@@ -132,7 +136,10 @@ export class BattleStage {
     this.bg = biomeBG(world, this.isBoss ? "foundry" : biome || this.enemy.biome);
     this.fx = new BattleFX(this.stage, world, { floor: 0.8 });
     // 512 art px wide (default 416): room for his arms when they swing out, so they don't run off his canvas
-    if (this.isBoss) {
+    if (this.maw) {
+      this.golem = new PixelMaw(foeEl);
+      this.boss = new MawBoss({ golem: this.golem, fx: this.fx, figure: foeEl });
+    } else if (this.isBoss) {
       this.golem = new PixelGolem(foeEl, { px: 1, w: GOLEM_W, chunk: 2, flat: true });   // the 2D GOLEM (Addendum M): 2-px art pixels like everyone else, flat tones
       this.boss = new PixelBoss({ golem: this.golem, fx: this.fx, figure: foeEl });
     } else {
@@ -188,7 +195,8 @@ export class BattleStage {
     // tall), so on wide screens they don't end up miles apart.
     const zone = Math.min(Wd, Hd * 3.6), edge = (Wd - zone) / 2;
     this.golem.setPx(1);
-    if (this.isBoss) Object.assign(this.foeEl.style, { right: edge + (6 - GOLEM_EXTRA) + "px", bottom: 0.2 * Hd - 17 + "px" });
+    if (this.maw) this.golem.layout(Wd, Hd, this.fx.floorY, edge + 56);   // the Maw lays himself out (and his arms reach across the whole world)
+    else if (this.isBoss) Object.assign(this.foeEl.style, { right: edge + (6 - GOLEM_EXTRA) + "px", bottom: 0.2 * Hd - 17 + "px" });
     else {   // a small enemy stands on the floor line, centred about four-fifths across the fight zone
       const cw = this.golem.canvas.width;
       Object.assign(this.foeEl.style, { right: Math.max(0, edge + zone * 0.2 - cw / 2) + "px", bottom: 0.2 * Hd - this.golem.footPx + "px" });
@@ -254,7 +262,7 @@ export class BattleStage {
   }
 
   // ---- Scenes ----
-  intro() { return this.isBoss ? golemIntro(this.ctx) : enemyIntro(this.ctx); }
+  intro() { return this.maw ? mawIntro(this.ctx) : this.isBoss ? golemIntro(this.ctx) : enemyIntro(this.ctx); }
 
   // The next wave: a new enemy steps in (its HP bar refills).
   async spawn(kind, hp) {
@@ -323,7 +331,8 @@ export class BattleStage {
     if (miss) { this.number("MISS", "me", "miss"); await this.fx.wait(350); }
     else await this.fx.wait(250);
     const onHit = () => { this.number(`-${dmg}`, "me", "ouch"); onImpact?.(); };
-    if (this.isBoss) await golemAttack(this.ctx, null, { onHit });
+    if (this.maw) await mawAttack(this.ctx, null, { onHit });
+    else if (this.isBoss) await golemAttack(this.ctx, null, { onHit });
     else await enemyAttack(this.ctx, this.enemy, { onHit });
   }
   // A crit staggers him: no strike back this turn.
@@ -332,7 +341,7 @@ export class BattleStage {
     this.golem.fxv.glitch = 1; this.golem.to({ glitch: 0 }, 500, "lin", this.golem.fxv);
   }
 
-  special(kind) { return golemSpecial(this.ctx, kind, SPECIALS[kind]); }
+  special(kind) { return (this.maw ? mawSpecial : golemSpecial)(this.ctx, kind, SPECIALS[kind]); }
   // Put a standing Firewall back after a reload.
   restoreDome() { this.boss.buildDome(); }
   async victory() {
