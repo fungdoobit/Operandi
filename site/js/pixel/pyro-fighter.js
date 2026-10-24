@@ -9,6 +9,7 @@ export class PyroFighter extends PyroMate {
     super(container, { size: SIZE, idles: false });
     this.battle = true;
     // DOT's springy body: the old scenes set sx.t / sy.t / lean.t (squash, stretch, tilt) and energy; he squashes through them
+    this.fly = null;
     this.sx = { v: 1, t: 1 }; this.sy = { v: 1, t: 1 }; this.energy = 1; this.dx = 0;
     this.face("right");
     this.setMood("idle");
@@ -40,8 +41,11 @@ export class PyroFighter extends PyroMate {
     super.loop(now);
     const dt = Math.min(0.05, (now - this.lastSpring) / 1000); this.lastSpring = now;
     for (const a of [this.sx, this.sy]) a.v += (a.t - a.v) * Math.min(1, dt * 9);
-    this.figure.style.transform = `scale(${this.sx.v.toFixed(3)}, ${this.sy.v.toFixed(3)})`;
-    this.figure.style.transformOrigin = "50% 100%";
+    // fly: a card moves his real body (x, y in stage px, rot in radians, sx / sy stretch): leaps, swells, tilts
+    const f = this.fly;
+    this.figure.style.transform = f ? `translate(${f.x.toFixed(1)}px, ${f.y.toFixed(1)}px) rotate(${f.rot.toFixed(3)}rad) scale(${(this.sx.v * f.sx).toFixed(3)}, ${(this.sy.v * f.sy).toFixed(3)})`
+      : `scale(${this.sx.v.toFixed(3)}, ${this.sy.v.toFixed(3)})`;
+    this.figure.style.transformOrigin = f ? "50% 60%" : "50% 100%";
     if (this.lean.t) this.leanV += (this.lean.t * -3 - this._lean) * 2 * dt;
   }
 }
