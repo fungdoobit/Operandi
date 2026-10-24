@@ -218,6 +218,16 @@ export class PixelMaw {
 
   // ---- drawing -------------------------------------------------------------------------------------------------
   put(x, y, c) { if (x < 0 || y < 0 || x >= this.W || y >= this.H) return; const o = (y * this.W + x) * 4, F = this.F; F[o] = c[0]; F[o + 1] = c[1]; F[o + 2] = c[2]; F[o + 3] = 255; }
+  // a soft contact shadow so he sits ON the floor
+  shadow(cx, cy, rx) {
+    const F = this.F, W = this.W;
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -rx; dx <= rx; dx++) {
+      const d = (dx / rx) ** 2 + (dy / 3) ** 2; if (d >= 1) continue;
+      const x = Math.round(cx + dx), y = cy + dy; if (x < 0 || y < 0 || x >= W || y >= this.H) continue;
+      if (bay(x, y) > (1 - d) * 1.1) continue;
+      const o = (y * W + x) * 4; F[o] = 8; F[o + 1] = 6; F[o + 2] = 14; F[o + 3] = 150;
+    }
+  }
   drawCat() {
     const A = this.sheets, c = this.cat, P = this.pose; if (c.mode === "gone") return;
     const t = this.at - c.t0;
@@ -231,6 +241,7 @@ export class PixelMaw {
     if (c.mode === "sit" && P.mouth < 0) { anim = "sitYawn"; fi = 5; }                               // negative: closing again
     const a = A[anim], f = a.frames[fi];
     x += P.hx; y += P.hy;
+    this.shadow(Math.round(x), this.floorC, 22);
     for (let yy = 0; yy < f.NH; yy++) for (let xx = 0; xx < f.NW; xx++) { const col = f.cells[yy * f.NW + xx]; if (col) this.put(Math.round(x + (a.anchor - xx)), Math.round(y - (a.base - yy)), col); }
   }
   // One arm: pts are absolute cells; u is how much has grown.

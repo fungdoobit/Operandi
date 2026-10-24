@@ -22,7 +22,7 @@ export class Scene extends RuinsScene {
   constructor(stage) { super(stage); live.add(this); }
   paint(p) {
     super.paint(p);
-    const { W, H, put, bay, mix } = p;
+    const { W, H, put, get, mix } = p;
     if (!LAYERS.mountains || !LAYERS.foreground) return;
     const WARM = [255, 168, 112], HAZE = [226, 150, 124];
     const lay = (L, grade, fade) => {
@@ -30,11 +30,13 @@ export class Scene extends RuinsScene {
       for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
         const o = (y * L.w + x) * 4; if (L.d[o + 3] < 128) continue;
         const X = ox + x; if (X < 0 || X >= W) continue;
-        if (fade && clamp((x - 4) / fade) <= bay(X & 255, (y + oy) & 255)) continue;   // dithered fade into the ruins
-        put(X, y + oy, grade([L.d[o], L.d[o + 1], L.d[o + 2]], y / L.h));
+        const k = fade ? clamp((x - 4) / fade) : 1;   // a smooth fade into the ruins (a dithered one looked like a pixelating filter)
+        if (k <= 0) continue;
+        const c = grade([L.d[o], L.d[o + 1], L.d[o + 2]], y / L.h);
+        put(X, y + oy, k >= 1 ? c : mix(get(X, y + oy), c, k));
       }
     };
-    lay(LAYERS.mountains, (c) => mix(mix(c, HAZE, 0.42), WARM, 0.12).map((v) => Math.round(v * 0.96)), 110);
-    lay(LAYERS.foreground, (c) => mix(c, WARM, 0.26).map((v) => Math.round(v * 0.9)), 90);
+    lay(LAYERS.mountains, (c) => mix(mix(c, HAZE, 0.42), WARM, 0.12).map((v) => Math.round(v * 0.96)), 150);
+    lay(LAYERS.foreground, (c) => mix(c, WARM, 0.26).map((v) => Math.round(v * 0.9)), 70);
   }
 }

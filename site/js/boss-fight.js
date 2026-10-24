@@ -197,7 +197,7 @@ export class BattleStage {
     // tall), so on wide screens they don't end up miles apart.
     const zone = Math.min(Wd, Hd * 3.6), edge = (Wd - zone) / 2;
     this.golem.setPx(1);
-    if (this.maw) this.golem.layout(Wd, Hd, this.fx.floorY, edge + 56);   // the Maw lays himself out (and his arms reach across the whole world)
+    if (this.maw) { /* the Maw lays himself out at the end of fit(), once your teammate is in place */ }
     else if (this.isBoss) Object.assign(this.foeEl.style, { right: edge + (6 - GOLEM_EXTRA) + "px", bottom: 0.2 * Hd - 17 + "px" });
     else {   // a small enemy stands on the floor line, centred about four-fifths across the fight zone
       const cw = this.golem.canvas.width;
@@ -211,6 +211,12 @@ export class BattleStage {
     this.stage.style.setProperty("--k", k.toFixed(3));   // text on the stage scales too
     this.mateEl.style.bottom = 0.2 * Hd - 6 + "px";
     if (this.dot.resize) this.dot.resize(72); else this.dot.figure.style.width = "65px";
+    // the Maw sits on the same floor level as your teammate's feet (and his arms reach across the whole world)
+    if (this.maw) {
+      // the visible base of the fighter's body (its canvas reaches below its box)
+      const cv = this.dot.figure.querySelector("canvas") || this.dot.figure, cr = cv.getBoundingClientRect(), feet = this.fx.fromPage({ x: cr.left, y: cr.bottom }).y - 10;
+      this.golem.layout(Wd, Hd, Number.isFinite(feet) ? feet : this.fx.floorY, edge + 56);
+    }
   }
 
   // PYRO's fire heats GOLEM's stone: every fire card makes him glow a little redder for the rest of the fight (looks only).
