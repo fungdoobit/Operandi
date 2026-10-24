@@ -203,8 +203,9 @@ export async function novaVisit(pet) {
   // she floats about level with him, a little lower, and the stick slopes up to it at about 25 degrees. The stick never changes length.
   const pcx = pr.left + pr.width / 2;
   const tip = { x: pcx + side * 23, y: pr.top + 3 };   // the stick's end (the marshmallow sits just behind it, toward her)
-  const gcx = pcx + side * 190, gcy = pr.top + 62;      // where she floats while she roasts
-  const rv = [(tip.x - (gcx + out * 41.3 * px)) / px, (tip.y - (gcy - 5.9 * px)) / px];   // the stick, from her hold to its end, in her art px (41.3 and 5.9: where she holds it, see HOLD_M)
+  const gcx = pcx + side * 177, gcy = pr.top + 62;      // where she floats while she roasts
+  const unit = mate.nova.canvas.height / mate.nova.view, hm = HOLD_M(out);   // her art px per unit of her own space
+  const rv = [(tip.x - (gcx + hm[0] * unit * px)) / px, (tip.y - (gcy - (hm[1] - 0.1) * unit * px)) / px];   // the stick, from where she holds it to its end, in her art px
   try {
     // 1. a portal opens on her side, and she glides out of it, stick first
     const B = { x: gcx - out * (fw * 0.5 + 34), y: gcy };
