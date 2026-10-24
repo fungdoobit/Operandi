@@ -14,7 +14,7 @@ import { Dot } from "../dot.js";
 
 // PYRO's idles (Isaac 2026-10-24): "candle" = he shrinks to a calm tiny flame and sleeps (Zs float up).
 // The NOVA marshmallow visit and "reads your code" come next. One idle every 20-40 s, never the same twice running.
-const IDLES = ["candle"];   // the regular ones; "visit" (NOVA brings a marshmallow, pet.js) is the rare special one
+const IDLES = ["candle", "read"];   // the regular ones ("read" only when the editor is on screen); "visit" (NOVA brings a marshmallow, pet.js) is the rare special one
 const ease = (u) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
 // A pixel Z, s art px wide: top bar, a slanted middle, bottom bar (bars and slant 2 px thick once it is big enough).
 function zPixels(s) {
@@ -188,7 +188,7 @@ export class PyroMate {
   async maybeIdle() {
     if (!this.figure.isConnected) return;
     if (this.busy) { this.schedule(5000); return; }
-    const left = IDLES.filter((w) => w !== this.lastIdle), options = left.length ? left : IDLES;
+    const pool = IDLES.filter((w) => w !== "read" || this.readOk?.()), left = pool.filter((w) => w !== this.lastIdle), options = left.length ? left : pool;
     // about one idle in four is NOVA's visit (if she is won, and there's room), never twice running
     const visit = this.lastIdle !== "visit" && Math.random() < 0.25 && this.visitOk?.();
     await this.idle(visit ? "visit" : options[Math.floor(Math.random() * options.length)]);
@@ -214,6 +214,8 @@ export class PyroMate {
 
   // NOVA drops in through her portal with a marshmallow on a stick, roasts it on him and leaves (pet.js runs it: it needs the page).
   async visit() { await this.onVisitRequest?.(); }
+  // He goes over to the code editor and reads it, then reacts to how your last run went (pixel/pyro-read.js, run by pet.js).
+  async read(h) { await this.onReadRequest?.(h); }
 
   // He shrinks to a calm tiny flame, half asleep, swaying slowly; his eyes shut and Zs float up; then he wakes and grows back.
   async candle({ wait, tween }) {

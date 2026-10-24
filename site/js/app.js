@@ -43,6 +43,10 @@ const dot = new Pet({
   onPlace: (p) => { S().pet = p; store.save(); },
 });
 window.operandiPet = dot;   // for trying things by hand in the console (idles, warps, moods)
+// PYRO's "reads your code" idle (pixel/pyro-read.js) asks for the editor and how the last run went
+let codeStatus = null, lastEdit = 0;   // codeStatus: { kind: "ok" | "bad", line } after a run, null once you edit
+Pet.codeInfo = () => ({ el: document.getElementById("code"), status: codeStatus, lastEdit });
+const errLine = (e) => { const m = [...String(e || "").matchAll(/line (\d+)/g)]; return m.length ? +m[m.length - 1][1] : null; };
 Pet.hasNova = () => true;   // NOVA counts as won while Isaac tests her (like the Shop's owned checks); with her real unlock this becomes S().owned.nova
 
 function applyCosmetics() {
@@ -167,6 +171,7 @@ function armIdle() {
   }, 150000);
 }
 ed.addEventListener("input", () => {
+  codeStatus = null; lastEdit = performance.now();
   updateGutter(); armIdle();
   if (dot.figure.dataset.mood === "sleepy") dot.setMood("idle");
   if (S().equipped.prop === "laptop") dot.typing();
@@ -233,6 +238,7 @@ async function doRun() {
   busy = true;
   try {
     const r = await runner.run(ed.value, { expected: task.expected });
+    codeStatus = r.diagnosis || r.error ? { kind: "bad", line: r.diagnosis?.line ?? errLine(r.error) } : { kind: "ok" };
     showOutput(r); showTab("output");
     if (quietTry()) {   // a boss fight: no tips until the third Submit
       if (task.expected && r.lines.join("\n") === task.expected.join("\n")) { const v = V().outputMatches(); dot.say(v.text, { title: v.title, mood: "happy" }); }
@@ -281,6 +287,7 @@ async function doSubmit() {
     const allPass = passedCount === results.length;
     const hardcoded = task.noHardcode && run.lint.find((l) => l.id === "lint-hardcoded");
     const passed = allPass && !hardcoded;
+    codeStatus = run.diagnosis || run.error ? { kind: "bad", line: run.diagnosis?.line ?? errLine(run.error) } : passed ? { kind: "ok" } : null;
     const styleLint = run.lint.filter((l) => LINT_PENALTY[l.id]);
     const mark = hardcoded ? 5 : markFor({ passedCount, total: results.length, lintIds: styleLint.map((l) => l.id), attempt: r.attempts, penalties: LINT_PENALTY });
 

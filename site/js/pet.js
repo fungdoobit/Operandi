@@ -9,6 +9,7 @@ import { Dot } from "./dot.js";
 import { NovaMate } from "./pixel/nova-mate.js";
 import { PyroMate } from "./pixel/pyro-mate.js";
 import { novaWarp, canWarp, novaVisit, visitSide } from "./pixel/nova-warp.js";
+import { canRead, readCode } from "./pixel/pyro-read.js";
 
 const SPEED = 46;            // px per second while wandering
 const MARGIN = 8;
@@ -43,7 +44,7 @@ export class Pet {
     // PYRO is the flame sprite (pixel/pyro-mate.js, Isaac 2026-10-23); DOT (dot.js) is in storage for now
     this.dot = skin === "nova" ? new NovaMate(this.root, { fast: Pet.fastIdles, size: 101 }) : skin === "pyro" ? new PyroMate(this.root, { size: 96, fast: Pet.fastIdles }) : new Dot(this.root, { skin });
     this.dot.setAccessory(this.accessories);
-    if (skin === "pyro") { this.dot.visitOk = () => this.canVisit(); this.dot.onVisitRequest = () => this.visitNova(); }
+    if (skin === "pyro") { this.dot.visitOk = () => this.canVisit(); this.dot.onVisitRequest = () => this.visitNova(); this.dot.readOk = () => canRead(this); this.dot.onReadRequest = (h) => readCode(this, h); }
     if (skin === "nova") this.dot.onWarpRequest = () => { this.warpWantedAt = performance.now(); };   // her idle rotation asks for the warp
     this.dot.onSay = (hasActions) => {
       this.speaking = true;
@@ -150,8 +151,8 @@ export class Pet {
   // PYRO's movement (Isaac 2026-10-24): on trips of 140 px or more he doesn't glide, he snuffs out and
   // relights. His flame sinks in chunky steps (flickering, eyes shut) until it is out, a beat of nothing,
   // then a tiny ember at the far spot grows back to his full flame. Shorter trips glide.
-  startDash() {
-    if (!this.target || this.warping || this.dot.busy) return false;
+  startDash(force = false) {   // force: an idle is moving him on purpose (it counts as busy)
+    if (!this.target || this.warping || (this.dot.busy && !force)) return false;
     const T = { x: this.target.x, y: this.target.y };
     if (Math.hypot(T.x - this.x, T.y - this.y) < 140) return false;
     this.dashing = { T, t0: performance.now(), moved: false };
