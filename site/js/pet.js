@@ -105,6 +105,7 @@ export class Pet {
       if (this.wait > 0) this.wait -= dt;
       else {
         if (!this.target) { this.target = this.pickTarget(); this.maybeWarp(); }
+        if (!this.target) { this.place(0); requestAnimationFrame(this.tick); return; }   // a warp took over this trip (it clears the target)
         const dx = this.target.x - this.x, dy = this.target.y - this.y, dist = Math.hypot(dx, dy);
         if (dist < 2) { this.target = null; this.wait = 2 + Math.random() * 5; }
         else {
@@ -131,12 +132,12 @@ export class Pet {
   // (pixel/nova-warp.js). Not more than once every 40 s (8 s with ?test=nova).
   maybeWarp() {
     if (this.skin !== "nova" || this.warping || this.dot.busy || this.root.style.visibility === "hidden") return;
-    const dx = this.target.x - this.x, dy = this.target.y - this.y;
-    if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) * 0.6) return;   // sideways-ish trips only (TESTING: was 120 and |dy|)
-    // TESTING (Isaac 2026-10-23: "make this more common so I can see it"): every 10 s at most, 90% of the time.
-    // Normal values to go back to: gap 40000, chance 0.35.
-    const now = performance.now(), gap = Pet.fastIdles ? 8000 : 10000;
-    if (now - (this.lastWarp || -gap) < gap || Math.random() > 0.9) return;
+    const dx = this.target.x - this.x;
+    // TESTING (Isaac 2026-10-24: "much much more likely so I can see"): every trip of 40 px or more warps
+    // (100%, no pause between warps). Normal values to go back to: sideways trips only
+    // (|dx| >= 120 and |dx| >= |dy|), at most once every 40 s, 35% chance.
+    if (Math.abs(dx) < 40) return;
+    const now = performance.now();
     const dir = Math.sign(dx);
     if (!canWarp(this, dir)) return;
     this.lastWarp = now;
