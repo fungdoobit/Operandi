@@ -31,3 +31,17 @@ export function play(layer, sh, o = {}) {
     frame(g, sh, f, x, y, { ...o, alpha: typeof o.alpha === "function" ? o.alpha(k) : o.alpha ?? 1 });
   } });
 }
+
+// A copy of a strip washed with a colour (so one pack can give several looks): amt 0..1 of rgb over every drawn pixel.
+// (A canvas composite, not a CSS filter: iPad's Safari has no ctx.filter.)
+const washes = new Map();
+export function tinted(sh, [r, g, b], amt = 0.4) {
+  const key = `${sh.img.src}|${r},${g},${b},${amt}`;
+  if (!washes.has(key)) {
+    const c = document.createElement("canvas"); c.width = sh.img.width; c.height = sh.img.height;
+    const x = c.getContext("2d"); x.drawImage(sh.img, 0, 0); x.globalCompositeOperation = "source-atop";
+    x.fillStyle = `rgba(${r},${g},${b},${amt})`; x.fillRect(0, 0, c.width, c.height);
+    washes.set(key, { ...sh, img: c });
+  }
+  return washes.get(key);
+}
