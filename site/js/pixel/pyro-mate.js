@@ -140,6 +140,11 @@ export class PyroMate {
   typing() {}
   nudge(dx = 0, e = 0) { this.leanV += (Math.random() - 0.5) * e * 6; }
   face(dir) { this.faceDir = dir === "right" ? 1 : -1; }
+  dash(on) { this.dashing = on; }   // racing along a line of fire: a determined look
+  arrive() {   // the flash ends: a flare and a burst of sparks
+    this.flare = 0.5;
+    for (let i = 0; i < 14; i++) { const a = -Math.PI * (0.05 + 0.9 * Math.random()); this.sparks.push({ x: AW / 2 + (Math.random() - 0.5) * 24, y: AH - 14, vx: Math.cos(a) * (30 + Math.random() * 44), vy: Math.sin(a) * (44 + Math.random() * 50), life: 0.4 + Math.random() * 0.4, age: 0 }); }
+  }
   pickUp() { this.held = true; this.setMood("held"); this.flare = 1; }
   drop() {
     this.held = false;
@@ -187,7 +192,7 @@ export class PyroMate {
     }
     // 2. eyes (blinking every few seconds when idle), on the same fine grid
     const blink = this.mood === "idle" && (t % 4.2) > 4.06;
-    const shape = eyeShape(this.mood, blink);
+    const shape = eyeShape(this.dashing && this.mood === "idle" ? "angry" : this.mood, blink && !this.dashing);
     for (const [mirror, mx] of [[false, ex - 7], [true, ex + 7]]) for (const [dx, dy, warm] of shape) {
       const x = Math.round(mx + (mirror ? -dx : dx)), y = ey + dy;
       if (x < 0 || y < 0 || x >= AW || y >= AH) continue;

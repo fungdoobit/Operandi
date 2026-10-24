@@ -9,6 +9,7 @@ import { Dot } from "./dot.js";
 import { NovaMate } from "./pixel/nova-mate.js";
 import { PyroMate } from "./pixel/pyro-mate.js";
 import { novaWarp, canWarp } from "./pixel/nova-warp.js";
+import { GasTrail, dashProgress } from "./pixel/pyro-dash.js";
 
 const SPEED = 46;            // px per second while wandering
 const MARGIN = 8;
@@ -102,11 +103,13 @@ export class Pet {
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
     let bob = 0;
+    if (this.dashing) { this.stepDash(now); this.place(0); requestAnimationFrame(this.tick); return; }   // PYRO racing along his line of fire
     if (this.mode === "roam" && !this.speaking && !this.warping) {
       if (this.wait > 0) this.wait -= dt;
       else {
         if (!this.target) { this.target = this.pickTarget(); this.maybeWarp(); }
         if (!this.target) { this.place(0); requestAnimationFrame(this.tick); return; }   // a warp took over this trip (it clears the target)
+        if (this.skin === "pyro" && this.startDash()) { this.place(0); requestAnimationFrame(this.tick); return; }
         const dx = this.target.x - this.x, dy = this.target.y - this.y, dist = Math.hypot(dx, dy);
         if (dist < 2) { this.target = null; this.wait = 2 + Math.random() * 5; }
         else {
@@ -144,6 +147,37 @@ export class Pet {
     this.warping = true; this.target = null;
     novaWarp(this, dir).finally(() => { this.warping = false; this.wait = 1.5; });
   }
+  // PYRO's movement (Isaac 2026-10-24): not a glide but a flash along a line of fire, like flame
+  // racing down a line of flammable gas (pixel/pyro-dash.js). Trips of 140 px or more; shorter ones glide.
+  startDash() {
+    if (!this.target || this.warping || this.dot.busy) return false;
+    const T = { x: this.target.x, y: this.target.y }, dist = Math.hypot(T.x - this.x, T.y - this.y);
+    if (dist < 140) return false;
+    const r = this.dot.figure.getBoundingClientRect(), k = this.dot.k || 1.5;
+    const bx = r.left + r.width / 2 - this.x, by = r.bottom - this.y - 5 * k;   // where his flame's bottom is, relative to his box
+    const D = Math.max(0.4, Math.min(1.1, dist / 900));
+    this.dashing = { O: { x: this.x, y: this.y }, T, D, t0: performance.now(), p: 0,
+      trail: new GasTrail(k, { x: this.x + bx, y: this.y + by }, { x: T.x + bx, y: T.y + by }) };
+    this.dot.dash?.(true);
+    this.dot.face?.(T.x > this.x ? "right" : "left");
+    sound.sfx("flameIgnite", { theme: "fire" });
+    return true;
+  }
+  stepDash(now) {
+    const d = this.dashing, u = Math.min(1, (performance.now() - d.t0) / 1000 / d.D);
+    d.p = dashProgress(u, d.p);
+    this.x = d.O.x + (d.T.x - d.O.x) * d.p; this.y = d.O.y + (d.T.y - d.O.y) * d.p;
+    d.trail.setFront(d.p, performance.now() / 1000);
+    if (u >= 1) this.endDash(true);
+  }
+  endDash(arrived) {
+    const d = this.dashing; if (!d) return;
+    this.dashing = null;
+    if (arrived) { this.x = d.T.x; this.y = d.T.y; d.trail.setFront(1, performance.now() / 1000); this.dot.arrive?.(); sound.sfx("whoosh", { theme: "fire" }); }
+    else d.trail.cut();
+    this.dot.dash?.(false);
+    this.target = null; this.wait = 2 + Math.random() * 5;
+  }
   // test hook: operandiPet.warpNow(1 | -1)
   warpNow(dir = this.x < innerWidth / 2 ? 1 : -1) {
     if (this.skin !== "nova" || this.warping) return;
@@ -166,6 +200,7 @@ export class Pet {
   // ----- Picking up and dropping -----
   grab(e) {
     if ((e.button !== undefined && e.button !== 0) || this.warping) return;
+    if (this.dashing) this.endDash(false);   // picked up mid-flash: what's lit burns out where it is
     e.preventDefault();
     this.dot.figure.setPointerCapture(e.pointerId);
     this.before = this.mode;
