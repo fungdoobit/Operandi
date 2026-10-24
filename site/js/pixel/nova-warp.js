@@ -241,7 +241,7 @@ export async function novaVisit(pet) {
     const sl = Math.hypot(rv[0], rv[1]);
     M.carry = [dir * sl * 0.82, -sl * 0.57];   // the same stick length as while roasting, held close and tilted up about 35 degrees
     const I = mate.nova.idle, from = HOLD_M(out), to = HOLD_C(dir);
-    await Promise.all([tween(800, (e) => { M.mix = e; }, "io"), mate.anim(800, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e + (i === 1 ? 0.5 * Math.sin(e * Math.PI) : 0)); }, "io")]);
+    await Promise.all([tween(800, (e) => { M.mix = e; }, "io"), mate.anim(800, (e) => { I.bucketAt = from.map((v, i) => v + (to[i] - v) * e + (i === 1 ? 0.2 * Math.sin(e * Math.PI) : 0)); }, "io")]);
     py.look = 0; py.setMood("happy", { revertAfter: 1600 });
     await wait(500);
     // 4. a portal opens ahead of her, and she goes in with it
