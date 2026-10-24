@@ -20,7 +20,7 @@ in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
 
 const FRAG = `#version 300 es
 precision highp float;
-uniform sampler2D uF; uniform vec2 uRes; uniform float uT, uS; uniform int uPal;   // uPal 0 fire, 1 water, 2 blood (Kaela)
+uniform sampler2D uF; uniform vec2 uRes; uniform float uT, uS, uQ; uniform int uPal;   // uPal 0 fire, 1 water, 2 blood (Kaela)
 out vec4 o;
 const float B4[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
 float bayer(vec2 p){ ivec2 q = ivec2(p); return (B4[(q.y&3)*4+(q.x&3)]+.5)/16.; }
@@ -31,7 +31,7 @@ float fbm(vec2 p){ return .55*vn(p) + .3*vn(p*2.03+7.1) + .15*vn(p*4.07+3.3); }
 vec3 F(vec2 p){ return texture(uF, p/uRes).rgb; }
 vec3 hex(float r, float g, float b){ return vec3(r,g,b)/255.; }
 void main(){
-  vec2 p = gl_FragCoord.xy;
+  vec2 p = uQ > 1. ? (floor(gl_FragCoord.xy / uQ) + .5) * uQ : gl_FragCoord.xy;   // uQ > 1: chunkier pixels, for harder pixel-art edges
   vec2 q = p / uS;                       // stage px, so the look doesn't change with the art size
   float t = floor(uT*15.)/15.;           // the noise moves on fifteens, a hand-drawn snap
   float d = bayer(p);
@@ -101,7 +101,7 @@ function setupGL(o, c, opts) {
     const loc = gl.getAttribLocation(pr, "a"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     o.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, o.tex);
     for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
-    o.u = Object.fromEntries(["uF", "uRes", "uT", "uS", "uPal"].map((n) => [n, gl.getUniformLocation(pr, n)]));
+    o.u = Object.fromEntries(["uF", "uRes", "uT", "uS", "uQ", "uPal"].map((n) => [n, gl.getUniformLocation(pr, n)]));
     return true;
 
 }
@@ -114,7 +114,7 @@ function renderField(o, field, w, h, time, s, pal) {
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, o.tex);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, field);
-  gl.uniform1i(o.u.uF, 0); gl.uniform2f(o.u.uRes, w, h); gl.uniform1f(o.u.uT, time); gl.uniform1f(o.u.uS, s); gl.uniform1i(o.u.uPal, pal);
+  gl.uniform1i(o.u.uF, 0); gl.uniform2f(o.u.uRes, w, h); gl.uniform1f(o.u.uT, time); gl.uniform1f(o.u.uS, s); gl.uniform1f(o.u.uQ, o.chunk || 1); gl.uniform1i(o.u.uPal, pal);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
@@ -266,7 +266,7 @@ class Pen {
 // smoke spots blooming inside them, the fire sinking to glowing rims under the
 // smoke, and the smoke breaking into rings and strands as it fades.
 // kind "fire" (orange) or "void" (black and purple). size 1 is about 120 px across.
-export function explode(toon, x, y, { size = 1, kind = "fire", dur = 1500, up = 1 } = {}) {
+export function explode(toon, x, y, { size = 1, kind = "fire", dur = 1500, up = 1, star = true } = {}) {
   const R = 60 * size, n = 11;
   const puffs = Array.from({ length: n }, (_, i) => {
     const a = i * 2.39996 + Math.random() * 0.5, d = i === 0 ? 0 : 0.3 + Math.random() * 0.6;
@@ -278,7 +278,7 @@ export function explode(toon, x, y, { size = 1, kind = "fire", dur = 1500, up = 
   return toon.add({ dur, draw(pen, k) {
     const ms = k * dur, rise = (ms / 1000) * R * 0.55 * up;
     // the star-flash at the very start
-    if (ms < 90) {
+    if (star && ms < 90) {
       const f = ms < 30 ? ms / 30 : 1 - (ms - 30) / 60, r = R * 1.5 * f;
       pen.fill(ch, 1, (g) => { for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2, rr = i % 2 ? r * 0.22 : r * (i % 4 ? 0.7 : 1); i ? g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : g.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); });
     }
