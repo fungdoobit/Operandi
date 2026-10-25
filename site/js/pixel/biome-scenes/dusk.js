@@ -7,7 +7,9 @@
 //   middle/front   graded: warmer and darker at sunset, dark and blue at night, with haze on the far mountains
 // The sun and the moon are painted INTO the sky layer's pixels, so the mountains and clouds pass in front of them. A light layer on
 // top animates stars (only where the sky is), fireflies, birds, drifting petals and sunset rays.
-// The art is 368 px wide; wider stages get the layers mirrored on both sides.
+// The art is 368 px wide. Wider stages: the sky and the far mountains are mirrored out on both sides (they're even, so it doesn't
+// show); the front, which has a cliff, a path and a dirt hill, is widened with grass instead (frontColumns), so each of those is
+// there once (Isaac 2026-10-25 on a wide screen: mirrored, they made a twin-cliff pillar and repeated hills).
 import { PixelScene } from "../scene-base.js";
 
 const DAY_LENGTH = 480;     // seconds for a whole day: sunset at 2 minutes, night at 4, sunrise at 6
@@ -19,6 +21,43 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const lerp3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a)); return t * t * (3 - 2 * t); };
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+// The front picture's columns for a stage W art px wide. The cliff (left edge), the path (middle) and the dirt hill (right edge)
+// stay once each; the extra width is grass added inside the two plain stretches either side of the path: from the column where
+// the plain ends, it walks back over the plain grass (turning round at varying points, so the tufts don't repeat in a rhythm),
+// then retraces the same walk to that same column, so there's no seam and nothing is stretched. The path ends up near the middle.
+// Narrower stages show the middle of the picture.
+const PLAIN_L = [56, 118], PLAIN_R = [216, 250], PATH_MID = 164;   // (even grass: clear of the cliff's shadow and the hill's slope)
+function frontColumns(W) {
+  const out = [];
+  if (W <= IW) { const o = Math.floor((IW - W) / 2); for (let x = 0; x < W; x++) out.push(x + o); return out; }
+  const extra = W - IW;
+  let EL = Math.max(0, Math.min(extra, Math.round(W / 2 - PATH_MID)));
+  EL -= EL % 2;
+  const walk = ([a, b], n, seed) => {   // n columns: out from b, wandering inside [a, b], and the same way back to b
+    if (n <= 0) return [];
+    if (n === 1) return [b];
+    const half = n >> 1, go = [], reach = (k) => Math.floor(hash(seed, k) * (b - a) * 0.5);
+    let p = b, dir = -1, k = 0, turn = a + reach(k);
+    for (let i = 0; i < half; i++) {
+      p += dir;
+      if (dir < 0 && p <= turn) { dir = 1; turn = b - reach(++k); }
+      else if (dir > 0 && p >= turn) { dir = -1; turn = a + reach(++k); }
+      go.push(p);
+    }
+    const seq = [...go];
+    if (n % 2) seq.push(go[half - 1]);   // an odd number: one column twice
+    for (let i = half - 2; i >= 0; i--) seq.push(go[i]);
+    seq.push(b);
+    return seq;
+  };
+  for (let c = 0; c <= PLAIN_L[1]; c++) out.push(c);
+  out.push(...walk(PLAIN_L, EL, 1));
+  for (let c = PLAIN_L[1] + 1; c <= PLAIN_R[1]; c++) out.push(c);
+  out.push(...walk(PLAIN_R, extra - EL, 2));
+  for (let c = PLAIN_R[1] + 1; c < IW; c++) out.push(c);
+  return out;
+}
+
 const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
 const bay = (x, y) => B4[(y & 3) * 4 + (x & 3)];
 
@@ -81,6 +120,7 @@ export class Scene extends PixelScene {
 
   paint(p) {
     this.W = p.W; this.H = p.H; this.bimg = null;
+    this.fcol = frontColumns(p.W);
     // sky pixels (where the sun, moon and stars may show): filled by tint()
     this.isSky = new Uint8Array(p.W * p.H);
     this.HOR = 128 + OY;     // the far mountains' base
@@ -103,9 +143,9 @@ export class Scene extends PixelScene {
     const sunCol = lerp3([255, 250, 226], [255, 178, 98], w.sun), horizon = this.skyGrad(1, w);
     const mir = (u2) => { const k = Math.floor(u2 / IW); let r = u2 - k * IW; if (k & 1) r = IW - 1 - r; return r; };
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const iy = Math.max(0, Math.min(IH - 1, y - OY)), fx = mir(x - ox), fi = (iy * IW + fx) * 4;
+      const iy = Math.max(0, Math.min(IH - 1, y - OY)), fi = (iy * IW + mir(x - ox)) * 4, ff = (iy * IW + this.fcol[x]) * 4;
       let c, sky = false;
-      if (y - OY >= 0 && y - OY < IH && F.d[fi + 3] > 128) c = this.grade([F.d[fi], F.d[fi + 1], F.d[fi + 2]], w);
+      if (y - OY >= 0 && y - OY < IH && F.d[ff + 3] > 128) c = this.grade([F.d[ff], F.d[ff + 1], F.d[ff + 2]], w);
       else if (y - OY >= 0 && y - OY < IH && M.d[fi + 3] > 128) {
         c = this.grade([M.d[fi], M.d[fi + 1], M.d[fi + 2]], w);
         const hz = (0.42 - 0.3 * clamp((iy - 100) / 60)) * (0.8 * w.day + 0.5 * w.sun + 0.6 * w.night);   // the far mountains sit in haze
