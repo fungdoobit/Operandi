@@ -1,73 +1,89 @@
-// TENTACLE STORM, the Abyssal Maw's flurry (Isaac 2026-10-24: "not straight as a ruler, a bunch of subsequent sweeping whips,
-// cinematic, no black bars, high quality target interaction, animation and impact").
+// TENTACLE STORM, the Abyssal Maw's flurry (Isaac 2026-10-24/25: "a bunch of subsequent sweeping whips, not straight as a ruler,
+// sweeping from left to right and vice versa, not top-down smacking; cinematic, no black bars, high quality target interaction";
+// the two-arm X finisher was dropped: "the last clap looks weird").
 //
-// Four of his own arms take turns: each rears back and SWEEPS across the stage in a big curve, over the top or up from the
-// floor, then swings back into the mass while the next one is already coming. Two arms finish it together, crossing like an X.
+// Four of his own arms take turns lashing SIDEWAYS through your fighter, the way a bullwhip cracks: the arm is folded into a
+// loop (a U-turn), and the loop rolls along it, across the stage and past them, until the tip whips round at the far end.
+// A forehand rolls the loop from his side to theirs (right to left); a backhand rolls it back (left to right). Each one is at
+// a different height, size and speed, and the last, wide and low, takes them off their feet.
 //
-// How a sweep looks like a whip: only the arm's root is steered (an angle). Every point further along takes the angle the root
-// had a moment earlier (3.6 ms later per point), so the bend runs down the arm and the tip arrives last and snaps through. On
-// top of that the arm is never straight: it curls back while it winds up, carries a slow S, and its tip whips past at the end.
-// Your fighter is really hit: the moment a whip's outer half touches their body they are knocked the way it was moving
-// (a spring on their position, tilt and squash, brought back to where they stand), with a freeze, sparks and a flash.
-// The part of the arm past their body is drawn on the Maw's front layer while it strikes, so the lash lands IN FRONT of them.
+// The loop lies flat (seen from a little above): the leg going out runs just BEHIND your fighter, the leg coming back runs IN
+// FRONT of them (on the Maw's front layer), and the bend passes through their body: the lash wraps them as it goes by.
+// Your fighter is really hit when the bend reaches them: shoved the way it was going (a spring on their position, tilt and
+// squash; the last one throws them into the air and they land), with a freeze, sparks and a flash.
 import { sound } from "../sound.js";
 import { impactFrame } from "../cine.js";
 import { CELL, spl } from "./maw-px.js";
 import { bodyOf } from "./maw-grab.js";
 
-const N = 64;          // points along a whipping arm
-const TAU = 3.6;       // ms each point lags behind the one before it (the tip is about 225 ms behind the root)
+const N = 72;          // points along a whipping arm
+const PZ = 0.3;        // how far down the screen one px towards the camera shows (the camera looks a little down)
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 
 export async function storm(s) {
   const { fx, g } = s;
   const B = bodyOf(s), el = B.el, t0 = g.at;
-  const late = s.skin === "pyro";   // (as in Grab and Slam) his hurt look is a smaller flame; here it's fine, he isn't held
-  // where they are hit: their body's box (design px, from the pivot)
-  const xs0 = B.spec.rows.map((r) => r[1]), xs1 = B.spec.rows.map((r) => r[2]), ys = B.spec.rows.map((r) => r[0]);
-  const box = { l: Math.min(...xs0) - B.pivot[0] - 4, r: Math.max(...xs1) - B.pivot[0] + 4, t: Math.min(...ys) - B.pivot[1] - 4, b: Math.max(...ys) - B.pivot[1] };
-  // your fighter on a spring: knocked about, then back to where they stand
-  const F = { x: 0, y: 0, vx: 0, vy: 0, r: 0, vr: 0, sx: 1, sy: 1, zeta: 0.42 };
+  // your fighter on a spring: shoved about, then back to where they stand (or thrown up and falling, when in the air)
+  const F = { x: 0, y: 0, vx: 0, vy: 0, r: 0, vr: 0, sx: 1, sy: 1, zeta: 0.42, air: false };
   const pivotD = () => [B.box.x + B.home.x + B.pivot[0] + F.x, B.box.y + B.home.y + B.pivot[1] + F.y];
-  const M0 = g.mouthCells(), P0 = pivotD(), T = [P0[0] / CELL, P0[1] / CELL];
-  const thT = Math.atan2(T[1] - M0[1], T[0] - M0[0]), dT = Math.hypot(T[0] - M0[0], T[1] - M0[1]), L = dT * 1.3;   // longer than the gap: it's curved
-  const floor = Math.round((B.box.y + B.home.y + B.feet) / CELL) - 1;   // the arms can't go through the ground
-  const fl = fx.floorFrac; fx.floorFrac = (floor * CELL) / fx.h;   // dust starts on the ground
+  const P0 = pivotD(), floorY = B.box.y + B.home.y + B.feet;   // design px
+  const fl = fx.floorFrac; fx.floorFrac = floorY / fx.h;   // dust starts on the ground
 
   // ---- the whips ----
   const whips = new Set();
-  let finale = null;
-  const thAt = (w, t) => { const H = w.hist; if (t <= H[0][0]) return H[0][1]; for (let i = H.length - 1; i > 0; i--) if (H[i - 1][0] <= t) { const [ta, a] = H[i - 1], [tb, b] = H[i]; return lerp(a, b, clamp((t - ta) / ((tb - ta) || 1))); } return H[0][1]; };
-  const shape = (w) => {   // the whip on its own: the root's angle, delayed down the arm, plus a curl and a little life
-    const M = g.mouthCells(), seg = w.st.L / (N - 1), tt = (g.at - t0) / 1000, pts = [[M[0], M[1]]];
-    let p = [M[0], M[1]];
-    for (let k = 1; k < N; k++) {
-      const f = k / (N - 1), phi = thAt(w, g.at - k * TAU) + w.st.curl * f ** 1.25 + w.st.s * Math.sin(f * Math.PI * 1.6 + w.i) * f
-        + w.st.wav * Math.sin(f * 10 - tt * 34) * f + Math.sin(tt * 7 + f * 8 + w.i) * 0.04 * f;   // wav: ripples running down it as it lashes
-      p = [p[0] + Math.cos(phi) * seg, Math.min(floor, p[1] + Math.sin(phi) * seg)];
-      pts.push(p);
+  // The whip on its own, in 3D (design px; z towards the camera). l: how far the loop has rolled along the track (0 = folded
+  // up by the cat, 1 = at the far end past your fighter). Returns the points and where the bend is.
+  const shape = (w) => {
+    const o = w.o, st = w.st, Mc = g.mouthCells(), M = [Mc[0] * CELL, Mc[1] * CELL, 0], tt = (g.at - t0) / 1000;
+    const yh = P0[1] + o.h + st.dy, rz = st.rz, xs = M[0] - 50, xe = P0[0] - (o.past ?? 80), track = xs - xe;
+    const L1 = st.l * track, xb = xs - L1;                                   // the bend
+    const ret = Math.max(0, (track - L1) * 0.3 * st.ret + 6);               // the leg coming back (shrinks as the loop rolls out)
+    const wave = (u, ph) => Math.sin(u * 0.045 - st.l * 14 - tt * 9 + ph) * st.wav * 11;  // ripples, rolling with the loop
+    const arch = (x) => { const u = clamp((xs - x) / track); return -o.arch * Math.sin(Math.PI * u) - 10 * Math.sin(Math.PI * 2 * u + w.i); };   // the path bows
+    const out = [];
+    // out: from his mouth, curving down to the height and depth of the track, then along it behind your fighter
+    const T0 = [xs, yh, -rz], gap = Math.hypot(T0[0] - M[0], T0[1] - M[1]);
+    for (let k = 0; k <= 16; k++) { const u = k / 16, v = 1 - u, C1 = [M[0] - gap * 0.4, M[1] - gap * 0.15, 0], C2 = [T0[0] + gap * 0.45, T0[1], -rz];
+      out.push([0, 1, 2].map((c) => v * v * v * M[c] + 3 * v * v * u * C1[c] + 3 * v * u * u * C2[c] + u * u * u * T0[c])); }
+    const nOut = Math.max(2, Math.ceil(L1 / 10));
+    for (let k = 1; k <= nOut; k++) { const u = (k / nOut) * L1, x = xs - u; out.push([x, yh + arch(x) + wave(u, 0), -rz + Math.sin(u * 0.02 + w.i) * 8]); }
+    // the bend: half a turn round from behind them to in front of them, a little tilted
+    const yb = yh + arch(xb) + wave(L1, 0);
+    for (let k = 1; k <= 14; k++) { const a = -Math.PI / 2 + (k / 14) * Math.PI; out.push([xb - rz * Math.cos(a) * 0.9, yb + st.tilt * (Math.sin(a) + 1) / 2, rz * Math.sin(a)]); }
+    // back: towards him again, in front of your fighter
+    const nRet = Math.max(2, Math.ceil(ret / 10));
+    // (it trails loosely: sagging, rippling, and its tip curling up at the end)
+    let rp = [xb, yb + st.tilt, rz];
+    for (let k = 1; k <= nRet; k++) {
+      const f = k / nRet, seg = ret / nRet, ang = 0.25 * Math.sin(f * 4 + tt * 8 + w.i) * st.wav + (o.tilt > 0 ? 0.35 : -0.25) * f * f + (f > 0.75 ? -(f - 0.75) * 7 : 0);
+      rp = [rp[0] + Math.cos(ang) * seg, rp[1] + Math.sin(ang) * seg, rz + f * 18];
+      out.push(rp);
     }
-    return pts;
+    // even the points out along the arm (so its thickness runs evenly), then draw it with the camera a little above
+    const d = [0];
+    for (let k = 1; k < out.length; k++) d.push(d[k - 1] + Math.hypot(out[k][0] - out[k - 1][0], out[k][1] - out[k - 1][1], out[k][2] - out[k - 1][2]));
+    const Lt = d[d.length - 1], res = []; let j = 0;
+    for (let k = 0; k < N; k++) {
+      const sk = (k / (N - 1)) * Lt; while (j < out.length - 2 && d[j + 1] < sk) j++;
+      const u = clamp((sk - d[j]) / ((d[j + 1] - d[j]) || 1)), q = [0, 1, 2].map((c) => lerp(out[j][c], out[j + 1][c], u));
+      res.push([q[0] / CELL, Math.min(floorY - 3, q[1] + q[2] * PZ) / CELL, q[2]]);
+    }
+    return { pts: res, bend: xb, yh };
   };
-  const inside = (P) => { const c = pivotD(), x = P[0] * CELL - c[0], y = P[1] * CELL - c[1]; return x > box.l && x < box.r && y > box.t && y < box.b; };
   function start(i, o) {
-    const r0 = g.armPts(i), rest = Array.isArray(r0) ? r0 : r0.pts, M = g.mouthCells(), tip = rest[rest.length - 1];   // (it may still be finishing a whip)
-    let len = 0; for (let k = 1; k < rest.length; k++) len += Math.hypot(rest[k][0] - rest[k - 1][0], rest[k][1] - rest[k - 1][1]);
-    let th0 = Math.atan2(tip[1] - M[1], tip[0] - M[0]);
-    th0 = thT + Math.atan2(Math.sin(th0 - thT), Math.cos(th0 - thT));   // measured from the line to your fighter, so it never swings the long way round
-    const w = { i, o, st: { w: 0, th: th0, L: len, curl: 0, s: 0, wav: 0 }, hist: [[g.at - 2000, th0]], armed: false, front: false, hit: false, floorHit: false, prev: null };
+    const w = { i, o, st: { w: 0, l: o.back ? 1 : 0, rz: o.rz * 0.5, tilt: o.tilt ?? 0, ret: 1, wav: 0, dy: 0 }, armed: false, hit: false, side: null };
     w.fn = (base) => {
-      const W = shape(w), k0 = Math.floor(N * 0.42);
-      const pts = W.map((q, k) => { const b = spl(base, k / (N - 1)); return [lerp(b[0], q[0], w.st.w), lerp(b[1], q[1], w.st.w)]; });
-      // contact: the first point of the outer half inside their body, while the whip is live
-      if (w.armed && !w.hit) for (let k = k0; k < N; k++) if (inside(pts[k])) { const pv = w.prev ? w.prev[k] : pts[k]; contact(w, pts[k], [pts[k][0] - pv[0], pts[k][1] - pv[1]]); break; }
-      // the tip slapping the ground on a down-sweep
-      if (w.armed && !w.floorHit && w.o.to < w.o.from && pts[N - 4][1] >= floor - 0.5 && w.prev && Math.abs(pts[N - 4][0] - w.prev[N - 4][0]) > 2) { w.floorHit = true; fx.dust(pts[N - 4][0] * CELL, 6, 0.9); sound.sfx("hit", { size: 0.5 }); }
-      w.prev = pts;
-      const out = { pts };
-      if (w.front) out.front = [[clamp((dT - 26) / w.st.L), 1]];
-      return out;
+      const A = shape(w);
+      const pts = A.pts.map((q, k) => { const b = spl(base, k / (N - 1)); return [lerp(b[0], q[0], w.st.w), lerp(b[1], q[1], w.st.w)]; });
+      // the bend reaches them: the moment it crosses the middle of their body
+      const side = Math.sign(A.bend - pivotD()[0]);
+      if (w.armed && !w.hit && w.side !== null && side !== w.side) contact(w, [pivotD()[0], A.yh + 4]);
+      w.side = side;
+      // the stretches in front of your fighter go on the front layer
+      const front = []; let a0 = null;
+      if (w.st.w > 0.3) A.pts.forEach((q, k) => { const t = k / (N - 1); if (q[2] > 3 && a0 === null) a0 = t; if ((q[2] <= 3 || k === N - 1) && a0 !== null) { front.push([a0, t]); a0 = null; } });
+      return { pts, front };
     };
     g.override[i] = w.fn;
     whips.add(w);
@@ -75,32 +91,25 @@ export async function storm(s) {
   }
   function stop(w) { if (g.override[w.i] === w.fn) delete g.override[w.i]; whips.delete(w); }   // (the same arm may already be whipping again)
 
-  // A hit: knocked the way the whip was moving, a freeze, sparks, a flash; the last one is the big one.
-  function contact(w, P, v) {
+  // A hit: shoved the way the lash was going, a freeze, sparks, a flash; the last one throws them into the air.
+  function contact(w, at) {
     w.hit = true;
-    const n = Math.hypot(v[0], v[1]) || 1, d = [v[0] / n, v[1] / n], at = { x: P[0] * CELL, y: P[1] * CELL }, o = w.o;
-    if (finale && finale.done) {   // the second arm of the X: only sparks
-      fx.sparks(at, 10, { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1.2, dir: Math.sign(d[0]) || -1 });
-      return;
-    }
-    const p = o.power;
-    F.vx += d[0] * 700 * p; F.vy += Math.min(0, d[1]) * 420 * p; F.vr += d[0] * 5 * p + d[1] * 1.6 * p;
+    const o = w.o, p = o.power, dir = o.back ? 1 : -1, c = { x: at[0], y: at[1] };   // dir: which way the loop was rolling
+    F.vx += dir * 520 * p; F.vr += dir * 4.5 * p; F.sx = 1 - 0.22 * p;   // shoved along, twisted, squeezed as the bend wraps them
+    if (o.h > 20) F.sy = 1 + 0.08 * p; else F.sy = 1 - 0.08 * p;
     fx.dust(pivotD()[0], Math.round(3 + 4 * p), 0.8);   // their feet scuff the ground
-    if (d[1] > 0.25) { F.sx = 1 + 0.16 * p; F.sy = 1 - 0.14 * p; } else if (d[1] < -0.25) { F.sx = 1 - 0.08 * p; F.sy = 1 + 0.1 * p; }
-    fx.hitstop(Math.round(45 + 40 * p)); fx.shake(Math.round(8 + 10 * p)); fx.punch(0.02 + 0.025 * p, at); fx.flash(0.1 + 0.12 * p, "#ffd6c8");
-    fx.sparks(at, Math.round(8 + 8 * p), { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1 + 0.4 * p, dir: Math.sign(d[0]) || -1 });
-    fx.ring(at, { color: "#f59a90", size: 50 + 40 * p, flat: Math.abs(d[1]) > 0.5 ? 0.5 : 1, ms: 260, width: 4 });
+    fx.hitstop(Math.round(50 + 45 * p)); fx.shake(Math.round(8 + 10 * p)); fx.punch(0.02 + 0.025 * p, c); fx.flash(0.1 + 0.12 * p, "#ffd6c8");
+    fx.sparks(c, Math.round(8 + 8 * p), { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1 + 0.4 * p, dir });
+    fx.ring(c, { color: "#f59a90", size: 60 + 40 * p, flat: 0.35, ms: 280, width: 4 });   // flat: a lash round them, not a burst
     sound.sfx("slash", { size: 0.7 + 0.3 * p }); sound.sfx("hit", { size: p });
     if (o.last) {
-      finale.done = true;
-      F.vx -= 700; F.vy -= 200; F.vr -= 5;
+      F.air = true; F.vy = -620; F.vr += dir * 3;   // swept off their feet
       impactFrame(fx, { ms: 60, frames: 2 });
-      fx.hitstop(160); fx.shake(30); fx.punch(0.07, at); fx.flash(0.4, "#ffd6c8");
-      fx.wait(170).then(() => fx.slowmo(0.35, 300));   // the knock-back flies in slow motion
-      sound.sfx("slamImpact", { size: 1.1 }); sound.sfx("roar", { size: 0.6 });
-      fx.ring(at, { color: "#ffd6c8", size: 150, ms: 420, width: 6 });
-      s.hit({ crit: true });   // the damage lands on the finishing X
-      F.zeta = 0.75;            // and they slide back to their spot instead of bouncing
+      fx.hitstop(160); fx.shake(28); fx.punch(0.07, c); fx.flash(0.35, "#ffd6c8");
+      fx.wait(170).then(() => fx.slowmo(0.4, 320));   // up they go, in slow motion
+      sound.sfx("slamImpact", { size: 1 }); sound.sfx("roar", { size: 0.6 });
+      s.hit({ crit: true });   // the damage lands on the last lash
+      F.zeta = 0.8;            // and they slide back to their spot instead of bouncing
     } else s.flinch({ crit: false });
   }
 
@@ -108,11 +117,14 @@ export async function storm(s) {
   const origin = el.style.transformOrigin;
   el.style.transformOrigin = `${B.box.w / 2 + B.pivot[0]}px ${B.box.h / 2 + B.pivot[1]}px`;
   const hook = (dt) => {
-    for (const w of whips) { w.hist.push([g.at, w.st.th]); if (w.hist.length > 400) w.hist.splice(1, 100); }   // each root angle's recent past
     const k = Math.min(0.05, dt / 1000), W = 13, Z = F.zeta;
-    F.vx += (-W * W * F.x - 2 * Z * W * F.vx) * k; F.vy += (-W * W * F.y - 2 * Z * W * F.vy) * k; F.vr += (-W * W * F.r - 2 * Z * W * F.vr) * k;
+    F.vx += (-W * W * F.x - 2 * Z * W * F.vx) * k; F.vr += (-W * W * F.r - 2 * Z * W * F.vr) * k;
+    if (F.air) F.vy += 2600 * k; else F.vy += (-W * W * F.y - 2 * Z * W * F.vy) * k;   // in the air: falling
     F.x += F.vx * k; F.y += F.vy * k; F.r += F.vr * k;
-    if (F.y > 0) { F.y = 0; F.vy = Math.min(0, F.vy); }
+    if (F.y > 0) {
+      if (F.air) { F.air = false; F.sx = 1.2; F.sy = 0.82; fx.dust(pivotD()[0], 10, 1.2); fx.shake(12); sound.sfx("slamImpact", { size: 0.6 }); }   // they land
+      F.y = 0; F.vy = Math.min(0, F.vy);
+    }
     F.sx += (1 - F.sx) * Math.min(1, k * 10); F.sy += (1 - F.sy) * Math.min(1, k * 10);
   };
   const place = () => {
@@ -123,30 +135,31 @@ export async function storm(s) {
   g.hooks.add(hook); g.draws.add(place);
   const tw = (obj, to, ms, ease = "io") => g.to(to, ms, ease, obj);
 
-  // One whip: rear back to `from` (radians above + / below - the line to your fighter), sweep through to `to`, follow through,
-  // and swing back into the mass. Resolves when the sweep is through (the next one can already be coming).
+  // One lash. Forehand (back: false): it folds up by the cat, then the loop rolls out across the stage past your fighter and the
+  // tip cracks round at the far end. Backhand (back: true): it reaches out past them, then the loop rolls back towards him.
+  // Resolves when the loop has gone by (the next one can already be coming).
   const whip = (i, o) => {
-    const w = start(i, o), dir = Math.sign(o.to - o.from);
+    const w = start(i, o);
     const swept = (async () => {
-      // wind up: short and coiled back over the cat, the hook open toward your fighter
-      tw(w.st, { w: 1 }, o.prep * 0.8, "out"); tw(w.st, { L: dT * 0.38 }, o.prep, "out"); tw(w.st, { curl: -dir * o.curl, s: 0.3 * dir }, o.prep, "out");
-      await tw(w.st, { th: thT + o.from }, o.prep, "out");
+      // wind up: into the start pose, the loop opening up
+      tw(w.st, { w: 1 }, o.prep * 0.85, "out");
+      await tw(w.st, { rz: o.rz }, o.prep, "out");
       if (o.hold) await fx.wait(o.hold);
-      // strike: it swings and unfurls across the stage at once, the coil opening out, the tip last
-      w.armed = true; w.front = true;
+      // the lash: the loop rolls, faster and faster, ripples running along it
+      w.armed = true;
       sound.sfx(o.last ? "swoosh" : "whoosh", { size: 0.6 + 0.3 * o.power });
-      tw(w.st, { L }, o.strike * 1.15, "out");
-      tw(w.st, { curl: dir * 1.0, s: -0.15 * dir }, o.strike + 120, "io");
-      tw(w.st, { wav: 0.24 }, o.strike, "out");
-      await tw(w.st, { th: thT + o.to }, o.strike, "in");
+      tw(w.st, { wav: 1 }, o.strike * 0.5, "out");
+      await tw(w.st, { l: o.back ? 0 : 1 }, o.strike, "in");
     })();
     const done = swept.then(async () => {
-      // follow-through and recoil: it carries on a little, the tip curls round, and it pulls back in (never left lying straight)
-      tw(w.st, { th: thT + o.to + dir * 0.18 }, 240, "out");
-      tw(w.st, { curl: dir * 2.3, s: 0.2 * dir, wav: 0 }, 340, "out");
-      tw(w.st, { L: dT * 0.42 }, 420, "out");
-      await fx.wait(330);               // the tip is still on its way: it can still land
+      // the crack and the recoil: the tip whips round, the loop closes up, and it slides back into the mass
+      sound.sfx("hit", { size: 0.4 });
       w.armed = false;
+      // he yanks it back: the loop rolls back the way it came and the arm lifts off the ground as it goes
+      tw(w.st, { wav: 0.6, rz: o.rz * 0.6, ret: 0.6, dy: -26 }, 280, "out");
+      tw(w.st, { l: o.back ? 0.5 : 0.45 }, 520, "io");
+      await fx.wait(200);
+      tw(w.st, { wav: 0 }, 400, "out");
       await tw(w.st, { w: 0 }, 380, "io");
       stop(w);
     });
@@ -157,25 +170,23 @@ export async function storm(s) {
   try {
     // the arms tense, the camera takes in both of them
     fx.darken(0.2, 400);
-    fx.focus(1.05, { x: (P0[0] + M0[0] * CELL) / 2, y: P0[1] - 30 }, 500);
+    const Mx = g.mouthCells()[0] * CELL;
+    fx.focus(1.05, { x: (P0[0] + Mx) / 2, y: P0[1] - 30 }, 500);
     sound.sfx("growl", { size: 0.8 });
     g.to({ tense: 1, writhe: 1.1 }, 300, "out");
-    // a rhythm that isn't even: over the top, up from the floor, steep and fast, low and flat, a beat... then the X
+    // forehand, backhand lower, forehand higher and faster, backhand, then the last
     let w;
-    w = whip(3, { from: 0.85, to: -0.2, prep: 440, hold: 60, strike: 190, power: 0.8, curl: 2.3 }); ends.push(w.done); await w.swept;
+    w = whip(3, { h: -4, rz: 46, tilt: 8, arch: 46, prep: 420, hold: 60, strike: 300, power: 0.8 }); ends.push(w.done); await w.swept;
     await fx.wait(40);
-    w = whip(5, { from: -0.28, to: 0.42, prep: 270, strike: 165, power: 0.7, curl: 2.0 }); ends.push(w.done); await w.swept;
-    w = whip(4, { from: 1.0, to: -0.16, prep: 240, strike: 150, power: 0.9, curl: 2.6 }); ends.push(w.done); await w.swept;
+    w = whip(5, { back: true, h: 16, rz: 40, tilt: -10, arch: 22, prep: 300, strike: 260, power: 0.7 }); ends.push(w.done); await w.swept;
+    w = whip(4, { h: -20, rz: 52, tilt: 14, arch: 60, prep: 260, strike: 230, power: 0.85 }); ends.push(w.done); await w.swept;
     await fx.wait(20);
-    w = whip(6, { from: -0.2, to: 0.34, prep: 210, strike: 135, power: 0.6, curl: 1.8 }); ends.push(w.done); await w.swept;
-    // the finisher: two arms rear wide, a beat, then cross through them together
-    finale = { done: false };
-    fx.focus(1.09, { x: P0[0] + 40, y: P0[1] - 20 }, 400);
-    const a = whip(3, { from: 0.95, to: -0.2, prep: 440, hold: 150, strike: 190, power: 1.1, curl: 2.5, last: true });
-    const b = whip(5, { from: -0.32, to: 0.44, prep: 440, hold: 150, strike: 190, power: 1.1, curl: 2.2, last: true });
-    ends.push(a.done, b.done);
-    await Promise.all([a.swept, b.swept]);
+    w = whip(6, { back: true, h: 4, rz: 36, tilt: -6, arch: 34, prep: 240, strike: 210, power: 0.65 }); ends.push(w.done); await w.swept;
+    // ...the last: wide and low, a beat before it comes, and it sweeps them off their feet
+    fx.focus(1.08, { x: P0[0] + 40, y: P0[1] - 20 }, 400);
+    w = whip(3, { h: 24, rz: 62, tilt: 6, past: 120, arch: 30, prep: 460, hold: 160, strike: 300, power: 1.15, last: true }); ends.push(w.done); await w.swept;
     await Promise.all(ends);
+    await fx.wait(250);
     fx.focus(1, null, 500); fx.darken(0, 500);
     await fx.wait(250);
   } finally {
