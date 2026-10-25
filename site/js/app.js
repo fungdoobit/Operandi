@@ -9,7 +9,7 @@ import { SHOP, LEVELS, DIFFS, EARN, BOSS, MANA, TIERS, LEVEL, WEAR_SLOTS, levelF
 import { MODULE_BIOME } from "./enemies.js";
 import { BattleStage, pixelateOut } from "./boss-fight.js";
 import { sound } from "./sound.js";
-import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard, countersFirewall } from "./boss-rules.js";
+import { newFight, difficultyFor, nextSpecial, specialApplies, applySpecial, manaFor, castCard, countersFirewall, specialName } from "./boss-rules.js";
 import { Pet } from "./pet.js";
 import { NovaMate, NOVA_CSS } from "./pixel/nova-mate.js";
 import { PyroMate, PYRO_CSS } from "./pixel/pyro-mate.js";
@@ -95,7 +95,8 @@ const firstOpenSection = (l) => { const n = sectionsOf(l).findIndex((_, i) => !s
 const lessonsDoneCount = () => ALL_LESSONS.filter((l) => lessonDone(l.id)).length;
 const modulesDone = () => Object.keys(S().modulesDone).length;
 // Each module ends with a boss: its lessons unlock him, and beating him completes the module.
-const BOSSES = { 1: { name: "GOLEM" } };
+// foe: the battle stage's model (boss-fight.js); Module 2's is THE ABYSSAL MAW (Mittens, the cat with tentacles in his mouth).
+const BOSSES = { 1: { name: "GOLEM", foe: "golem" }, 2: { name: "THE ABYSSAL MAW", foe: "maw" } };
 const bossUnlocked = (m) => MODULE_LESSONS(m).length > 0 && MODULE_LESSONS(m).every((l) => lessonDone(l.id));
 const bossBeaten = (m) => !!S().bossWins[m] || !!S().modulesDone[m];
 
@@ -874,7 +875,7 @@ async function openBoss(m = 1, { again = false } = {}) {
   }
   // the page was closed while the Maw's Constrict was squeezing: that counts as too slow
   if (f.squeeze) { f.me = Math.max(0, f.me - f.squeeze); f.squeeze = 0; if (f.me <= 0) f.over = "lost"; store.save(); }
-  renderBossStage();
+  renderBossStage({ entering });
   if (f.over === "lost") return renderBossPanel("lost");
   task = bossTask(f.cur);
   setWorkVisible(true);
@@ -914,14 +915,15 @@ function chooseFighter(m) {
   })));
 }
 
-function renderBossStage() {
+// entering: the fight is starting, so the entrance plays (the Maw is still called MITTENS until he opens his mouth).
+function renderBossStage({ entering = false } = {}) {
   const f = S().boss;
   $("briefInner").innerHTML = `<div class="bsay" id="bossSay" hidden></div><p class="eyebrow">Module ${view.module} · Boss fight${f && f.number > 1 ? ` · attempt ${f.number}` : ""}</p><div id="bossBody"></div>`;
   // The battle sits in its own band across the top, so it stays in view while
   // you scroll the instructions and type.
   $("arena").hidden = false;
   document.querySelector(".body").classList.add("boss-mode");
-  battle = new BattleStage($("arena"), $("bossSay"), { skin: (f?.fighter === "dot" ? "pyro" : f?.fighter) || S().equipped.teammate || "pyro", accessories: wearing(), name: BOSSES[view.module].name });
+  battle = new BattleStage($("arena"), $("bossSay"), { skin: (f?.fighter === "dot" ? "pyro" : f?.fighter) || S().equipped.teammate || "pyro", accessories: wearing(), name: BOSSES[view.module].name, foe: BOSSES[view.module].foe, entering });
   if (f) battle.hp(f.me, f.foe); else battle.hp(BOSS.hp, BOSS.hp);
   battle.mana(f?.mana || 0);
   if (f?.dome) battle.restoreDome();
@@ -932,7 +934,8 @@ function renderBossStage() {
 
 function renderBossBody() {
   const f = S().boss, c = task, name = BOSSES[f.module].name;
-  const banners = [c.specialNote, f.dome ? `${name}'s Firewall is up: every hit is halved until a crit or a card that breaks Firewalls smashes it.` : ""].filter(Boolean);
+  const shield = specialName("firewall", f.module);
+  const banners = [c.specialNote, f.dome ? `${name}'s ${shield} is up: every hit is halved until a crit or a card that breaks it smashes it.` : ""].filter(Boolean);
   $("bossBody").innerHTML = `${banners.map((b) => `<div class="bspecial">${esc(b)}</div>`).join("")}
     <h1>${esc(c.title)}</h1>
     <p>${esc(c.scenario)}</p>
@@ -997,7 +1000,7 @@ async function castTurn() {
   if (!f.over) f.cur = makeBossCur(f);
   store.save();
   battle.mana(f.mana);
-  battle.say(strike.result === "crit" ? `${card.name}: critical hit!` : strike.result === "blocked" ? `${card.name}. The Firewall soaked up half of it.` : `${card.name}!`, { title: `${strike.dmg} damage`, mood: "fierce" });
+  battle.say(strike.result === "crit" ? `${card.name}: critical hit!` : strike.result === "blocked" ? `${card.name}. The ${battle.shield} soaked up half of it.` : `${card.name}!`, { title: `${strike.dmg} damage`, mood: "fierce" });
   // The save already counts his strike back; the bars show each hit as it lands.
   await battle.attack(strike, () => battle.hp(f.me + back, f.foe), card, { lethal: f.foe <= 0 });
   if (reward) { await battle.victory(); renderBossPanel("won", reward); renderTop(); renderRail(); return; }
@@ -1014,14 +1017,15 @@ async function castTurn() {
   renderBossBody();
   loadEditor();
   prepareTask();
-  if (special === "typos" || special === "glitch") corruptEditor(special);
-  if (special === "firewall") battle.say(`The Firewall halves every hit until it's broken. Only a crit (10/10 on the first Submit, no hints or peeks) or a card that breaks Firewalls smashes it.`, { title: `${name} raised a Firewall`, mood: "worried" });
-  else if (special) battle.say(task.specialNote, { title: special === "typos" ? "Typo Swarm!" : "Glitch Text!", mood: "worried" });
+  const shield = specialName("firewall", f.module);
+  if (special && special !== "firewall") corruptEditor(special);
+  if (special === "firewall") battle.say(`The ${shield} halves every hit until it's broken. Only a crit (10/10 on the first Submit, no hints or peeks) or a card that breaks it smashes it.`, { title: `${name} raised the ${shield}`, mood: "worried" });
+  else if (special) battle.say(task.specialNote, { title: `${specialName(special, f.module)}!`, mood: "worried" });
 }
 
 // The special lands in your code: the editor jolts and flashes as the corrupted starter arrives.
 function corruptEditor(kind) {
-  const c = kind === "typos" ? "255,77,126" : "95,227,255";
+  const c = { typos: "255,77,126", glitch: "95,227,255" }[kind] || "245,154,144";   // the Maw's: the rose of his tentacles
   document.querySelector(".editor").animate([
     { transform: "none", boxShadow: `inset 0 0 0 0 rgba(${c},0)` },
     { transform: "translateX(-8px)", boxShadow: `inset 0 0 0 3px rgba(${c},.9)`, filter: "hue-rotate(40deg) saturate(2)" },
@@ -1063,7 +1067,7 @@ function renderBossPanel(kind, reward) {
   if (kind === "won") {
     h = `<h1>${name} defeated!</h1>
       ${reward.lines.length ? `<div class="note"><b>Rewards</b><ul>${reward.lines.map((l) => `<li>${esc(l)}</li>`).join("")}${reward.levelUp ? `<li>Level up: you're now <b>${esc(reward.levelUp)}</b></li>` : ""}</ul></div>` : `<p>A rematch win. Rewards only come from the first win.</p>`}
-      ${reward.already ? "" : `<p class="empty">${reward.firstTry ? `${name}'s exclusive accessory is still being designed. You won on your first try, so it's yours as soon as it's ready.` : `${name}'s exclusive accessory is still being designed. It'll be in the Shop for ${BOSS.exclusivePrice.toLocaleString()} Bits once it's ready (a first-try win would have given it free).`}</p>`}
+      ${reward.already ? "" : m === 2 ? `<p class="empty">The tentacles are gone and Mittens is just a cat again, purring. He wants to come with you: Mittens joins you as a roaming companion as soon as he's ready.</p>` : `<p class="empty">${reward.firstTry ? `${name}'s exclusive accessory is still being designed. You won on your first try, so it's yours as soon as it's ready.` : `${name}'s exclusive accessory is still being designed. It'll be in the Shop for ${BOSS.exclusivePrice.toLocaleString()} Bits once it's ready (a first-try win would have given it free).`}</p>`}
       <button class="btn primary" id="bossNext">Practice challenges →</button>`;
     if (reward.levelUp) setTimeout(() => toast(`Level up: you're now ${reward.levelUp}!`), 400);
   } else if (kind === "lost") {
@@ -1230,23 +1234,28 @@ async function initCloud() {
 
 // For trying things out on a real device:
 //   ?test=boss   load a save with Module 1's lessons done and GOLEM ready to fight
+//   ?test=boss2  load a save with Modules 1 and 2 done up to THE ABYSSAL MAW (GOLEM beaten), ready to fight him
 //   ?test=reset  wipe everything back to the very beginning
 //   ?test=nova   switch your teammate to NOVA, with his idles every 8-12 s instead of 20-40 s
-// boss and reset ask first. The link is cleaned from the address bar either way.
-let bootBoss = false;
+// boss, boss2 and reset ask first. The link is cleaned from the address bar either way.
+let bootBoss = 0;   // the module whose boss to open straight away
 const testMode = new URLSearchParams(location.search).get("test");
 if (testMode) {
   history.replaceState(null, "", location.pathname);
-  if (testMode === "boss" && confirm("Load the boss test save?\n\nThis replaces your lesson progress with: every Module 1 lesson done, and GOLEM ready to fight. Your Bits and Shop items stay.")) {
+  const m = { boss: 1, boss2: 2 }[testMode];
+  if (m && confirm(m === 1
+    ? "Load the boss test save?\n\nThis replaces your lesson progress with: every Module 1 lesson done, and GOLEM ready to fight. Your Bits and Shop items stay."
+    : "Load the Module 2 boss test save?\n\nThis replaces your lesson progress with: every Module 1 and 2 lesson done, GOLEM beaten, and THE ABYSSAL MAW ready to fight. Your Bits and Shop items stay.")) {
     const at = new Date().toISOString();
-    for (const l of MODULE_LESSONS(1)) {
+    for (let mod = 1; mod <= m; mod++) for (const l of MODULE_LESSONS(mod)) {
       sectionsOf(l).forEach((_, i) => { S().lessons[sectionKey(l, i)] = { done: true, mark: 9, attempts: 1, hints: 0, assisted: false, solutionUsed: false, peeked: [], at }; });
       S().lessons[l.id] = { done: true, mark: 9, at };
     }
     // testMode: boss challenges get a "Fill in the answer" button. ?test=reset clears it with everything else.
-    Object.assign(S(), { modulesDone: {}, boss: null, bossWins: {}, bossFights: {}, seenIntro: true, testMode: true });
+    const beaten = m === 2 ? { 1: { at, firstTry: true, number: 1 } } : {};
+    Object.assign(S(), { modulesDone: m === 2 ? { 1: at } : {}, boss: null, bossWins: beaten, bossFights: {}, seenIntro: true, testMode: true });
     store.save();
-    bootBoss = true;
+    bootBoss = m;
   }
   if (testMode === "nova") {
     store.equip("teammate", "nova");
@@ -1265,5 +1274,5 @@ renderTop();
 const firstOpen = ALL_LESSONS.find((l, i) => lessonUnlocked(i) && !lessonDone(l.id));
 openLesson((firstOpen || ALL_LESSONS[ALL_LESSONS.length - 1]).id);
 // A pass still waiting for its ability card (the page was closed mid-choice): straight back to the fight.
-if (bootBoss || (S().boss?.hand && !S().boss.over)) openBoss(S().boss?.module || 1);
+if (bootBoss || (S().boss?.hand && !S().boss.over)) openBoss(S().boss?.module || bootBoss || 1);
 initCloud();

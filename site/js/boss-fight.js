@@ -10,10 +10,10 @@ import { PixelBoss } from "./pixel/golem-boss.js";
 import { golemAttack, golemIntro, golemSpecial } from "./pixel/golem-moves.js";
 import { PixelMaw } from "./pixel/maw-px.js";
 import { MawBoss } from "./pixel/maw-boss.js";
-import { mawAttack, mawIntro, mawSpecial, mawConstrict } from "./pixel/maw-moves.js";
+import { mawAttack, mawIntro, mawSpecial, mawConstrict, mawDefeat, mawWin } from "./pixel/maw-moves.js";
 import { quickTest } from "./quick-test.js";
 import { QUICK_TESTS } from "../content/quick-tests.js";
-import { SPECIALS } from "./boss-rules.js";
+import { specialName } from "./boss-rules.js";
 import { BOSS } from "./economy.js";
 import { biomeBG } from "./pixel/biomes.js";
 import { PixelEnemy, EnemyFoe } from "./pixel/enemy-px.js";
@@ -244,7 +244,8 @@ export class BattleStage {
   }
 
   // The card hand: resolves with the card you cast (cards.js).
-  pickCard(f, opts) { return pickCard(this.stage, this.kit, f, { theme: this.ctx.theme, ...opts }); }
+  pickCard(f, opts) { return pickCard(this.stage, this.kit, f, { theme: this.ctx.theme, shield: this.shield, ...opts }); }
+  get shield() { return specialName("firewall", this.maw ? 2 : 1); }   // "Firewall", or the Maw's "Coil Shield"
 
   // A damage number popping up over someone ("-22", "CRIT -40", "MISS").
   number(text, who, kind = "") {
@@ -364,19 +365,19 @@ export class BattleStage {
     this.golem.fxv.glitch = 1; this.golem.to({ glitch: 0 }, 500, "lin", this.golem.fxv);
   }
 
-  special(kind) { return (this.maw ? mawSpecial : golemSpecial)(this.ctx, kind, SPECIALS[kind]); }
+  special(kind) { return (this.maw ? mawSpecial : golemSpecial)(this.ctx, kind, specialName(kind, this.maw ? 2 : 1)); }
   // Put a standing Firewall back after a reload.
   restoreDome() { this.boss.buildDome(); }
   async victory() {
     if (!this.isBoss) { await enemyDefeat(this.ctx); await M.teammateWin(this.ctx); return; }
     // the finishing move already killed him on screen (dragged under, ripped apart, crushed)
     if (this.foeGone) { sound.music("victory"); await M.teammateWin(this.ctx); return; }
-    sound.music(null); await M.bossDefeat(this.ctx); sound.music("victory");
+    sound.music(null); await (this.maw ? mawDefeat : M.bossDefeat)(this.ctx); sound.music("victory");
   }
   // An enemy beaten mid-level (another one is coming).
   beaten() { return enemyDefeat(this.ctx); }
   async defeat() {
     if (!this.isBoss) { await M.teammateKO(this.ctx); this.boss.win(); await this.fx.wait(1200); return; }
-    sound.music("defeat"); await M.bossWin(this.ctx);
+    sound.music("defeat"); await (this.maw ? mawWin : M.bossWin)(this.ctx);
   }
 }

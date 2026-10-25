@@ -79,12 +79,13 @@ const touchy = () => matchMedia("(hover: none)").matches;
 
 // Show the hand and wait for a card. anchor = the battle band (the hand sits on
 // its bottom edge). f = the fight (mana, cooldowns). Returns the cast card.
-export function pickCard(anchor, kit, f, { theme = "void", crit = false, gain = 0, dome = false } = {}) {
+// shield: what this boss calls his Firewall (the Abyssal Maw's is the Coil Shield).
+export function pickCard(anchor, kit, f, { theme = "void", crit = false, gain = 0, dome = false, shield = "Firewall" } = {}) {
   const [c1, c2, c3, c4] = LOOK[theme] || LOOK.void;
   const hand = document.createElement("div");
   hand.className = "bhand";
   const n = kit.length;
-  hand.innerHTML = `<div class="hbar"><span>Mana <b>${f.mana}</b> / ${MANA.cap}${gain ? ` <span class="how">(+${gain})</span>` : ""}</span>${crit ? `<span class="crit">Flawless: your ability crits ×${BOSS.critTimes}</span>` : ""}${dome && !crit ? `<span class="crit">Firewall up: hits are halved unless they break it</span>` : ""}<span class="how">${touchy() ? "Tap to read · hold to cast" : "Click to cast · right-click to read"}</span></div>
+  hand.innerHTML = `<div class="hbar"><span>Mana <b>${f.mana}</b> / ${MANA.cap}${gain ? ` <span class="how">(+${gain})</span>` : ""}</span>${crit ? `<span class="crit">Flawless: your ability crits ×${BOSS.critTimes}</span>` : ""}${dome && !crit ? `<span class="crit">${shield} up: hits are halved unless they break it</span>` : ""}<span class="how">${touchy() ? "Tap to read · hold to cast" : "Click to cast · right-click to read"}</span></div>
     <div class="row">${kit.map((c, i) => {
       const t = TIERS[c.tier], why = cantCast(f, c), cd = f.cd?.[c.id] || 0, mid = (n - 1) / 2, d = i - mid;
       return `<div class="bcard${why ? " off" : ""}${cd ? " cooling" : ""}" tabindex="0" data-i="${i}" style="--c1:${c1};--c2:${c2};--c3:${c3};--c4:${c4};--rot:${(d * 3.2).toFixed(1)}deg;--dy:${(Math.abs(d) ** 1.6 * 5).toFixed(0)}px;--delay:${(i * 0.05).toFixed(2)}s;--hold:450ms" aria-label="${esc(c.name)}, ${t.label}, ${t.mana} mana, ${t.dmg} damage${why ? `. ${why}` : ""}">
@@ -94,7 +95,7 @@ export function pickCard(anchor, kit, f, { theme = "void", crit = false, gain = 
             <div class="cdv"><div>${cd}<small>turn${cd === 1 ? "" : "s"}</small></div></div></div>
           <div class="face back"><div class="nm">${esc(c.name)}</div>
             <div class="stats"><span>Damage</span><span>${t.dmg}${crit ? ` (crit ${Math.round(t.dmg * BOSS.critTimes)})` : ""}</span><span>Mana</span><span>${t.mana || "free"}</span><span>Cooldown</span><span>${t.cd ? `${t.cd} turn${t.cd === 1 ? "" : "s"}` : "none"}</span></div>
-            <p>${c.counters === "firewall" ? "<b class=\"brk\">Breaks the Firewall.</b> " : ""}${esc(c.desc)}</p>
+            <p>${c.counters === "firewall" ? `<b class="brk">Breaks the ${shield}.</b> ` : ""}${esc(c.desc)}</p>
             <button class="cast" type="button" ${why ? "disabled" : ""}>${why ? esc(why) : "Cast"}</button>
             <small>${touchy() ? "or press and hold the card" : "or left-click the card"}</small></div>
         </div><div class="hold"></div></div>`;

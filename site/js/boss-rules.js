@@ -3,7 +3,12 @@
 
 import { BOSS, MANA, TIERS } from "./economy.js";
 
-export const SPECIALS = { firewall: "Firewall", typos: "Typo Swarm", glitch: "Glitch Text" };
+export const SPECIALS = { firewall: "Firewall", typos: "Typo Swarm", glitch: "Glitch Text", quote: "Quote Trap", caseTwist: "Case Twist", flip: "Flipped Values" };
+// Each boss has its own specials. Module 2's Abyssal Maw (2026-10-24, agreed with Isaac): his Firewall is the Coil Shield, and
+// his three mess with the given values: a number in quotes, the capitals of a text swapped, two numbers swapped.
+const BOSS_SPECIALS = { 1: ["firewall", "typos", "glitch"], 2: ["firewall", "quote", "caseTwist", "flip"] };
+export const specialsFor = (module) => BOSS_SPECIALS[module] || BOSS_SPECIALS[1];
+export const specialName = (kind, module) => (kind === "firewall" && module === 2 ? "Coil Shield" : SPECIALS[kind]);
 
 export function newFight(module, number = 1) {
   return { module, number, me: BOSS.hp, foe: BOSS.hp, turn: 0, cur: null, dome: false, pending: null, lastSpecial: null, over: null, mana: 0, cd: {}, hand: null };
@@ -47,19 +52,27 @@ export function castCard(f, card, { crit }) {
 // After a pass: does the boss charge a special for the next challenge?
 export function nextSpecial(f, rand = Math.random) {
   if (f.foe <= 0 || f.turn % BOSS.specialEvery !== 0) return null;
-  const options = Object.keys(SPECIALS).filter((k) => k !== f.lastSpecial && !(k === "firewall" && f.dome));
+  const options = specialsFor(f.module).filter((k) => k !== f.lastSpecial && !(k === "firewall" && f.dome));
   return options[Math.floor(rand() * options.length)];
 }
 
-// ---- What Typo Swarm and Glitch Text do to the next challenge's starter ----
+// ---- What the code specials do to the next challenge's starter ----
 
 const GIVEN = /^([A-Za-z_]\w*) = (.+)$/;
 const GLITCH = "#%&@";
+const NUMBER = /^([A-Za-z_]\w*) = (-?\d+(?:\.\d+)?)$/;            // count = 12
+const TEXT = /^([A-Za-z_]\w*) = "([^"\\]*)"$/;                    // city = "Tokyo"
+const lettersIn = (t) => (t.match(/[A-Za-z]/g) || []).length;
+const numberLines = (lines) => lines.map((l, i) => i).filter((i) => NUMBER.test(lines[i]));
+const flipPairs = (lines) => { const n = numberLines(lines), out = []; for (const a of n) for (const b of n) if (a < b && lines[a].match(NUMBER)[2] !== lines[b].match(NUMBER)[2]) out.push([a, b]); return out; };
 
 export function specialApplies(kind, starter) {
   const lines = starter.split("\n");
   if (kind === "typos") return lines.some((l) => GIVEN.test(l) && l.match(GIVEN)[1].length >= 4);
   if (kind === "glitch") return lines.some((l) => /^[A-Za-z_]\w* = "([^"#%&@]{2,})"$/.test(l));
+  if (kind === "quote") return numberLines(lines).length > 0;
+  if (kind === "caseTwist") return lines.some((l) => TEXT.test(l) && lettersIn(l.match(TEXT)[2]) >= 2);
+  if (kind === "flip") return flipPairs(lines).length > 0;
   return true;
 }
 
@@ -91,6 +104,28 @@ export function applySpecial(kind, starter, r) {
       lines[i] = `${name} = "${chars.join("")}"`;
     }
     return { starter: lines.join("\n"), note: "Glitch Text scrambled the given text. Delete the # % & @ symbols from it before you start." };
+  }
+  // Quote Trap: one given number is wrapped in quotes, so it's text now (count = "12"). Comparing or adding it fails, and the
+  // "given values unchanged" test points at it.
+  if (kind === "quote") {
+    const idx = numberLines(lines), i = idx[r.int(0, idx.length - 1)], [, name, num] = lines[i].match(NUMBER);
+    lines[i] = `${name} = "${num}"`;
+    return { starter: lines.join("\n"), note: "The Quote Trap wrapped one of the given numbers in quotes, so Python sees it as text, not a number. Find it and take the quotes off before you start." };
+  }
+  // Case Twist: one given text has its capitals swapped ("Tokyo" becomes "tOKYO"). Python sees them as different text.
+  if (kind === "caseTwist") {
+    const idx = lines.map((l, i) => i).filter((i) => TEXT.test(lines[i]) && lettersIn(lines[i].match(TEXT)[2]) >= 2);
+    const i = idx[r.int(0, idx.length - 1)], [, name, text] = lines[i].match(TEXT);
+    const twisted = [...text].map((ch) => (ch === ch.toUpperCase() ? ch.toLowerCase() : ch.toUpperCase())).join("");
+    lines[i] = `${name} = "${twisted}"`;
+    return { starter: lines.join("\n"), note: "Case Twist swapped the capitals in some given text: big letters became small and small became big. Python sees \"Tokyo\" and \"tOKYO\" as different text, so put it back exactly as the task gives it." };
+  }
+  // Flipped Values: two given numbers swap places (limit = 30, temp = 25 instead of limit = 25, temp = 30).
+  if (kind === "flip") {
+    const pairs = flipPairs(lines), [a, b] = pairs[r.int(0, pairs.length - 1)];
+    const A = lines[a].match(NUMBER), B = lines[b].match(NUMBER);
+    lines[a] = `${A[1]} = ${B[2]}`; lines[b] = `${B[1]} = ${A[2]}`;
+    return { starter: lines.join("\n"), note: "Flipped Values swapped two of the given numbers. Check each one against the task and swap them back before you start." };
   }
   return { starter, note: "" };
 }

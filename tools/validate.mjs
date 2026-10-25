@@ -70,6 +70,25 @@ for (const kind of ["typos", "glitch"]) {
   }
 }
 
+// The Abyssal Maw's specials (Module 2): each difficulty needs a template they fit, and they must matter: the reference
+// solution with the same sabotage must FAIL its checks (so a learner can't pass without undoing it).
+for (const kind of ["quote", "caseTwist", "flip"]) {
+  const m2 = ALL_TEMPLATES.filter((t) => t.module === 2);
+  for (const d of [1, 2, 3]) if (!m2.some((t) => t.difficulty === d && specialApplies(kind, t.make(rng(1)).starter))) fail(`boss ${kind}`, `no Module 2 difficulty ${d} template can take it`);
+  for (const t of m2) for (let seed = 1; seed <= 6; seed++) {
+    const c = t.make(rng(seed * 7919 + 13));
+    if (!specialApplies(kind, c.starter)) continue;
+    const bad = applySpecial(kind, c.starter, rng(seed + 7)).starter;
+    if (bad === c.starter) { fail(`boss ${kind} on ${t.id}`, "changed nothing"); continue; }
+    const before = c.starter.split("\n"), after = bad.split("\n");
+    let sol = c.solution;
+    before.forEach((l, i) => { if (l !== after[i]) { if (!sol.includes(l)) fail(`boss ${kind} on ${t.id}`, `the solution has no line ${JSON.stringify(l)}`); sol = sol.replace(l, after[i]); } });
+    const out = await run(sol, c.checks);
+    if (!out.error && out.results.every((x) => x.passed)) fail(`boss ${kind} on ${t.id} seed ${seed}`, "the sabotaged solution still passes");
+    count++;
+  }
+}
+
 // The Maw's Constrict quick tests: the answer must be exactly what Python prints, and neither wrong option may be.
 for (const [i, q] of QUICK_TESTS.entries()) {
   const out = await run(q.code);

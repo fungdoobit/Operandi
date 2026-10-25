@@ -1,7 +1,7 @@
 // The Abyssal Maw's scenes: his entrance and his attacks, in the same language as GOLEM's (golem-moves.js):
 // a readable wind-up, a fast strike, hit-stop and shake on contact, recovery.
 // Attacks are built from extra arms (maw-px.js `extra`): an arm is a curve whose points the scene animates.
-import { teammateHurt, bossSpecial } from "../battle-moves.js";
+import { teammateHurt, teammateKO, teammateWin } from "../battle-moves.js";
 import { sound } from "../sound.js";
 import { spl, CELL, SK } from "./maw-px.js";
 import { grab } from "./maw-grab.js";
@@ -9,6 +9,7 @@ import { storm } from "./maw-storm.js";
 import { stab } from "./maw-stab.js";
 import { swallow } from "./maw-swallow.js";
 import { constrict } from "./maw-constrict.js";
+import { mawSpecialScene } from "./maw-specials.js";
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -159,5 +160,39 @@ const ATTACKS = {
 };
 
 export function mawSpecial(ctx, move, name) {
-  return bossSpecial(ctx, move, name);
+  return mawSpecialScene(ctx, move, name);
+}
+
+// ---- the end of the fight ----
+// You won: in slow motion his arms thrash one last time, shudder, and sink back into his mouth; it shuts, and Mittens is just
+// a cat again, curling up asleep (MawBoss.defeat). Then your fighter celebrates.
+export async function mawDefeat(ctx) {
+  const { fx, golem: g, boss } = ctx;
+  const c = fx.fromPage(g.point("core"));
+  fx.focus(1.12, c, 700); fx.darken(0.35, 600);
+  fx.flash(0.5, "#ffd6c8"); fx.shake(18); fx.ring(c, { color: "#f59a90", size: 220, ms: 600, width: 6 });
+  sound.sfx("roar");
+  fx.slowmo(0.45, 1500);
+  g.to({ writhe: 2.2, tense: 1 }, 200, "out");
+  for (let i = 0; i < 4; i++) fx.wait(i * 230).then(() => { g.hurt({ crit: true }); fx.shake(10); fx.sparks(c, 10, { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1.2 }); sound.sfx("hit", { size: 0.7 }); });
+  await fx.wait(1100);
+  boss.defeat();
+  sound.sfx("squelch");
+  await fx.wait(2700);
+  fx.focus(1, null, 700); fx.darken(0, 700);
+  await fx.wait(500);
+  await teammateWin(ctx);
+}
+
+// He won: your fighter goes down, and the arms rear up round the cat while he roars.
+export async function mawWin(ctx) {
+  const { fx, golem: g, boss } = ctx;
+  await teammateKO(ctx);
+  const c = fx.fromPage(g.point("core"));
+  fx.focus(1.08, c, 600); fx.darken(0.4, 500);
+  boss.win();
+  for (let i = 0; i < 3; i++) fx.wait(200 + i * 300).then(() => { fx.ring(c, { color: "#f59a90", size: 240, ms: 500, width: 6 }); fx.shake(12); });
+  await fx.wait(1600);
+  fx.focus(1, null, 600); fx.darken(0, 600);
+  await fx.wait(600);
 }

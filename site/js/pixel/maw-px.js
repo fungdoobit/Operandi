@@ -142,6 +142,8 @@ export class PixelMaw {
     this.extra = [];      // extra arms an attack adds: { pts(), w:[a,b], pal, u }
     this.override = {};   // an attack can take over one of the real arms: override[i](idlePts) -> pts
     this.growOv = {};     // ...and how much of it is out of his mouth (0..1), on its own
+    this.clipOv = {};     // ...and hide it below this row of cells (an arm plunging into the ground)
+    this.clipY = Infinity;
     this.hooks = new Set();   // functions run every frame after the tweens (an attack's springs)
     this.draws = new Set();   // functions run just before each drawing (an attack moving your fighter with an arm: only on the frames
                               // that are drawn, so on a slow machine that draws every other frame the two still match)
@@ -233,7 +235,7 @@ export class PixelMaw {
   }
 
   // ---- drawing -------------------------------------------------------------------------------------------------
-  put(x, y, c) { if (x < 0 || y < 0 || x >= this.W || y >= this.H) return; const o = (y * this.W + x) * 4, F = this.F; F[o] = c[0]; F[o + 1] = c[1]; F[o + 2] = c[2]; F[o + 3] = 255; }
+  put(x, y, c) { if (x < 0 || y < 0 || x >= this.W || y >= this.H || y > this.clipY) return; const o = (y * this.W + x) * 4, F = this.F; F[o] = c[0]; F[o + 1] = c[1]; F[o + 2] = c[2]; F[o + 3] = 255; }
   // a soft contact shadow so he sits ON the floor
   shadow(cx, cy, rx) {
     const F = this.F, W = this.W;
@@ -343,6 +345,10 @@ export class PixelMaw {
   // An arm: an override may return { pts, front: [[t0, t1], ...] }; those stretches go on the front layer, the rest here.
   drawArm(i, u) {
     if (this.growOv[i] != null) u = this.growOv[i];
+    this.clipY = this.clipOv[i] ?? Infinity;
+    try { this.drawArmIn(i, u); } finally { this.clipY = Infinity; }
+  }
+  drawArmIn(i, u) {
     const A = ARMS[i], r = this.armPts(i), pal = A.pal || PAL_F;
     if (Array.isArray(r)) return this.tentacle(r, A.w[0] * SK, A.w[1], pal, u, i);
     const fr = r.front || [], back = [];
