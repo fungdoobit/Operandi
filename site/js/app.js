@@ -872,6 +872,8 @@ async function openBoss(m = 1, { again = false } = {}) {
     else { f.fighter = await chooseFighter(m); if (view.kind !== "boss") return; }
     store.save();
   }
+  // the page was closed while the Maw's Constrict was squeezing: that counts as too slow
+  if (f.squeeze) { f.me = Math.max(0, f.me - f.squeeze); f.squeeze = 0; if (f.me <= 0) f.over = "lost"; store.save(); }
   renderBossStage();
   if (f.over === "lost") return renderBossPanel("lost");
   task = bossTask(f.cur);
@@ -982,8 +984,11 @@ async function castTurn() {
   f.foe = Math.max(0, f.foe - strike.dmg);
   f.turn += 1;
   if (strike.result === "crit" || countersFirewall(card)) f.dome = false;   // only a crit or a counter card breaks the Firewall
-  // He strikes back after every hit, unless it was a crit (that staggers him).
-  const back = f.foe > 0 && strike.result !== "crit" ? BOSS.strikeBack : 0;
+  // He strikes back after every hit, unless it was a crit (that staggers him). The Abyssal Maw's strike back can be his
+  // Constrict instead (once a fight): its hit waits in f.squeeze until you answer its quick test.
+  let back = f.foe > 0 && strike.result !== "crit" ? BOSS.strikeBack : 0;
+  const squeeze = back && battle.maw && !f.constricted && f.turn >= 2 && Math.random() < BOSS.constrictChance ? BOSS.constrictHit : 0;
+  if (squeeze) { back = 0; f.constricted = true; f.squeeze = squeeze; }
   f.me = Math.max(0, f.me - back);
   if (f.foe <= 0) f.over = "won"; else if (f.me <= 0) f.over = "lost";
   const special = f.over ? null : nextSpecial(f);
@@ -996,7 +1001,12 @@ async function castTurn() {
   // The save already counts his strike back; the bars show each hit as it lands.
   await battle.attack(strike, () => battle.hp(f.me + back, f.foe), card, { lethal: f.foe <= 0 });
   if (reward) { await battle.victory(); renderBossPanel("won", reward); renderTop(); renderRail(); return; }
-  if (back) await battle.counter(back, () => battle.hp(f.me, f.foe));
+  if (squeeze) {
+    const free = await battle.constrict(squeeze, () => battle.hp(Math.max(0, f.me - squeeze), f.foe), { ms: BOSS.constrictMs });
+    f.squeeze = 0;
+    if (!free) { f.me = Math.max(0, f.me - squeeze); if (f.me <= 0) f.over = "lost"; }
+    store.save();
+  } else if (back) await battle.counter(back, () => battle.hp(f.me, f.foe));
   else battle.staggered();
   if (f.over === "lost") { await battle.defeat(); renderBossPanel("lost"); return; }
   if (special) await battle.special(special);

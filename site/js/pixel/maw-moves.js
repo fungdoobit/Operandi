@@ -8,6 +8,7 @@ import { grab } from "./maw-grab.js";
 import { storm } from "./maw-storm.js";
 import { stab } from "./maw-stab.js";
 import { swallow } from "./maw-swallow.js";
+import { constrict } from "./maw-constrict.js";
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -67,6 +68,25 @@ export async function mawAttack(ctx, kind, { onHit } = {}) {
     kind = pool[Math.floor(Math.random() * pool.length)];
   }
   last = kind;
+  const s = scene(ctx, onHit);
+  await ATTACKS[kind](s);
+  if (!s.hurtDone()) s.hurt();
+  ctx.fx.focus(1, null, 400); ctx.fx.darken(0);
+  await ctx.golem.rest(550);
+}
+
+// CONSTRICT is not in the random pick: app.js plays it (at most once a fight) through BattleStage.constrict, because the hit
+// depends on the quick test. Resolves true if you broke free.
+export async function mawConstrict(ctx, { ms, ask, onHit, onFree }) {
+  const s = scene(ctx, onHit);
+  const free = await constrict(s, { ms, ask, onFree });
+  ctx.fx.focus(1, null, 400); ctx.fx.darken(0);
+  await ctx.golem.rest(550);
+  return free;
+}
+
+// What an attack scene gets: the stage (ctx), the Maw as g, a few helpers, and ways to hurt your fighter (once).
+function scene(ctx, onHit) {
   const { fx, dot, golem } = ctx;
   let hurtDone = false;
   const s = {
@@ -79,11 +99,9 @@ export async function mawAttack(ctx, kind, { onHit } = {}) {
     // the damage without the knock-back (for an attack that is moving your fighter itself); Kaela's sprite stays put
     hit: (opts, { flinch = true } = {}) => { if (hurtDone) return; hurtDone = true; if (flinch) s.flinch(opts); onHit?.(); },
     flinch: (opts) => { dot.hurt(opts); if ("nv" in dot) dot.nv = 0; },
+    hurtDone: () => hurtDone,
   };
-  await ATTACKS[kind](s);
-  if (!hurtDone) s.hurt();
-  fx.focus(1, null, 400); fx.darken(0);
-  await golem.rest(550);
+  return s;
 }
 
 // An extra arm the scene drives. mk(state) returns its points; the state's numbers are tweened by the scene.

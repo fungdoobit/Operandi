@@ -10,7 +10,9 @@ import { PixelBoss } from "./pixel/golem-boss.js";
 import { golemAttack, golemIntro, golemSpecial } from "./pixel/golem-moves.js";
 import { PixelMaw } from "./pixel/maw-px.js";
 import { MawBoss } from "./pixel/maw-boss.js";
-import { mawAttack, mawIntro, mawSpecial } from "./pixel/maw-moves.js";
+import { mawAttack, mawIntro, mawSpecial, mawConstrict } from "./pixel/maw-moves.js";
+import { quickTest } from "./quick-test.js";
+import { QUICK_TESTS } from "../content/quick-tests.js";
 import { SPECIALS } from "./boss-rules.js";
 import { BOSS } from "./economy.js";
 import { biomeBG } from "./pixel/biomes.js";
@@ -67,7 +69,7 @@ export const BATTLE_CSS = `
 .bsound { position: absolute; z-index: 23; left: 50%; bottom: 10px; transform: translateX(-50%); border: 1px solid #ffffff40; background: #0d0f14cc; color: #fff; border-radius: 99px; padding: 6px 14px; font: 600 13px var(--font-body, sans-serif); }
 .bnum { position: absolute; z-index: 21; pointer-events: none; transform: translate(-50%, -50%); font: 800 calc(24px * var(--k, 1)) var(--font-display, sans-serif); color: #fff;
   text-shadow: 0 2px 0 #0009, 0 0 12px #000a; white-space: nowrap; animation: bnum 1.1s cubic-bezier(.2,.9,.3,1) forwards; }
-.bnum.crit { font-size: calc(34px * var(--k, 1)); color: #ffd662; } .bnum.blocked { color: #ffb366; } .bnum.miss { color: #9ea6b5; font-size: calc(20px * var(--k, 1)); } .bnum.ouch { color: #ff7a7a; }
+.bnum.crit { font-size: calc(34px * var(--k, 1)); color: #ffd662; } .bnum.blocked { color: #ffb366; } .bnum.miss { color: #9ea6b5; font-size: calc(20px * var(--k, 1)); } .bnum.ouch { color: #ff7a7a; } .bnum.free { color: #4ee08a; }
 @keyframes bnum { 0% { opacity: 0; margin-top: 10px; scale: .6; } 15% { opacity: 1; scale: 1.15; } 30% { scale: 1; } 75% { opacity: 1; } 100% { opacity: 0; margin-top: -46px; } }
 .bsay { position: sticky; top: 0; z-index: 3; margin: 0 0 14px; padding: 12px 36px 12px 16px; box-shadow: 0 6px 18px #0001; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; background: var(--surface); }
 .bsay b { display: block; margin-bottom: 2px; }
@@ -254,6 +256,8 @@ export class BattleStage {
     n.style.left = (who === "foe" ? r.left + r.width * 0.45 : r.left + r.width / 2) - st.left + "px";
     n.style.top = (who === "foe" ? r.top + r.height * 0.3 : r.top) - st.top + "px";
     this.stage.append(n);
+    const half = n.offsetWidth / 2 + 8;   // keep wide words ("BROKE FREE") inside the stage
+    n.style.left = Math.min(st.width - half, Math.max(half, parseFloat(n.style.left))) + "px";
     setTimeout(() => n.remove(), 1200);
     if (kind === "miss") sound.sfx("miss");
     if (kind === "ouch") sound.sfx("hurt");
@@ -342,6 +346,17 @@ export class BattleStage {
     if (this.maw) await mawAttack(this.ctx, null, { onHit });
     else if (this.isBoss) await golemAttack(this.ctx, null, { onHit });
     else await enemyAttack(this.ctx, this.enemy, { onHit });
+  }
+  // The Abyssal Maw's Constrict: his arms squeeze your teammate while a quick test pops up (quick-test.js). Resolves true
+  // if you answered right in time (you break free, no damage); otherwise onImpact runs as the crushing crit lands.
+  async constrict(dmg, onImpact, { ms = 10000 } = {}) {
+    const q = QUICK_TESTS[Math.floor(Math.random() * QUICK_TESTS.length)];
+    return mawConstrict(this.ctx, {
+      ms,
+      ask: () => quickTest(this.stage, q, { ms }),
+      onHit: () => { this.number(`CRIT -${dmg}`, "me", "ouch crit"); onImpact?.(); },
+      onFree: () => this.number("BROKE FREE", "me", "free"),
+    });
   }
   // A crit staggers him: no strike back this turn.
   staggered() {

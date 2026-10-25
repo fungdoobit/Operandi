@@ -93,6 +93,11 @@ export const BOSS = {
   reward: { firstTry: 100, retry: 50 },
   exclusivePrice: 1500,        // the boss's accessory in the Shop after a retry win
   critTimes: 1.5,              // a flawless pass makes the ability you cast a crit
+  // The Abyssal Maw (Module 2) may strike back with Constrict instead, once a fight: a quick test; answer it in time
+  // and you break free (no damage), else it crushes for a crit
+  constrictHit: 30,            // = bossHit × critTimes
+  constrictChance: 0.4,        // per strike back, from your second cast on, until he's used it
+  constrictMs: 10000,          // time to answer
 };
 
 // Fights in every lesson and challenge (PRD Addendum K). Your teammate's HP

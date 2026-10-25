@@ -14,6 +14,7 @@ import { ALL_LESSONS, ALL_TEMPLATES } from "../site/content/index.js";
 import { rng } from "../site/js/rng.js";
 import { LINT_PENALTY } from "../site/content/help.js";
 import { specialApplies, applySpecial } from "../site/js/boss-rules.js";
+import { QUICK_TESTS } from "../site/content/quick-tests.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SEEDS = Number(process.argv[2] || 60);
@@ -55,7 +56,6 @@ for (const t of ALL_TEMPLATES) {
     count++;
   }
 }
-py.stdin.end();
 
 // Boss specials: Typo Swarm and Glitch Text must change the starter they're
 // planted in, and every boss difficulty needs templates they can be planted in.
@@ -69,6 +69,17 @@ for (const kind of ["typos", "glitch"]) {
     if (specialApplies(kind, c.starter) && applySpecial(kind, c.starter, rng(seed + 7)).starter === c.starter) fail(`boss ${kind} on ${t.id}`, "changed nothing");
   }
 }
+
+// The Maw's Constrict quick tests: the answer must be exactly what Python prints, and neither wrong option may be.
+for (const [i, q] of QUICK_TESTS.entries()) {
+  const out = await run(q.code);
+  const where = `quick test ${i + 1} (${q.code.split("\n")[0]})`;
+  if (out.error) { fail(where, `errors:\n${out.error}`); continue; }
+  const printed = out.lines.join("\n");
+  if (printed !== q.answer) fail(where, `prints ${JSON.stringify(printed)}, not ${JSON.stringify(q.answer)}`);
+  if (q.wrong.length !== 2 || q.wrong.includes(printed) || new Set([q.answer, ...q.wrong]).size !== 3) fail(where, "needs two different wrong options, neither the real output");
+}
+py.stdin.end();
 
 const ids = ALL_TEMPLATES.map((t) => t.id);
 const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
