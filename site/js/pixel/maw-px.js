@@ -141,6 +141,7 @@ export class PixelMaw {
     this.cat = { mode: "gone", x: 0, t0: 0 };   // modes: gone, run, stand, sit, lieYawn, sleep
     this.extra = [];      // extra arms an attack adds: { pts(), w:[a,b], pal, u }
     this.override = {};   // an attack can take over one of the real arms: override[i](idlePts) -> pts
+    this.growOv = {};     // ...and how much of it is out of his mouth (0..1), on its own
     this.hooks = new Set();   // functions run every frame after the tweens (an attack's springs)
     this.draws = new Set();   // functions run just before each drawing (an attack moving your fighter with an arm: only on the frames
                               // that are drawn, so on a slow machine that draws every other frame the two still match)
@@ -341,6 +342,7 @@ export class PixelMaw {
   }
   // An arm: an override may return { pts, front: [[t0, t1], ...] }; those stretches go on the front layer, the rest here.
   drawArm(i, u) {
+    if (this.growOv[i] != null) u = this.growOv[i];
     const A = ARMS[i], r = this.armPts(i), pal = A.pal || PAL_F;
     if (Array.isArray(r)) return this.tentacle(r, A.w[0] * SK, A.w[1], pal, u, i);
     const fr = r.front || [], back = [];

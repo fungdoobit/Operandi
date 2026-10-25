@@ -28,6 +28,7 @@ export const THEMES = {
   void: { deep: "#3b1a78", mid: "#8a5cf0", light: "#d6c2ff", foam: "#f3eaff", glow: "#a57cff" },   // NOVA
   blood: { deep: "#8a1420", mid: "#e03a34", light: "#ff9a88", foam: "#fff0ec", glow: "#ff5a4a" },   // Kaela
   bloodFoam: { deep: "#e03a34", mid: "#ffd8d0", light: "#ffffff", foam: "#ffffff", glow: "#fff0ec" },
+  slime: { deep: "#6a1424", mid: "#d85a58", light: "#f59a90", foam: "#ffe2d8", glow: "#f59a90" },   // the Maw's spit
   // White water: the foam on a wave's crest and a splash's edges (and fire's hot core).
   foam: { deep: "#9ccbdc", mid: "#f6fcfe", light: "#ffffff", foam: "#ffffff", glow: "#ffffff" },
   fireFoam: { deep: "#ff9a3c", mid: "#fff1c9", light: "#ffffff", foam: "#ffffff", glow: "#fff3c4" },

@@ -7,11 +7,12 @@ import { spl, CELL, SK } from "./maw-px.js";
 import { grab } from "./maw-grab.js";
 import { storm } from "./maw-storm.js";
 import { stab } from "./maw-stab.js";
+import { swallow } from "./maw-swallow.js";
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const rand = (a, b) => a + Math.random() * (b - a);
-const MOVES = ["whip", "grab", "storm", "stab"];
+const MOVES = ["whip", "grab", "storm", "stab", "swallow"];
 let last = null;
 
 // ---- entrance -------------------------------------------------------------------------------------------------------
@@ -136,6 +137,7 @@ const ATTACKS = {
   grab,   // GRAB AND SLAM: maw-grab.js
   storm,  // TENTACLE STORM: maw-storm.js
   stab,   // POINT STAB: maw-stab.js
+  swallow, // SWALLOW AND SPIT: maw-swallow.js
 };
 
 export function mawSpecial(ctx, move, name) {
