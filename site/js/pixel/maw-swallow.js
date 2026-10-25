@@ -147,7 +147,8 @@ export async function swallow(s) {
     tw({ sc: 1 }, 460, "out");
     tw({ r: 0.35 }, 470, "out");
     fx.focus(1, null, 500);
-    grow(1, 900, "out");   // the arms pour back out of his mouth
+    grow(1, 900, "out");   // the arms pour back out of his mouth...
+    g.to({ [ARM]: 1 }, 900, "out", g.growOv);   // ...the one that grabbed them too (it went in last, at 0)
     await tw({ fly: 1 }, 470, "in");
     // the landing: squash, skid, slime splat, the hit
     const land = { x: P0[0], y: B.box.y + B.home.y + B.feet - 4 };
