@@ -16,7 +16,17 @@ import { CELL, spl } from "./maw-px.js";
 import { bodyOf } from "./maw-grab.js";
 
 const ARMS4 = [3, 5, 4, 6];
-const OTHERS = [0, 1, 2, 7];   // the rest pull in close to him while the spear is up, so it stands out
+// His other four arms brace him on both sides while the spear is up (Isaac 2026-10-25: pulled in, they looked like a clump of
+// tentacles floating on one side): one plants its tip on the ground in front of the cat, one curls on the ground at his paws,
+// two arch back over his shoulders. The spear rises from the middle of them. Cells from his mouth (the floor is 37 below it).
+// recoil: when he thrusts, the back pair splay further back and the front one digs in.
+const BRACE = {
+  1: [[0, 0], [-12, -12], [-28, -12], [-42, 0], [-50, 18], [-54, 33], [-64, 36]],
+  7: [[0, 2], [-8, 14], [-16, 24], [-22, 33], [-32, 36], [-40, 34]],
+  2: [[0, -2], [8, -16], [22, -24], [38, -22], [50, -10], [56, 6], [64, 14]],
+  0: [[0, 0], [10, -8], [24, -12], [38, -8], [46, 4], [50, 16]],
+};
+const OTHERS = Object.keys(BRACE).map(Number);
 const N = 64;          // points along each arm
 const NS = 6;          // spine control points
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -32,7 +42,7 @@ export async function stab(s) {
   const T = chest().map((v) => v / CELL);
 
   // what the scene animates
-  const st = { pull: 0, stab: 0, ext: 0, R: 14, turns: 0.6, spin: 0, rate: 1.5, open: 0, front: 0, shake: 0, tuck: 0 };
+  const st = { pull: 0, stab: 0, ext: 0, R: 14, turns: 0.6, spin: 0, rate: 1.5, open: 0, front: 0, shake: 0, brace: 0, recoil: 0 };
   const W = [0, 0, 0, 0];   // how far each arm has joined the spear
 
   // ---- the spine: curled high over the cat (the cocked pose, tighter as it draws back) -> straight at your fighter ----
@@ -81,7 +91,17 @@ export async function stab(s) {
   });
 
   OTHERS.forEach((i) => {
-    g.override[i] = (base) => { const M = g.mouthCells(), k = 0.5 * st.tuck; return base.map(([x, y], n) => { const f = n / (base.length - 1); return [lerp(x, M[0] + 4, k * f), lerp(y, M[1] - 6, k * f)]; }); };
+    const P = BRACE[i], back = P[P.length - 1][0] > 0;
+    g.override[i] = (base) => {
+      const M = g.mouthCells(), tt = (g.at - t0) / 1000, n = 24, out = [];
+      for (let k = 0; k < n; k++) {
+        const f = k / (n - 1), b = spl(base, f), q = spl(P, f);
+        const rx = (back ? 10 : -4) * st.recoil * f, wob = Math.sin(tt * 3 + f * 5 + i) * 1.4 * f;   // recoil; a little life
+        const kk = ss(clamp(st.brace * 1.4 - 0.4 * f));   // the root moves first
+        out.push([lerp(b[0], M[0] + q[0] + rx + wob, kk), lerp(b[1], M[1] + q[1] + wob * 0.6 - (back ? 4 * st.recoil * f : 0), kk)]);
+      }
+      return out;
+    };
   });
 
   // ---- your fighter, placed just before every drawing ----
@@ -109,7 +129,7 @@ export async function stab(s) {
     fx.focus(1.06, s.P("core"), 600);
     sound.sfx("growl", { size: 0.8 });
     g.to({ tense: 1, writhe: 0.8 }, 300, "out");
-    tw({ tuck: 1 }, 600, "io");
+    tw({ brace: 1 }, 700, "io");
     ARMS4.forEach((_, j) => fx.wait(j * 90).then(() => g.to({ [j]: 1 }, 520, "out", W)));
     tw({ R: 10, turns: 1.8 }, 820, "out");
     await fx.wait(860);
@@ -126,6 +146,7 @@ export async function stab(s) {
     st.shake = 0;
     st.front = 1;
     tw({ turns: 4.2 }, 130, "in");   // the twist spreads along the longer spear
+    tw({ recoil: 1 }, 160, "out");
     await tw({ stab: 1 }, 130, "in");
     // impact: freeze, the negative flash, they're knocked back while the point drills on
     const at = { x: chest()[0] + 6, y: chest()[1] };
@@ -149,7 +170,7 @@ export async function stab(s) {
     await tw({ open: 1, ext: 0, turns: 1.2 }, 260, "out");
     fx.focus(1, null, 500); fx.darken(0, 500);
     ARMS4.forEach((_, j) => fx.wait(j * 60).then(() => g.to({ [j]: 0 }, 460, "io", W)));
-    tw({ tuck: 0 }, 600, "io");
+    tw({ brace: 0, recoil: 0 }, 650, "io");
     await fx.wait(700);
   } finally {
     [...ARMS4, ...OTHERS].forEach((i) => delete g.override[i]);
