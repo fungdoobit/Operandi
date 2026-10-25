@@ -7,6 +7,7 @@ import { impactFrame, speedLines, bigHit, drawVoidPortal } from "./cine.js";
 import { PODS } from "./pixel/golem-boss.js";
 import { propSprites, stamp } from "./pixel/props-px.js";
 import { planetSprites, spinFrame } from "./pixel/planets-px.js";
+import { graspMaw, chainsMaw, jupiterMaw } from "./abilities-nova-maw.js";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -164,6 +165,7 @@ function drawPortal(g, cx, cy, R, o, t, back, cracks) {
 // hull, and they drag him down into the void. Just before he's pulled under, his
 // core blazes and he rips free, shattering the hands; the portal snaps shut.
 async function graspOfTheVoid(s) {
+  if (s.golem.name === "maw") return graspMaw(s);   // the Maw has his own way out (abilities-nova-maw.js)
   const { fx, px, pxBack, mate, golem, foeEl } = s;
   const core0 = s.golemC(), floor = fx.floorY, R = Math.min(170, fx.w * 0.13);
   const cx = core0.x - 15, cy = floor + 4;
@@ -657,6 +659,7 @@ async function spectralChains(s) {
   const { fx, px, pxTop, spr, sprBack, toon, mate, foeEl } = s;
   const S = propSprites();
   if (!S) return graspOfTheVoid(s);   // no WebGL for the props: fall back to the hands
+  if (s.golem.name === "maw") return chainsMaw(s, S);
   const core = s.golemC(), floor = fx.floorY, cx = core.x - 10;
   const settle = castPose(mate, { lift: 0.1, energy: 3 });
   sound.sfx("ghostWind", { ms: 6000 }); sound.sfx("voidCharge");
@@ -1172,6 +1175,7 @@ async function planetfall(s) {
   // up into the portal, which slams shut.
   const jf = PL.jupiter, R = jf.r;
   const big = { x: core.x - 15, y: 2 };   // at the very top: Jupiter comes down from above the frame
+  if (s.golem.name === "maw") return jupiterMaw(s, { jf, R, big, settle });   // he catches it and eats it
   if (!s.isBoss || s.lethal) return jupiterCrush(s, { jf, R, big, settle, lethal: s.lethal });   // a small enemy can't hold it up: it's crushed
   // Isaac 2026-10-22: GOLEM shrugs off the three planets, and NOVA, furious,
   // calls on her full strength: she rises in a surge of void power and drives
@@ -1180,63 +1184,22 @@ async function planetfall(s) {
   // it's her might against his: her beam bears down on Jupiter while he holds
   // it up, sinking into the floor, until his thrusters fire and he drives it
   // back up, snapping her beam, and the portal swallows it.
-  const { toonBack, mateEl } = s;
+  const { toonBack } = s;
   fx.focus(1, null, 500);
   // he's still standing: he shakes it off and roars
   sound.sfx("roar"); s.golem.fxv.glitch = 0.6; s.golem.to({ glitch: 0 }, 400, "lin", s.golem.fxv);
   await s.golem.to({ flare: 2.4, bob: 0.08, tilt: 0.1 }, 300, "out");
   fx.shake(10); fx.ring(s.golemC(), { color: "#ff3a24", size: 200, ms: 450, width: 5 });
   await s.golem.to({ flare: 0.6, bob: 0, tilt: 0 }, 500, "io");
-  // NOVA: furious, she summons everything she has
-  mate.setMood("angry");
-  fx.darken(0.86, 800);
-  fx.focus(1.06, s.mateC(), 600);
-  sound.sfx("voidCharge"); sound.sfx("darkChoir", { ms: 4000 }); sound.sfx("whispers", { ms: 3000 });
-  const m0 = mate.nova.m;
-  mate.anim(900, (e) => { mate.nova.lift = 0.18 + 0.2 * e; mate.nova.idle.shake = 0.3 * e; mate.nova.m = { ...m0, energy: 3.6 + 3 * e }; }, "out");
-  gatherMotes(pxTop, () => s.mateC(), 1000, { n: 46, r: 240 });
-  let aura = true;   // a pillar of void power surging up round her
-  toonBack.add({ dur: 30000, draw(pen, k, t, a) {
-    if (!aura) { a.t = a.dur; return; }
-    const c = s.mateC();
-    for (let i = 0; i < 8; i++) { const u = (t / 900 + i / 8) % 1; pen.puff("void", c.x + Math.sin(t * 0.004 + i * 2) * 16 * (1 - u), c.y + 34 - u * 170, 24 * (1 - u * 0.6), 0.95 * (1 - u)); }
-    pen.oval("void", c.x, floor, 50, 9, 0.85);
-  } });
-  await fx.wait(900);
-  fx.shake(12); flashAt(pxTop, s.mateC(), 70, 300); sound.sfx("handsBurst");
-  fx.ring(s.mateC(), { color: "#a066f0", size: 240, ms: 500, width: 6 });
-  fx.focus(1, null, 600);
-  // her beam: two twisting strands of violet light with a white-hot core
-  let beamTo = () => big, beamOn = true, beamW = 0;
-  px.add({ dur: 60000, draw(g, k, t, a) {
-    beamW += ((beamOn ? 1 : 0) - beamW) * 0.18;
-    if (!beamOn && beamW < 0.02) { a.t = a.dur; return; }
-    const c = s.mateC(), from = { x: c.x + 8, y: c.y - 14 }, to = beamTo(), dx = to.x - from.x, dy = to.y - from.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
-    for (const ph of [0, Math.PI]) {
-      const pts = [];
-      for (let i = 0; i <= 24; i++) { const u = i / 24, wv = Math.sin(u * 14 - t * 0.02 + ph) * 9 * Math.sin(u * Math.PI); pts.push([from.x + dx * u + nx * wv, from.y + dy * u + ny * wv]); }
-      ribbon(g, pts, 7 * beamW, 5 * beamW, VIOLET);
-    }
-    ribbon(g, [[from.x, from.y], [to.x, to.y]], 5 * beamW, 3 * beamW, PALE);
-    glow(g, from.x, from.y, 30 * beamW, "#a066f0", 0.8); glow(g, to.x, to.y, 44 * beamW, "#a066f0", 0.7);
-    starFlash(g, to.x, to.y, (10 + 4 * Math.sin(t * 0.05)) * beamW, PALE);
-  } });
-  sound.sfx("telekinesis"); sound.sfx("voidHum", { ms: 9000 });
-  const strain = mate.anim(2000, (e) => { mate.nova.idle.shake = 0.3 + 0.4 * e; }, "lin");
-  sound.sfx("bhRumble", { ms: 10000 });
-  const gate = portal(s, px, { x: big.x, y: big.y, rx: R * 1.05, ry: 32 });
-  for (let i = 0; i < 6; i++) fx.wait(i * 300).then(() => fx.shake(4 + i * 2));
-  // the ground shakes and loose rubble starts to float up off the floor
-  const rubble = Array.from({ length: 26 }, () => ({ x: rand(40, fx.w - 40), s: rand(2, 5), v: rand(18, 60), d: rand(0, 2400) }));
-  px.add({ dur: 12000, draw(g, k, t) { for (const q of rubble) { const u = Math.max(0, t - q.d) / 1000; if (u <= 0) continue; const y = floor - 2 - q.v * u - Math.sin(u * 3 + q.x) * 3; if (y < big.y + 30) continue; g.fillStyle = q.s > 3.5 ? "#5d6270" : "#8c92a0"; g.fillRect(q.x + Math.sin(u * 2 + q.x) * 4, y, q.s, q.s); } } });
-  const opening = gate.open(1800);
+  const fury = await novaFury(s, big, R), { gate } = fury;
+  const opening = fury.opening;
   // he looks up at it and braces (arms still down)
   await fx.wait(600);
   sound.sfx("servo", { ms: 400 });
   s.golem.to({ tilt: -0.22, flare: 1.4, lean: -0.04, bob: -0.05, ce: 1.15, ne: 1.15 }, 600, "io");
   await opening;
   fx.title("JUPITER", "");
-  await strain;
+  await fury.strain;
   // it comes down out of the portal; as it comes through, his arms go up
   // and he catches it between his claw and his cannon, like Atlas
   const hands = () => { const a = s.Pt([-0.06, -1.5, -0.05], "claw"), b = s.Pt([0, -1.05, 0], "cannon"); return { a, b, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
@@ -1246,7 +1209,7 @@ async function planetfall(s) {
   let jLive = true, jScale = 1, jSpin = 2.5;
   s.sprBack.add({ dur: 60000, draw(g, k, t, a) { if (!jLive) { a.t = a.dur; return; } drawPlanet(g, jf, J, t, { clipY: big.y, spin: jSpin, scale: jScale }); } });
   s.pxBack.add({ dur: 60000, draw(g, k, t, a) { if (!jLive) { a.t = a.dur; return; } glow(g, J.x, Math.max(J.y, big.y + 40), R * 1.4 * jScale, "#ff9a4a", 0.2); } });
-  beamTo = () => ({ x: J.x, y: Math.max(big.y + 16, J.y - R * 0.55) });   // her beam rides down with it, driving it on
+  fury.aim(() => ({ x: J.x, y: Math.max(big.y + 16, J.y - R * 0.55) }));   // her beam rides down with it, driving it on
   sound.sfx("ghostFly", { size: 1.4 }); sound.sfx("laserCharge", { ms: 1300 });
   for (let i = 0; i < 6; i++) fx.wait(i * 200).then(() => { fx.shake(6 + i * 2); sound.sfx("rumble", { size: 0.6 }); });
   fx.wait(250).then(() => { sound.sfx("servo", { ms: 500 }); sound.sfx("roar"); s.golem.to({ tilt: -0.28, ca: 1.5, ce: 1.4, cp: 0, na: 1.5, ne: 1.4, np: 0.3, flare: 1.8, thrust: 2.2, bob: 0.05, lean: 0 }, 420, "out"); });
@@ -1321,15 +1284,7 @@ async function planetfall(s) {
   s.golem.to({ ca: 1.85, na: 1.85, ce: 1.05, ne: 1.05, cp: -0.5, np: -0.3, tilt: -0.34, bob: 0.08, flare: 4, thrust: 4 }, 700, "out");
   fx.move(foeEl, { x: home.x, y: home.y - 12 }, 800, "out");
   // halfway up, her beam snaps and she's thrown back
-  fx.wait(380).then(() => {
-    beamOn = false; aura = false;
-    sound.sfx("chainSnap"); sound.sfx("impact", { size: 1 });
-    flashAt(pxTop, s.mateC(), 80, 320); shards(pxTop, s.mateC(), 16, 1.1);
-    mate.setMood("sad");
-    const mh = mateEl._pos || { x: 0, y: 0 };
-    fx.move(mateEl, { x: mh.x - 34 }, 140, "out").then(() => fx.move(mateEl, mh, 600, "inOut"));
-    mate.anim(500, (e) => { mate.nova.lift = 0.42 * (1 - e) + 0.18 * e; mate.nova.idle.shake = 0.7 * (1 - e); }, "out");
-  });
+  fx.wait(380).then(() => fury.snap());
   await fx.wait(820);
   // it goes up into the portal and is swallowed: shrinking into the vortex as it spins away
   carry = false; holding = false;
@@ -1351,10 +1306,75 @@ async function planetfall(s) {
   s.golem.rest(700);
   await fx.wait(500);
   fx.darken(0, 600); fx.focus(1, null, 600);
-  mate.nova.idle.shake = 0; mate.nova.m = m0;
+  mate.nova.idle.shake = 0; mate.nova.m = fury.m0;
   settle();
   await fx.wait(500);
   mate.setMood("idle");
+}
+
+// Planetfall's Jupiter, NOVA's side (for any foe that stands up to it): furious, she rises in a surge of void power and drives a
+// beam of magic into the sky that tears a huge portal open at big. Returns the portal (gate, opening while it opens), her strain
+// (resolves when she's at full power), aim(f) to point the beam at f(), snap() when it breaks and she's thrown back, and m0
+// (her look before, to put back). Resolves once the portal has started to open.
+async function novaFury(s, big, R) {
+  const { fx, px, pxTop, toonBack, mate, mateEl } = s;
+  const floor = fx.floorY;
+  // NOVA: furious, she summons everything she has
+  mate.setMood("angry");
+  fx.darken(0.86, 800);
+  fx.focus(1.06, s.mateC(), 600);
+  sound.sfx("voidCharge"); sound.sfx("darkChoir", { ms: 4000 }); sound.sfx("whispers", { ms: 3000 });
+  const m0 = mate.nova.m;
+  mate.anim(900, (e) => { mate.nova.lift = 0.18 + 0.2 * e; mate.nova.idle.shake = 0.3 * e; mate.nova.m = { ...m0, energy: 3.6 + 3 * e }; }, "out");
+  gatherMotes(pxTop, () => s.mateC(), 1000, { n: 46, r: 240 });
+  let aura = true;   // a pillar of void power surging up round her
+  toonBack.add({ dur: 30000, draw(pen, k, t, a) {
+    if (!aura) { a.t = a.dur; return; }
+    const c = s.mateC();
+    for (let i = 0; i < 8; i++) { const u = (t / 900 + i / 8) % 1; pen.puff("void", c.x + Math.sin(t * 0.004 + i * 2) * 16 * (1 - u), c.y + 34 - u * 170, 24 * (1 - u * 0.6), 0.95 * (1 - u)); }
+    pen.oval("void", c.x, floor, 50, 9, 0.85);
+  } });
+  await fx.wait(900);
+  fx.shake(12); flashAt(pxTop, s.mateC(), 70, 300); sound.sfx("handsBurst");
+  fx.ring(s.mateC(), { color: "#a066f0", size: 240, ms: 500, width: 6 });
+  fx.focus(1, null, 600);
+  // her beam: two twisting strands of violet light with a white-hot core
+  let beamTo = () => big, beamOn = true, beamW = 0;
+  px.add({ dur: 60000, draw(g, k, t, a) {
+    beamW += ((beamOn ? 1 : 0) - beamW) * 0.18;
+    if (!beamOn && beamW < 0.02) { a.t = a.dur; return; }
+    const c = s.mateC(), from = { x: c.x + 8, y: c.y - 14 }, to = beamTo(), dx = to.x - from.x, dy = to.y - from.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    for (const ph of [0, Math.PI]) {
+      const pts = [];
+      for (let i = 0; i <= 24; i++) { const u = i / 24, wv = Math.sin(u * 14 - t * 0.02 + ph) * 9 * Math.sin(u * Math.PI); pts.push([from.x + dx * u + nx * wv, from.y + dy * u + ny * wv]); }
+      ribbon(g, pts, 7 * beamW, 5 * beamW, VIOLET);
+    }
+    ribbon(g, [[from.x, from.y], [to.x, to.y]], 5 * beamW, 3 * beamW, PALE);
+    glow(g, from.x, from.y, 30 * beamW, "#a066f0", 0.8); glow(g, to.x, to.y, 44 * beamW, "#a066f0", 0.7);
+    starFlash(g, to.x, to.y, (10 + 4 * Math.sin(t * 0.05)) * beamW, PALE);
+  } });
+  sound.sfx("telekinesis"); sound.sfx("voidHum", { ms: 9000 });
+  const strain = mate.anim(2000, (e) => { mate.nova.idle.shake = 0.3 + 0.4 * e; }, "lin");
+  sound.sfx("bhRumble", { ms: 10000 });
+  const gate = portal(s, px, { x: big.x, y: big.y, rx: R * 1.05, ry: 32 });
+  for (let i = 0; i < 6; i++) fx.wait(i * 300).then(() => fx.shake(4 + i * 2));
+  // the ground shakes and loose rubble starts to float up off the floor
+  const rubble = Array.from({ length: 26 }, () => ({ x: rand(40, fx.w - 40), s: rand(2, 5), v: rand(18, 60), d: rand(0, 2400) }));
+  px.add({ dur: 12000, draw(g, k, t) { for (const q of rubble) { const u = Math.max(0, t - q.d) / 1000; if (u <= 0) continue; const y = floor - 2 - q.v * u - Math.sin(u * 3 + q.x) * 3; if (y < big.y + 30) continue; g.fillStyle = q.s > 3.5 ? "#5d6270" : "#8c92a0"; g.fillRect(q.x + Math.sin(u * 2 + q.x) * 4, y, q.s, q.s); } } });
+  const opening = gate.open(1800);
+  return {
+    gate, opening, strain, m0,
+    aim(f) { beamTo = f; },
+    snap() {
+      beamOn = false; aura = false;
+      sound.sfx("chainSnap"); sound.sfx("impact", { size: 1 });
+      flashAt(pxTop, s.mateC(), 80, 320); shards(pxTop, s.mateC(), 16, 1.1);
+      mate.setMood("sad");
+      const mh = mateEl._pos || { x: 0, y: 0 };
+      fx.move(mateEl, { x: mh.x - 34 }, 140, "out").then(() => fx.move(mateEl, mh, 600, "inOut"));
+      mate.anim(500, (e) => { mate.nova.lift = 0.42 * (1 - e) + 0.18 * e; mate.nova.idle.shake = 0.7 * (1 - e); }, "out");
+    },
+  };
 }
 
 // Planetfall's ending on a small enemy (Addendum K): it can't catch Jupiter
@@ -1443,3 +1463,6 @@ export const NOVA_KIT = [
     desc: "Portals open across the sky and drop Venus, Mars and Uranus onto the boss. Then she tries Jupiter. Breaks a Firewall.",
     art(pen, w, h) { for (const [x, y, r] of [[16, 14, 7], [36, 10, 6], [58, 16, 8]]) { pen.puff("heat", x, y, r, 1.1); pen.puff("heat", x - 3, y - 5, r * 0.7, 0.6); } pen.oval("void", 40, 40, 30, 8, 1.1); pen.puff("heat", 40, 54, 16, 0.9); } },
 ];
+
+// for her spells' versions against THE ABYSSAL MAW (abilities-nova-maw.js)
+export { drawPortal, voidArm, voidHand, voidOoze, portal, castPose, gatherMotes, flashAt, shards, drawPlanet, chainPath, drawLinks, drawCoil, novaFury };

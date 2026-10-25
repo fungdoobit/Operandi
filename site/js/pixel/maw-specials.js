@@ -1,5 +1,6 @@
 // The Abyssal Maw's specials (Module 2 boss). No letterbox bars (Isaac doesn't want them in the Maw's fight).
-//   Coil Shield (his Firewall): the mouth gapes, the arms thrash, then swing round into the wall in front of him (maw-boss.js).
+//   Coil Shield (his Firewall): the mouth gapes, the arms thrash, then rear over one after another and claw into the ground in
+//   front of him, a cage of arches (maw-boss.js buildDome, maw-px.js BARRIER).
 //   Quote Trap, Case Twist, Flipped Values (they mess with the next challenge's given values, boss-rules.js): three arms rear
 //   up and PLUNGE into the ground in front of him, down towards your code under the stage; they wriggle there for a beat,
 //   the ground ripples, and they pull back out. Then app.js jolts the editor as the sabotaged code arrives.
@@ -25,8 +26,7 @@ async function coilShield(ctx, name) {
   const { fx, boss } = ctx;
   await telegraph(ctx, name);
   boss.special("firewall");
-  fx.shake(8);
-  await fx.wait(700);
+  await fx.wait(1500);
   fx.focus(1, null, 400); fx.darken(0, 400);
   await fx.wait(300);
 }

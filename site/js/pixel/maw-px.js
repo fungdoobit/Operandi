@@ -118,11 +118,18 @@ const ARMS = [
   { pts: [[-2, -1], [-8, -28], [-24, -54], [-46, -70], [-60, -92], [-52, -110], [-36, -108]], w: [8, 1.4] },
   { pts: [[-3, 3], [-14, 24], [-30, 28], [-44, 22], [-56, 30]], w: [6, 1.4] },
 ];
-// The Coil Shield: every arm swings round into a curved wall in front of him (a column each, the wall leaning over him).
-const wallPts = (j, n) => { const x = -34 - j * 12; return [[0, 0], [x * 0.35, 10], [x, -6], [x - 4, -50], [x + 2, -96], [x + 14, -132], [x + 34, -150], [x + 52, -146]].slice(0, Math.max(5, n)); };
-const sample = (pts, n) => Array.from({ length: n }, (_, k) => spl(pts, k / (n - 1)));
+// The Coil Shield (Isaac 2026-10-25, after the curved wall: "like the plunge special but with more tentacles where they claw into
+// the ground creating a barrier"): every arm rears up and over and claws into the ground in front of him, each at its own
+// distance (d cells towards your fighter) and height (h cells over the ground), its top tx of the way out, so the arches
+// cross into a cage.
+// at: when it lands (as pose.shield goes 0 to 1).
+export const BARRIER = {
+  7: { d: 34, h: 66, tx: 0.75, at: 0 }, 5: { d: 52, h: 78, tx: 0.38, at: 0.05 }, 3: { d: 70, h: 72, tx: 0.66, at: 0.1 }, 6: { d: 44, h: 96, tx: 0.3, at: 0.14 },
+  4: { d: 90, h: 88, tx: 0.5, at: 0.18 }, 1: { d: 62, h: 108, tx: 0.7, at: 0.24 }, 2: { d: 80, h: 116, tx: 0.4, at: 0.29 }, 0: { d: 104, h: 98, tx: 0.6, at: 0.35 },
+};
+const smooth = (u) => { u = clamp(u); return u * u * (3 - 2 * u); };
 
-export const REST = { tent: 0, writhe: 0.55, shield: 0, mouth: 0, hx: 0, hy: 0, flare: 0, whip: 0, tense: 0, lunge: 0, squash: 0, lean: 0, tilt: 0, bob: 0, glitch: 0 };
+export const REST = { tent: 0, writhe: 0.55, shield: 0, brace: 0, mouth: 0, hx: 0, hy: 0, sink: 0, flare: 0, whip: 0, tense: 0, lunge: 0, squash: 0, lean: 0, tilt: 0, bob: 0, glitch: 0 };
 
 export class PixelMaw {
   // foeEl: the .bfoe element (the BattleStage positions it through layout()).
@@ -144,6 +151,7 @@ export class PixelMaw {
     this.growOv = {};     // ...and how much of it is out of his mouth (0..1), on its own
     this.clipOv = {};     // ...and hide it below this row of cells (an arm plunging into the ground)
     this.clipY = Infinity;
+    this.cut = Infinity;  // hide all of him below this row of cells (sinking into a portal: NOVA's Grasp of the Void)
     this.hooks = new Set();   // functions run every frame after the tweens (an attack's springs)
     this.draws = new Set();   // functions run just before each drawing (an attack moving your fighter with an arm: only on the frames
                               // that are drawn, so on a slow machine that draws every other frame the two still match)
@@ -187,7 +195,7 @@ export class PixelMaw {
     });
   }
   wait(ms) { return this.to({}, ms); }
-  rest(ms = 600) { return this.to({ tent: this.pose.tent > 0.5 ? 1 : 0, writhe: REST.writhe, shield: this.pose.shield, mouth: this.pose.mouth, hx: 0, hy: 0, flare: 0, whip: 0, tense: 0, lunge: 0, squash: 0, lean: 0, tilt: 0, bob: 0 }, ms, "io"); }
+  rest(ms = 600) { return this.to({ tent: this.pose.tent > 0.5 ? 1 : 0, writhe: REST.writhe, shield: this.pose.shield, mouth: this.pose.mouth, hx: 0, hy: 0, sink: 0, flare: 0, whip: 0, tense: 0, lunge: 0, squash: 0, lean: 0, tilt: 0, bob: 0 }, ms, "io"); }
   // Hit: the cat flinches, the arms thrash, a flash.
   hurt({ crit = false } = {}) {
     this.fxv.flash = crit ? 1 : 0.6; this.to({ flash: 0 }, crit ? 420 : 260, "lin", this.fxv);
@@ -199,8 +207,8 @@ export class PixelMaw {
     const r = this.foeEl.getBoundingClientRect(), s = r.width / this.foeW;
     return { x: r.left + (x - this.foeLeft) * s, y: r.top + (y - this.foeTop) * s };
   }
-  mouthCells() { return [this.mouth[0] + this.pose.hx, this.mouth[1] + this.pose.hy]; }
-  mouthD() { const m = this.mouth || [0, 0]; return { x: (m[0] + this.pose.hx) * CELL, y: (m[1] + this.pose.hy) * CELL }; }
+  mouthCells() { return [this.mouth[0] + this.pose.hx, this.mouth[1] + this.pose.hy + this.pose.sink]; }
+  mouthD() { const m = this.mouth || [0, 0]; return { x: (m[0] + this.pose.hx) * CELL, y: (m[1] + this.pose.hy + this.pose.sink) * CELL }; }
   point(name) {
     const m = this.mouthD();
     const at = { core: [0, 0], claw: [-26, 34], muzzle: [-40, 0], thruster: [10, 60] }[name] || [0, 0];
@@ -258,8 +266,8 @@ export class PixelMaw {
     else { anim = "sitIdle"; fi = frameAt(A.sitIdle, t); }
     if (c.mode === "sit" && P.mouth < 0) { anim = "sitYawn"; fi = 5; }                               // negative: closing again
     const a = A[anim], f = a.frames[fi];
-    x += P.hx; y += P.hy;
-    this.shadow(Math.round(x), this.floorC, 22);
+    x += P.hx; y += P.hy + P.sink;
+    if (P.sink < 2) this.shadow(Math.round(x), this.floorC, 22);
     for (let yy = 0; yy < f.NH; yy++) for (let xx = 0; xx < f.NW; xx++) { const col = f.cells[yy * f.NW + xx]; if (col) this.put(Math.round(x + (a.anchor - xx)), Math.round(y - (a.base - yy)), col); }
   }
   // One arm: pts are absolute cells; u is how much has grown.
@@ -309,7 +317,7 @@ export class PixelMaw {
       this.put(x + x0, y + y0, pal[qq]);
     }
     const root = this.mouth;
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!mA(x, y) && (m(x - 1, y) || m(x + 1, y) || m(x, y - 1) || m(x, y + 1))) { if (Math.hypot(x + x0 - root[0] - this.pose.hx, y + y0 - root[1] - this.pose.hy) < 14) continue; this.put(x + x0, y + y0, OUTL); }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!mA(x, y) && (m(x - 1, y) || m(x + 1, y) || m(x, y - 1) || m(x, y + 1))) { if (Math.hypot(x + x0 - root[0] - this.pose.hx, y + y0 - root[1] - this.pose.hy - this.pose.sink) < 14) continue; this.put(x + x0, y + y0, OUTL); }
     // suckers: little cups, bigger near the root
     let last = null, dist = 1e9;
     for (let t = 0.05; t < u - 0.025; t += 0.002) {
@@ -329,24 +337,32 @@ export class PixelMaw {
     }
   }
   armPts(i) {
-    const P = this.pose, A = ARMS[i], M = this.mouth, s = this.at / 1000, wr = P.writhe, n = A.pts.length;
+    const P = this.pose, A = ARMS[i], M = this.mouth, s = this.at / 1000, wr = P.writhe;
     const base = A.pts.map(([x, y], k) => {
       const live = k / 3 * 1.0;
       return [x * SK + Math.sin(s * 2.1 + i * 1.7 + k * 0.9) * k * 1.6 * wr * live, y * SK * 0.78 + Math.cos(s * 1.7 + i * 2.3 + k * 1.1) * k * 1.4 * wr * live];
     });
-    let pts = base;
-    if (P.shield > 0.001) {
-      const wall = sample(wallPts(i, 8).map(([x, y]) => [x * SK * 0.9, y * SK * 0.78]), n), cur = sample(base, n);
-      pts = cur.map((p, k) => [lerp(p[0], wall[k][0], P.shield) + Math.sin(s * 3 + i + k) * k * 0.5 * P.shield, lerp(p[1], wall[k][1], P.shield)]);
-    }
-    const abs = pts.map(([x, y]) => [M[0] + P.hx + x, M[1] + P.hy + y]);
+    let abs = base.map(([x, y]) => [M[0] + P.hx + x, M[1] + P.hy + P.sink + y]);
+    if (P.shield > 0.001) abs = this.barrierPts(i, abs, s);
     return this.override[i] ? this.override[i](abs) : abs;
   }
+  // The Coil Shield's arch for arm i: up out of his mouth, over, and down into the ground (below it, hidden by drawArm's clip).
+  // Each arm leaves its idle pose root first, on its own beat; brace presses the arches down (a blocked hit).
+  barrierPts(i, abs, s) {
+    const B = BARRIER[i], P = this.pose, n = abs.length, G = this.floorC - 1, M = abs[0];
+    const S = this.mouth[0] - B.d, H = B.h * (1 - 0.12 * P.brace), sway = Math.sin(s * 1.6 + i * 1.9) * 1.4;
+    const path = [M, [M[0] - 4 - B.d * 0.12, M[1] - (H - 36) * 0.55 - 6], [M[0] - B.d * B.tx + sway, G - H], [S + B.d * 0.12 + 3 + sway * 0.5, G - H * 0.6], [S + 2, G - 12], [S - 1, G - 2], [S - 5, G + 10]];   // the tip hooks forward as it digs in
+    const p = clamp((P.shield - B.at) / 0.65);
+    const N = Math.max(n, 10);   // (enough points for the arch, whatever the arm's own count)
+    return Array.from({ length: N }, (_, k) => { const f = k / (N - 1), b = spl(abs, f), q = spl(path, f), w = smooth(p * 1.6 - 0.6 * f); return [lerp(b[0], q[0], w), lerp(b[1], q[1], w)]; });
+  }
+  // Where each arm of the Coil Shield goes into the ground (stage px), and when (0..1 of the build).
+  barrierSpots() { return Object.entries(BARRIER).map(([i, B]) => ({ i: +i, x: (this.mouth[0] - B.d) * CELL, y: (this.floorC - 1) * CELL, at: B.at + 0.65 })); }
   // An arm: an override may return { pts, front: [[t0, t1], ...] }; those stretches go on the front layer, the rest here.
   drawArm(i, u) {
     if (this.growOv[i] != null) u = this.growOv[i];
-    this.clipY = this.clipOv[i] ?? Infinity;
-    try { this.drawArmIn(i, u); } finally { this.clipY = Infinity; }
+    this.clipY = Math.min(this.clipOv[i] ?? Infinity, this.cut, this.pose.shield > 0.001 ? this.floorC - 1 : Infinity);
+    try { this.drawArmIn(i, u); } finally { this.clipY = this.cut; }
   }
   drawArmIn(i, u) {
     const A = ARMS[i], r = this.armPts(i), pal = A.pal || PAL_F;
@@ -360,7 +376,7 @@ export class PixelMaw {
     if (!this.sheets || !this.F) return;
     for (const d of this.draws) d();
     const P = this.pose, F = this.F, W = this.W;
-    F.fill(0); this.fronts = [];
+    F.fill(0); this.fronts = []; this.clipY = this.cut;
     for (let i = 0; i < ARMS.length; i++) if (ARMS[i].back) this.drawArm(i, clamp(P.tent * 1.7 - i * 0.1));
     this.drawCat();
     for (let i = 0; i < ARMS.length; i++) if (!ARMS[i].back) this.drawArm(i, eout3(clamp(P.tent * 1.7 - i * 0.1)));
@@ -376,6 +392,7 @@ export class PixelMaw {
       this.F = keep;
       this.flashOver(this.F2);
       this.fg.putImageData(this.img2, 0, 0);
+      this.clipY = Infinity;
       this.f2dirty = this.fronts.length > 0;
       this.fview.style.transform = this.foeEl.style.transform; this.fview.style.opacity = this.foeEl.style.opacity;
     }

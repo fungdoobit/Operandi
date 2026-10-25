@@ -1,8 +1,10 @@
 // The Abyssal Maw wearing the boss interface the shared battle code expects (the same shape as PixelBoss for GOLEM):
 //   figure (with a .boss-core marker), dome, b.name, hit(), charge(), special(), defeat(), win(), buildDome()/breakDome().
-// Its defence is the Coil Shield: the arms swing round into a wall in front of the cat (the Firewall's job: halves every hit
-// until a crit or a counter ability breaks it).
+// Its defence is the Coil Shield: every arm rears over and claws into the ground in front of the cat, a cage of arches
+// (maw-px.js BARRIER; the Firewall's job: halves every hit until a crit or a counter ability breaks it).
 import { sound } from "../sound.js";
+
+const BUILD = 1100;   // ms for the Coil Shield to go up
 
 export class MawBoss {
   constructor({ golem, fx, figure }) {
@@ -47,15 +49,31 @@ export class MawBoss {
   buildDome() {
     sound.sfx("shield");
     this.dome.childElementCount = 1;
-    this.golem.to({ shield: 1, writhe: 0.35 }, 650, "back");
+    const g = this.golem, fx = this.fx;
+    g.to({ writhe: 0.35, tense: 1 }, 300, "out");
+    g.to({ shield: 1 }, BUILD, "lin").then(() => g.to({ tense: 0 }, 400, "io"));
+    for (const sp of g.barrierSpots()) this.later(sp.at * BUILD, () => {   // each arm claws into the ground in turn
+      sound.sfx("squelch"); sound.sfx("debris", { size: 0.5 });
+      fx.shake(7); fx.dust(sp.x, 6, 1);
+      fx.ring({ x: sp.x, y: sp.y }, { color: "#f59a90", size: 60, flat: 0.25, ms: 380, width: 3 });
+    });
   }
-  domeRipple() { sound.sfx("block"); const g = this.golem; g.to({ shield: 0.9 }, 60, "out").then(() => g.to({ shield: 1 }, 260, "back")); g.fxv.flash = 0.3; g.to({ flash: 0 }, 200, "lin", g.fxv); }
-  breakDome() {
-    sound.sfx("shatter");
-    this.dome.childElementCount = 0;
+  // a blocked hit: the arches press down into the ground and spring back
+  domeRipple() {
+    sound.sfx("block");
     const g = this.golem;
-    g.to({ shield: 0, writhe: 1.6 }, 320, "out").then(() => g.to({ writhe: 0.55 }, 700, "io"));
-    this.fx.sparks(this.fx.fromPage(g.point("core")), 22, { colors: ["#ffd6c8", "#f59a90", "#b83f3f"], power: 1.6, dir: -1 });
+    g.to({ brace: 1 }, 60, "out").then(() => g.to({ brace: 0 }, 300, "back"));
+    g.fxv.flash = 0.3; g.to({ flash: 0 }, 200, "lin", g.fxv);
+    for (const sp of g.barrierSpots()) if (sp.i % 2) this.fx.dust(sp.x, 2, 0.6);
+  }
+  // broken: the arms tear out of the ground and thrash
+  breakDome() {
+    sound.sfx("shatter"); sound.sfx("debris");
+    this.dome.childElementCount = 0;
+    const g = this.golem, fx = this.fx;
+    g.to({ shield: 0, writhe: 1.6, brace: 0 }, 380, "out").then(() => g.to({ writhe: 0.55 }, 700, "io"));
+    for (const sp of g.barrierSpots()) { fx.dust(sp.x, 5, 1.1); fx.debris({ x: sp.x, y: sp.y }, 3, { power: 0.9 }); }
+    fx.sparks(fx.fromPage(g.point("core")), 22, { colors: ["#ffd6c8", "#f59a90", "#b83f3f"], power: 1.6, dir: -1 });
   }
 
   // Beaten: the arms go limp and sink, the cat shuts his mouth and falls asleep.

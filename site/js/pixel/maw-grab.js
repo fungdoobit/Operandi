@@ -16,7 +16,7 @@
 // outline of each fighter (BODY: measured from their idle frames, so it hugs PYRO's flame, NOVA and Kaela without cutting
 // through them). Your fighter is carried by moving their element every frame with the arm (a frame hook), so both stay in step.
 import { sound } from "../sound.js";
-import { impactFrame } from "../cine.js";
+import { impactFrame, speedLines } from "../cine.js";
 import { CELL, SK, spl } from "./maw-px.js";
 
 const ARM = 4;        // the long upper arm
@@ -203,23 +203,8 @@ export async function grab(s) {
     const late = s.skin === "pyro";   // PYRO's hurt look is a smaller flame: it would slip down inside the coil, so he flinches as it lets go
     const fl = fx.floorFrac; fx.floorFrac = feetAt().y / fx.h;   // the dust and debris start from where they land
     let first = true;
-    const slam = async (o) => {
-      // up...
-      sound.sfx("whoosh", { size: o.big ? 0.8 : 0.5 });
-      tw({ arch: o.arch, wave: o.big ? 0.4 : 0.2, fight: o.big ? 0.4 : 0.2 }, o.up, "out");
-      await tw({ dx: o.A[0], dy: o.A[1], rot: o.A[2] }, o.up, "out");
-      // ...the hang...
-      if (o.big) { fx.focus(1.08, { x: feetAt().x + 60, y: feetAt().y - 130 }, 420); fx.darken(0.3, 400); }
-      await tw({ dx: o.H[0], dy: o.H[1], rot: o.H[2], wave: 0, fight: 0 }, o.hang, "io");
-      // ...and down in an arc, faster and faster, onto the ground
-      sound.sfx("swoosh");
-      const A0 = [st.dx, st.dy], C0 = [st.dx + o.C[0], st.dy + o.C[1]], E0 = [o.land, 0];
-      const arc = { u: 0 };
-      st.path = () => { const u = arc.u, v = 1 - u; st.dx = v * v * A0[0] + 2 * v * u * C0[0] + u * u * E0[0]; st.dy = v * v * A0[1] + 2 * v * u * C0[1] + u * u * E0[1]; };
-      tw({ rot: o.R, arch: 0.15 }, o.down, "in");
-      await g.to({ u: 1 }, o.down, "in", arc);
-      st.path = null; st.dx = o.land; st.dy = 0;
-      // impact (p = how hard)
+    // the impact (p = how hard)
+    const impact = async (o) => {
       const p = o.power, at = feetAt();
       at.x += o.land;
       st.sx = 1 + 0.24 * p; st.sy = 1 - 0.2 * p; st.rot = 0.05 * Math.sign(o.R);
@@ -239,8 +224,50 @@ export async function grab(s) {
       st.wave = 1.3 * p; tw({ wave: 0 }, 650, "out");   // the shock runs back up the arm
       await fx.wait(o.after);
     };
-    // the big one (the slam Isaac liked: slow lift, long hang, wide arc)
-    await slam({ big: true, A: [66, -140, -0.24], up: 600, H: [82, -158, -0.42], hang: 360, C: [-70, 4], R: 0.22, down: 190, land: 0, power: 1, invert: true, arch: 1, after: 200 });
+    // along a curve through pts (offsets from where they stand, design px) over ms; the first point is where they are now
+    const along = (pts, ms, ease, rot) => {
+      const P = [[st.dx, st.dy], ...pts], q = { u: 0 }, r0 = st.rot;
+      st.path = () => { const [x, y] = spl(P, q.u); st.dx = x; st.dy = y; if (rot) st.rot = rot(q.u, r0); };
+      return g.to({ u: 1 }, ms, ease, q).then(() => { st.path = null; });
+    };
+    // THE BIG ONE, with momentum (Isaac 2026-10-25: "he just grabs it without swinging up first"): it drags them low towards
+    // him, whips them up in a great arc over the top, a beat at the top, then the arc carries on down, faster and faster,
+    // and drives them into the ground
+    const swing = async (o) => {
+      sound.sfx("growl", { size: 0.9 });
+      tw({ arch: 0.3, fight: 0.6 }, 220, "io");
+      await along([[26, 8]], 240, "io", (u, r0) => lerp(r0, 0.22, u));   // the wind-up: low and back
+      sound.sfx("whoosh", { size: 0.9 }); sound.sfx("swoosh");
+      fx.focus(1.05, { x: feetAt().x + 70, y: feetAt().y - 110 }, 420); fx.darken(0.3, 400);
+      tw({ arch: 1, wave: 0.5, fight: 0.2 }, 420, "out");
+      await along([[80, -22], [122, -82], [104, -138], [70, -156]], 440, "out", (u, r0) => lerp(r0, -1.15, ss(u)));   // up and over, slowing as it rises
+      await tw({ dx: 62, dy: -159, rot: -1.25, wave: 0 }, 120, "io");   // the beat at the top
+      sound.sfx("swoosh"); sound.sfx("whoosh", { size: 1 });
+      speedLines(s.pxTop, () => ({ x: feetAt().x + st.dx, y: feetAt().y + st.dy - 40 }), 240, { inner: 70, n: 22 });
+      tw({ arch: 0.15 }, 230, "in");
+      await along([[14, -136], [-30, -80], [-28, -26], [o.land, 0]], 230, "in", (u, r0) => lerp(r0, o.R, ss(u)));   // down, faster and faster
+      st.dx = o.land; st.dy = 0;
+      await impact(o);
+    };
+    const slam = async (o) => {
+      // up...
+      sound.sfx("whoosh", { size: o.big ? 0.8 : 0.5 });
+      tw({ arch: o.arch, wave: o.big ? 0.4 : 0.2, fight: o.big ? 0.4 : 0.2 }, o.up, "out");
+      await tw({ dx: o.A[0], dy: o.A[1], rot: o.A[2] }, o.up, "out");
+      // ...the hang...
+      if (o.big) { fx.focus(1.08, { x: feetAt().x + 60, y: feetAt().y - 130 }, 420); fx.darken(0.3, 400); }
+      await tw({ dx: o.H[0], dy: o.H[1], rot: o.H[2], wave: 0, fight: 0 }, o.hang, "io");
+      // ...and down in an arc, faster and faster, onto the ground
+      sound.sfx("swoosh");
+      const A0 = [st.dx, st.dy], C0 = [st.dx + o.C[0], st.dy + o.C[1]], E0 = [o.land, 0];
+      const arc = { u: 0 };
+      st.path = () => { const u = arc.u, v = 1 - u; st.dx = v * v * A0[0] + 2 * v * u * C0[0] + u * u * E0[0]; st.dy = v * v * A0[1] + 2 * v * u * C0[1] + u * u * E0[1]; };
+      tw({ rot: o.R, arch: 0.15 }, o.down, "in");
+      await g.to({ u: 1 }, o.down, "in", arc);
+      st.path = null; st.dx = o.land; st.dy = 0;
+      await impact(o);
+    };
+    await swing({ big: true, R: 0.22, land: 0, power: 1.15, invert: true, after: 240 });
     fx.focus(1, null, 300); fx.darken(0.15, 300);
     // up again, a slight pause, then three quick ones
     await slam({ A: [52, -122, -0.3], up: 300, H: [58, -130, -0.36], hang: 150, C: [-55, 10], R: 0.18, down: 150, land: -8, power: 0.72, arch: 0.85, after: 60 });
