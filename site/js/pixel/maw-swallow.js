@@ -1,9 +1,9 @@
 // SWALLOW AND SPIT, the Abyssal Maw's nastiest trick (agreed with Isaac 2026-10-24: "the cat yawns wide, a tentacle pulls the
 // fighter into the mouth, a dark beat, he spits them out dazed").
 //
-//   1. his arms slide back into his mouth: for a moment he is only a cat again, yawning wide
-//   2. one arm shoots out of the open mouth like a frog's tongue, coils round your fighter and reels them in, smaller and
-//      smaller (further away, into the mouth) until they vanish inside
+//   1. his arms tense; one of them (all the others stay out) shoots across the stage, coils round your fighter...
+//   2. ...and reels them in, smaller and smaller (further away, into the mouth), while ALL his arms are sucked back into his
+//      mouth with them (Isaac 2026-10-25: "full tentacles, only one grabs, pull them in along with the other tentacles")
 //   3. GULP: the mouth shuts, the screen goes dark, three muffled thumps as they fight inside him, and he flinches each time
 //   4. he gags... and SPITS: the mouth flies open, your fighter shoots out in an arc with a spray of slime, lands, skids,
 //      and stands there dazed with stars circling over their head while the arms pour out of his mouth again
@@ -53,7 +53,7 @@ export async function swallow(s) {
     return [(c[0] + x) / CELL, (c[1] + y) / CELL];
   };
 
-  // ---- the tongue: from the mouth (a sagging curve) to the coil round them ----
+  // ---- the grabbing arm: from the mouth (a sagging curve) to the coil round them; it leaves its place in the mass ----
   g.override[ARM] = (base) => {
     if (st.reach <= 0) return base;
     const Mc = g.mouthCells(), tt = (g.at - t0) / 1000;
@@ -67,6 +67,10 @@ export async function swallow(s) {
       line.push([lerp(Mc[0], E[0], f), lerp(Mc[1], E[1], f) + sag + wv, -1]);
     }
     const pts = resample(line.concat(coil.slice(1)), N);
+    if (st.reach < 1) pts.forEach((p, k) => {   // reaching out from where it was: the root first, the tip last
+      const f = k / (N - 1), b = spl(base, f), w = clamp(st.reach * 1.6 - 0.6 * f), e = w * w * (3 - 2 * w);
+      p[0] = lerp(b[0], p[0], e); p[1] = lerp(b[1], p[1], e);
+    });
     const front = []; let a0 = null;
     pts.forEach((p, k) => { const t = k / (N - 1); if (p[2] > 0 && a0 === null) a0 = t; if ((p[2] <= 0 || k === N - 1) && a0 !== null) { front.push([a0, t]); a0 = null; } });
     return { pts: pts.map((p) => [p[0], p[1]]), front };
@@ -89,30 +93,25 @@ export async function swallow(s) {
   const grow = (v, ms, ease = "io") => { for (const i of REST) g.growOv[i] ??= 1; return g.to(Object.fromEntries(REST.map((i) => [i, v])), ms, ease, g.growOv); };
 
   try {
-    // 1. the arms slide back into his mouth: only a cat, yawning wide
+    // 1. his arms tense, one shoots across the stage at them...
     fx.darken(0.15, 500);
-    sound.sfx("growl", { size: 0.5 });
-    g.growOv[ARM] = 1;
-    g.to({ [ARM]: 0 }, 520, "io", g.growOv);
-    await grow(0, 560, "io");
-    fx.focus(1.12, { x: mouth()[0] - 30, y: mouth()[1] }, 500);
-    g.to({ hx: -2 }, 400, "out");   // he leans in
-    await fx.wait(480);
-    // 2. the tongue: out of the mouth to them, round them...
+    fx.focus(1.06, s.P("core"), 450);
+    sound.sfx("growl", { size: 0.6 });
+    g.to({ tense: 1, writhe: 1.1, hx: -2 }, 400, "out");   // he leans in
+    await fx.wait(520);
     sound.sfx("whoosh"); sound.sfx("squelch");
-    st.reach = 1;
-    tw({ wave: 1 }, 1, "lin");
+    st.wave = 1;
     fx.focus(1.02, null, 300);
-    await g.to({ [ARM]: 0.62 }, 220, "in", g.growOv);   // the straight part shoots out first
+    await tw({ reach: 1 }, 300, "in");
     sound.sfx("hit", { size: 0.6 }); fx.shake(6);
     if (s.skin !== "pyro") s.flinch({ crit: false });   // (PYRO's hurt look is a smaller flame: it would slip inside the coil)
     tw({ wave: 0 }, 400, "out");
-    g.to({ [ARM]: 1 }, 380, "out", g.growOv);
     await tw({ wrap: 1, loose: 1.1 }, 380, "out");
     await tw({ loose: 0.97 }, 120, "out");   // squeeze
     await fx.wait(140);
-    // ...and reels them in, smaller and smaller, into the mouth
+    // 2. ...and reels them in, smaller and smaller, into the mouth, all his other arms sucked back in with them
     sound.sfx("servo", { ms: 700 });
+    fx.wait(120).then(() => grow(0, 640, "in"));
     tw({ sag: 0.2 }, 600, "in");
     tw({ sc: 0.16, r: -0.5 }, 760, "in");
     fx.focus(1.14, { x: mouth()[0] - 20, y: mouth()[1] }, 700);
