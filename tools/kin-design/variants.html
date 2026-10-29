@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Hooded companions: variations</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #eef0f5; color: #1c1f2a; }
+  h1 { font-size: 18px; margin: 18px 22px 4px; } p.sub { margin: 0 22px 12px; color: #5a6072; font-size: 13px; max-width: 1100px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; padding: 6px 18px 18px; }
+  .card { background: #fff; border-radius: 14px; padding: 8px 8px 10px; box-shadow: 0 1px 3px #0002; width: 321px; flex: none; }
+  .card.dark { background: #1a1d26; color: #e8eaf2; }
+  .card h2 { margin: 2px 6px 0; font-size: 15px; letter-spacing: .04em; } .card h2 b { color: #8a5cf0; margin-right: 6px; }
+  .card .el { font-size: 12px; color: #7a8094; margin: 2px 6px 0; min-height: 30px; }
+  .stage { display: flex; justify-content: center; }
+</style></head><body>
+<h1>Hooded companions: 12 variations (round 4)</h1>
+<p class="sub">Mix and match: each draft is one combination of a hood shape, a face, a body and accessories, so you can point at parts ("the hood of 4 with the scarf of 1"). NOVA and AURUM are first for size and style. Moods cycle: idle, happy, angry, sad, sleepy.</p>
+<div class="row" id="row"></div>
+<script type="module">
+import { PixelNova } from "../../site/js/pixel/nova-px.js";
+import { PixelKin } from "./kin-px.js";
+import { PixelVariant, VARIANTS } from "./kin-vars.js";
+const q = new URLSearchParams(location.search), dark = q.has("dark"), fixed = q.get("mood");
+const row = document.getElementById("row"), all = [];
+const card = (name, el) => { const c = document.createElement("div"); c.className = "card" + (dark ? " dark" : ""); c.innerHTML = `<h2>${name}</h2><div class="el">${el}</div><div class="stage"></div>`; row.append(c); return c.querySelector(".stage"); };
+all.push(new PixelNova(card("NOVA", "for size"), { kind: "mooncloak", w: 107, h: 113, px: 3, view: 4.79, shadow: false }));
+all.push(new PixelKin(card("AURUM", "kept from round 1"), "aurum", { px: 3 }));
+for (const v of VARIANTS) all.push(new PixelVariant(card(`<b>${v.n}</b>${v.label}`, v.parts), v, { px: 3 }));
+const moods = ["idle", "happy", "angry", "sad", "sleepy"];
+let i = 0;
+const set = (m) => all.forEach((a) => a.setMood(m));
+if (fixed) { set(fixed); all.forEach((a) => { a.nextBlink = 1e9; }); } else setInterval(() => set(moods[++i % moods.length]), 1800);
+window.__ready = true;
+</script></body></html>
