@@ -11,7 +11,7 @@ export function freshState() {
     bits: 0,
     items: { ...STARTER_ITEMS },
     owned: {},
-    equipped: { head: null, face: null, mouth: null, prop: null, theme: null, teammate: "pyro" },
+    equipped: { head: null, face: null, mouth: null, prop: null, theme: null, teammate: "nova" },
     pet: { mode: "roam", x: 0.8, y: 0.75 }, // where your teammate is: roaming, or parked at a spot
     lessons: {},
     modulesDone: {},

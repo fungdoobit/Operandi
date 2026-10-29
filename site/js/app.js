@@ -1,5 +1,5 @@
 // Operandi: the page. Lessons, practice, shop and FAQ on the left, the editor
-// and results on the right, and your teammate (DOT or PYRO) roaming the
+// and results on the right, and your teammate (NOVA for now) roaming the
 // screen. No AI: every message comes from content/.
 
 import { Dot, DOT_CSS } from "./dot.js";
@@ -28,15 +28,21 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const store = new Store();
 const S = () => store.state;
 
-/* ---------- Your teammate (DOT, PYRO or NOVA) ---------- */
+/* ---------- Your teammate ---------- */
+
+// Who you can have (Isaac 2026-10-29: one character while a few people test Modules 1 and 2): NOVA roams with you and
+// fights the bosses. PYRO and Kaela are in storage like DOT: hidden everywhere, their code kept. Add an id back here
+// to bring them back ("pyro" as a teammate and fighter, "kaela" as a fighter); a save that had them gets them back too.
+const ROSTER = ["nova"];
+const mate = () => (ROSTER.includes(S().equipped.teammate) ? S().equipped.teammate : ROSTER[0]);
 
 const dotStyle = document.createElement("style");
 dotStyle.textContent = DOT_CSS + NOVA_CSS + PYRO_CSS;
 document.head.append(dotStyle);
-const V = () => VOICES[S().equipped.teammate] || VOICES.pyro;
+const V = () => VOICES[mate()];
 const wearing = () => WEAR_SLOTS.map((slot) => S().equipped[slot]).filter(Boolean);
 const dot = new Pet({
-  skin: S().equipped.teammate || "pyro",
+  skin: mate(),
   accessories: wearing(),
   place: S().pet,
   voice: V,
@@ -50,7 +56,7 @@ const errLine = (e) => { const m = [...String(e || "").matchAll(/line (\d+)/g)];
 Pet.hasNova = () => true;   // NOVA counts as won while Isaac tests her (like the Shop's owned checks); with her real unlock this becomes S().owned.nova
 
 function applyCosmetics() {
-  dot.setSkin(S().equipped.teammate || "pyro");
+  dot.setSkin(mate());
   dot.setAccessory(wearing());
   const theme = S().equipped.theme;
   if (theme) document.documentElement.dataset.editor = theme;
@@ -696,7 +702,7 @@ function renderChallenge() {
 
 function renderShop() {
   const st = S();
-  const team = st.equipped.teammate || "pyro";
+  const team = mate();
   const card = (e) => {
     const has = e.kind === "item" ? true : st.owned[e.id];
     const on = e.slot && st.equipped[e.slot] === e.id;
@@ -707,9 +713,13 @@ function renderShop() {
     return `<div class="shop-card"><h4>${esc(e.name)}</h4><p>${esc(e.desc)}</p><div class="row"><span class="price">◆ ${e.price}</span>${btn}</div><span class="owned">${status}</span></div>`;
   };
   const pyro = SHOP.find((e) => e.id === "pyro");
+  const TEAMMATES = [
+    ["pyro", "PYRO", "PYthon Runtime Operative. Fiery, energetic, very competitive."],
+    ["nova", "NOVA", "A living shadow with blank, glowing eyes. She roams the page with you, helps when you're stuck, and fights the bosses."],
+  ].filter(([id]) => ROSTER.includes(id));
   const teamCard = (id, name, desc) => {
-    // NOVA is free while Isaac tests him; the real unlock (GOLEM first try, or 1,500 Bits) comes later
-    const owned = id === "pyro" || id === "nova" || st.owned[id];   // PYRO is the starting teammate now (DOT is in storage)
+    // everyone in the ROSTER is yours from the start (NOVA's planned unlock, GOLEM first try or 1,500 Bits, is on hold)
+    const owned = id === "pyro" || id === "nova" || st.owned[id];
     const btn = !owned
       ? `<button class="btn primary" data-buy="${id}" ${st.bits < pyro.price ? "disabled" : ""}>Buy for ◆ ${pyro.price}</button>`
       : team === id ? `<span class="owned">With you now</span>` : `<button class="btn" data-team="${id}">Switch to ${name}</button>`;
@@ -717,20 +727,19 @@ function renderShop() {
   };
   $("briefInner").innerHTML = `<p class="eyebrow">Shop</p><h1>Spend your Bits</h1>
     <p>You have <b>◆ ${st.bits} Bits</b>. Error explanations, typo spotting and the FAQ are always free. Items here are for an extra push, or to make your teammate look sharp.</p>
-    <h3>Characters</h3>
+    ${ROSTER.includes("kaela") ? `<h3>Characters</h3>
     <div class="team-grid">
       <div class="team-card char-card"><img class="char-portrait" src="assets/kaela/portrait-red.png" alt="Kaela's portrait"><div><h4>Kaela</h4><p>A red-haired swordswoman, quick and fierce. She fights the bosses: pick her when a boss fight starts.</p><span class="owned">Yours</span></div></div>
-    </div>
+    </div>` : ""}
     <h3>Your teammate</h3>
     <div class="team-grid">
-      ${teamCard("pyro", "PYRO", "PYthon Runtime Operative. Fiery, energetic, very competitive.")}
-      ${teamCard("nova", "NOVA", "GOLEM's exclusive companion: a living shadow from his core. Free while you test him; later he's won by beating GOLEM first try, or 1,500 Bits.")}
+      ${TEAMMATES.map(([id, n, d]) => teamCard(id, n, d)).join("")}
     </div>
     <h3>Help items</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "item").map(card).join("")}</div>
-    <h3>Looks</h3><p class="empty">Wear one hat, one pair of glasses, one moustache and one prop at the same time. (They don't show on the new PYRO and NOVA yet.)</p>
+    <h3>Looks</h3><p class="empty">Wear one hat, one pair of glasses, one moustache and one prop at the same time. (They don't show on NOVA yet.)</p>
     <div class="shop-grid">${SHOP.filter((e) => e.kind === "dot").map(card).join("")}</div>
     <h3>Editor themes</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "theme").map(card).join("")}</div>`;
-  for (const id of ["pyro", "nova"]) {
+  for (const [id] of TEAMMATES) {
     const d = id === "nova" ? new NovaMate($("team-" + id), { size: 96, idles: false }) : new PyroMate($("team-" + id), { size: 72, idles: false });
     d.setAccessory(wearing());
     d.setMood(team === id ? "happy" : "idle");
@@ -867,9 +876,10 @@ async function openBoss(m = 1, { again = false } = {}) {
   view = { kind: "boss", module: m };
   let f = S().boss;
   if (!f || f.module !== m) { if (bossBeaten(m)) return renderBossPanel("beaten"); startFight(m); f = S().boss; }
-  // a fresh fight (or a rematch): pick who goes in
+  // a fresh fight (or a rematch): pick who goes in; a fighter now in storage hands over to your teammate
+  if (f.fighter && !ROSTER.includes(f.fighter)) { f.fighter = mate(); store.save(); }
   if (!f.fighter) {
-    if (f.turn > 0 || f.cur.attempts) f.fighter = S().equipped.teammate || "pyro";   // a fight saved before the picker existed
+    if (f.turn > 0 || f.cur.attempts || ROSTER.length < 2) f.fighter = mate();   // a fight saved before the picker existed, or only one fighter
     else { f.fighter = await chooseFighter(m); if (view.kind !== "boss") return; }
     store.save();
   }
@@ -892,16 +902,16 @@ async function openBoss(m = 1, { again = false } = {}) {
     : "Welcome back. The fight's right where you left it.", { title: f.turn === 0 && !f.cur.attempts ? `${BOSSES[m].name} blocks the way` : "Fight resumed", mood: "fierce" });
 }
 
-// Who fights the boss (Addendum M): Kaela, or a teammate you own. The last pick is remembered.
+// Who fights the boss (Addendum M): anyone in the ROSTER. The last pick is remembered. (Skipped with only one.)
 function chooseFighter(m) {
   const st = S(), name = BOSSES[m].name;
-  const owned = (id) => id === "kaela" || id === "pyro" || id === "nova" || st.owned[id];
+  const owned = (id) => ROSTER.includes(id);
   const all = [
     ["kaela", "Kaela", "A red-haired swordswoman. Fast blade cuts, a blood orb and a skyfall slam."],
     ["pyro", "PYRO", "Fire: embers, eruptions and a sunfire halo."],
     ["nova", "NOVA", "Void: shadow bolts, grasping hands, chains and Planetfall."],
   ].filter(([id]) => owned(id));
-  const last = all.some(([id]) => id === st.lastFighter) ? st.lastFighter : "kaela";
+  const last = all.some(([id]) => id === st.lastFighter) ? st.lastFighter : all[0][0];
   setWorkVisible(false);
   $("arena").hidden = true;
   $("briefInner").innerHTML = `<p class="eyebrow">Module ${m} · Boss fight</p><h1>Who fights ${esc(name)}?</h1>
@@ -923,7 +933,7 @@ function renderBossStage({ entering = false } = {}) {
   // you scroll the instructions and type.
   $("arena").hidden = false;
   document.querySelector(".body").classList.add("boss-mode");
-  battle = new BattleStage($("arena"), $("bossSay"), { skin: (f?.fighter === "dot" ? "pyro" : f?.fighter) || S().equipped.teammate || "pyro", accessories: wearing(), name: BOSSES[view.module].name, foe: BOSSES[view.module].foe, entering });
+  battle = new BattleStage($("arena"), $("bossSay"), { skin: ROSTER.includes(f?.fighter) ? f.fighter : mate(), accessories: wearing(), name: BOSSES[view.module].name, foe: BOSSES[view.module].foe, entering });
   if (f) battle.hp(f.me, f.foe); else battle.hp(BOSS.hp, BOSS.hp);
   battle.mana(f?.mana || 0);
   if (f?.dome) battle.restoreDome();
@@ -1165,7 +1175,7 @@ function wireSettings() {
   // a short test sound when you let go of the effects slider
   $("setSfxVol").addEventListener("change", () => sound.sfx("hit"));
   // your teammate's own sounds, each with its own volume (under the effects volume)
-  const team = () => ({ pyro: "fire", nova: "void" })[S().equipped.teammate] || "fire";
+  const team = () => ({ pyro: "fire", nova: "void" })[mate()] || "void";
   for (const [id, key, test] of [["setRoamVol", "roamVol", "hop"], ["setGrabVol", "grabVol", "plop"]]) {
     $(id).value = Math.round(s[key] * 100);
     $(id).addEventListener("input", () => sound.set({ [key]: $(id).value / 100 }));
@@ -1236,7 +1246,7 @@ async function initCloud() {
 //   ?test=boss   load a save with Module 1's lessons done and GOLEM ready to fight
 //   ?test=boss2  load a save with Modules 1 and 2 done up to THE ABYSSAL MAW (GOLEM beaten), ready to fight him
 //   ?test=reset  wipe everything back to the very beginning
-//   ?test=nova   switch your teammate to NOVA, with his idles every 8-12 s instead of 20-40 s
+//   ?test=nova   switch your teammate to NOVA, with her idles every 8-12 s instead of 20-40 s
 // boss, boss2 and reset ask first. The link is cleaned from the address bar either way.
 let bootBoss = 0;   // the module whose boss to open straight away
 const testMode = new URLSearchParams(location.search).get("test");
