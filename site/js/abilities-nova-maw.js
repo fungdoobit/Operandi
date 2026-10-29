@@ -28,13 +28,16 @@ function body(g) {
   return { at, arm };
 }
 
-// His arms in a spell: each one can be planted (up and over, its tip clawed into the ground at `spot`) and dragged (a hand holds
-// it at `hold` and hauls it down into the portal, between lo and hi). All in cells; the numbers are tweened by the scene.
+// His arms in a spell: each one can be gathered in over the portal (squeezed towards his mouth, so none of it reaches past the
+// portal's rim and goes through the ground there), planted (up and over, its tip clawed into the ground at `spot`) and dragged (a
+// hand or the void holds it at `hold` and hauls it down into the portal, between lo and hi). All in cells; the numbers are
+// tweened by the scene.
 function armRig(g, { lo, hi, surface }) {
   const st = {}, ground = g.floorC - 1;
   const ov = (i) => (base) => {
     const a = st[i], n = base.length, M = g.mouthCells();
     let pts = base;
+    if (a.gather > 0) pts = pts.map(([x, y]) => [lerp(x, M[0] + (x - M[0]) * 0.42, a.gather), y]);
     if (a.go > 0) {
       const S = a.spot, j = a.j, sg = a.sgn;
       const top = [lerp(M[0], S, 0.55), Math.min(M[1], ground) - 30 - 7 * j];
@@ -50,7 +53,7 @@ function armRig(g, { lo, hi, surface }) {
   };
   return {
     st,
-    set(i, o = {}) { st[i] = { go: 0, dig: 0, drag: 0, deep: 0, hold: 0.45, spot: 0, sgn: 1, j: 0, ...o }; g.override[i] = ov(i); },
+    set(i, o = {}) { st[i] = { go: 0, dig: 0, drag: 0, deep: 0, gather: 0, hold: 0.45, spot: 0, sgn: 1, j: 0, ...o }; g.override[i] = ov(i); },
     plant(i, spot, sgn, j) { Object.assign(st[i], { spot, sgn, j }); g.clipOv[i] = ground; },
     clear() { for (const i in st) { delete g.override[i]; delete g.clipOv[i]; } },
   };
@@ -155,11 +158,13 @@ export async function graspMaw(s) {
     s.onHit(1);
     g.to({ writhe: 1.5, tense: 1 }, 160, "out");
     g.fxv.glitch = 0.6;
-    // 5. the pull: three heaves down into the portal; the arms the hands hold go under first
+    // his arms are hauled in over the portal (Isaac 2026-10-29: they reached out past its rim and went through the ground)
+    for (let i = 0; i < 8; i++) g.to({ gather: 1 }, 380, "out", rig.st[i]);
+    // 5. the pull: three heaves down into the portal; the arms go under with him, the ones the hands hold first
     sound.sfx("telekinesis");
     px.add({ dur: 240, draw(gg, k) { pull = ease.out(k); } });
     for (let i = 0; i < 3; i++) {
-      for (const a of HELD) g.to({ drag: [0.45, 0.75, 1][i] }, 300, "in", rig.st[a]);
+      for (let a = 0; a < 8; a++) g.to({ drag: HELD.includes(a) ? [0.45, 0.75, 1][i] : [0.25, 0.42, 0.58][i] }, 300, "in", rig.st[a]);
       await g.to({ sink: [6, 11, 16][i], hx: rand(-1.5, 1.5) }, 300, "in");
       fx.shake(14 + i * 5); fx.hitstop(70); fx.punch(0.03, catC()); sound.sfx("impact", { size: 0.7 }); fx.dust(cx, 6, 1);
       g.fxv.glitch = 0.5 + i * 0.2; g.to({ glitch: 0.2 }, 160, "lin", g.fxv);
@@ -173,7 +178,8 @@ export async function graspMaw(s) {
     PLANT.forEach(([i, sg, d], j) => rig.plant(i, clamp((cx + sg * R * d) / CELL, 6, edge - (sg > 0 ? (1 - j % 2) * 10 : 0)), sg, j % 2));
     await Promise.all(PLANT.map(([i], j) => fx.wait(j * 90).then(async () => {
       sound.sfx("whoosh", { size: 0.6 });
-      await g.to({ go: 1 }, 300, "in", rig.st[i]);
+      g.to({ drag: 0, gather: 0 }, 300, "out", rig.st[i]);   // it tears up out of the portal...
+      await g.to({ go: 1 }, 300, "in", rig.st[i]);           // ...and slams down on the ground beside it
       const at = { x: rig.st[i].spot * CELL, y: floor };
       sound.sfx("slamImpact", { size: 0.6 }); sound.sfx("debris");
       fx.shake(12); fx.hitstop(40); fx.dust(at.x, 8, 1.2); fx.debris(at, 5, { power: 0.8 });
@@ -224,12 +230,18 @@ export async function graspMaw(s) {
       fx.sparks(catC(), 16, { colors: [PINK, ROSE, "#ffffff"], power: 1.5 }); fx.debris({ x: cx, y: cy }, 14, { power: 1.6 });
       burst();
       mate.setMood("sad", { revertAfter: 1200 });
-      for (const a of HELD) g.to({ drag: 0 }, 260, "out", rig.st[a]);
+      for (let a = 0; a < 8; a++) if (!PLANT.some(([p]) => p === a)) g.to({ drag: 0, gather: 0 }, 300, "out", rig.st[a]);
       g.fxv.glitch = 0;
-      await g.to({ sink: -8 }, 280, "out");
-      // the arms let go of the ground and he drops back onto his feet
-      PLANT.forEach(([i], j) => fx.wait(40 + j * 50).then(() => { fx.dust(rig.st[i].spot * CELL, 5, 0.8); g.to({ dig: 0 }, 140, "in", rig.st[i]).then(() => g.to({ go: 0 }, 460, "io", rig.st[i])); }));
-      await g.to({ sink: 0 }, 260, "in");
+      // his four arms push him right up out of it, high over the portal, standing on them like a spider (Isaac 2026-10-29)
+      fx.focus(1.06, { x: cx, y: floor - 110 }, 400);
+      await g.to({ sink: -42 }, 420, "out");
+      fx.ring({ x: cx, y: cy }, { color: "#cba2ff", size: R * 1.6, flat: 0.3, ms: 420, width: 5 });
+      await g.to({ sink: -38 }, 200, "io");
+      await g.to({ sink: -42 }, 220, "io");
+      // he lowers himself back down beside it, the arms let go of the ground, and he lands on his feet
+      await g.to({ sink: -6 }, 520, "io");
+      PLANT.forEach(([i], j) => fx.wait(j * 50).then(() => { fx.dust(rig.st[i].spot * CELL, 5, 0.8); g.to({ dig: 0 }, 140, "in", rig.st[i]).then(() => g.to({ go: 0 }, 460, "io", rig.st[i])); }));
+      await g.to({ sink: 0 }, 200, "in");
       fx.dust(catC().x, 10, 1.2); fx.shake(10); sound.sfx("impact", { size: 0.8 });
       g.to({ writhe: 0.55, tense: 0 }, 600, "io");
       await fx.wait(300);
@@ -251,42 +263,57 @@ export async function graspMaw(s) {
 }
 
 // ---- Spectral Chains ----------------------------------------------------------------------------------------------------
-// The portals above and below him and the chains are hers, as against GOLEM: four chains coil round four of his arms, four
-// spear into the cat, and she hauls both ways, the chained arms dragged towards the portals. Then he fights back with the arms
-// she didn't catch: they seize the chains one after another and rip them apart (the first in slow motion). Finishing blow:
-// she hauls until he gives out; his arms go limp and he curls up asleep.
-const CHAINED = { top: [6, 1], bot: [3, 5] }, FREE = [4, 2, 0, 7];
+// The portals and chains are hers, as against GOLEM, sized to take in all of him (Isaac 2026-10-29: the first pass was too
+// small, its floor portal sat in front of the cat): one portal high over his highest arm, one on the ground under him (behind
+// him, so he stands on it). Six chains coil round his arms (three from each portal) and two wind twice round the cat's body,
+// and she hauls both ways, the chained arms dragged towards the portals. Then he fights back: each arm yanks itself free, the
+// chain snapping (the first in slow motion), and with a roar he bursts the two round his body. Finishing blow: she hauls until
+// he gives out; his arms go limp and he curls up asleep.
+const CHAINED = [["top", 6], ["top", 2], ["top", 1], ["bot", 3], ["bot", 5], ["bot", 4]];
+
+// A chain wound twice round the cat's body (C its middle, rx how far round, h how tall): the half in front of him on the front
+// layer, the half behind him on the back layer. k: how much of it is wound yet.
+function bodyCoil(gF, gB, S, C, rx, h, k, t) {
+  const N = Math.max(2, Math.floor(26 * k));
+  for (let i = 0; i < N; i++) {
+    const u = i / 26, ph = u * Math.PI * 4 + t * 0.0015, tilt = rx * 0.22;
+    const x = C.x + Math.cos(ph) * rx, y = C.y + (u - 0.5) * h + Math.sin(ph) * tilt;
+    const ang = Math.atan2(h / (Math.PI * 4) + tilt * Math.cos(ph), -Math.sin(ph) * rx);
+    stamp(Math.sin(ph) > 0 ? gF : gB, S.link[i % 2], x, y, ang, 1, Math.PI);
+  }
+}
 
 export async function chainsMaw(s, S) {
-  const { fx, px, pxTop, spr, sprBack, mate, golem: g, boss } = s;
-  const B = body(g), core = s.golemC(), floor = fx.floorY, cx = core.x - 10;
+  const { fx, px, pxBack, pxTop, spr, sprBack, mate, golem: g, boss } = s;
+  const B = body(g), core = s.golemC(), floor = fx.floorY;
+  // all of him: his arms reach about 90 cells left of his mouth, the cat about 25 right of where he sits
+  const left = (g.mouthCells()[0] - 92) * CELL, right = (g.cat.x + 26) * CELL, cx = (left + right) / 2, rx = (right - left) / 2 + 24;
   const settle = castPose(mate, { lift: 0.1, energy: 3 });
   sound.sfx("ghostWind", { ms: 6000 }); sound.sfx("voidCharge");
   fx.darken(0.55, 400); fx.letterbox(true);
-  fx.focus(1.04, { x: cx, y: (core.y + floor) / 2 - 50 }, 600);
-  // 1. two portals, above him and below
-  const top = portal(s, px, { x: cx, y: Math.max(84, core.y - 112), rx: 130, ry: 24 });
-  const bot = portal(s, px, { x: cx, y: floor + 2, rx: 140, ry: 26 }, { hum: false });
+  fx.focus(1.02, { x: cx, y: (core.y + floor) / 2 - 40 }, 600);
+  // 1. two portals, high above him and on the ground under him
+  const top = portal(s, px, { x: cx, y: Math.max(44, core.y - 152), rx, ry: 28 });
+  const bot = portal(s, pxBack, { x: cx, y: floor + 4, rx: rx + 10, ry: 30 }, { hum: false });
   gatherMotes(pxTop, () => s.mateC(), 420, { n: 22, r: 100 });
   await fx.wait(250);
   await Promise.all([top.open(560), fx.wait(120).then(() => bot.open(560))]);
-  // 2. chains whip out: four coil round his arms, four spear into the cat
-  const tg = [
-    ["top", 6], ["top", null, [-8, 40]], ["top", null, [6, 30]], ["top", 1],
-    ["bot", 3], ["bot", null, [-12, 18]], ["bot", null, [8, 10]], ["bot", 5],
-  ];
-  const HOLD = 0.5;
-  const chains = tg.map(([side, arm, at], i) => ({ side, arm, at, ext: 0, wrap: 0, cut: 0, gone: 0, delay: [0, 120, 200, 60, 90, 170, 240, 30][i], seed: i * 1.3 }));
-  const target = (ch) => (ch.arm != null ? B.arm(ch.arm, HOLD) : B.at(...ch.at));
+  // 2. chains whip out: six coil round his arms, two wind round the cat
+  const HOLD = 0.55;
+  const chains = [
+    ...CHAINED.map(([side, arm], i) => ({ side, arm, delay: [0, 120, 60, 90, 30, 170][i] })),
+    { side: "top", body: [3, 26], delay: 200 }, { side: "bot", body: [5, 12], delay: 240 },
+  ].map((c, i) => ({ ...c, ext: 0, wrap: 0, cut: 0, gone: 0, seed: i * 1.3 }));
+  const target = (ch) => (ch.arm != null ? B.arm(ch.arm, HOLD) : B.at(...ch.body));
   const axisOf = (ch) => { const a = B.arm(ch.arm, HOLD - 0.04), b = B.arm(ch.arm, HOLD + 0.04); return Math.atan2(b.y - a.y, b.x - a.x); };
-  const anchor = (ch) => { const P = ch.side === "top" ? top.P : bot.P, t = target(ch); return { x: Math.max(P.x - P.rx * 0.75, Math.min(P.x + P.rx * 0.75, t.x)), y: P.y }; };
+  const anchor = (ch) => { const P = ch.side === "top" ? top.P : bot.P, t = target(ch); return { x: Math.max(P.x - P.rx * 0.8, Math.min(P.x + P.rx * 0.8, t.x)), y: P.y }; };
   let taut = 0, pulses = 0;
-  // the chained arms are dragged towards their portals while she hauls (and spring back when the chain goes)
+  // the chained arms are dragged towards their portals while she hauls; a negative pull is the arm yanking itself away
   const drag = {};
   for (const ch of chains) if (ch.arm != null) {
     const d = drag[ch.arm] = { k: 0 }, i = ch.arm;
     g.override[i] = (base) => {
-      if (d.k <= 0.001) return base;
+      if (Math.abs(d.k) <= 0.001) return base;
       const P = ch.side === "top" ? top.P : bot.P, H = spl(base, HOLD), T = [P.x / CELL, P.y / CELL], n = base.length;
       const dx = (T[0] - H[0]) * 0.3 * d.k, dy = (T[1] - H[1]) * 0.3 * d.k;
       return base.map((p, k) => { const f = k / (n - 1), w = f >= HOLD ? 1 : smooth(f / HOLD); return [p[0] + dx * w, p[1] + dy * w]; });
@@ -296,17 +323,17 @@ export async function chainsMaw(s, S) {
     for (const ch of chains) {
       if (ch.ext <= 0 || ch.gone >= 1) continue;
       const A = anchor(ch), T = target(ch);
-      if (ch.cut > 0) {   // ripped: the portal end whips back in, the far end falls away
+      if (ch.cut > 0) {   // snapped: the portal end whips back in, the far end falls away
         const back = ease.in(ch.cut);
         drawLinks(gF, S, chainPath(A, T, 0.5 * (1 - back), t, { whip: 1, seed: ch.seed }));
-        if (ch.arm != null && ch.cut < 0.6) drawCoil(gF, gB, S, T, axisOf(ch), 1 - ch.cut / 0.6, t);
+        if (ch.cut < 0.6) { if (ch.arm != null) drawCoil(gF, gB, S, T, axisOf(ch), 1 - ch.cut / 0.6, t); else bodyCoil(gF, gB, S, T, 30, 18, 1 - ch.cut / 0.6, t); }
         continue;
       }
       const pts = chainPath(A, T, ch.ext, t, { whip: ch.wrap ? 0 : 1 - ch.ext * 0.5, taut, seed: ch.seed });
       drawLinks(gF, S, pts);
       if (ch.ext < 1) { const h = pts[pts.length - 1]; stamp(gF, S.shard[0], h.x, h.y, h.ang, 1.2); }
       else if (ch.arm != null) drawCoil(gF, gB, S, T, axisOf(ch), ch.wrap, t);
-      else stamp(gF, S.shard[0], T.x, T.y, Math.atan2(T.y - A.y, T.x - A.x), 1.2);   // speared into him
+      else bodyCoil(gF, gB, S, T, 30, 18, Math.min(1, ch.wrap), t);
     }
   };
   const allGone = () => chains.every((c) => c.gone >= 1);
@@ -321,14 +348,14 @@ export async function chainsMaw(s, S) {
     }
   } });
   sound.sfx("whoosh", { theme: "void" }); sound.sfx("ghostFly");
-  fx.focus(1.1, { x: cx, y: core.y }, 400);
+  fx.focus(1.06, { x: cx, y: core.y }, 400);
   try {
     await Promise.all(chains.map((ch) => fx.wait(ch.delay).then(async () => {
       sound.sfx("chainRattle", { size: 0.7 });
       await spr.add({ dur: 230, draw(gg, k) { ch.ext = ease.out(k); } });
       fx.hitstop(35); fx.shake(9); fx.punch(0.015, target(ch)); shards(pxTop, target(ch), 6, 0.5);
-      sound.sfx(ch.arm != null ? "chainRattle" : "hit", { size: 0.8 });
-      await spr.add({ dur: 170, draw(gg, k) { ch.wrap = ease.back(k); } });
+      sound.sfx("chainRattle", { size: 0.8 });
+      await spr.add({ dur: ch.body ? 320 : 170, draw(gg, k) { ch.wrap = ch.body ? ease.out(k) : ease.back(k); } });
     })));
     sound.sfx("voidCrush");
     bigHit(fx, core, { stop: 130, shake: 20, punch: 0.04, flash: "#8a4dff", invert: false });
@@ -339,7 +366,7 @@ export async function chainsMaw(s, S) {
     mate.nova.idle.shake = 0.6; pulses = 1;
     sound.sfx("whispers", { ms: 2200 }); sound.sfx("roar");
     await spr.add({ dur: 200, draw(gg, k) { taut = ease.out(k); } });
-    fx.focus(1.1, { x: core.x, y: core.y - 10 }, 900); fx.slowmo(0.5, 1200);
+    fx.focus(1.08, { x: cx, y: core.y - 10 }, 900); fx.slowmo(0.5, 1200);
     for (let i = 0; i < 4; i++) {
       for (const a in drag) g.to({ k: 0.45 + i * 0.18 }, 110, "io", drag[a]);
       g.to({ hx: i % 2 ? 2 : -2, hy: i % 2 ? -1 : 1 }, 110, "io");
@@ -351,6 +378,15 @@ export async function chainsMaw(s, S) {
     speedLines(pxTop, core, 420);
     shards(pxTop, core, 22, 1.3);
     s.onHit(2);
+    const snap = (ch, at, slow) => {   // a chain gives: links fly, the ends whip away
+      sound.sfx("chainSnap");
+      if (slow) { impactFrame(fx, { ms: 60 }); fx.hitstop(120); fx.shake(18); } else { fx.hitstop(30); fx.shake(9); }
+      flashAt(pxTop, at, slow ? 40 : 24, 220);
+      fx.sparks(at, slow ? 14 : 6, { colors: ["#ffffff", "#cba2ff", PINK], power: 1.1 });
+      const bits = Array.from({ length: slow ? 6 : 3 }, (_, k) => ({ x: at.x, y: at.y, vx: rand(-160, 160), vy: rand(-220, -60), r: rand(0, 6), vr: rand(-12, 12), v: k % 2 }));
+      spr.add({ dur: 800, draw(gg, k) { for (const b of bits) stamp(gg, S.link[b.v], b.x + b.vx * k, b.y + b.vy * k + 420 * k * k, b.r + b.vr * k, 1, Math.PI); } });
+      spr.add({ dur: 300, draw(gg, k) { ch.cut = ease.out(k); } }).then(() => { ch.gone = 1; });
+    };
     if (s.lethal) {
       // 4b. the finishing blow: she hauls until he gives out
       sound.sfx("ghostWail"); sound.sfx("voidCrush");
@@ -386,50 +422,27 @@ export async function chainsMaw(s, S) {
       mate.setMood("happy");
       return;
     }
-    // 4. he fights back: the arms she didn't catch go for the chains and rip them apart, one after another
+    // 4. he fights back: one arm after another yanks itself away from its portal until the chain snaps...
     sound.sfx("growl", { size: 1 });
-    const cutOrder = [0, 4, 3, 7, 1, 5, 2, 6];
-    const grip = FREE.map(() => ({ go: 0, yank: 0, at: null }));
-    FREE.forEach((i, j) => {
-      g.override[i] = (base) => {
-        const a = grip[j]; if (a.go <= 0 || !a.at) return base;
-        const M = g.mouthCells(), T = [a.at.x / CELL, a.at.y / CELL], n = base.length;
-        const away = [T[0] - M[0], T[1] - M[1]], L = Math.hypot(...away) || 1, nx = -away[1] / L, ny = away[0] / L;
-        const Y = [T[0] + (M[0] - T[0]) * 0.45 * a.yank + nx * 20 * a.yank, T[1] + (M[1] - T[1]) * 0.45 * a.yank + ny * 20 * a.yank];   // yanked back and aside
-        const P = [M, [lerp(M[0], Y[0], 0.35) + nx * 12, lerp(M[1], Y[1], 0.35) + ny * 12 - 8], [lerp(M[0], Y[0], 0.75) + nx * 4, lerp(M[1], Y[1], 0.75) - 6], Y, [Y[0] + nx * 3, Y[1] + 4]];
-        return Array.from({ length: n }, (_, k) => { const f = k / (n - 1), q = spl(P, f), w = smooth(a.go * 1.5 - 0.5 * f), b = base[k]; return [lerp(b[0], q[0], w), lerp(b[1], q[1], w)]; });
-      };
-    });
-    const rip = async (n, slow) => {
-      const ch = chains[cutOrder[n]], j = n % FREE.length, a = grip[j], A = anchor(ch), T = target(ch);
-      a.at = { x: lerp(A.x, T.x, 0.55), y: lerp(A.y, T.y, 0.55) };
-      if (slow) { fx.slowmo(0.3, 900); fx.focus(1.12, a.at, 250); }
+    const armChains = chains.filter((c) => c.arm != null), order = [0, 3, 1, 4, 2, 5];
+    for (let n = 0; n < order.length; n++) {
+      const ch = armChains[order[n]], d = drag[ch.arm], slow = n === 0;
+      if (slow) { fx.slowmo(0.3, 900); fx.focus(1.12, target(ch), 250); }
       sound.sfx("whoosh", { size: 0.5 });
-      await g.to({ go: 1, yank: 0 }, slow ? 260 : 130, "out", a);   // it shoots out and seizes the chain
-      sound.sfx("squelch"); fx.hitstop(slow ? 90 : 30); fx.shake(slow ? 10 : 6);
-      await fx.wait(slow ? 140 : 30);
-      await g.to({ yank: 1 }, slow ? 140 : 80, "in", a);   // ...and rips it
-      sound.sfx("chainSnap");
-      if (slow) { impactFrame(fx, { ms: 60 }); fx.hitstop(120); fx.shake(18); } else { fx.hitstop(30); fx.shake(9); }
-      flashAt(pxTop, a.at, slow ? 40 : 24, 220);
-      fx.sparks(a.at, slow ? 14 : 6, { colors: ["#ffffff", "#cba2ff", PINK], power: 1.1 });
-      const bits = Array.from({ length: slow ? 6 : 3 }, (_, k) => ({ x: a.at.x, y: a.at.y, vx: rand(-160, 160), vy: rand(-220, -60), r: rand(0, 6), vr: rand(-12, 12), v: k % 2 }));
-      spr.add({ dur: 800, draw(gg, k) { for (const b of bits) stamp(gg, S.link[b.v], b.x + b.vx * k, b.y + b.vy * k + 420 * k * k, b.r + b.vr * k, 1, Math.PI); } });
-      spr.add({ dur: 300, draw(gg, k) { ch.cut = ease.out(k); } }).then(() => { ch.gone = 1; });
-      if (ch.arm != null) g.to({ k: 0 }, 420, "back", drag[ch.arm]);   // the arm it held springs free
-      g.to({ go: 0 }, 360, "io", a);
-      if (slow) fx.focus(1.06, { x: core.x, y: core.y }, 300);
-    };
-    await rip(0, true);
-    mate.setMood("sad");
-    taut = 0.6;
-    for (let n = 1; n < 8; n++) { await rip(n, false); await fx.wait(60); }
-    // 5. free: he roars, the portals collapse
+      await g.to({ k: slow ? 1.4 : 1.1 }, slow ? 260 : 120, "out", d);   // it gives a little, the chain straining...
+      await g.to({ k: -0.9 }, slow ? 160 : 90, "in", d);                   // ...then rips away from the portal
+      snap(ch, { x: lerp(anchor(ch).x, target(ch).x, 0.55), y: lerp(anchor(ch).y, target(ch).y, 0.55) }, slow);
+      g.to({ k: 0 }, 420, "back", d);
+      if (slow) { fx.focus(1.06, { x: cx, y: core.y }, 300); mate.setMood("sad"); taut = 0.6; }
+      await fx.wait(slow ? 200 : 70);
+    }
+    // ...and with a roar he bursts the two round his body
+    sound.sfx("roar"); sound.sfx("slamImpact", { size: 0.8 });
+    g.to({ writhe: 2.2, tense: 1, hx: 3 }, 160, "out").then(() => g.to({ hx: 0 }, 300, "back"));
+    for (const ch of chains.filter((c) => c.body)) snap(ch, target(ch), false);
     taut = 0; pulses = 0; mate.nova.idle.shake = 0;
-    sound.sfx("roar");
     fx.shake(22); fx.flash(0.3, PINK); fx.ring(core, { color: ROSE, size: 260, flat: 0.6, ms: 500, width: 8 });
-    g.to({ writhe: 1.8, tense: 1 }, 220, "out");
-    await fx.wait(300);
+    await fx.wait(400);
     await Promise.all([top.close(), bot.close()]);
   } finally {
     for (let i = 0; i < 8; i++) delete g.override[i];

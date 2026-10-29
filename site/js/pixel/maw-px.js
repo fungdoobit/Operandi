@@ -118,15 +118,17 @@ const ARMS = [
   { pts: [[-2, -1], [-8, -28], [-24, -54], [-46, -70], [-60, -92], [-52, -110], [-36, -108]], w: [8, 1.4] },
   { pts: [[-3, 3], [-14, 24], [-30, 28], [-44, 22], [-56, 30]], w: [6, 1.4] },
 ];
-// The Coil Shield (Isaac 2026-10-25, after the curved wall: "like the plunge special but with more tentacles where they claw into
-// the ground creating a barrier"): every arm rears up and over and claws into the ground in front of him, each at its own
-// distance (d cells towards your fighter) and height (h cells over the ground), its top tx of the way out, so the arches
-// cross into a cage.
+// The Coil Shield (Isaac 2026-10-25/29: "like the plunge special but with more tentacles clawing into the ground", then "a half
+// circle that covers the left (facing the opponent) and the front (facing the screen)", not stiff or hard-angled): a dome of
+// arms over the cat, in 3D seen a little from above (DOME_PZ). Every arm rises out of his mouth to near the top of the dome and
+// comes down it like a line of longitude, in a smooth curve, to its own spot on a half circle of ground round him: from his
+// left round the front to his front-right (ang, degrees: 180 = his left, 90 = towards the camera), r of the dome's radius out.
 // at: when it lands (as pose.shield goes 0 to 1).
 export const BARRIER = {
-  7: { d: 34, h: 66, tx: 0.75, at: 0 }, 5: { d: 52, h: 78, tx: 0.38, at: 0.05 }, 3: { d: 70, h: 72, tx: 0.66, at: 0.1 }, 6: { d: 44, h: 96, tx: 0.3, at: 0.14 },
-  4: { d: 90, h: 88, tx: 0.5, at: 0.18 }, 1: { d: 62, h: 108, tx: 0.7, at: 0.24 }, 2: { d: 80, h: 116, tx: 0.4, at: 0.29 }, 0: { d: 104, h: 98, tx: 0.6, at: 0.35 },
+  0: { ang: 196, r: 0.96, at: 0.35 }, 4: { ang: 174, r: 1.04, at: 0.18 }, 3: { ang: 152, r: 0.94, at: 0.1 }, 1: { ang: 130, r: 1.02, at: 0.24 },
+  5: { ang: 108, r: 0.95, at: 0.05 }, 2: { ang: 86, r: 1.03, at: 0.29 }, 6: { ang: 64, r: 0.96, at: 0.14 }, 7: { ang: 42, r: 0.9, at: 0 },
 };
+const DOME_R = 56, DOME_H = 72, DOME_PZ = 0.3;   // cells: the dome's radius on the ground and its height
 const smooth = (u) => { u = clamp(u); return u * u * (3 - 2 * u); };
 
 export const REST = { tent: 0, writhe: 0.55, shield: 0, brace: 0, mouth: 0, hx: 0, hy: 0, sink: 0, flare: 0, whip: 0, tense: 0, lunge: 0, squash: 0, lean: 0, tilt: 0, bob: 0, glitch: 0 };
@@ -346,22 +348,35 @@ export class PixelMaw {
     if (P.shield > 0.001) abs = this.barrierPts(i, abs, s);
     return this.override[i] ? this.override[i](abs) : abs;
   }
-  // The Coil Shield's arch for arm i: up out of his mouth, over, and down into the ground (below it, hidden by drawArm's clip).
-  // Each arm leaves its idle pose root first, on its own beat; brace presses the arches down (a blocked hit).
+  // The Coil Shield's arm i: out of his mouth, up to near the top of the dome, and down it to the ground (and a little into it,
+  // the tip hooking outwards; drawArm hides it below that spot's ground). Each arm leaves its idle pose root first, on its own
+  // beat. The dome breathes and each arm ripples; brace squashes it down and out (a blocked hit).
+  domeAt(i, u, s) {   // a point on arm i's line down the dome: u 0 at the top .. 1 on the ground (cells, z towards the camera)
+    const B = BARRIER[i], P = this.pose, a = (B.ang * Math.PI) / 180, cx = this.mouth[0] + 4, G = this.floorC - 1;
+    const R = DOME_R * B.r * (1 + 0.025 * Math.sin(s * 1.3 + i) + 0.06 * P.brace), H = DOME_H * (1 - 0.14 * P.brace) * (1 + 0.02 * Math.sin(s * 1.1));
+    // a bell: round at the top, flaring out towards the ground
+    const e = Math.sin((u * Math.PI) / 2) ** 0.8 * 0.86 + 0.14 * u ** 3, wob = Math.sin(u * 7 - s * 2.4 + i * 1.7) * 1.3 * Math.sin(u * Math.PI);
+    return [cx + (R * e + wob) * Math.cos(a), G - H * Math.cos((u * Math.PI) / 2) ** 1.25, (R * e + wob) * Math.sin(a)];
+  }
   barrierPts(i, abs, s) {
-    const B = BARRIER[i], P = this.pose, n = abs.length, G = this.floorC - 1, M = abs[0];
-    const S = this.mouth[0] - B.d, H = B.h * (1 - 0.12 * P.brace), sway = Math.sin(s * 1.6 + i * 1.9) * 1.4;
-    const path = [M, [M[0] - 4 - B.d * 0.12, M[1] - (H - 36) * 0.55 - 6], [M[0] - B.d * B.tx + sway, G - H], [S + B.d * 0.12 + 3 + sway * 0.5, G - H * 0.6], [S + 2, G - 12], [S - 1, G - 2], [S - 5, G + 10]];   // the tip hooks forward as it digs in
+    const B = BARRIER[i], P = this.pose, n = abs.length, M = abs[0], a = (B.ang * Math.PI) / 180;
+    const pj = (q) => [q[0], q[1] + q[2] * DOME_PZ];
+    const top = this.domeAt(i, 0.12, s), end = this.domeAt(i, 1, s), out = [Math.cos(a), Math.sin(a)];
+    const path = [M, [lerp(M[0], top[0], 0.35), M[1] - 18, 0], pj(top)];
+    for (let k = 1; k <= 8; k++) path.push(pj(this.domeAt(i, 0.12 + (k / 8) * 0.88, s)));
+    path.push(pj([end[0] + out[0] * 3, end[1] + 7, end[2] + out[1] * 3]));   // the tip hooks outwards as it digs in
     const p = clamp((P.shield - B.at) / 0.65);
-    const N = Math.max(n, 10);   // (enough points for the arch, whatever the arm's own count)
+    const N = Math.max(n, 16);
     return Array.from({ length: N }, (_, k) => { const f = k / (N - 1), b = spl(abs, f), q = spl(path, f), w = smooth(p * 1.6 - 0.6 * f); return [lerp(b[0], q[0], w), lerp(b[1], q[1], w)]; });
   }
+  // the row of cells below which arm i is in the ground (its spot is nearer the camera, so lower on the screen)
+  barrierGround(i) { const e = this.domeAt(i, 1, 0); return Math.round(e[1] + e[2] * DOME_PZ); }
   // Where each arm of the Coil Shield goes into the ground (stage px), and when (0..1 of the build).
-  barrierSpots() { return Object.entries(BARRIER).map(([i, B]) => ({ i: +i, x: (this.mouth[0] - B.d) * CELL, y: (this.floorC - 1) * CELL, at: B.at + 0.65 })); }
+  barrierSpots() { return Object.entries(BARRIER).map(([i, B]) => { const e = this.domeAt(+i, 1, 0); return { i: +i, x: e[0] * CELL, y: (e[1] + e[2] * DOME_PZ) * CELL, at: B.at + 0.65 }; }); }
   // An arm: an override may return { pts, front: [[t0, t1], ...] }; those stretches go on the front layer, the rest here.
   drawArm(i, u) {
     if (this.growOv[i] != null) u = this.growOv[i];
-    this.clipY = Math.min(this.clipOv[i] ?? Infinity, this.cut, this.pose.shield > 0.001 ? this.floorC - 1 : Infinity);
+    this.clipY = Math.min(this.clipOv[i] ?? Infinity, this.cut, this.pose.shield > 0.001 ? this.barrierGround(i) : Infinity);
     try { this.drawArmIn(i, u); } finally { this.clipY = this.cut; }
   }
   drawArmIn(i, u) {
