@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Companion spirits</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #12131a; color: #e6e8f0; }
+  h1 { font-size: 18px; margin: 18px 22px 4px; } p.sub { margin: 0 22px 10px; color: #9aa0b4; font-size: 13px; max-width: 1100px; }
+  h3 { margin: 10px 22px 0; font-size: 13px; letter-spacing: .12em; color: #8a90a6; text-transform: uppercase; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; padding: 6px 18px 12px; }
+  .card { background: #1c1e28; border-radius: 14px; padding: 8px 8px 10px; box-shadow: 0 1px 3px #0006; width: 321px; flex: none; }
+  .card.ref { background: #171922; }
+  .card h2 { margin: 2px 6px 0; font-size: 15px; letter-spacing: .06em; } .card h2 b { color: #a98cff; margin-right: 6px; }
+  .card .el { font-size: 12px; color: #9aa0b4; margin: 3px 6px 0; min-height: 46px; }
+  .stage { display: flex; justify-content: center; }
+  body.compact h1, body.compact p.sub, body.compact h3, body.compact .el { display: none; }
+  body.compact .row { display: contents; } body.compact #all { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; } body.compact .card { padding: 6px 4px 4px; }
+  body.light { background: #eef0f5; color: #1c1f2a; } body.light .card { background: #fff; box-shadow: 0 1px 3px #0002; } body.light .card.ref { background: #f6f7fb; }
+</style></head><body>
+<h1>Companion spirits: 16 drafts (round 6)</h1>
+<p class="sub">Spirits of a force, like NOVA and AURUM: her round head, short cloak, big mood eyes and haze, each with its own crown, mantle, mask or wings. Moods cycle: idle, happy, angry, sad, sleepy.</p>
+<div id="all"></div>
+<script type="module">
+import { PixelNova } from "../../site/js/pixel/nova-px.js";
+import { PixelKin } from "./kin-px.js";
+import { PixelSpirit, SPIRITS } from "./kin-realm.js";
+const q = new URLSearchParams(location.search), fixed = q.get("mood"), only = q.get("only");
+if (q.has("light")) document.body.classList.add("light");
+if (q.has("compact")) document.body.classList.add("compact");
+const root = document.getElementById("all"), all = [];
+const section = (title) => { if (title) { const h = document.createElement("h3"); h.textContent = title; root.append(h); } const r = document.createElement("div"); r.className = "row"; root.append(r); return r; };
+const card = (row, title, text, ref) => { const c = document.createElement("div"); c.className = "card" + (ref ? " ref" : ""); c.innerHTML = `<h2>${title}</h2><div class="el">${text}</div><div class="stage"></div>`; row.append(c); return c.querySelector(".stage"); };
+if (!only) {
+  const r = section("For comparison");
+  all.push(new PixelNova(card(r, "NOVA", "The void.", true), { kind: "mooncloak", w: 107, h: 113, px: 3, view: 4.79, shadow: false }));
+  all.push(new PixelKin(card(r, "AURUM", "Light (kept from round 1).", true), "aurum", { px: 3 }));
+}
+let row = null, realm = null;
+for (const s of SPIRITS) {
+  if (only && !only.split(",").includes(String(s.n))) continue;
+  if (s.realm !== realm) { realm = s.realm; row = section(only ? "" : { Cosmic: "Cosmic forces", Eerie: "Dark and eerie", Mythic: "Mythic beings" }[realm]); }
+  all.push(new PixelSpirit(card(row, `<b>${s.n}</b>${s.name}`, s.pitch), s, { px: 3 }));
+}
+const moods = ["idle", "happy", "angry", "sad", "sleepy"];
+let i = 0;
+const set = (m) => all.forEach((a) => a.setMood(m));
+if (fixed) { set(fixed); all.forEach((a) => { a.nextBlink = 1e9; }); } else setInterval(() => set(moods[++i % moods.length]), 1800);
+window.__ready = true;
+</script></body></html>
