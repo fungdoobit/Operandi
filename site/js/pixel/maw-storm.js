@@ -71,13 +71,14 @@ export async function storm(s) {
 
   // ---- the eruption spear (the four arms) ----
   // per arm: go (from its idle pose into the dive), run (how far it has tunnelled: 0 at its dive spot, 1 under your fighter)
-  const four = FOUR.map((i, j) => ({ i, j, dive: [54, 80, 40, 68][j], go: 0, run: 0 }));
+  // dive: how far out in front of him (cells) each goes into the ground: far, in a long high arch (Isaac 2026-10-29 drew it)
+  const four = FOUR.map((i, j) => ({ i, j, dive: [128, 170, 108, 150][j], go: 0, run: 0 }));
   const SP = { up: 0, R: 9, turns: 2.2, spin: 0, rate: 2 };   // up: how far the spear stands out of the ground (below 0: in it)
   const fourPath = (a) => {
     const M = g.mouthCells(), tt = (g.at - t0) / 1000, D = M[0] - a.dive, E = lerp(D - 6, Ex, ss(a.run)), side = a.j % 2 ? 1 : -1;
     const out = [];
     // out of his mouth in one smooth arch and into the ground (a lazy S along it, rippling)
-    const A = 22 + 0.32 * a.dive + 5 * a.j;
+    const A = 14 + 0.42 * a.dive + 4 * a.j;   // how high the arch bows over the straight line (highest a little before halfway)
     for (let k = 0; k < 22; k++) {
       const u = (k / 21) * 1.04, q = Math.min(u, 1), sw = (Math.sin(Math.PI * 2 * q + a.j) * 1.8 + Math.sin(q * 7 - tt * 3 + a.j) * 0.7) * Math.sin(Math.PI * q);
       out.push([lerp(M[0], D, u) + sw, lerp(M[1], G, u) - A * Math.sin(Math.PI * q ** 0.8), -1]);
