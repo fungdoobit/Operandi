@@ -119,16 +119,17 @@ const ARMS = [
   { pts: [[-3, 3], [-14, 24], [-30, 28], [-44, 22], [-56, 30]], w: [6, 1.4] },
 ];
 // The Coil Shield (Isaac 2026-10-25/29: "like the plunge special but with more tentacles clawing into the ground", then "a half
-// circle that covers the left (facing the opponent) and the front (facing the screen)", not stiff or hard-angled): a dome of
-// arms over the cat, in 3D seen a little from above (DOME_PZ). Every arm rises out of his mouth to near the top of the dome and
-// comes down it like a line of longitude, in a smooth curve, to its own spot on a half circle of ground round him: from his
-// left round the front to his front-right (ang, degrees: 180 = his left, 90 = towards the camera), r of the dome's radius out.
-// at: when it lands (as pose.shield goes 0 to 1).
+// circle that covers the left (facing the opponent) and the front (facing the screen)", then "it should resemble a dome, smooth,
+// no sharp folds at the top"): every arm lies on one smooth dome over the cat, in 3D seen a little from above (DOME_PZ), and
+// comes down it to its own spot on a half circle of ground, from his left round the front to his front-right. Per arm: ang
+// (degrees: 180 = his left, 90 = towards the camera), r of the dome's radius, el where it meets the dome (degrees up from the
+// ground), at: when it lands (as pose.shield goes 0 to 1).
 export const BARRIER = {
-  0: { ang: 196, r: 0.96, at: 0.35 }, 4: { ang: 174, r: 1.04, at: 0.18 }, 3: { ang: 152, r: 0.94, at: 0.1 }, 1: { ang: 130, r: 1.02, at: 0.24 },
-  5: { ang: 108, r: 0.95, at: 0.05 }, 2: { ang: 86, r: 1.03, at: 0.29 }, 6: { ang: 64, r: 0.96, at: 0.14 }, 7: { ang: 42, r: 0.9, at: 0 },
+  0: { ang: 196, r: 0.98, el: 62, at: 0.35 }, 4: { ang: 174, r: 1.02, el: 70, at: 0.18 }, 3: { ang: 152, r: 0.97, el: 58, at: 0.1 },
+  1: { ang: 130, r: 1.01, el: 74, at: 0.24 }, 5: { ang: 108, r: 0.98, el: 60, at: 0.05 }, 2: { ang: 86, r: 1.02, el: 76, at: 0.29 },
+  6: { ang: 64, r: 0.99, el: 66, at: 0.14 }, 7: { ang: 42, r: 0.96, el: 56, at: 0 },
 };
-const DOME_R = 56, DOME_H = 72, DOME_PZ = 0.3;   // cells: the dome's radius on the ground and its height
+const DOME_R = 60, DOME_H = 70, DOME_PZ = 0.3;   // cells: the dome's radius on the ground and its height
 const smooth = (u) => { u = clamp(u); return u * u * (3 - 2 * u); };
 
 export const REST = { tent: 0, writhe: 0.55, shield: 0, brace: 0, mouth: 0, hx: 0, hy: 0, sink: 0, flare: 0, whip: 0, tense: 0, lunge: 0, squash: 0, lean: 0, tilt: 0, bob: 0, glitch: 0 };
@@ -348,31 +349,47 @@ export class PixelMaw {
     if (P.shield > 0.001) abs = this.barrierPts(i, abs, s);
     return this.override[i] ? this.override[i](abs) : abs;
   }
-  // The Coil Shield's arm i: out of his mouth, up to near the top of the dome, and down it to the ground (and a little into it,
-  // the tip hooking outwards; drawArm hides it below that spot's ground). Each arm leaves its idle pose root first, on its own
-  // beat. The dome breathes and each arm ripples; brace squashes it down and out (a blocked hit).
-  domeAt(i, u, s) {   // a point on arm i's line down the dome: u 0 at the top .. 1 on the ground (cells, z towards the camera)
+  // The Coil Shield's arm i lies on the surface of a smooth dome over the cat (Isaac 2026-10-29: "it should resemble a dome,
+  // smooth, no sharp folds at the top"): it rises out of his mouth onto the dome high on its own side (a curve that leaves the
+  // mouth upwards and meets the dome along it), then runs down the dome like a line of longitude to its spot on the ground,
+  // and on into it (hidden by drawArm). All the arms lie on the one surface, so the outline is the dome's own smooth curve.
+  // Each arm leaves its idle pose root first, on its own beat; the dome breathes and the arms ripple; brace squashes it.
+  domeSpot(i) {   // where arm i goes into the ground (cells, z towards the camera)
+    const B = BARRIER[i], a = (B.ang * Math.PI) / 180, R = DOME_R * B.r * (1 + 0.06 * this.pose.brace);
+    return [this.mouth[0] + 4 + R * Math.cos(a), this.floorC - 1, R * Math.sin(a)];
+  }
+  domeAt(i, el, s) {   // the point on the dome above arm i's spot at elevation el (0 the ground .. pi/2 the top), and the way down
     const B = BARRIER[i], P = this.pose, a = (B.ang * Math.PI) / 180, cx = this.mouth[0] + 4, G = this.floorC - 1;
-    const R = DOME_R * B.r * (1 + 0.025 * Math.sin(s * 1.3 + i) + 0.06 * P.brace), H = DOME_H * (1 - 0.14 * P.brace) * (1 + 0.02 * Math.sin(s * 1.1));
-    // a bell: round at the top, flaring out towards the ground
-    const e = Math.sin((u * Math.PI) / 2) ** 0.8 * 0.86 + 0.14 * u ** 3, wob = Math.sin(u * 7 - s * 2.4 + i * 1.7) * 1.3 * Math.sin(u * Math.PI);
-    return [cx + (R * e + wob) * Math.cos(a), G - H * Math.cos((u * Math.PI) / 2) ** 1.25, (R * e + wob) * Math.sin(a)];
+    const R = DOME_R * B.r * (1 + 0.06 * P.brace + 0.02 * Math.sin(s * 1.2 + i)), H = DOME_H * (1 - 0.15 * P.brace) * (1 + 0.02 * Math.sin(s * 1.1));
+    const ca = Math.cos(a), sa = Math.sin(a), c = Math.cos(el), sn = Math.sin(el);
+    return { p: [cx + R * c * ca, G - H * sn, R * c * sa], d: [R * sn * ca, H * c, R * sn * sa] };   // d: the direction down the dome
   }
   barrierPts(i, abs, s) {
-    const B = BARRIER[i], P = this.pose, n = abs.length, M = abs[0], a = (B.ang * Math.PI) / 180;
-    const pj = (q) => [q[0], q[1] + q[2] * DOME_PZ];
-    const top = this.domeAt(i, 0.12, s), end = this.domeAt(i, 1, s), out = [Math.cos(a), Math.sin(a)];
-    const path = [M, [lerp(M[0], top[0], 0.35), M[1] - 18, 0], pj(top)];
-    for (let k = 1; k <= 8; k++) path.push(pj(this.domeAt(i, 0.12 + (k / 8) * 0.88, s)));
-    path.push(pj([end[0] + out[0] * 3, end[1] + 7, end[2] + out[1] * 3]));   // the tip hooks outwards as it digs in
-    const p = clamp((P.shield - B.at) / 0.65);
-    const N = Math.max(n, 16);
-    return Array.from({ length: N }, (_, k) => { const f = k / (N - 1), b = spl(abs, f), q = spl(path, f), w = smooth(p * 1.6 - 0.6 * f); return [lerp(b[0], q[0], w), lerp(b[1], q[1], w)]; });
+    const B = BARRIER[i], P = this.pose, n = abs.length, M = [abs[0][0], abs[0][1], 0];
+    const N = 28, EL = (B.el * Math.PI) / 180, top = this.domeAt(i, EL, s);
+    // out of the mouth: a curve leaving it straight up and arriving on the dome going down it
+    const L = Math.hypot(top.p[0] - M[0], top.p[1] - M[1], top.p[2]), dl = Math.hypot(...top.d) || 1;
+    const C1 = [M[0], M[1] - L * 0.55, 0], C2 = top.p.map((v, c) => v - (top.d[c] / dl) * L * 0.45);
+    const bez = (u) => { const v = 1 - u; return [0, 1, 2].map((c) => v * v * v * M[c] + 3 * v * v * u * C1[c] + 3 * v * u * u * C2[c] + u * u * u * top.p[c]); };
+    const SPLIT = 0.34, p = clamp((P.shield - B.at) / 0.65);
+    return Array.from({ length: N }, (_, k) => {
+      const f = k / (N - 1);
+      let q;
+      if (f <= SPLIT) q = bez(f / SPLIT);
+      else {   // down the dome (a little past the ground at the end: into it)
+        const u = (f - SPLIT) / (1 - SPLIT), el = EL * (1 - u * 1.08), d = this.domeAt(i, Math.max(el, 0), s);
+        q = el >= 0 ? d.p : [d.p[0], d.p[1] - el * 40, d.p[2]];
+        const rip = Math.sin(u * 6 - s * 2.2 + i * 1.7) * 1.1 * Math.sin(Math.PI * Math.min(u, 1));
+        q = [q[0] + rip * 0.5, q[1] + rip * 0.3, q[2]];
+      }
+      const b = spl(abs, f), w = smooth(p * 1.6 - 0.6 * f);
+      return [lerp(b[0], q[0], w), lerp(b[1], q[1] + q[2] * DOME_PZ, w)];
+    });
   }
   // the row of cells below which arm i is in the ground (its spot is nearer the camera, so lower on the screen)
-  barrierGround(i) { const e = this.domeAt(i, 1, 0); return Math.round(e[1] + e[2] * DOME_PZ); }
+  barrierGround(i) { const e = this.domeSpot(i); return Math.round(e[1] + e[2] * DOME_PZ); }
   // Where each arm of the Coil Shield goes into the ground (stage px), and when (0..1 of the build).
-  barrierSpots() { return Object.entries(BARRIER).map(([i, B]) => { const e = this.domeAt(+i, 1, 0); return { i: +i, x: e[0] * CELL, y: (e[1] + e[2] * DOME_PZ) * CELL, at: B.at + 0.65 }; }); }
+  barrierSpots() { return Object.entries(BARRIER).map(([i, B]) => { const e = this.domeSpot(+i); return { i: +i, x: e[0] * CELL, y: (e[1] + e[2] * DOME_PZ) * CELL, at: B.at + 0.65 }; }); }
   // An arm: an override may return { pts, front: [[t0, t1], ...] }; those stretches go on the front layer, the rest here.
   drawArm(i, u) {
     if (this.growOv[i] != null) u = this.growOv[i];
