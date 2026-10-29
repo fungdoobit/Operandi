@@ -31,7 +31,7 @@ export const KINS = [
   },
   {
     id: "rime", name: "RIME", element: "Frost",
-    look: "an ice-blue hood and cloak with thick white fur round the face and along the hem, a fluffy pom-pom on the hood's tip, a snowflake brooch at the collar, two ice shards circling",
+    look: "a big ice-blue hood and cloak with a thick white fur collar and fur along the hem, a fluffy pom-pom on the hood's tip, a snowflake brooch at the collar, two ice shards circling",
     powers: "Ice Shard, Blizzard, Frost Armour (a shield), Absolute Zero",
     palettes: [
       ["#06080e", "#0c121c", "#141e2c", "#1e2c40", "#2a3e58", "#3a5474"],
@@ -65,7 +65,7 @@ export const KINS = [
   },
   {
     id: "fern", name: "FERN", element: "Nature",
-    look: "a moss-green hood whose tip curls over like a leaf, two little leaves sprouting from the top, a necklace of wooden beads, a leaf-cut hem, a wooden staff floating at their side with a glowing seed in its crook",
+    look: "a big moss-green hood whose tip curls over like a leaf, two little leaves sprouting from the top, a necklace of wooden beads, a leaf-cut hem, a wooden staff floating at their side with a glowing seed in its crook",
     powers: "Thorn Dart, Vine Bind, Seed Burst, Overgrowth",
     palettes: [
       ["#06080a", "#0c1210", "#141e18", "#1e2c22", "#2a3e2e", "#3a543e"],
@@ -82,7 +82,7 @@ export const KINS = [
   },
   {
     id: "shade", name: "SHADE", element: "Shadow",
-    look: "a charcoal rogue's hood swept back to a point, a long red scarf wrapped round the neck and pulled up over the face, its ends streaming behind, a belt, a dagger floating at their side",
+    look: "a charcoal rogue's hood swept back to a point, a thick red scarf wrapped round the bottom of the hood, its ends streaming behind, a belt, a dagger floating at their side",
     powers: "Throwing Knife, Smoke Step (vanishes and strikes from behind), Shadow Clones, Thousand Cuts",
     palettes: [
       ["#06060a", "#0c0c12", "#14141c", "#1e1e28", "#2a2a36", "#3a3a4a"],
@@ -99,7 +99,7 @@ export const KINS = [
   },
   {
     id: "mochi", name: "MOCHI", element: "Fortune",
-    look: "a cream cat-eared hood with pink insides and a ginger patch, a red collar with a gold bell, a cat's tail curling out from under the cloak, a lucky gold coin floating and turning beside them",
+    look: "a cream cat-eared hood with pink insides and a ginger patch, a red bow and a gold bell at the chin, a cat's tail curling out from under the cloak, a lucky gold coin floating and turning beside them",
     powers: "Coin Toss, Lucky Paw (the next hit is a sure crit), Nine Lives (a shield), Jackpot",
     palettes: [
       ["#06060a", "#0c0c12", "#14141c", "#1e1e28", "#2a2a36", "#3a3a4a"],
@@ -156,15 +156,24 @@ float cloak(vec3 p, float top, float bot, float r0, float r1, float hem){
 
 
 // ---- the hood (round 3) ----
-// A hood round the head at c (radius r): a rounded shell a little bigger than the head, open at the front round the face;
-// gRim is the band round the opening (for a trim).
-float gRim;
+// Isaac 2026-10-29: "why is the hood so tight". A big loose hood: much wider than the head, hanging down over the shoulders
+// with soft folds running down it, and a big deep opening; the face sits far back in its shadow (the inside of the hood is
+// dark: gIn), only the eyes glowing. gRim is the band round the opening (for a trim).
+float gRim, gIn;
 float hoodB(vec3 p, vec3 c, float r){
   vec3 q = p - c;
-  float outer = sdEll(q - vec3(0., .04, .06), vec3(r*1.2, r*1.18, r*1.2));
-  float open = length(q - vec3(0., -.04, -r*1.05)) - r*.8;
-  gRim = max(abs(open) - .03, outer - .025);
+  float a = atan(q.x, q.z);
+  float fold = .022*sin(a*6. + 1.)*smoothstep(.2, -.45, q.y);
+  float outer = sdEll(q - vec3(0., 0., .08), vec3(r*1.4, r*1.3, r*1.35)) + fold;
+  float open = length(q - vec3(0., -.06, -r*1.25)) - r*.95;
+  gRim = max(abs(open) - .035, outer - .03);
+  gIn = -open > outer ? 1. : 0.;
   return max(outer, -open);
+}
+// The face far back in the hood, and its eyes.
+void hoodFace(inout float d, vec3 p, vec3 c){
+  U(d, length(p - c - vec3(0., -.02, .04)) - .34, 2.);
+  eyes(d, p, c + vec3(-.13, 0., -.27), c + vec3(.12, 0., -.27), vec3(.075, .12, .06));
 }
 // A band of the cloak just above its ragged hem, h tall (a fur or gold trim).
 float hemBand(vec3 p, float top, float bot, float r0, float r1, float h){
@@ -207,16 +216,18 @@ float map(vec3 p){
 #elif KIND == 1
   // RIME: an ice-blue hood with white fur round the face and the hem, a pom-pom on the tip, a snowflake brooch, ice shards
   c = vec3(0., .48, 0.);
-  U(d, length(p - c) - .43, 2.);   // the face fills the hood's opening, dark
-  float hood = hoodB(p, c, .4), rim = gRim;
-  float tip = sdCapT(p, c + vec3(0., .3, .2), c + vec3(-.1 + .02*sin(uTime*1.3), .5, .42), .17, .07);
-  U(d, smin(smin(hood, tip, .08), cloak(p, .2, -.76, .24, .64, 0.), .08), 6.);
+  hoodFace(d, p, c);
+  float hood = hoodB(p, c, .4), rim = gRim, inner = gIn;
+  float tip = sdCapT(p, c + vec3(0., .42, .3), c + vec3(-.12 + .02*sin(uTime*1.3), .62, .55), .2, .08);
+  float cloth = smin(smin(hood, tip, .08), cloak(p, .2, -.76, .24, .64, 0.), .08);
+  U(d, cloth, inner > .5 && hood < cloth + .015 ? 2. : 6.);
   float fz = (fbm(p*14.) - .5)*.035;
-  U(d, rim + .004 + fz, 8.);                                                     // fur round the face
+  vec3 fc = p - c; float fa = atan(fc.x, fc.z);
+  U(d, length(vec2(length(fc.xz) - .5 - .015*sin(fa*9.), fc.y + .4)) - .09 + fz, 8.);   // a fur collar round the bottom of the hood
   U(d, hemBand(p, .2, -.76, .24, .64, .1) + fz, 8.);                              // fur along the hem
-  U(d, length(p - (c + vec3(-.12 + .02*sin(uTime*1.3), .55, .46))) - .1 + fz*1.5, 8.);   // the pom-pom
+  U(d, length(p - (c + vec3(-.14 + .02*sin(uTime*1.3), .67, .6))) - .11 + fz*1.5, 8.);   // the pom-pom
   // the snowflake brooch, turning slowly
-  vec3 b = p - vec3(0., .19, -.27); b.xy = R(uTime*.4) * b.xy;
+  vec3 b = p - vec3(0., .0, -.27); b.xy = R(uTime*.4) * b.xy;
   float flake = 1e5;
   for (int k = 0; k < 3; k++) { vec3 bb = b; bb.xy = R(float(k)*1.0472) * bb.xy; flake = min(flake, sdBox(bb, vec3(.075, .013, .016))); }
   glowU(d, flake, 5.);
@@ -226,25 +237,25 @@ float map(vec3 p){
     vec3 q = p - vec3(cos(a)*.78, .1 + .12*sin(a*1.3), sin(a)*.45); q.xy = R(uTime*1.2 + float(k)) * q.xy;
     glowU(d, sdOct(q*vec3(1.6, .7, 1.6), .1)*.6, 5.);
   }
-  headEyes(d, p, c, .38, .86);
 #elif KIND == 2
   // SPARK: a navy hood with a tall tip, goggles on the brow, a lightning bolt down the cloak, a little storm cloud
   c = vec3(0., .48, 0.);
-  U(d, length(p - c) - .43, 2.);   // the face fills the hood's opening, dark
-  float hood = hoodB(p, c, .4);
-  vec3 t0 = c + vec3(0., .3, .16), t1 = t0 + vec3(.04, .26, .12), t2 = t1 + vec3(.16 + .03*sin(uTime*1.5), .12, .1);
-  float tip = min(sdCapT(p, t0, t1, .2, .1), sdCapT(p, t1, t2, .1, .02));
+  hoodFace(d, p, c);
+  float hood = hoodB(p, c, .4), inner = gIn;
+  vec3 t0 = c + vec3(0., .4, .25), t1 = t0 + vec3(.04, .3, .14), t2 = t1 + vec3(.18 + .03*sin(uTime*1.5), .12, .1);
+  float tip = min(sdCapT(p, t0, t1, .22, .1), sdCapT(p, t1, t2, .1, .02));
   float cl = cloak(p, .2, -.76, .24, .64, 0.);
-  U(d, smin(smin(hood, tip, .08), cl, .08), 6.);
+  float cloth = smin(smin(hood, tip, .08), cl, .08);
+  U(d, cloth, inner > .5 && hood < cloth + .015 ? 2. : 6.);
   // the lightning bolt down the front
   float zx = .1*(abs(fract(p.y*1.8 + .25)*2. - 1.)*2. - 1.);
   U(d, max(max(cl - .014, abs(p.x - zx) - .05), max(p.y - .14, p.z + .02)), 7.);
   // goggles pushed up on the brow: a leather strap round the hood, brass rims, amber lenses
-  vec3 gq = p - c - vec3(0., .23, 0.);
-  U(d, max(length(vec2(length(gq.xz) - .44, gq.y*1.4)) - .028, gq.z - .1), 8.);
+  vec3 gq = p - c - vec3(0., .3, .08);
+  U(d, max(length(vec2(length(gq.xz*vec2(1., .97)) - .47, gq.y*1.4)) - .03, gq.z - .1), 8.);
   for (int k = 0; k < 2; k++) {
     float sx = k == 0 ? -1. : 1.;
-    vec3 l = p - c - vec3(.13*sx, .24, -.37); l.yz = R(-.45) * l.yz;
+    vec3 l = p - c - vec3(.15*sx, .31, -.38); l.yz = R(-.5) * l.yz;
     U(d, sdTorZ(l, .08, .026), 5.);
     glowU(d, sdEll(l, vec3(.075, .075, .025)), 4.);
   }
@@ -257,25 +268,25 @@ float map(vec3 p){
     vec3 z0 = vec3(.02, -.1, 0.), z1 = vec3(-.05, -.2, 0.), z2 = vec3(.03, -.26, 0.), z3 = vec3(-.03, -.4, 0.);
     glowU(d, min(min(sdCapT(cq, z0, z1, .022, .018), sdCapT(cq, z1, z2, .018, .016)), sdCapT(cq, z2, z3, .016, .0)), 4.);
   }
-  headEyes(d, p, c, .38, .86);
 #elif KIND == 3
   // FERN: a moss-green hood with a tip curled like a leaf, two leaves on top, wooden beads, a leaf hem, a floating staff
   c = vec3(0., .48, 0.);
-  U(d, length(p - c) - .43, 2.);   // the face fills the hood's opening, dark
-  float hood = hoodB(p, c, .4);
-  vec3 t0 = c + vec3(0., .3, .2), t1 = t0 + vec3(.04, .18, .22), t2 = t1 + vec3(.06, -.14 + .02*sin(uTime*1.6), .14);
-  float tip = min(sdCapT(p, t0, t1, .18, .09), sdCapT(p, t1, t2, .09, .02));
-  U(d, smin(smin(hood, tip, .08), cloak(p, .2, -.76, .24, .64, 1.), .08), 6.);
+  hoodFace(d, p, c);
+  float hood = hoodB(p, c, .4), inner = gIn;
+  vec3 t0 = c + vec3(0., .4, .3), t1 = t0 + vec3(.04, .2, .24), t2 = t1 + vec3(.06, -.16 + .02*sin(uTime*1.6), .16);
+  float tip = min(sdCapT(p, t0, t1, .2, .1), sdCapT(p, t1, t2, .1, .02));
+  float cloth = smin(smin(hood, tip, .08), cloak(p, .2, -.76, .24, .64, 1.), .08);
+  U(d, cloth, inner > .5 && hood < cloth + .015 ? 2. : 6.);
   // two little leaves sprouting from the top of the hood
   for (int k = 0; k < 2; k++) {
     float sx = k == 0 ? -1. : 1.;
-    vec3 lf = p - c - vec3(.12*sx, .45, .04); lf.xy = R(sx*(.65 + .1*sin(uTime*2. + sx))) * lf.xy;
+    vec3 lf = p - c - vec3(.15*sx, .5, .06); lf.xy = R(sx*(.65 + .1*sin(uTime*2. + sx))) * lf.xy;
     U(d, sdEll(lf - vec3(0., .1, 0.), vec3(.055, .12, .025)), 8.);
   }
   // a necklace of wooden beads hanging over the collar
   for (int k = 0; k < 9; k++) {
-    float f = float(k)/8., x = (f - .5)*.42, y = .16 - .09*sin(f*3.1416);
-    float z = -.25*sqrt(max(0., 1. - (x/.3)*(x/.3))) - .02;
+    float f = float(k)/8., x = (f - .5)*.48, y = -.1 - .08*sin(f*3.1416);
+    float z = -.37*sqrt(max(0., 1. - (x/.44)*(x/.44))) - .02;
     U(d, length(p - vec3(x, y, z)) - (k == 4 ? .05 : .034), 7.);
   }
   // the staff, floating at their side, a glowing seed held in the ring at its top
@@ -288,25 +299,23 @@ float map(vec3 p){
     vec3 lf = sq - vec3(0., .2 - float(k)*.25, 0.); lf.xy = R(k == 0 ? -.9 : .9) * lf.xy;
     U(d, sdEll(lf - vec3(0., .08, 0.), vec3(.035, .08, .02)), 8.);
   }
-  headEyes(d, p, c, .38, .86);
 #elif KIND == 4
   // SHADE: a rogue's hood swept back, a red scarf round the neck and over the face, its ends streaming, daggers on the back
   c = vec3(0., .48, 0.);
-  U(d, length(p - c) - .43, 2.);   // the face fills the hood's opening, dark
-  float hood = hoodB(p, c, .4);
-  float tip = sdCapT(p, c + vec3(0., .26, .24), c + vec3(.05, .38, .54), .17, .02);
-  U(d, smin(smin(hood, tip, .08), cloak(p, .2, -.76, .24, .64, 0.), .08), 6.);
+  hoodFace(d, p, c);
+  float hood = hoodB(p, c, .4), inner = gIn;
+  float tip = sdCapT(p, c + vec3(0., .34, .4), c + vec3(.05, .46, .74), .2, .02);
+  float cloth = smin(smin(hood, tip, .08), cloak(p, .2, -.76, .24, .64, 0.), .08);
+  U(d, cloth, inner > .5 && hood < cloth + .015 ? 2. : 6.);
   // the scarf: round the neck and up over the lower face (below the eyes), two ends streaming out behind
-  vec3 n = p - vec3(0., .2, 0.);
-  float neck = length(vec2(length(n.xz) - .28, n.y*1.2)) - .09;
-  float mask = max(max(abs(length(p - c) - .395) - .035, p.y - c.y + .05), p.z - c.z + .14);
-  float sc = min(neck, mask);
+  vec3 n = p - c; float na = atan(n.x, n.z);
+  float sc = length(vec2(length(n.xz) - .5 - .02*sin(na*5.), (n.y + .36)*1.15)) - .1;   // wrapped thick round the bottom of the hood
   for (int k = 0; k < 2; k++) {
     float sx = k == 0 ? 1. : .55, ph = float(k)*1.7;
-    vec3 prev = vec3(.12, .2, .26);
+    vec3 prev = vec3(.24, .12, .36);
     for (int j = 1; j <= 4; j++) {
       float w = float(j)/4.;
-      vec3 nx = vec3(.12 + .5*w*sx, .2 - .16*w*w + .06*sin(uTime*6. - w*5. + ph)*w, .26 + .3*w);
+      vec3 nx = vec3(.24 + .5*w*sx, .12 - .2*w*w + .06*sin(uTime*6. - w*5. + ph)*w, .36 + .3*w);
       sc = min(sc, sdCapT(p, prev, nx, .07 - .02*w, .065 - .02*w));
       prev = nx;
     }
@@ -320,33 +329,31 @@ float map(vec3 p){
   U(d, sdBox(dq - vec3(0., .05, 0.), vec3(.12, .025, .035)), 5.);                 // the guard
   U(d, sdCapT(dq, vec3(0., .07, 0.), vec3(0., .3, 0.), .038, .038), 8.);          // the grip
   U(d, length(dq - vec3(0., .34, 0.)) - .05, 7.);                                  // a red pommel
-  eyes(d, p, c + vec3(-.15, .07, -.33), c + vec3(.14, .07, -.33), vec3(.085, .1, .06));
 #else
   // MOCHI: a cream cat-eared hood with a ginger patch, a red collar and gold bell, a cat's tail, a lucky coin
   c = vec3(0., .48, 0.);
-  U(d, length(p - c) - .43, 2.);   // the face fills the hood's opening, dark
-  float hood = hoodB(p, c, .4);
+  hoodFace(d, p, c);
+  float hood = hoodB(p, c, .4), inner = gIn;
   vec3 e = vec3(abs(p.x), p.yz) - c;
   float tw = .02*sin(uTime*2. + step(0., p.x)*2.);
-  float ear = sdCapT(e, vec3(.2, .3, .02), vec3(.33 + tw, .62, .06), .15, .0);
+  float ear = sdCapT(e, vec3(.25, .4, .06), vec3(.4 + tw, .76, .1), .18, .0);
   float cl = cloak(p, .2, -.76, .24, .64, 0.);
   float cloth = smin(smin(hood, ear, .05), cl, .08);
-  U(d, cloth, 6.);
-  U(d, max(cloth - .004, length(p - (c + vec3(-.3, .3, -.05))) - .2), 8.);        // a ginger patch over one ear
-  U(d, sdCapT(e - vec3(0., 0., -.07), vec3(.21, .34, .0), vec3(.32 + tw, .56, .03), .08, .0), 7.);   // pink inside the ears
+  U(d, cloth, inner > .5 && hood < cloth + .015 ? 2. : 6.);
+  U(d, max(cloth - .004, max(length(p - (c + vec3(-.36, .42, -.05))) - .24, -(inner > .5 ? 1. : 0.))), 8.);   // a ginger patch over one ear
+  U(d, sdCapT(e - vec3(0., 0., -.08), vec3(.26, .45, .02), vec3(.39 + tw, .7, .06), .09, .0), 7.);   // pink inside the ears
   // the tail, curling up from under the cloak behind them; ginger at the tip
   vec3 P0 = vec3(.0, -.5, .3), P1 = vec3(.32, -.6, .4), P2 = vec3(.58, -.36, .42), P3 = vec3(.6 + .04*sin(uTime*1.8), -.04, .4), P4 = vec3(.46 + .06*sin(uTime*1.8), .12, .38);
   float tail = min(min(sdCapT(p, P0, P1, .07, .075), sdCapT(p, P1, P2, .075, .075)), sdCapT(p, P2, P3, .075, .07));
   U(d, tail, 6.);
   U(d, sdCapT(p, P3, P4, .07, .05), 8.);
   // the collar and its bell
-  vec3 n = p - vec3(0., .19, 0.);
-  U(d, length(vec2(length(n.xz) - .27, n.y*1.3)) - .045, 7.);
-  U(d, length(p - vec3(0., .11, -.31)) - .065, 5.);
+  // a red bow and a gold bell at the chin of the hood
+  U(d, min(sdEll(p - vec3(-.07, .02, -.3), vec3(.07, .045, .03)), sdEll(p - vec3(.07, .02, -.3), vec3(.07, .045, .03))), 7.);
+  U(d, length(p - vec3(0., -.06, -.31)) - .065, 5.);
   // the lucky coin, floating and turning
   vec3 cq = p - vec3(.64, .26 + .05*sin(uTime*1.7), -.05); cq.xz = R(uTime*1.6) * cq.xz;
   glowU(d, sdEll(cq, vec3(.1, .14, .025)), 5.);
-  headEyes(d, p, c, .38, .86);
 #endif
   return d;
 }
