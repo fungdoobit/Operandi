@@ -1,244 +1,322 @@
-// TENTACLE STORM, the Abyssal Maw's flurry (Isaac 2026-10-24/25: "a bunch of subsequent sweeping whips, not straight as a ruler,
-// sweeping from left to right and vice versa, not top-down smacking; cinematic, no black bars, high quality target interaction";
-// the two-arm X finisher was dropped: "the last clap looks weird"; then the rolling bullwhip loop "doesn't look very good").
+// TENTACLE STORM, the Abyssal Maw's flurry. Fourth pass (Isaac 2026-10-29), his design:
+//   "the same 4 tentacles stab into the ground (smoother, no sharp angles), drill underground towards the opponent, come out
+//    like Point Stab, which stabs the opponent up into the air; one of the other tentacles grabs them in the air while the
+//    original four come back; then all the tentacles except the one grabbing become a point stab (but bigger) and stab the
+//    opponent; then it lets go."
+// (Earlier passes, all dropped: an X clap, top-down smacks, a rolling bullwhip loop, and sideways sweeps from arms that came
+// up round the fighter.)
 //
-// Third pass: the storm comes up out of the ground. Four of his arms rear up and dive into the ground in front of him; the
-// ground heaves as they tunnel across the stage, and they burst up round your fighter, two on each side, rearing like cobras.
-// Then they take turns sweeping SIDEWAYS through them: each one bends over at their height and its outer part swings round in a
-// flat circle (seen from a little above), from behind one side, round the front of them, through to the other side, with a
-// slash arc trailing its tip. Left to right, right to left, chest, legs, head, chest; the last is wide and low and sweeps them
-// off their feet. Then the arms sink back into the ground and come home.
-// The arms are one curve all the way: mouth, over, into the ground, under the stage, and up beside your fighter; the Maw hides
-// everything of them below the ground (clipOv), and the parts in front of your fighter go on the front layer.
-// Your fighter is hit when an arm's tip passes their middle: shoved the way it was going (a spring on their position, tilt and
-// squash; the last one throws them into the air and they land), with a freeze, sparks and a flash.
+//   1. Four arms (3, 5, 4, 6) rear up and plunge into the ground in front of him, each in one smooth arch.
+//   2. They drill under the stage towards your fighter (dust and rumbles along the ground), and the ground trembles under them.
+//   3. They burst up right under your fighter already twisted together into a spear (Point Stab's braid, standing up), and it
+//      launches them into the air.
+//   4. Arm 1 shoots out, catches them at the top and coils round them, holding them up there; the four sink back into the
+//      ground and tunnel home.
+//   5. Every other arm (0, 2, 3, 4, 5, 6, 7) twists into one bigger spear over the cat, draws back, and drives it into them
+//      where they hang (the damage lands here).
+//   6. The big spear bursts open like a flower, arm 1 uncoils, and they drop to the ground.
+//
+// Every arm here is one continuous, evenly smooth curve with plenty of points (Isaac: no sharp angles): for the four, out of his
+// mouth in an arch, into the ground, under the stage (hidden: clipOv) and up through the spear. The spear arms wind round a
+// centre line ("spine") at their own angles, twisting along it and spinning; the stretches in front of the spine go on the
+// Maw's front layer, so they really wind round each other (and round your fighter where they pass them).
 import { sound } from "../sound.js";
 import { impactFrame } from "../cine.js";
 import { CELL, spl } from "./maw-px.js";
 import { bodyOf } from "./maw-grab.js";
 
-const PZ = 0.3;        // how far down the screen one px towards the camera shows (the camera looks a little down)
+const FOUR = [3, 5, 4, 6], GRABBER = 1, BIG = [0, 2, 3, 4, 5, 6, 7];
+const N = 64;                                    // points along a spear arm
+const NG = 110;                                  // points along the grabbing arm
+const PH0 = 0.15 * Math.PI, PH1 = 4.2 * Math.PI;  // its coil: from their right side, twice round
+const SPEAR_H = 66;                              // cells the eruption spear stands out of the ground
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
-const smooth = (u) => { u = clamp(u); return u * u * (3 - 2 * u); };
-const TRAIL = 150;     // ms of slash arc behind a sweeping tip
+const ss = (t) => { t = clamp(t); return t * t * (3 - 2 * t); };
 
-// The four arms: where each dives in (px in front of his mouth), where it comes up (px from your fighter's middle) and how long
-// its sweeping part is.
-const ARMS = [
-  { i: 3, dive: 70, up: -54, len: 116 },
-  { i: 5, dive: 104, up: 60, len: 108 },
-  { i: 4, dive: 54, up: -86, len: 132 },
-  { i: 6, dive: 88, up: 94, len: 122 },
-];
+function resample(poly, n) {   // a curve as n evenly spaced points (keeps a third value, z, if there is one)
+  const d = [0]; for (let i = 1; i < poly.length; i++) d.push(d[i - 1] + Math.hypot(poly[i][0] - poly[i - 1][0], poly[i][1] - poly[i - 1][1]));
+  const L = d[d.length - 1] || 1, out = []; let j = 0;
+  for (let k = 0; k < n; k++) {
+    const s = (k / (n - 1)) * L; while (j < poly.length - 2 && d[j + 1] < s) j++;
+    const u = clamp((s - d[j]) / ((d[j + 1] - d[j]) || 1)), a = poly[j], b = poly[j + 1];
+    out.push([lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2] ?? -1, b[2] ?? -1, u)]);
+  }
+  return out;
+}
+// the stretches of an arm with z > 0 (in front), as [t0, t1] ranges along it
+function fronts(z, extra = () => false) {
+  const out = []; let a0 = null, n = z.length;
+  z.forEach((zz, k) => { const t = k / (n - 1), f = zz > 0 || extra(t); if (f && a0 === null) a0 = t; if ((!f || k === n - 1) && a0 !== null) { out.push([Math.max(0, a0 - 0.5 / n), t]); a0 = null; } });
+  return out;
+}
 
 export async function storm(s) {
   const { fx, g } = s;
-  const B = bodyOf(s), el = B.el, t0 = g.at;
-  // your fighter on a spring: shoved about, then back to where they stand (or thrown up and falling, when in the air)
-  const F = { x: 0, y: 0, vx: 0, vy: 0, r: 0, vr: 0, sx: 1, sy: 1, zeta: 0.42, air: false };
-  const pivotD = () => [B.box.x + B.home.x + B.pivot[0] + F.x, B.box.y + B.home.y + B.pivot[1] + F.y];
-  const P0 = pivotD(), floorY = B.box.y + B.home.y + B.feet;   // design px
-  const G = (g.floorC - 1) * CELL;                               // the ground line under the Maw
-  const fl = fx.floorFrac; fx.floorFrac = floorY / fx.h;         // dust starts on the ground
+  const B = bodyOf(s), el = B.el, t0 = g.at, late = s.skin === "pyro";   // (PYRO's hurt look is a smaller flame: he flinches once let go)
+  const G = g.floorC - 1;   // the ground line, in cells
+  // ---- your fighter: on the ground (a spring back to their spot), in the air (falling), or held (following H) ----
+  const F = { x: 0, y: 0, vx: 0, vy: 0, r: 0, vr: 0, sx: 1, sy: 1, mode: "ground" };
+  const H = { x: 0, y: 0, r: 0, trem: 0 };
+  let landed = null;   // resolves when they come down
+  const carried = () => [Math.round(F.x / CELL) * CELL, Math.round((F.y + (1 - F.sy) * (B.feet - B.pivot[1])) / CELL) * CELL];
+  const toWorld = (q) => {
+    const D = carried(), c = Math.cos(F.r), sn = Math.sin(F.r), X = (q[0] - B.pivot[0]) * F.sx, Y = (q[1] - B.pivot[1]) * F.sy;
+    return [(B.box.x + B.home.x + B.pivot[0] + D[0] + X * c - Y * sn) / CELL, (B.box.y + B.home.y + B.pivot[1] + D[1] + X * sn + Y * c) / CELL];
+  };
+  const chest = () => { const D = carried(); return [B.box.x + B.home.x + B.pivot[0] + D[0], B.box.y + B.home.y + B.pivot[1] + D[1]]; };
+  const P0 = chest(), floorY = B.box.y + B.home.y + B.feet;
+  const fl = fx.floorFrac; fx.floorFrac = floorY / fx.h;   // dust starts on the ground
+  const Ex = P0[0] / CELL;                                  // where the spear comes up: right under them
 
-  // ---- the arms ----
-  // st: go (from his idle pose into the dive), run (how far it has tunnelled, 0 at the dive .. 1 under your fighter), rise (how
-  // far it stands out of the ground, below 0 = under it), h (the height it bends over at), ang (where its sweeping part points:
-  // 0 to their right, pi/2 at the camera, pi to their left), flat (0 standing up like a cobra .. 1 bent over and sweeping),
-  // curl (how much the sweeping part bends behind the tip), wav (ripples).
-  const arms = ARMS.map((a, j) => ({ ...a, j, st: { go: 0, run: 0, rise: -0.3, h: -10, ang: a.up < 0 ? Math.PI : 0, flat: 0, curl: 0, wav: 0 }, armed: false, hit: false, trail: [], o: null }));
-  let done = false;
-  const path = (a) => {
-    const st = a.st, Mc = g.mouthCells(), M = [Mc[0] * CELL, Mc[1] * CELL, 0], tt = (g.at - t0) / 1000;
-    const D = M[0] - a.dive, E = lerp(D - 10, P0[0] + a.up, st.run), side = Math.sign(a.up);
-    const top = [lerp(M[0], D, 0.55), Math.min(M[1], G) - 40 - a.j * 7, 0];
-    const hy = P0[1] + st.h + a.len * 0.2 * st.flat, rise = st.rise, elbowY = lerp(G + 10, hy, rise);   // (bent over, it rises a little more before it turns)
-    const sway = Math.sin(tt * 3 + a.j * 2) * 4 * (1 - st.flat);
-    // (few points up to where it comes out of the ground, so the part above it is the thick middle of the arm, not its thin end)
-    const pts = [M, top, [D + 4, G - 16, 0], [D - 6, G + 24, 0], [E - side * 12, G + 28, 0], [E, G + 6, 0],
-      [E + sway * 0.3, lerp(G + 6, elbowY, 0.55), 0], [E + sway, elbowY, 0]];
-    // the part above: standing, it rises and curls over towards your fighter like a cobra (its tip hooked down); bent over to
-    // sweep, it lies flat along ang, curving behind its tip into a crescent
-    const n = 10, L = a.len * clamp(rise + 0.3), toward = -a.sg;
-    let p = pts[pts.length - 1];
-    for (let k = 1; k <= n; k++) {
-      const f = k / n, th = -Math.PI / 2 + toward * (1.95 * f ** 1.6 + 0.12 * Math.sin(tt * 3 + a.j)) + Math.sin(tt * 4 + f * 3 + a.j) * 0.08;
-      const an = st.ang - a.sg * st.curl * (1 - f) * 1.5;
-      const sx = Math.cos(th), sy = Math.sin(th), wx = Math.cos(an), wz = Math.sin(an), wy = 0.18 * f * f + Math.sin(f * 6 + tt * 10) * 0.12 * st.wav;
-      const fl = st.flat * smooth(f * 2.4);   // it bends over smoothly: still rising at its base, flat further out
-      const dx = lerp(sx, wx, fl), dy = lerp(sy, wy, fl), dz = lerp(0, wz, fl);
-      const l = Math.hypot(dx, dy, dz) || 1, seg = L / n;
-      p = [p[0] + (dx / l) * seg, p[1] + (dy / l) * seg, p[2] + (dz / l) * seg];
-      pts.push(p);
+  // ---- the eruption spear (the four arms) ----
+  // per arm: go (from its idle pose into the dive), run (how far it has tunnelled: 0 at its dive spot, 1 under your fighter)
+  const four = FOUR.map((i, j) => ({ i, j, dive: [54, 80, 40, 68][j], go: 0, run: 0 }));
+  const SP = { up: 0, R: 9, turns: 2.2, spin: 0, rate: 2 };   // up: how far the spear stands out of the ground (below 0: in it)
+  const fourPath = (a) => {
+    const M = g.mouthCells(), tt = (g.at - t0) / 1000, D = M[0] - a.dive, E = lerp(D - 6, Ex, ss(a.run)), side = a.j % 2 ? 1 : -1;
+    const out = [];
+    // out of his mouth in one smooth arch and into the ground (a lazy S along it, rippling)
+    const A = 22 + 0.32 * a.dive + 5 * a.j;
+    for (let k = 0; k < 22; k++) {
+      const u = (k / 21) * 1.04, q = Math.min(u, 1), sw = (Math.sin(Math.PI * 2 * q + a.j) * 1.8 + Math.sin(q * 7 - tt * 3 + a.j) * 0.7) * Math.sin(Math.PI * q);
+      out.push([lerp(M[0], D, u) + sw, lerp(M[1], G, u) - A * Math.sin(Math.PI * q ** 0.8), -1]);
+    }
+    // under the stage (hidden), across to the spear
+    out.push([lerp(D, E, 0.15), G + 16, -1], [lerp(D, E, 0.5), G + 20, -1], [lerp(D, E, 0.85) + side * 4, G + 18, -1], [E + side * 6, G + 12, -1]);
+    // up through the ground at E, twisted round the spear's spine with the other three
+    // (until it breaks the surface, all of it stays below the ground, hidden)
+    const Hs = SPEAR_H * Math.max(0, SP.up) + 10 * clamp(SP.up * 6), grow = clamp(SP.up * 3);
+    for (let k = 0; k < N - 26; k++) {
+      const u = k / (N - 27), y = G + 8 - Hs * u, x = E + Math.sin(u * 2.4 + tt * 2) * 1.2 * u;
+      const th = (a.j * Math.PI) / 2 + SP.turns * 2 * Math.PI * u + SP.spin, r = (SP.R * (1 - u) ** 0.8 + 1.5 * (1 - u)) * grow;
+      out.push([x + r * Math.cos(th), y + r * Math.sin(th) * 0.22, Math.sin(th)]);
+    }
+    return out;
+  };
+
+  // ---- the big spear (every arm but the grabber) ----
+  // Point Stab's spear, bigger: cocked high over the cat, then straightened at T (your fighter where they hang)
+  const BS = { pull: 0, stab: 0, ext: 0, R: 16, turns: 0.6, spin: 0, rate: 1.5, open: 0, front: 0, shake: 0 };
+  const W = {};  for (const i of BIG) W[i] = 0;   // how far each arm has joined it
+  let T = [0, 0];
+  const NS = 6;
+  const bigSpine = () => {
+    const M = g.mouthCells(), p = BS.pull, tt = (g.at - t0) / 1000, tr = BS.shake * Math.sin(tt * 70) * 1;
+    const C = [[0, 0], [-18, -14 - 3 * p], [-34 + 5 * p, -44 - 8 * p], [-44 + 8 * p, -80 - 10 * p], [-60 + 12 * p, -110 - 8 * p], [-90 + 20 * p, -104]]
+      .map(([x, y], j) => [M[0] + x + tr * j * 0.3 + Math.sin(tt * 2 + j) * 0.8 * (1 - BS.stab), M[1] + y + Math.cos(tt * 1.7 + j) * 0.8 * (1 - BS.stab)]);
+    const dx = T[0] - M[0], dy = T[1] - M[1], len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, Lx = len + BS.ext;
+    const S = Array.from({ length: NS }, (_, j) => { const f = j / (NS - 1); return [M[0] + ux * Lx * f, M[1] + uy * Lx * f - 8 * Math.sin(Math.PI * f) * (1 - f)]; });
+    return C.map((c, j) => { const k = ss(BS.stab * 1.6 - 0.6 * (1 - j / (NS - 1))); return [lerp(c[0], S[j][0], k), lerp(c[1], S[j][1], k)]; });   // the point leads
+  };
+  const bigStrand = (j, S) => {
+    const pts = [], tt = (g.at - t0) / 1000;
+    for (let k = 0; k < N; k++) {
+      const u = k / (N - 1), p = spl(S, u), q = spl(S, Math.min(1, u + 0.01)), p0 = spl(S, Math.max(0, u - 0.01));
+      let tx = q[0] - p0[0], ty = q[1] - p0[1]; const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+      const th = (j * 2 * Math.PI) / BIG.length + BS.turns * 2 * Math.PI * u + BS.spin;
+      const r = BS.R * Math.min(1, u / 0.22) * (1 - u) ** 0.6 + BS.open * (6 + 26 * Math.sin(Math.PI * u)) * (1 + 0.3 * Math.sin(j * 2.1));
+      const wob = BS.open * Math.sin(tt * 9 + u * 7 + j) * 2;
+      pts.push([p[0] - ty * (r * Math.cos(th) + wob), p[1] + tx * (r * Math.cos(th) + wob), Math.sin(th)]);
     }
     return pts;
   };
-  const project = (q) => [q[0] / CELL, (q[1] + q[2] * PZ) / CELL];
-  for (const a of arms) {
-    a.sg = Math.sign(a.up) < 0 ? -1 : 1;   // the side it comes up on: it sweeps towards the other
-    g.clipOv[a.i] = g.floorC - 1;
-    a.fn = (base) => {
-      const st = a.st; if (st.go <= 0) return base;
-      const P = path(a), n = P.length;
-      const pts = P.map((q, k) => {
-        const f = k / (n - 1), b = spl(base, f), w = smooth(st.go * 1.6 - 0.6 * f), pr = project(q);
-        return [lerp(b[0], pr[0], w), lerp(b[1], pr[1], w)];
-      });
-      const tip = P[n - 1], tipD = [tip[0], tip[1] + tip[2] * PZ];
-      if (a.armed) {
-        a.trail.push({ x: tipD[0], y: tipD[1], t: g.at });
-        if (!a.hit && (tip[0] - pivotD()[0]) * -a.sg > 0) contact(a, [pivotD()[0], tipD[1]]);
+
+  // ---- the arms' overrides: the four (dive, tunnel, spear) and the big spear, in one ----
+  const smoothBase = (raw) => Array.from({ length: N }, (_, k) => spl(raw, k / (N - 1)));
+  for (const i of new Set([...FOUR, ...BIG])) {
+    const a = four.find((q) => q.i === i), jb = BIG.indexOf(i);
+    if (a) g.clipOv[i] = G;   // what goes under the stage is hidden
+    g.override[i] = (raw) => {
+      const wb = jb >= 0 ? W[i] : 0;
+      if ((!a || a.go <= 0) && wb <= 0) return raw;
+      let pts = smoothBase(raw).map((p) => [p[0], p[1], -1]);
+      if (a && a.go > 0) {   // the dive: the tip stabs into the ground first and the rest follows it in (coming out: the tip last)
+        const P = fourPath(a);
+        pts = pts.map((b, k) => { const f = k / (N - 1), w = ss(a.go * 1.6 - 0.6 * (1 - f)); return [lerp(b[0], P[k][0], w), lerp(b[1], P[k][1], w), w > 0.5 ? P[k][2] : -1]; });
       }
-      // the stretches in front of your fighter go on the front layer
-      const front = []; let f0 = null;
-      P.forEach((q, k) => { const t = k / (n - 1); if (q[2] > 3 && f0 === null) f0 = t; if ((q[2] <= 3 || k === n - 1) && f0 !== null) { front.push([Math.max(0, f0 - 0.04), t]); f0 = null; } });
-      return { pts, front };
+      if (wb > 0) {
+        const S = bigStrand(jb, bigSpine());
+        pts = pts.map((b, k) => [lerp(b[0], S[k][0], wb), lerp(b[1], S[k][1], wb), wb > 0.25 ? S[k][2] : b[2]]);
+      }
+      const front = fronts(pts.map((p) => p[2]), (t) => wb > 0.5 && BS.front > 0.5 && t > 0.8);
+      return { pts: pts.map((p) => [p[0], p[1]]), front };
     };
-    g.override[a.i] = a.fn;
   }
-  // the slash arc behind a sweeping tip: a crescent, thick and bright at the tip, thinning and fading behind it
-  s.pxTop.add({ dur: 60000, draw(gg, k, t, act) {
-    if (done) { act.t = act.dur; return; }
-    for (const a of arms) {
-      const pts = a.trail = a.trail.filter((q) => g.at - q.t < TRAIL);
-      if (pts.length < 3) continue;
-      for (const [wd, col, al] of [[10, "#f59a90", 0.5], [4, "#fff3ee", 0.95]]) {
-        const L = [], R = [];
-        pts.forEach((q, n) => {
-          const p2 = pts[Math.min(pts.length - 1, n + 1)], p1 = pts[Math.max(0, n - 1)], dx = p2.x - p1.x, dy = p2.y - p1.y, l = Math.hypot(dx, dy) || 1;
-          const f = 1 - (g.at - q.t) / TRAIL, hw = wd * f * f * 0.5 + 0.3;
-          L.push([q.x - (dy / l) * hw, q.y + (dx / l) * hw]); R.push([q.x + (dy / l) * hw, q.y - (dx / l) * hw]);
-        });
-        gg.globalAlpha = al; gg.fillStyle = col; gg.beginPath();
-        [...L, ...R.reverse()].forEach(([x, y], n) => (n ? gg.lineTo(x, y) : gg.moveTo(x, y)));
-        gg.closePath(); gg.fill();
-      }
-      gg.globalAlpha = 1;
+
+  // ---- the grabbing arm: from his mouth (a sagging curve) to its coil round them ----
+  const GS = { reach: 0, wrap: 0, loose: 1.3, ret: 0, wave: 0, burst: 0 };
+  g.override[GRABBER] = (base) => {
+    if (GS.reach <= 0) return base;
+    const Mc = g.mouthCells(), tt = (g.at - t0) / 1000;
+    const coil = [], upto = lerp(PH0, PH1, GS.wrap), n = Math.max(2, Math.ceil(100 * GS.wrap));
+    for (let m = 0; m <= n; m++) {
+      const phi = lerp(PH0, upto, m / n), k = (phi - PH0) / (PH1 - PH0), [x, y, z] = B.coil(phi, k, GS.loose + GS.burst * 1.2), w = toWorld([x, y]);
+      coil.push([w[0], w[1] - GS.burst * 6 * Math.sin(phi * 1.3), z]);
     }
-  } });
+    const E = coil[0], len = Math.hypot(E[0] - Mc[0], E[1] - Mc[1]), line = [];
+    for (let m = 0; m <= 40; m++) {
+      const f = m / 40, sag = Math.sin(Math.PI * f) * Math.min(30, len * 0.18), wv = GS.wave * Math.sin(f * 12 - tt * 24) * 3 * Math.sin(Math.PI * f);
+      line.push([lerp(Mc[0], E[0], f), lerp(Mc[1], E[1], f) - sag + wv, -1]);   // (it bows up: it's reaching up to them)
+    }
+    const pts = resample(line.concat(coil.slice(1)), NG);
+    pts.forEach((p, k) => {   // reaching out from where it was (root first), and going home again (ret)
+      const f = k / (NG - 1), b = spl(base, f), r0 = ss(GS.reach * 1.6 - 0.6 * f), r1 = ss(GS.ret * 1.6 - 0.6 * (1 - f)), e = r0 * (1 - r1);
+      p[0] = lerp(b[0], p[0], e); p[1] = lerp(b[1], p[1], e); p[2] = e > 0.5 ? p[2] : -1;
+    });
+    return { pts: pts.map((p) => [p[0], p[1]]), front: fronts(pts.map((p) => p[2])) };
+  };
 
-  // A hit: shoved the way the lash was going, a freeze, sparks, a flash; the last one throws them into the air.
-  function contact(w, at) {
-    w.hit = true;
-    const o = w.o, p = o.power, dir = -w.sg, c = { x: at[0], y: at[1] };   // dir: which way the tip was going (+1 = to the right)
-    F.vx += dir * 520 * p; F.vr += dir * 4.5 * p; F.sx = 1 - 0.22 * p;   // shoved along, twisted, squeezed as the arm wraps past them
-    if (o.h > 20) F.sy = 1 + 0.08 * p; else F.sy = 1 - 0.08 * p;
-    fx.dust(pivotD()[0], Math.round(3 + 4 * p), 0.8);   // their feet scuff the ground
-    fx.hitstop(Math.round(50 + 45 * p)); fx.shake(Math.round(8 + 10 * p)); fx.punch(0.02 + 0.025 * p, c); fx.flash(0.1 + 0.12 * p, "#ffd6c8");
-    fx.sparks(c, Math.round(8 + 8 * p), { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1 + 0.4 * p, dir });
-    fx.ring(c, { color: "#f59a90", size: 60 + 40 * p, flat: 0.35, ms: 280, width: 4 });   // flat: a lash round them, not a burst
-    sound.sfx("slash", { size: 0.7 + 0.3 * p }); sound.sfx("hit", { size: p });
-    if (o.last) {
-      F.air = true; F.vy = -620; F.vr += dir * 3;   // swept off their feet
-      impactFrame(fx, { ms: 60, frames: 2 });
-      fx.hitstop(160); fx.shake(28); fx.punch(0.07, c); fx.flash(0.35, "#ffd6c8");
-      fx.wait(170).then(() => fx.slowmo(0.4, 320));   // up they go, in slow motion
-      sound.sfx("slamImpact", { size: 1 }); sound.sfx("roar", { size: 0.6 });
-      s.hit({ crit: true });   // the damage lands on the last lash
-      F.zeta = 0.8;            // and they slide back to their spot instead of bouncing
-    } else s.flinch({ crit: false });
-  }
-
-  // ---- your fighter: the spring, then placed just before every drawing (so the body and the arms match) ----
+  // ---- your fighter, every frame and just before every drawing ----
   const origin = el.style.transformOrigin;
   el.style.transformOrigin = `${B.box.w / 2 + B.pivot[0]}px ${B.box.h / 2 + B.pivot[1]}px`;
+  let onLand = null;
   const hook = (dt) => {
-    const k = Math.min(0.05, dt / 1000), W = 13, Z = F.zeta;
-    F.vx += (-W * W * F.x - 2 * Z * W * F.vx) * k; F.vr += (-W * W * F.r - 2 * Z * W * F.vr) * k;
-    if (F.air) F.vy += 2600 * k; else F.vy += (-W * W * F.y - 2 * Z * W * F.vy) * k;   // in the air: falling
-    F.x += F.vx * k; F.y += F.vy * k; F.r += F.vr * k;
-    if (F.y > 0) {
-      if (F.air) { F.air = false; F.sx = 1.2; F.sy = 0.82; fx.dust(pivotD()[0], 10, 1.2); fx.shake(12); sound.sfx("slamImpact", { size: 0.6 }); }   // they land
-      F.y = 0; F.vy = Math.min(0, F.vy);
+    const k = Math.min(0.05, dt / 1000), tt = (g.at - t0) / 1000;
+    SP.spin += SP.rate * k; BS.spin += BS.rate * k;
+    if (F.mode === "air") {
+      F.vy += 2400 * k; F.x += F.vx * k; F.y += F.vy * k; F.r += F.vr * k;
+      if (F.y >= 0 && F.vy > 0) {   // they come down
+        F.y = 0; F.vy = 0; F.vx = 0; F.mode = "ground"; F.sx = 1.2; F.sy = 0.8;
+        fx.dust(chest()[0], 10, 1.2); fx.shake(12); sound.sfx("slamImpact", { size: 0.6 });
+        onLand?.();
+      }
+    } else if (F.mode === "held") {
+      const e = Math.min(1, k * 14);
+      F.x += (H.x + Math.sin(tt * 41) * H.trem - F.x) * e; F.y += (H.y + Math.cos(tt * 37) * H.trem * 0.6 - F.y) * e; F.r += (H.r - F.r) * Math.min(1, k * 10);
+    } else {
+      const w = 12, z = 0.6;
+      F.vx += (-w * w * F.x - 2 * z * w * F.vx) * k; F.vr += (-w * w * F.r - 2 * z * w * F.vr) * k;
+      F.x += F.vx * k; F.r += F.vr * k; F.y += (0 - F.y) * Math.min(1, k * 10);
     }
-    F.sx += (1 - F.sx) * Math.min(1, k * 10); F.sy += (1 - F.sy) * Math.min(1, k * 10);
+    F.sx += (1 - F.sx) * Math.min(1, k * 8); F.sy += (1 - F.sy) * Math.min(1, k * 8);
   };
   const place = () => {
-    const x = B.home.x + Math.round(F.x / CELL) * CELL, y = B.home.y + Math.round((F.y + (1 - F.sy) * (B.feet - B.pivot[1])) / CELL) * CELL;
+    const D = carried(), x = B.home.x + D[0], y = B.home.y + D[1];
     el.style.transform = `translate(${x}px, ${y}px) rotate(${F.r.toFixed(3)}rad) scale(${F.sx.toFixed(3)}, ${F.sy.toFixed(3)})`;
     el._pos = { x, y, r: (F.r * 180) / Math.PI };
   };
   g.hooks.add(hook); g.draws.add(place);
   const tw = (obj, to, ms, ease = "io") => g.to(to, ms, ease, obj);
-
-  // One sweep: the arm bends over at height h, its tip cocked back behind its own side, then swings round the front of your
-  // fighter and through to the other side; then it rears up again. Resolves when it has gone past them.
-  const sweep = async (a, o) => {
-    a.o = o; a.hit = false;
-    const a0 = a.sg < 0 ? Math.PI + 0.45 : -0.45, a1 = a.sg < 0 ? -0.5 : Math.PI + 0.5;   // from behind its side, round the front, past
-    tw(a.st, { h: o.h, flat: 1, curl: 0.5 }, o.prep, "out");
-    await tw(a.st, { ang: a0 + a.sg * 0.3 }, o.prep, "out");
-    if (o.hold) await fx.wait(o.hold);
-    a.armed = true;
-    sound.sfx(o.last ? "swoosh" : "whoosh", { size: 0.6 + 0.3 * o.power });
-    tw(a.st, { curl: 1, wav: 1 }, o.strike * 0.5, "out");
-    await tw(a.st, { ang: a1 }, o.strike, "in");
-    // the follow-through, then it rears up again
-    (async () => {
-      await tw(a.st, { ang: a1 - a.sg * 0.45, curl: 0.5, wav: 0.4 }, 240, "out");
-      a.armed = false;
-      tw(a.st, { flat: 0, curl: 0, wav: 0, h: -10 }, 420, "io");
-    })();
-  };
+  const Mx = () => g.mouthCells()[0] * CELL;
 
   try {
-    // 1. the arms tense, rear up and dive into the ground in front of him, one after another
+    // 1. four arms rear up and plunge into the ground in front of him, one after another
     fx.darken(0.2, 400);
-    const Mx = g.mouthCells()[0] * CELL;
-    fx.focus(1.04, { x: (P0[0] + Mx) / 2, y: P0[1] - 30 }, 500);
+    fx.focus(1.04, { x: (P0[0] + Mx()) / 2, y: P0[1] - 30 }, 500);
     sound.sfx("growl", { size: 0.8 });
-    g.to({ tense: 1, writhe: 1.1 }, 300, "out");
-    await Promise.all(arms.map((a) => fx.wait(a.j * 110).then(async () => {
+    g.to({ tense: 1, writhe: 1.0 }, 300, "out");
+    await Promise.all(four.map((a) => fx.wait(a.j * 120).then(async () => {
       sound.sfx("whoosh", { size: 0.5 });
-      await tw(a.st, { go: 1 }, 420, "in");
-      const x = g.mouthCells()[0] * CELL - a.dive;
+      await tw(a, { go: 1 }, 520, "io");
+      const x = Mx() - a.dive * CELL;
       sound.sfx("squelch"); sound.sfx("debris", { size: 0.5 });
-      fx.shake(8); fx.dust(x, 7, 1.1); fx.ring({ x, y: G }, { color: "#f59a90", size: 60, flat: 0.25, ms: 380, width: 3 });
+      fx.shake(8); fx.dust(x, 7, 1.1); fx.ring({ x, y: G * CELL }, { color: "#f59a90", size: 60, flat: 0.25, ms: 380, width: 3 });
     })));
-    // 2. they tunnel across: the ground heaves along their way
-    sound.sfx("rumble", { size: 0.9 });
-    fx.focus(1.05, { x: P0[0] + 30, y: P0[1] - 20 }, 700);
-    const tunnel = Promise.all(arms.map((a) => tw(a.st, { run: 1 }, 640 + a.j * 60, "io")));
-    for (let k = 0; k < 9; k++) fx.wait(k * 75).then(() => { for (const a of arms) { const u = smooth(clamp((k * 75) / (640 + a.j * 60))), x = lerp(Mx - a.dive, P0[0] + a.up, u); fx.dust(x, 2, 0.7); } fx.shake(3 + k * 0.5); });
-    await tunnel;
-    // 3. they burst up round your fighter and rear like cobras
-    sound.sfx("slamImpact", { size: 0.7 }); sound.sfx("debris"); sound.sfx("hiss");
-    fx.shake(16); fx.flash(0.12, "#ffd6c8");
-    for (const a of arms) {
-      const x = P0[0] + a.up;
-      fx.dust(x, 8, 1.3); fx.debris({ x, y: floorY - 4 }, 5, { power: 1 });
-      fx.ring({ x, y: floorY }, { color: "#ffd6c8", size: 70, flat: 0.25, ms: 360, width: 4 });
-      tw(a.st, { rise: 1 }, 260 + a.j * 40, "back");
-    }
-    s.flinch({ crit: false });
-    await fx.wait(520);
-    // 4. the sweeps: chest left to right, legs right to left, head left to right and faster, chest right to left...
-    await sweep(arms[0], { h: -6, prep: 260, hold: 60, strike: 220, power: 0.8 });
-    await fx.wait(40);
-    await sweep(arms[1], { h: 18, prep: 220, strike: 200, power: 0.7 });
-    await fx.wait(30);
-    await sweep(arms[2], { h: -30, prep: 200, strike: 170, power: 0.85 });
-    await fx.wait(30);
-    await sweep(arms[3], { h: -4, prep: 200, strike: 180, power: 0.75 });
-    // ...and the last, wide and low, a beat before it comes: it sweeps them off their feet
-    fx.focus(1.08, { x: P0[0], y: P0[1] - 10 }, 300);
-    arms[2].len = 168;
-    await sweep(arms[2], { h: 22, prep: 360, hold: 160, strike: 230, power: 1.15, last: true });
-    await fx.wait(900);
-    // 5. back into the ground, home under the stage, and up out of the ground by him
+    // 2. they drill under the stage towards your fighter: the ground heaves along their way
+    sound.sfx("rumble", { size: 1 });
+    fx.focus(1.06, { x: P0[0] + 20, y: P0[1] - 30 }, 900);
+    const drill = Promise.all(four.map((a) => tw(a, { run: 1 }, 820 + a.j * 50, "io")));
+    for (let k = 0; k < 10; k++) fx.wait(k * 85).then(() => {
+      for (const a of four) { const u = ss(clamp((k * 85) / (820 + a.j * 50))), x = lerp(Mx() - a.dive * CELL, P0[0], u); fx.dust(x, 2, 0.7); }
+      fx.shake(3 + k * 0.5);
+    });
+    await drill;
+    // ...the ground trembles under them
+    sound.sfx("rumble", { size: 0.7 });
+    for (let k = 0; k < 4; k++) fx.wait(k * 80).then(() => { fx.dust(P0[0] + (k % 2 ? 14 : -14), 4, 0.8); fx.shake(5 + k * 2); F.vr += (k % 2 ? 1 : -1) * 1.5; });
+    await fx.wait(380);
+    // 3. the spear bursts up under them and launches them into the air
+    sound.sfx("swoosh"); sound.sfx("slamImpact", { size: 0.9 }); sound.sfx("debris");
+    SP.rate = 14;
+    tw(SP, { up: 1 }, 180, "out");
+    await fx.wait(50);
+    const at = { x: P0[0], y: P0[1] + 20 };
+    impactFrame(fx, { ms: 60, frames: 2 });
+    fx.hitstop(120); fx.shake(26); fx.punch(0.05, at); fx.flash(0.3, "#ffd6c8");
+    fx.ring({ x: P0[0], y: floorY }, { color: "#ffd6c8", size: 120, flat: 0.28, ms: 420, width: 6 });
+    fx.sparks(at, 20, { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1.5, dir: 0 });
+    fx.debris({ x: P0[0], y: floorY - 6 }, 10, { power: 1.3 }); fx.dust(P0[0], 12, 1.4);
+    sound.sfx("hit", { size: 0.9 });
+    F.mode = "air"; F.vy = -900; F.vx = 50; F.vr = -5;
+    if (!late) s.flinch({ crit: false });
+    fx.wait(150).then(() => fx.slowmo(0.45, 420));
+    fx.focus(1.04, { x: P0[0] + 40, y: P0[1] - 110 }, 500);
+    // 4. arm 1 shoots out and catches them at the top
+    await fx.wait(170);
+    sound.sfx("whoosh"); GS.wave = 1;
+    await tw(GS, { reach: 1 }, 260, "in");
+    sound.sfx("squelch"); sound.sfx("hit", { size: 0.6 }); fx.shake(8);
+    Object.assign(H, { x: F.x, y: F.y, r: F.r });   // held where they are...
+    F.mode = "held";
+    tw(GS, { wave: 0 }, 400, "out");
+    tw(GS, { wrap: 1, loose: 1.06 }, 420, "out");
+    tw(H, { x: 90, y: -118, r: -0.22 }, 620, "io");  // ...and swung up to where the big spear will meet them
+    // ...while the four sink back into the ground and tunnel home
+    SP.rate = 3;
+    (async () => {
+      sound.sfx("squelch");
+      await tw(SP, { up: -0.25 }, 420, "in");
+      fx.dust(P0[0], 6, 0.9);
+      await Promise.all(four.map((a) => tw(a, { run: 0 }, 600 + a.j * 40, "io")));
+      for (const a of four) fx.dust(Mx() - a.dive * CELL, 3, 0.7);
+      await Promise.all(four.map((a) => tw(a, { go: 0 }, 700, "io")));
+    })();
+    await fx.wait(650);
+    // 5. every other arm twists together into one bigger spear over the cat...
+    fx.focus(1.03, { x: (chest()[0] + Mx()) / 2, y: chest()[1] - 10 }, 600);
+    sound.sfx("growl", { size: 1.1 });
+    T = chest().map((v) => v / CELL);
+    BIG.forEach((i, j) => fx.wait(250 + j * 70).then(() => tw(W, { [i]: 1 }, 620, "io")));   // the four join as they come home
+    tw(BS, { R: 15, turns: 2 }, 900, "out");
+    tw(H, { trem: 1.2 }, 600, "io");
+    await fx.wait(1300);
+    // ...draws back, winding tighter and spinning faster, trembling; the point glints
+    sound.sfx("charge", { ms: 700 });
+    tw(BS, { rate: 16, R: 14, turns: 2.4 }, 650, "in");
+    await tw(BS, { pull: 1 }, 560, "out");
+    const tip = () => { const S = bigSpine(), p = S[NS - 1]; return { x: p[0] * CELL, y: p[1] * CELL }; };
+    for (let i = 0; i < 2; i++) fx.wait(i * 200).then(() => fx.ring(tip(), { color: "#ffd6c8", size: 44 - i * 12, ms: 280, width: 3 }));
+    tw(BS, { shake: 1 }, 120, "out");
+    T = chest().map((v) => v / CELL);
+    await fx.wait(420);
+    // ...and drives it into them
+    sound.sfx("swoosh");
+    BS.shake = 0; BS.front = 1;
+    T = chest().map((v) => v / CELL);
+    tw(BS, { turns: 4.6 }, 150, "in");
+    await tw(BS, { stab: 1 }, 150, "in");
+    const c = { x: chest()[0] + 6, y: chest()[1] };
+    impactFrame(fx, { ms: 70, frames: 2 });
+    fx.hitstop(190); fx.shake(34); fx.punch(0.08, c); fx.flash(0.4, "#ffd6c8");
+    sound.sfx("slamImpact", { size: 1.3 }); sound.sfx("hit", { size: 1.1 });
+    fx.ring(c, { color: "#ffd6c8", size: 170, ms: 420, width: 7 });
+    fx.ring(c, { color: "#f59a90", size: 110, flat: 0.4, ms: 360, width: 5 });
+    fx.sparks(c, 30, { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1.8, dir: -1 });
+    s.hit({ crit: true }, { flinch: !late });   // the damage lands here
+    F.sx = 0.84; F.sy = 1.1;
+    H.x -= 22; H.r -= 0.25; tw(H, { x: 90, r: -0.22 }, 420, "back");   // jolted back in the coil
+    tw(BS, { ext: 14 }, 200, "out");                                       // the point follows in
+    for (let i = 0; i < 6; i++) fx.wait(100 + i * 70).then(() => { const p = { x: chest()[0] + 6, y: chest()[1] }; fx.sparks(p, 7, { colors: ["#ffd6c8", "#f59a90", "#ffffff"], power: 1.2, dir: -1 }); sound.sfx("debris"); });
+    await fx.wait(560);
+    // 6. it bursts open like a flower, arm 1 uncoils, and they drop
     sound.sfx("squelch");
-    for (const a of arms) { tw(a.st, { flat: 0, curl: 0 }, 200, "io"); fx.dust(P0[0] + a.up, 4, 0.8); }
-    await Promise.all(arms.map((a) => tw(a.st, { rise: -0.3 }, 300, "in")));
-    await Promise.all(arms.map((a) => tw(a.st, { run: 0 }, 420, "io")));
-    sound.sfx("whoosh", { size: 0.5 });
-    for (const a of arms) fx.dust(Mx - a.dive, 4, 0.8);
-    await Promise.all(arms.map((a) => tw(a.st, { go: 0 }, 480, "io")));
-    fx.focus(1, null, 500); fx.darken(0, 500);
-    await fx.wait(200);
+    BS.front = 0;
+    tw(BS, { rate: -4 }, 300, "out");
+    tw(BS, { open: 1, ext: 0, turns: 1.2 }, 300, "out");
+    BIG.forEach((i, j) => fx.wait(200 + j * 50).then(() => tw(W, { [i]: 0 }, 900, "io")));
+    await fx.wait(160);
+    landed = new Promise((ok) => { onLand = ok; });
+    tw(GS, { burst: 1 }, 220, "out");
+    H.trem = 0;
+    F.mode = "air"; F.vy = -60; F.vx = -30; F.vr = 1.5;
+    tw(GS, { ret: 1 }, 900, "io");
+    if (late) s.flinch({ crit: true });
+    fx.focus(1, null, 600); fx.darken(0, 600);
+    await Promise.race([landed, fx.wait(1500)]);
+    await fx.wait(900);
   } finally {
-    done = true;
-    for (const a of arms) { if (g.override[a.i] === a.fn) delete g.override[a.i]; delete g.clipOv[a.i]; }
+    for (const i of new Set([...FOUR, ...BIG, GRABBER])) { delete g.override[i]; delete g.clipOv[i]; }
     g.hooks.delete(hook); g.draws.delete(place);
     el.style.transformOrigin = origin;
     fx.place(el, B.home);

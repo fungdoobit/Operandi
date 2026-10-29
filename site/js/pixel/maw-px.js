@@ -402,7 +402,7 @@ export class PixelMaw {
     const fr = r.front || [], back = [];
     let at = 0; for (const [a2, b2] of fr) { if (a2 > at) back.push([at, a2]); at = Math.max(at, b2); } if (at < 1) back.push([at, 1]);
     for (const seg of back) this.tentacle(r.pts, A.w[0] * SK, A.w[1], pal, u, i, [seg]);   // one at a time: crossings stay apart
-    for (const seg of fr) this.fronts.push([r.pts, A.w[0] * SK, A.w[1], pal, u, i, [seg]]);
+    for (const seg of fr) this.fronts.push({ args: [r.pts, A.w[0] * SK, A.w[1], pal, u, i, [seg]], clip: this.clipY });   // (keeping the arm's clip: what's under the ground stays hidden on the front layer too)
   }
   render() {
     if (!this.sheets || !this.F) return;
@@ -420,7 +420,7 @@ export class PixelMaw {
     if (this.fronts.length || this.f2dirty) {
       this.F2.fill(0);
       const keep = this.F; this.F = this.F2;
-      for (const a of this.fronts) this.tentacle(...a);
+      for (const f of this.fronts) { this.clipY = f.clip; this.tentacle(...f.args); }
       this.F = keep;
       this.flashOver(this.F2);
       this.fg.putImageData(this.img2, 0, 0);
