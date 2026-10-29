@@ -605,7 +605,7 @@ Isaac 2026-10-23: scrap "every level is a fight". Lessons and practice go back t
 3. **Kaela only fights**; she doesn't roam the lessons.
 4. **Big boss only** for now.
 
-## Addendum N: full UI/UX revamp (draft 2026-10-30, awaiting "go")
+## Addendum N: full UI/UX revamp ("go" 2026-10-30, in progress)
 
 Isaac 2026-10-30: "revamp the whole site UI UX ... extremely high quality and professional", then "take inspiration from a lot of cool high-end sites with cool designs and interactive elements". A polish pass went live first (warm neutrals, ink buttons, one muted blue; not NOVA-themed); this is the full revamp, built on a preview link and only made live after Isaac approves.
 
@@ -657,3 +657,9 @@ Isaac 2026-10-30: "revamp the whole site UI UX ... extremely high quality and pr
    4. **Sign in** opens the course without signing in: rename it "Start learning" until real sign-in exists?
 
 Sources: [Awwwards: Lando Norris](https://www.awwwards.com/sites/lando-norris), [DesignRush on the Lando Norris site](https://designrush.com/best-designs/websites/lando-norris-website-design), [Raycast design write-up](https://www.webdesignhot.com/design.md/raycast/), [Raycast design system notes](https://design.hagicode.com/designs/raycast/DESIGN.md), [Linear-style design notes](https://findskill.ai/de/skills/design-media/linear-modern-website-design/), [Duolingo: new home screen](https://blog.duolingo.com/new-duolingo-home-screen-design), [NBC on the Duolingo redesign](https://www.nbcnews.com/tech/tech-news/duolingos-update-redesign-luis-von-ahn-interview-rcna44655), [Brilliant on the App Store](https://apps.apple.com/app/brilliant-learn-by-doing/id913335252), [Fast Company on Codecademy](https://www.fastcompany.com/90184578/codecademycom-finally-an-interactive-coding-class-thats-fun), [Netguru: 2026 trends](https://www.netguru.com/blog/top-web-design-trends), [Line25: 2026 trends](https://line25.com/articles/web-design-trends-2026/).
+
+**Isaac's answers (2026-10-30, the go):**
+1. **Direction: one mix, not three tiles.** Feedback and animation like Apple: fun, bouncy and interactive. A clean design like the warm editorial look, with elements of the dark and precise style (Linear/Raycast).
+2. **Preview branch:** yes, a new branch `revamp`.
+3. **NOVA stays off the home page;** it is neutral.
+4. **"Sign in" becomes "Start learning"** until real sign-in exists (done on the live site straight away).
