@@ -1,80 +1,17 @@
-// DRAFTS (Isaac 2026-10-29: "a few new characters in the style of NOVA, same size, same structure, same art style; change it,
-// add clothing, accessories, different powers, elements"). Not in the game yet: a design preview only (index.html here).
+// DRAFTS, round 2 (Isaac 2026-10-29). Round 1 was six of NOVA's own body with new trims; Isaac kept AURUM and dropped the
+// rest: "it doesn't have to be exactly the same, just consistent in style and art style". So these have their own shapes:
+// a spirit fox, a jellyfish, a clockwork robot, a little witch and a mossy boulder, with AURUM. Not in the game: a design
+// preview only (index.html here).
 //
-// Every one is built like NOVA's chosen body ("mooncloak", nova-px.js KIND 10): a round head on a short cloak with a ragged
-// hem, blank glowing eyes that change with mood, a halo behind the head, and a haze round them. Same renderer (PixelGL: a 3D
-// shape marched into pixel art with fixed colour ramps, dithering and outlines), same size (view 4.79 on a 107 x 113 canvas,
-// as NovaMate draws her), same eye code. What changes: the element (colours, halo, haze), the clothes and accessories.
+// What keeps them one family with NOVA: the same renderer (PixelGL: a 3D shape marched into pixel art with fixed colour
+// ramps, ordered dithering and outlines), her lighting and her haze, her blank glowing eyes that change with mood, the same
+// size (view 4.79 on a 107 x 113 canvas, as NovaMate draws her), floating, never standing.
 //
-// Materials (each a ramp of 6 colours, dark to light): 1 body, 2 deep shadow, 3 eyes, 4 element glow, 5 hard/shiny accent,
-// 6 7 8 clothes and accessories (lit matte).
+// Materials (each a ramp of 6 colours, dark to light): 1 shadow body (NOVA's moody rim-lit shading), 2 deep shadow, 3 eyes,
+// 4 element glow, 5 shiny (metal, crystal), 6 7 8 lit matte (fur, cloth, stone, moss...).
 import { PixelGL } from "../../site/js/pixel/pixel-gl.js";
 
 export const KINS = [
-  {
-    id: "frost", name: "FROST", element: "Ice",
-    look: "a knitted red and cream scarf with a tail that flutters behind; a crown of ice crystals; snowflakes drift round them",
-    powers: "Ice Shard, Blizzard, Glacier Wall (a shield), Absolute Zero (freezes the boss solid, then shatters it)",
-    palettes: [
-      ["#03060f", "#07102a", "#0d1d45", "#173066", "#26508f", "#3f7cc0"],
-      ["#010208", "#030614", "#060c22", "#0a1432", "#101e44", "#182a58"],
-      ["#7fb2d6", "#a8d4ee", "#cbe8f8", "#e6f6ff", "#f4fbff", "#ffffff"],
-      ["#0f3a5c", "#1b6a96", "#2fa0cc", "#5cd0ee", "#a6ecfa", "#e8fcff"],
-      ["#123048", "#24587c", "#3d8ab0", "#6cbcda", "#b4e6f4", "#f2fdff"],
-      ["#3a0a12", "#6e1422", "#a82434", "#d8444a", "#f27a70", "#ffc0b0"],
-      ["#4a4236", "#7a6e5a", "#b4a88a", "#e0d6bc", "#f4eedc", "#fffdf6"],
-      ["#2c2b33", "#46454f", "#63626d", "#83828d", "#a9a8b2", "#d4d3da"],
-    ],
-    glow: ["#3d6e96", "#9ccfee", "#effaff", "#123e66", "#2c7ab0", "#7cc8ee"],
-  },
-  {
-    id: "volt", name: "VOLT", element: "Lightning",
-    look: "big over-ear headphones; a lightning-bolt tuft of hair that crackles; a jagged halo of flickering bolts",
-    powers: "Static Shot, Chain Lightning (jumps between targets), Thunderclap, Overload (charges up and discharges everything)",
-    palettes: [
-      ["#050505", "#0d0d10", "#18181e", "#25252e", "#3a3a48", "#5a5a70"],
-      ["#020202", "#060608", "#0c0c10", "#141418", "#1e1e24", "#2a2a32"],
-      ["#b0a060", "#d4c888", "#ece4b4", "#f8f4dc", "#fffcf0", "#ffffff"],
-      ["#4a3a00", "#8a6a00", "#c8a000", "#f0d020", "#fff070", "#ffffe0"],
-      ["#1a1c22", "#2c3038", "#444a56", "#646c7c", "#929cae", "#cfd6e2"],
-      ["#5a4400", "#94700a", "#cc9e14", "#f0c830", "#ffe680", "#fff8d0"],
-      ["#0a0a0e", "#16161c", "#22222a", "#30303a", "#464652", "#6a6a78"],
-      ["#2c2b33", "#46454f", "#63626d", "#83828d", "#a9a8b2", "#d4d3da"],
-    ],
-    glow: ["#6a5e20", "#e8d870", "#fffbe0", "#3a3000", "#9a8200", "#f0dc40"],
-  },
-  {
-    id: "bloom", name: "BLOOM", element: "Nature",
-    look: "a crown of pink flowers; a cloak whose hem is a ring of leaves; a halo of turning leaves; spores in the air",
-    powers: "Thorn Dart, Vine Bind (roots the boss), Pollen Burst, Overgrowth (a forest bursts out of the ground)",
-    palettes: [
-      ["#020803", "#06140a", "#0c2414", "#14381f", "#20552e", "#327a42"],
-      ["#010402", "#030a05", "#06120a", "#0a1c10", "#0f2817", "#16361f"],
-      ["#a8a878", "#cccc98", "#e4e4b8", "#f4f4d8", "#fbfbee", "#ffffff"],
-      ["#0f3a10", "#1f6a1c", "#3a9a2a", "#6cc63c", "#aeea7a", "#effcd8"],
-      ["#1c2e10", "#30501a", "#4c7a28", "#74a83a", "#a6d65a", "#e2f8a8"],
-      ["#4a0f2a", "#842048", "#bc3a6a", "#e46a94", "#f8a8c4", "#ffe4ee"],
-      ["#5a3a00", "#946400", "#cc9810", "#f2c838", "#ffe88a", "#fff8d4"],
-      ["#0e2a10", "#1c4a1a", "#2e7028", "#46983a", "#72c254", "#b8ec8c"],
-    ],
-    glow: ["#5a6a2a", "#cfe0a0", "#f8ffe4", "#14380e", "#3c8a26", "#9ad85a"],
-  },
-  {
-    id: "tide", name: "TIDE", element: "Water",
-    look: "a captain's tricorne hat with a gold anchor badge; a ring of rippling water behind the head; bubbles rising",
-    powers: "Water Bolt, Riptide (drags the boss), Whirlpool, Tidal Wave (a huge wave crashes over the stage)",
-    palettes: [
-      ["#020a0c", "#051618", "#0a2a2e", "#114046", "#1c5e66", "#2e868e"],
-      ["#010506", "#020c0e", "#051618", "#082226", "#0c3036", "#124048"],
-      ["#7cc0c4", "#a2dade", "#c4eef0", "#e2faf8", "#f2fdfc", "#ffffff"],
-      ["#073a44", "#0c6070", "#1592a4", "#3cc4d2", "#8ce8ee", "#e0feff"],
-      ["#0a2c3a", "#145068", "#22809c", "#44b2cc", "#94e0ee", "#e8fdff"],
-      ["#3a2400", "#6e4a08", "#a87814", "#d8a82a", "#f6d460", "#fff2b8"],
-      ["#1a0e08", "#2e1a0e", "#4a2c16", "#6a4222", "#8e5c32", "#b47e4a"],
-      ["#2c2b33", "#46454f", "#63626d", "#83828d", "#a9a8b2", "#d4d3da"],
-    ],
-    glow: ["#2a6a70", "#9ae0e4", "#efffff", "#08404a", "#167e90", "#5ccfda"],
-  },
   {
     id: "aurum", name: "AURUM", element: "Light",
     look: "NOVA's opposite: an ivory body and cloak with a gold-trimmed hem, a golden halo above the head, small feathered wings, deep blue eyes",
@@ -93,20 +30,88 @@ export const KINS = [
     extra: ["#cfd6e2", "#ffffff", "#2a1e10"],
   },
   {
-    id: "byte", name: "BYTE", element: "Code",
-    look: "a hoodie with the hood up; a glowing green visor screen across the face; an antenna with a blinking light; a halo of orbiting bits",
-    powers: "Ping, Bug Swarm, Infinite Loop (traps the boss in a repeating moment), Stack Overflow (blocks of code crash down)",
+    id: "kitsu", name: "KITSU", element: "Spirit fire",
+    look: "a white spirit fox: pointed ears with pink insides, a little snout, red marks on the forehead, three big fluffy tails fanned out behind, each tipped with blue spirit fire; two wisps of blue flame drift round them",
+    powers: "Foxfire, Wisp Swarm, Nine-Tail Fan, Spirit Blaze",
     palettes: [
-      ["#03050a", "#080c14", "#0f1622", "#182234", "#24324a", "#36486a"],
-      ["#010204", "#03050a", "#060a12", "#0a0f1a", "#0f1624", "#151e30"],
-      ["#5cc87a", "#8ae6a0", "#b8f6c8", "#e0ffe8", "#f2fff6", "#ffffff"],
-      ["#03200c", "#064018", "#0a6a28", "#18a040", "#58e070", "#c8ffd0"],
-      ["#101418", "#1e262e", "#2e3a46", "#46566a", "#6a7e96", "#9cb0c8"],
-      ["#0c1426", "#16223e", "#22345c", "#30487c", "#46629e", "#6a86c0"],
-      ["#3a0e10", "#6a1a1e", "#a02a2e", "#d04440", "#f07a6a", "#ffc0b0"],
+      ["#06060c", "#0e0e1a", "#181828", "#24243a", "#363652", "#4c4c70"],
+      ["#06060a", "#0c0c12", "#14141c", "#1c1c26", "#262632", "#303040"],
+      ["#0a1030", "#101a48", "#16245e", "#1e3078", "#283e94", "#3450b0"],
+      ["#0c2a6a", "#1a4aa8", "#2c74dc", "#5aa6f6", "#a2d4ff", "#effaff"],
+      ["#1a1c22", "#2c3038", "#444a56", "#646c7c", "#929cae", "#cfd6e2"],
+      ["#6a6878", "#9a98aa", "#c6c4d4", "#e4e2ee", "#f6f4fc", "#ffffff"],
+      ["#5a2a3a", "#8a4458", "#b8647a", "#de8ea0", "#f4bccb", "#ffe6ee"],
+      ["#4a0a10", "#7a1420", "#b02432", "#de4048", "#f47870", "#ffb0a0"],
+    ],
+    glow: ["#2a3a8a", "#6a8ae0", "#c8d8ff", "#1a3a8a", "#3a72d8", "#8cc0ff"],
+    extra: ["#cfd6e2", "#ffffff", "#141428"],
+  },
+  {
+    id: "luma", name: "LUMA", element: "Deep sea",
+    look: "a jellyfish: a pale pink bell that pulses as it swims, a frilled magenta rim, two ribbon arms and glowing cyan tentacles trailing below",
+    powers: "Sting, Glow Pulse (blinds the boss), Tangle, Abyssal Bloom (a swarm of jellies lights up the stage)",
+    palettes: [
+      ["#06040c", "#0e0a1a", "#181028", "#24183c", "#382558", "#583a88"],
+      ["#140a2a", "#200f40", "#2c1656", "#3a1e6e", "#4a2888", "#5c34a2"],
+      ["#140a2a", "#200f40", "#2c1656", "#3a1e6e", "#4a2888", "#5c34a2"],
+      ["#0a3a5a", "#16649a", "#2a9ad0", "#5ccaf0", "#a8ecff", "#effcff"],
+      ["#1a1c22", "#2c3038", "#444a56", "#646c7c", "#929cae", "#cfd6e2"],
+      ["#4a3050", "#7a4e80", "#a874ae", "#d09ed4", "#ecc8ee", "#fff0ff"],
+      ["#3a0a3a", "#6a1866", "#9a2a90", "#c84cb8", "#e88ad8", "#ffd0f6"],
+      ["#5a3c66", "#8a62a0", "#b88ed0", "#dcb8f0", "#f2dcff", "#ffffff"],
+    ],
+    glow: ["#3a2a6a", "#8a6ad0", "#e0d0ff", "#4a1a5a", "#a04ab0", "#f0a0f0"],
+    extra: ["#cfd6e2", "#ffffff", "#1a0a22"],
+  },
+  {
+    id: "tink", name: "TINK", element: "Clockwork",
+    look: "a little brass robot: a round polished body with a copper belt of rivets, a dark glass face with glowing cyan eyes, a spinning propeller on top, a wind-up key turning in its back, stubby arms, a small jet of flame underneath",
+    powers: "Rivet Shot, Gear Saw, Overclock (strikes twice), Wind-Up (winds its key all the way and lets everything go)",
+    palettes: [
+      ["#06060a", "#0e0e14", "#18181e", "#24242c", "#34343e", "#484856"],
+      ["#04080c", "#081018", "#0e1824", "#142232", "#1c2e42", "#263c56"],
+      ["#2a7a8a", "#40a6b8", "#6ad0de", "#a0eef6", "#d4fcff", "#ffffff"],
+      ["#5a1a00", "#a03a00", "#e06a10", "#ffa030", "#ffd880", "#fffbe0"],
+      ["#2a1806", "#5a3410", "#8e5a1c", "#c48a30", "#ecc060", "#fff2c0"],
+      ["#4a3000", "#7e5808", "#b88a1a", "#e2b83a", "#fade7a", "#fff8d0"],
+      ["#2a0e06", "#4e1c0c", "#7a3016", "#a84a24", "#d4744a", "#f4b08a"],
+      ["#3a0a0a", "#6a1414", "#a02222", "#d23c34", "#f2705e", "#ffb4a0"],
+    ],
+    glow: ["#1a6a7a", "#5ad0e0", "#e0ffff", "#6a3a08", "#c87a20", "#ffc860"],
+    extra: ["#cfd6e2", "#ffffff", "#1a0e04"],
+  },
+  {
+    id: "hex", name: "HEX", element: "Hexcraft",
+    look: "a little witch: a huge crooked hat (deep purple, an orange band and a gold buckle) over a shadowed face with glowing green eyes, a short ragged robe, a lantern of green witch-fire floating beside them",
+    powers: "Hex Bolt, Curse (the boss's next hit is weaker), Lantern Swarm, Cauldron Storm",
+    palettes: [
+      ["#04070a", "#081014", "#0e1a20", "#16282e", "#203a40", "#2e5258"],
+      ["#020406", "#04080c", "#081014", "#0c181e", "#122228", "#182c34"],
+      ["#6ab040", "#8ad25a", "#b0ec80", "#d4fab0", "#eeffd8", "#ffffff"],
+      ["#1a3a06", "#2e6a0c", "#4c9c16", "#7cce2a", "#b8f26a", "#f0ffd0"],
+      ["#3a2600", "#6a4a08", "#a07418", "#d4a430", "#f2d068", "#fff2c0"],
+      ["#4a1c00", "#7e3400", "#b45410", "#e07a28", "#f6a85a", "#ffd8a8"],
+      ["#140a22", "#22123a", "#341c54", "#4a2a72", "#643c94", "#8656b8"],
       ["#2c2b33", "#46454f", "#63626d", "#83828d", "#a9a8b2", "#d4d3da"],
     ],
-    glow: ["#1e6a34", "#7ae898", "#e8ffee", "#063a14", "#13883a", "#4ee070"],
+    glow: ["#3a6a1a", "#9ae05a", "#efffd8", "#1a3a10", "#3c8a1e", "#9ade5a"],
+  },
+  {
+    id: "pebble", name: "PEBBLE", element: "Earth",
+    look: "a round mossy boulder with a pink flower on top, glowing amber eyes in a dark crack of a face, teal crystals growing from the back, two floating rock fists and little pebbles circling underneath",
+    powers: "Rock Toss, Crystal Spike, Landslide, Mountain (rises up into a giant for one huge slam)",
+    palettes: [
+      ["#08080a", "#121216", "#1e1e24", "#2c2c34", "#3e3e48", "#56565e"],
+      ["#08060a", "#100c10", "#18121a", "#201a22", "#2a222c", "#342a36"],
+      ["#a06a10", "#c88a20", "#e6ae3a", "#f6d070", "#fff0b0", "#ffffff"],
+      ["#06343a", "#0c5a64", "#14868e", "#2eb8ba", "#7ae4e0", "#dafff8"],
+      ["#06343a", "#0c5a64", "#14868e", "#2eb8ba", "#7ae4e0", "#dafff8"],
+      ["#4a1030", "#7a1e50", "#ae3474", "#d85a98", "#f096c0", "#ffd6ea"],
+      ["#1e1a18", "#3a3430", "#5a524a", "#7c7268", "#a29888", "#cec4b2"],
+      ["#0e2208", "#1c3a10", "#2e5a1a", "#467e26", "#68a838", "#9cd45a"],
+    ],
+    glow: ["#7a5010", "#e0a840", "#fff2c8", "#0c3a3a", "#1e8080", "#6ad6cc"],
+    extra: ["#cfd6e2", "#ffffff", "#100c0a"],
   },
 ];
 
@@ -157,137 +162,6 @@ float map(vec3 p){
   vec3 c = vec3(0., .5, 0.);
   float body;
 #if KIND == 0
-  // FROST: head and cloak, a knitted scarf round the neck (red and cream stripes) with a fluttering tail, a crown of ice
-  body = smin(length(p - c) - .4, cloak(p, .22, -.74, .22, .64, 0.), .1);
-  U(d, body, 1.);
-  vec3 n = p - vec3(0., .17, 0.);
-  float an = atan(n.z, n.x);
-  float scarf = length(vec2(length(n.xz) - .3, n.y*1.15)) - .1 - .012*sin(an*14.)*sin(n.y*40.);
-  U(d, scarf, fract(an*1.27) < .5 ? 6. : 7.);
-  // the tail: from the front left of the neck, blown back and down in the wind
-  vec3 a0 = vec3(-.22, .12, -.24), prev = a0; float tail = 1e5, tsel = 0.;
-  for (int k = 1; k <= 5; k++) {
-    float w = float(k)/5.;
-    vec3 nx = a0 + vec3(.34*w + .05*sin(uTime*5. - w*6.), -.42*w + .06*sin(uTime*4.3 - w*7.), .18*w);
-    float sg = sdCapT(p, prev, nx, .085 - .02*w, .08 - .02*w);
-    if (sg < tail) { tail = sg; tsel = float(k); }
-    prev = nx;
-  }
-  U(d, tail, mod(tsel, 2.) < .5 ? 7. : 6.);
-  // the ice crown: crystals fanning out behind the head, turning slowly
-  vec3 q = p - c - vec3(0., .02, .3);
-  for (int k = 0; k < 7; k++) {
-    float a = 1.57 + (float(k) - 3.)*.42 + .05*sin(uTime*.8 + float(k));
-    float L = .3 + .12*hash1(float(k)) + (k == 3 ? .1 : 0.);
-    vec3 dir = vec3(cos(a), sin(a), 0.), cen = dir*(.42 + L*.5);
-    vec3 r = q - cen; r.xy = R(-a + 1.5708) * r.xy;
-    float cr = sdOct(r*vec3(1.9, .62, 1.9), .16 + L*.12)*.5;
-    if (k == 3) glowU(d, cr, 5.); else U(d, cr, 5.);
-  }
-  // snowflakes drifting down round them
-  for (int k = 0; k < 4; k++) {
-    float fk = float(k), ph = fract(uTime*.16 + fk*.25);
-    vec3 f = p - vec3(sin(fk*2.4 + uTime*.7)*.95, 1.2 - ph*2.1, -.2 + .2*fk);
-    f.xy = R(uTime*1.3 + fk) * f.xy;
-    glowU(d, sdOct(f*vec3(1., 1., 2.5), .055), 5.);
-  }
-  headEyes(d, p, c, .4, .92);
-#elif KIND == 1
-  // VOLT: head and cloak, big headphones, a bolt-shaped tuft of hair, a jagged halo of flickering bolts
-  body = smin(length(p - c) - .4, cloak(p, .22, -.74, .22, .64, 0.), .1);
-  // the tuft: a zig-zag spike off the top of the head
-  vec3 t0 = c + vec3(.02, .3, .02), t1 = t0 + vec3(.15, .18, 0.), t2 = t1 + vec3(-.16, .1, 0.), t3 = t2 + vec3(.14, .26, 0.);
-  float tuft = min(min(sdCapT(p, t0, t1, .1, .07), sdCapT(p, t1, t2, .07, .055)), sdCapT(p, t2, t3, .055, .0));
-  body = smin(body, tuft, .05);
-  U(d, body, 1.);
-  float spark = sdCapT(p, t2, t3, .03, .0);
-  if (fract(uTime*3.1) < .35) glowU(d, spark - .005, 4.);
-  // headphones: a band over the top and a cup on each side
-  vec3 h = p - c;
-  float band = max(length(vec2(length(h.xy) - .46, h.z - .02)) - .05, -h.y - .02);
-  U(d, band, 6.);
-  vec3 cu = vec3(abs(h.x) - .43, h.y + .02, h.z - .02);
-  U(d, sdCylY(cu.yxz, .19, .06) - .025, 6.);                                       // the yellow shells
-  U(d, sdCylY((cu - vec3(-.07, 0., 0.)).yxz, .16, .03) - .015, 7.);               // the dark cushions against the head
-  glowU(d, length(vec2(length(cu.yz) - .1, cu.x - .09)) - .02, 4.);              // a lit ring on each
-  // the halo: bolts jumping out of a ring behind the head, flickering
-  vec3 q = p - c - vec3(0., 0., .32);
-  float rr = .58, n = 12., sec = 6.2831853/n, a = atan(q.y, q.x);
-  float id = floor((a + sec*.5)/sec), an = mod(a + sec*.5, sec) - sec*.5, fl = floor(uTime*9.);
-  float len = (.12 + .2*hash1(id + fl*3.1))*uEnergy*step(.25, hash1(id*7. + fl));
-  vec3 rp = vec3(cos(an)*length(q.xy), sin(an)*length(q.xy), q.z);
-  float zig = .06*(hash1(id + fl) - .5);
-  float bolt = min(sdCapT(rp, vec3(rr, 0., 0.), vec3(rr + len*.5, zig + .04, 0.), .035, .025), sdCapT(rp, vec3(rr + len*.5, zig + .04, 0.), vec3(rr + len, zig - .03, 0.), .025, .0));
-  glowU(d, min(bolt, sdTorZ(q, rr, .025)), 4.);
-  headEyes(d, p, c, .4, .92);
-#elif KIND == 2
-  // BLOOM: head and a cloak with a hem of leaves, a crown of flowers, a halo of turning leaves
-  body = smin(length(p - c) - .4, cloak(p, .22, -.74, .22, .64, 1.), .1);
-  U(d, body, 1.);
-  // the flower crown, round the top of the head, tilted toward us
-  vec3 h = p - c - vec3(0., .2, 0.); h.yz = R(-.35) * h.yz;
-  for (int k = 0; k < 5; k++) {
-    float a = 3.1416 + (float(k) + .5)*.63;   // the front half
-    vec3 fc = vec3(cos(a)*.34, .02*sin(float(k)*2.), sin(a)*.3);
-    vec3 f = h - fc;
-    float petals = 1e5;
-    for (int j = 0; j < 5; j++) { float b = float(j)*1.2566 + float(k); petals = min(petals, length(f - vec3(cos(b)*.07, sin(b)*.07, -.01)) - .05); }
-    U(d, petals, 6.);
-    U(d, length(f - vec3(0., 0., -.03)) - .035, 7.);
-  }
-  // a little sprout on top
-  vec3 s0 = c + vec3(.05, .38, .0), s1 = s0 + vec3(.02, .14, 0.);
-  U(d, sdCapT(p, s0, s1, .022, .016), 8.);
-  vec3 lf = p - s1; lf.xy = R(.6 + .1*sin(uTime*2.)) * lf.xy;
-  U(d, sdEll(lf - vec3(.08, 0., 0.), vec3(.09, .035, .03)), 8.);
-  vec3 lf2 = p - s1; lf2.xy = R(-.5 + .1*sin(uTime*2.3)) * lf2.xy;
-  U(d, sdEll(lf2 - vec3(-.07, .01, 0.), vec3(.075, .03, .03)), 8.);
-  // the halo: leaves circling behind the head
-  vec3 q = p - c - vec3(0., 0., .3);
-  for (int k = 0; k < 9; k++) {
-    float a = float(k)*.698 + uTime*.35;
-    vec3 r = q - vec3(cos(a)*.6, sin(a)*.6, 0.); r.xy = R(-a) * r.xy;
-    glowU(d, sdEll(r, vec3(.06, .12, .03)), 8.);
-  }
-  // spores floating up
-  for (int k = 0; k < 4; k++) {
-    float fk = float(k), ph = fract(uTime*.2 + fk*.25);
-    glowU(d, length(p - vec3(sin(fk*2.1 + uTime)*.9, -.6 + ph*2., -.1)) - .035*(1. - ph*.5), 4.);
-  }
-  headEyes(d, p, c, .4, .92);
-#elif KIND == 3
-  // TIDE: head and cloak, a captain's tricorne with a gold badge, a ring of water behind the head, bubbles
-  body = smin(length(p - c) - .4, cloak(p, .22, -.74, .22, .64, 0.), .1);
-  U(d, body, 1.);
-  vec3 h = p - c - vec3(0., .27, .02); h.yz = R(-.15) * h.yz;
-  float crown = sdEll(h - vec3(0., .12, 0.), vec3(.31, .2, .28));
-  vec3 b = h; float a = atan(b.z, b.x), rad = length(b.xz);
-  b.y -= .13*pow(.5 + .5*cos(3.*(a + 1.5708)), 2.)*smoothstep(.18, .5, rad);   // three corners turned up
-  float brim = sdEll(b, vec3(.6, .05, .54));
-  float hat = smin(crown, brim, .03);
-  U(d, hat, 7.);
-  // the gold trim along the brim, and the anchor badge at the front
-  U(d, max(abs(sdEll(b, vec3(.6, .05, .54))) - .014, abs(rad - .54) - .045), 6.);
-  vec3 g = h - vec3(0., .1, -.27);
-  float hook = max(length(vec2(length(g.xy - vec2(0., .01)) - .055, g.z)) - .016, g.y - .0);   // the anchor's curved foot
-  float anchor = min(min(sdCapT(g, vec3(0., .07, 0.), vec3(0., -.05, 0.), .018, .018), sdCapT(g, vec3(-.045, .035, 0.), vec3(.045, .035, 0.), .014, .014)), hook);
-  U(d, anchor, 6.);
-  // the water ring behind the head: rippling, with drops running round it
-  vec3 q = p - c - vec3(0., 0., .32);
-  float an = atan(q.y, q.x), R0 = .6 + .03*sin(an*6. + uTime*3.) + .02*sin(an*11. - uTime*4.);
-  U(d, sdTorZ(q, R0, .05 + .012*sin(an*5. + uTime*5.)), 4.);
-  for (int k = 0; k < 6; k++) {
-    float a2 = float(k)*1.047 + uTime*.9;
-    glowU(d, length(q - vec3(cos(a2)*.6, sin(a2)*.6, -.02)) - .055, 5.);
-  }
-  // bubbles rising
-  for (int k = 0; k < 3; k++) {
-    float fk = float(k), ph = fract(uTime*.22 + fk*.33);
-    vec3 bp = p - vec3(.75 + sin(uTime*2. + fk*2.)*.08 - fk*.15, -.6 + ph*1.8, -.1);
-    U(d, abs(length(bp) - .06 - .02*fk) - .012, 5.);
-  }
-  headEyes(d, p, c, .4, .92);
-#elif KIND == 4
   // AURUM: an ivory head and cloak (lit, not shadow) with a gold hem, a golden halo above, small feathered wings
   body = smin(length(p - c) - .4, cloak(p, .22, -.74, .22, .64, 0.), .1);
   U(d, body, 6.);
@@ -310,40 +184,199 @@ float map(vec3 p){
     U(d, sdEll(f - vec3(.25 - float(k)*.03, 0., 0.), vec3(.27 - float(k)*.04, .07, .03)), 8.);
   }
   headEyes(d, p, c, .4, .92);
-#else
-  // BYTE: a hoodie (the hood up round the head), a glowing visor across the face, an antenna, orbiting bits
-  float head = length(p - c) - .38;
-  U(d, head, 2.);
-  vec3 hh = p - c; hh.z -= (hh.y - .1)*(hh.y - .1)*.2;
-  float hood = sdEll(hh - vec3(0., .04, .08), vec3(.5, .52, .5));
-  hood = max(hood, -(length(p - c - vec3(0., -.02, -.42)) - .4));   // the opening round the face
-  body = smin(hood, cloak(p, .22, -.74, .24, .64, 0.), .1);
-  U(d, body, 6.);
-  U(d, max(abs(length(p - c - vec3(0., -.02, -.42)) - .4) - .025, hood - .02), 1.);   // the hood's rim
-  // the drawstrings
+#elif KIND == 1
+  // KITSU: a white spirit fox. Head with a snout, cheek fluff and pointed ears; a small round body with two paws; three
+  // fluffy tails fanned out behind, tipped with blue spirit fire; two wisps of it drifting round.
+  c = vec3(0., .44, 0.);
+  vec3 hq = p - c;
+  float fur = sdEll(hq, vec3(.4, .34, .36));
+  fur = smin(fur, sdEll(hq - vec3(0., -.1, -.26), vec3(.17, .12, .2)), .08);                       // the snout
+  fur = smin(fur, sdEll(vec3(abs(hq.x), hq.yz) - vec3(.34, -.14, -.02), vec3(.12, .09, .1)), .06); // cheek fluff
+  vec3 e = vec3(abs(hq.x), hq.yz);
+  float tw = .02*sin(uTime*2. + step(0., hq.x)*2.);   // the ears twitch, each on its own
+  float ear = sdCapT(e, vec3(.19, .2, .04), vec3(.33 + tw, .62, .1), .16, .0);
+  fur = smin(fur, ear, .05);
+  vec3 sb = p; sb.x += uSway*max(-sb.y, 0.);
+  fur = smin(fur, sdEll(sb - vec3(0., -.14, .06), vec3(.27, .29, .25)), .1);                       // the body
+  fur = smin(fur, length(vec3(abs(sb.x), sb.yz) - vec3(.12, -.4, -.1)) - .08, .06);               // the paws
+  // the three tails: out behind the body and curling up, swaying, each its own
+  float tails = 1e5, fire = 1e5;
+  for (int k = 0; k < 3; k++) {
+    float sx = k == 0 ? -1. : k == 1 ? 1. : .3, sp = k == 2 ? .7 : 1., ph = float(k)*1.9;
+    float sw = .07*sin(uTime*1.4 + ph);
+    vec3 P0 = vec3(.0, -.34, .3), P1 = vec3(.38*sx*sp, -.46, .36), P2 = vec3((.82 + sw)*sx*sp, -.2, .4),
+         P3 = vec3((.98 + sw*1.5)*sx*sp, .24 + (k == 2 ? .36 : 0.), .38), P4 = vec3((.9 + sw*2.)*sx*sp, .6 + (k == 2 ? .36 : 0.), .36);
+    float t = smin(smin(sdCapT(p, P0, P1, .06, .17), sdCapT(p, P1, P2, .17, .26), .05), smin(sdCapT(p, P2, P3, .26, .21), sdCapT(p, P3, P4, .21, .1), .05), .05);   // bushy: thickest in the middle
+    t += (fbm(p*7. + float(k)*3.) - .5)*.09;   // fluffy
+    tails = min(tails, t);
+    vec3 dir = normalize(P4 - P3); float kk = clamp(dot(p - P4, dir)/.34, 0., 1.);
+    vec3 fp = p; fp.x += sin(kk*6. - uTime*7. + ph)*.04*kk;   // the flame licks side to side towards its tip
+    float fl = sdCapT(fp, P4 - dir*.1, P4 + dir*(.42 + .08*sin(uTime*9. + ph)), .17, .0);
+    fire = min(fire, fl + (fbm(p*9. + vec3(0., -uTime*3., ph)) - .5)*.06);
+  }
+  fur = smin(fur, tails, .04);
+  U(d, fur, 6.);
+  glowU(d, fire, 4.);
+  // pink insides of the ears, a dark nose, red marks on the forehead
+  U(d, sdCapT(e - vec3(0., 0., -.07), vec3(.21, .26, .02), vec3(.32 + tw, .54, .06), .085, .0), 7.);
+  U(d, length(hq - vec3(0., -.07, -.46)) - .045, 2.);
+  U(d, sdEll(vec3(abs(hq.x), hq.yz) - vec3(.1, .21, -.27), vec3(.045, .08, .03)), 8.);
+  // two wisps of spirit fire drifting round them
   for (int k = 0; k < 2; k++) {
-    float x = k == 0 ? -.12 : .12;
-    U(d, sdCapT(p, vec3(x, .2, -.36), vec3(x + .01*sin(uTime*2. + float(k)), -.05, -.4), .018, .018), 5.);
-    U(d, length(p - vec3(x + .01*sin(uTime*2. + float(k)), -.07, -.4)) - .03, 5.);
+    float a = uTime*.9 + float(k)*3.14159;
+    vec3 w = p - vec3(cos(a)*.86, .3 + .15*sin(a*1.7), sin(a)*.4);
+    glowU(d, sdCapT(w, vec3(0., -.04, 0.), vec3(.02*sin(uTime*8.), .12, 0.), .06, .0), 4.);
   }
-  // the visor: a curved strip of screen across the face
-  vec3 v = p - c;
-  float visor = max(max(abs(length(v) - .385) - .03, abs(v.y - .01) - .14), v.z + .12);
-  glowU(d, visor, 4.);
-  // the antenna, poking out of the hood, its light blinking
-  vec3 a0 = c + vec3(.16, .44, .06), a1 = a0 + vec3(.1, .2, 0.);
-  U(d, sdCapT(p, a0, a1, .02, .014), 5.);
-  float blink = step(.5, fract(uTime*1.2));
-  glowU(d, length(p - a1) - (.045 + .015*blink), blink > .5 ? 4. : 7.);
-  // bits orbiting behind the head
-  vec3 q = p - c - vec3(0., 0., .3);
-  for (int k = 0; k < 8; k++) {
-    float a = float(k)*.785 + uTime*.6;
-    vec3 r = q - vec3(cos(a)*.62, sin(a)*.62, 0.); r.xy = R(uTime + float(k)) * r.xy;
-    glowU(d, sdBox(r, vec3(k % 3 == 0 ? .055 : .04)), 4.);
+  eyes(d, p, c + vec3(-.16, .06, -.32), c + vec3(.15, .06, -.32), vec3(.075, .12, .05));
+#elif KIND == 2
+  // LUMA: a jellyfish. A bell that pulses as it swims (a shell: hollow underneath), a frilled rim, two ribbon arms and
+  // glowing tentacles trailing below, swaying.
+  float pulse = sin(uTime*2.2);
+  vec3 b = p - vec3(0., .44, 0.);
+  b.y *= 1. + .08*pulse; b.xz *= 1. - .05*pulse;
+  float an = atan(b.z, b.x);
+  float bell = sdEll(b, vec3(.56, .46, .52));
+  bell = max(bell, (-.04 + .04*sin(an*9. + uTime*2.)) - b.y);           // open underneath, a wavy edge
+  bell = max(bell, -sdEll(b - vec3(0., -.14, 0.), vec3(.47, .36, .43)));
+  U(d, bell, sin(an*6.) > .78 && b.y > .06 ? 8. : 6.);                     // pale ribs down the bell
+  vec3 rq = b - vec3(0., -.02 + .03*sin(an*9. + uTime*2.), 0.);
+  U(d, length(vec2(length(rq.xz) - .5 - .02*sin(an*14. + uTime*3.), rq.y)) - .05, 7.);   // the frill
+  // two frilly ribbon arms from under the bell
+  for (int k = 0; k < 2; k++) {
+    float sx = k == 0 ? -1. : 1., ph = float(k)*2.;
+    float arm = 1e5; vec3 prev = vec3(.06*sx, .2, -.02);
+    for (int j = 1; j <= 5; j++) {
+      float w = float(j)/5.;
+      vec3 nx = vec3(.08*sx + .09*sin(w*5. - uTime*2.5 + ph)*w, .2 - .85*w, -.02 + .04*sin(w*4. + uTime));
+      arm = smin(arm, sdCapT(p, prev, nx, .07 - .03*w, .065 - .03*w) + .015*sin(w*30. + uTime*4.), .04);
+      prev = nx;
+    }
+    U(d, arm, 7.);
   }
-  // eyes on the visor
-  eyes(d, p, c + vec3(-.15, .01, -.4), c + vec3(.14, .01, -.4), vec3(.08, .1, .06));
+  // the glowing tentacles round the rim, trailing down and swaying
+  for (int k = 0; k < 6; k++) {
+    float a = float(k)*1.047 + .5, ph = float(k)*1.3;
+    vec3 prev = vec3(cos(a)*.4, .42, sin(a)*.37); float tt = 1e5;
+    for (int j = 1; j <= 5; j++) {
+      float w = float(j)/5.;
+      vec3 nx = vec3(cos(a)*(.4 - .1*w) + .1*sin(w*4. - uTime*2. + ph)*w, .42 - 1.25*w, sin(a)*(.37 - .1*w));
+      tt = min(tt, sdCapT(p, prev, nx, .026, .018));
+      prev = nx;
+    }
+    glowU(d, tt, 4.);
+  }
+  eyes(d, p, vec3(-.17, .46, -.47), vec3(.17, .46, -.47), vec3(.09, .14, .08));
+#elif KIND == 3
+  // TINK: a little brass robot. A round polished body with a copper belt of rivets, a dark glass face, a spinning
+  // propeller on top, a wind-up key turning in its back, stubby arms, a small jet of flame underneath.
+  c = vec3(0., .26, 0.);
+  vec3 q = p - c;
+  U(d, sdEll(q, vec3(.46, .44, .44)), 5.);
+  // the belt, and its rivets
+  U(d, length(vec2(length(q.xz) - .455, q.y + .06)) - .035, 7.);
+  for (int k = 0; k < 12; k++) {
+    float a = float(k)*.5236 + .26;
+    U(d, length(q - vec3(cos(a)*.48, -.06, sin(a)*.48)) - .03, 6.);
+  }
+  // the face: a dark glass disc with a copper rim
+  U(d, sdCylY(vec3(q.x, q.z + .4, q.y - .1), .25, .04) - .01, 2.);
+  U(d, sdTorZ(q - vec3(0., .1, -.43), .26, .028), 7.);
+  // the propeller: a cap, a stem and two spinning blades
+  U(d, sdCylY(q - vec3(0., .45, 0.), .07, .04) - .01, 7.);
+  U(d, sdCapT(q, vec3(0., .47, 0.), vec3(0., .6, 0.), .02, .02), 7.);
+  vec3 pr = q - vec3(0., .62, 0.); pr.xz = R(uTime*14.) * pr.xz;
+  U(d, sdEll(pr, vec3(.24, .03, .07)), 8.);
+  // the wind-up key in its back, turning
+  U(d, sdCapT(q, vec3(.0, .05, .38), vec3(.0, .05, .58), .03, .03), 6.);
+  vec3 kq = q - vec3(0., .05, .62); kq.xy = R(uTime*1.3) * kq.xy;
+  U(d, min(sdTorZ(kq - vec3(.1, 0., 0.), .08, .026), sdTorZ(kq + vec3(.1, 0., 0.), .08, .026)), 6.);
+  // stubby arms with ball hands, bobbing
+  for (int k = 0; k < 2; k++) {
+    float sx = k == 0 ? -1. : 1.;
+    vec3 hand = vec3(.62*sx, -.12 + .05*sin(uTime*3. + sx), -.06);
+    U(d, sdCapT(q, vec3(.4*sx, .02, 0.), hand, .05, .045), 7.);
+    U(d, length(q - hand) - .085, 5.);
+  }
+  // a nozzle underneath and a flickering jet
+  U(d, sdCapT(q, vec3(0., -.38, 0.), vec3(0., -.5, 0.), .1, .07), 7.);
+  float fl = .06*sin(uTime*23.) + .04*sin(uTime*37.);
+  glowU(d, sdCapT(q, vec3(0., -.52, 0.), vec3(0., -.78 - fl, 0.), .075, .0), 4.);
+  eyes(d, p, c + vec3(-.1, .11, -.45), c + vec3(.1, .11, -.45), vec3(.065, .095, .04));
+#elif KIND == 4
+  // HEX: a little witch. A huge crooked hat over a shadowed face with glowing eyes, a short ragged robe, a lantern of
+  // witch-fire floating beside them.
+  c = vec3(0., .34, 0.);
+  body = smin(length(p - c) - .35, cloak(p, .1, -.78, .2, .6, 0.), .1);
+  U(d, body, 1.);
+  // the hat: a wide wavy brim tipped toward us, and a tall cone that bends over at the top
+  vec3 h = p - c - vec3(0., .2, 0.); h.yz = R(-.14) * h.yz;
+  float ha = atan(h.z, h.x);
+  vec3 hb = h; hb.y += .035*sin(ha*3. + uTime*.8)*smoothstep(.3, .62, length(h.xz));
+  float brim = sdEll(hb, vec3(.68, .045, .62));
+  vec3 a0 = c + vec3(0., .22, .02), a1 = a0 + vec3(.02, .36, .04), a2 = a1 + vec3(.12 + .03*sin(uTime*1.3), .25, .06),
+       a3 = a2 + vec3(.26 + .04*sin(uTime*1.3 + .5), -.06, .04);
+  float cone = min(min(sdCapT(p, a0, a1, .33, .2), sdCapT(p, a1, a2, .2, .1)), sdCapT(p, a2, a3, .1, .016));
+  U(d, smin(brim, cone, .04), 7.);
+  // the band and its buckle
+  U(d, max(abs(p.y - a0.y - .07) - .045, sdCapT(p, a0, a1, .345, .21)), 6.);
+  U(d, sdBox(p - vec3(0., a0.y + .07, -.33), vec3(.065, .05, .025)), 5.);
+  // the lantern, floating at their side, swinging a little
+  vec3 lq = p - vec3(.64, -.05 + .05*sin(uTime*1.6), -.08); lq.xy = R(.15*sin(uTime*1.2)) * lq.xy;
+  float lan = sdEll(lq - vec3(0., .16, 0.), vec3(.12, .05, .12));                 // the cap
+  lan = min(lan, sdBox(lq - vec3(0., -.15, 0.), vec3(.11, .02, .11)));            // the base
+  for (int k = 0; k < 4; k++) {
+    vec2 cn = vec2(k < 2 ? -.09 : .09, k % 2 == 0 ? -.09 : .09);
+    lan = min(lan, sdCapT(lq, vec3(cn.x, -.14, cn.y), vec3(cn.x, .14, cn.y), .018, .018));
+  }
+  lan = min(lan, sdTorZ(lq - vec3(0., .24, 0.), .06, .016));                      // the ring on top
+  U(d, lan, 5.);
+  glowU(d, sdEll(lq - vec3(0., -.03 + .01*sin(uTime*11.), 0.), vec3(.05, .09 + .015*sin(uTime*13.), .05)), 4.);
+  // a few sparks of witch-fire drifting up off the hat
+  for (int k = 0; k < 3; k++) {
+    float fk = float(k), ph = fract(uTime*.3 + fk*.33);
+    glowU(d, length(p - (a3 + vec3(.06*sin(fk*3. + uTime*2.), .1 + ph*.5, 0.))) - .03*(1. - ph), 4.);
+  }
+  eyes(d, p, c + vec3(-.13, -.02, -.32), c + vec3(.13, -.02, -.32), vec3(.075, .1, .05));
+#else
+  // PEBBLE: a round mossy boulder with a flower on top, glowing eyes in a dark crack of a face, crystals growing from
+  // the back, two floating rock fists and pebbles circling underneath.
+  c = vec3(0., .22, 0.);
+  vec3 q = p - c;
+  float rock = sdEll(q, vec3(.56, .5, .5)) + (fbm(q*3.2 + 2.) - .5)*.16;
+  U(d, rock, 7.);
+  float moss = max(sdEll(q - vec3(0., .05, 0.), vec3(.585, .52, .53)) + (fbm(q*6.) - .5)*.1, .18 - q.y + .07*sin(q.x*7. + q.z*5.));
+  U(d, moss, 8.);
+  // the face: a dark crack across the front, the eyes glowing in it
+  U(d, sdEll(q - vec3(0., .02, -.44), vec3(.32, .14, .1)), 2.);
+  // a flower on top of the moss
+  vec3 f0 = c + vec3(-.1, .5, .02), f1 = f0 + vec3(.02, .14, 0.);
+  U(d, sdCapT(p, f0, f1, .02, .016), 8.);
+  vec3 fq = p - f1; float pet = 1e5;
+  for (int k = 0; k < 5; k++) { float a = float(k)*1.2566 + uTime*.3; pet = min(pet, length(fq - vec3(cos(a)*.06, .01, sin(a)*.06)) - .045); }
+  U(d, pet, 6.);
+  U(d, length(fq - vec3(0., .02, 0.)) - .03, 3.);
+  // crystals growing out of the back
+  for (int k = 0; k < 3; k++) {
+    float fk = float(k), a = 2.2 - fk*.7;
+    vec3 base = vec3(cos(a)*.36, .32 + .06*fk, .25), dir = normalize(vec3(cos(a)*.8, .8, .3));
+    vec3 cq = q - base - dir*(.12 + .04*fk);
+    float ang = atan(dir.x, dir.y); cq.xy = R(ang) * cq.xy;
+    float cr = sdOct(cq*vec3(1.8, .6, 1.8), .14 + .03*fk)*.5;
+    if (k == 1) glowU(d, cr, 4.); else U(d, cr, 4.);
+  }
+  // two floating rock fists
+  for (int k = 0; k < 2; k++) {
+    float sx = k == 0 ? -1. : 1.;
+    vec3 fq2 = q - vec3(.72*sx, -.12 + .06*sin(uTime*2.2 + sx*1.5), -.08);
+    U(d, sdEll(fq2, vec3(.14, .13, .13)) + (fbm(fq2*8. + sx) - .5)*.06, 7.);
+  }
+  // pebbles circling underneath
+  for (int k = 0; k < 5; k++) {
+    float a = float(k)*1.2566 + uTime*.7;
+    vec3 pq = q - vec3(cos(a)*.48, -.62 + .03*sin(uTime*2. + float(k)), sin(a)*.32); pq.xy = R(uTime + float(k))*pq.xy;
+    U(d, sdOct(pq, .06 + .02*hash1(float(k))), 7.);
+  }
+  eyes(d, p, c + vec3(-.12, .03, -.5), c + vec3(.12, .03, -.5), vec3(.07, .085, .04));
 #endif
   return d;
 }
