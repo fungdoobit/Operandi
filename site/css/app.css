@@ -313,3 +313,141 @@ textarea.code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
 .team-card.pick { font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; }
 .team-card.pick:hover { border-color: var(--accent); }
 .pick-grid .char-portrait { width: 96px; height: 120px; }
+
+/* ---------- Polish pass (Isaac 2026-10-30): a calm, professional look ----------
+   Warm neutral paper like the home page, ink-black main buttons, one muted blue accent (not NOVA's violet),
+   softer lines, rounder cards with quiet shadows, more air around the lesson text. Only looks change here:
+   no layout or behaviour. Delete this block to go back. The full UI/UX revamp comes later on a preview link. */
+:root {
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --ink: #1b1c1f;
+  --muted: #6c6b66;
+  --line: #e6e4de;
+  --line-strong: #d6d3cb;
+  --accent: #2f5bd3;
+  --accent-soft: #eaeffb;
+  --on-accent: #ffffff;
+  --primary: #1b1c1f;
+  --on-primary: #ffffff;
+  --gold: #a97800;
+  --gold-soft: #fbf3dd;
+  --pass: #1d7a4a;
+  --pass-soft: #e5f3ea;
+  --fail: #b8402c;
+  --fail-soft: #fbe9e5;
+  --code-inline: #efede7;
+  --editor-bg: #131417;
+  --editor-ink: #e8e6e0;
+  --editor-dim: #6f6e69;
+  --editor-caret: #f2c14e;
+  --radius: 12px;
+  --shadow-sm: 0 1px 2px rgb(30 25 15 / .05), 0 1px 1px rgb(30 25 15 / .03);
+  --shadow-md: 0 1px 2px rgb(30 25 15 / .05), 0 8px 24px rgb(30 25 15 / .07);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111214; --surface: #17181b; --ink: #ecebe6; --muted: #9b988f; --line: #26272c; --line-strong: #34353b;
+    --accent: #7d9cf0; --accent-soft: #1d2436; --on-accent: #0f1115; --primary: #ecebe6; --on-primary: #141518;
+    --gold: #e6bb52; --gold-soft: #2c2512; --pass: #5cc48a; --pass-soft: #142a1d; --fail: #f08b78; --fail-soft: #331914;
+    --code-inline: #222328; --editor-bg: #0d0e10;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / .3); --shadow-md: 0 1px 2px rgb(0 0 0 / .3), 0 10px 30px rgb(0 0 0 / .35);
+  }
+}
+body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+/* Course list */
+.rail { padding: 22px 14px; gap: 22px; background: var(--surface); border-right-color: var(--line); }
+.rail h4 { font-size: 10.5px; letter-spacing: .1em; margin-bottom: 8px; padding-left: 10px; }
+.rail-item { border-radius: 9px; padding: 8px 10px; transition: background .15s; }
+.rail-item:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.rail-item[aria-current="true"] { background: color-mix(in srgb, var(--ink) 6%, transparent); box-shadow: inset 2px 0 0 var(--ink); }
+.rail-item[aria-current="true"] .t { font-weight: 600; }
+.rail-item .t { font-size: 13.5px; }
+.rail-item .sub { font-size: 11.5px; margin-top: 1px; }
+.rail-head { gap: 14px; padding-bottom: 18px; }
+.lvl-row b { color: var(--ink); letter-spacing: .08em; font-size: 11px; }
+.lvl-bar { height: 4px; border-radius: 2px; background: var(--line); }
+.lvl-bar > i { background: var(--ink); border-radius: 2px; }
+.stat b { font-size: 19px; letter-spacing: -.01em; }
+.stat span { font-size: 10.5px; letter-spacing: .08em; }
+.rail-toggle { border-color: var(--line); border-radius: 10px; box-shadow: var(--shadow-md); transition: border-color .15s; }
+.rail-toggle:hover { border-color: var(--line-strong); }
+.rail-backdrop { background: rgb(20 18 14 / .35); backdrop-filter: blur(2px); }
+
+/* Lesson text */
+.brief { padding: 40px 44px 64px; }
+.brief-inner { max-width: 68ch; }
+.brief p, .brief li { line-height: 1.68; }
+.eyebrow { font-size: 11px; letter-spacing: .12em; color: var(--muted); margin-bottom: 10px; }
+.brief h1 { font-size: 38px; letter-spacing: -.028em; line-height: 1.06; margin-bottom: 18px; }
+.brief h3 { font-size: 20px; letter-spacing: -.012em; margin: 34px 0 8px; }
+.brief code { background: var(--code-inline); border-radius: 5px; padding: 1px 6px; }
+.example { border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid color-mix(in srgb, var(--editor-ink) 8%, transparent); }
+.example pre { padding: 14px 16px; }
+.example .bar { padding: 7px 9px; border-top-color: #ffffff12; }
+.example .bar button { border-radius: 7px; padding: 3px 12px; transition: background .15s, border-color .15s; }
+.example .bar button:hover { background: #ffffff12; border-color: #ffffff40; }
+.note { border-left-width: 2px; border-radius: 0 10px 10px 0; padding: 14px 18px; }
+.task { border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; box-shadow: var(--shadow-md); position: relative; overflow: hidden; }
+.task::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--ink); }
+.expected pre { border: 1px solid var(--line); border-radius: 9px; padding: 11px 13px; }
+.chip { border-radius: 999px; padding: 3px 11px; font-weight: 500; }
+.hint { border-left-width: 2px; border-left-color: var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; }
+.diff button { border-radius: 10px; padding: 10px 16px; transition: border-color .15s, background .15s; }
+.diff button:hover { border-color: var(--line-strong); }
+.diff button[aria-pressed="true"] { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, var(--surface)); }
+.sections { gap: 8px; margin: 6px 0 22px; }
+.sections .sec { padding: 5px 13px 5px 6px; transition: border-color .15s, color .15s; }
+.sections .sec:hover:not(:disabled) { border-color: var(--line-strong); color: var(--ink); }
+.sections .sec .n { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.sections .sec.done .n { background: var(--pass); }
+
+/* Buttons: ink for the main action, quiet outlines for the rest */
+.btn { border-radius: 9px; padding: 7px 15px; border-color: var(--line-strong); box-shadow: var(--shadow-sm); transition: border-color .15s, background .15s, transform .1s; }
+.btn:hover:not(:disabled) { border-color: color-mix(in srgb, var(--ink) 45%, transparent); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn.primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.btn.primary:hover:not(:disabled) { filter: none; background: color-mix(in srgb, var(--primary) 86%, var(--surface)); border-color: transparent; }
+.btn.ghost { box-shadow: none; }
+.btn:disabled { opacity: .45; box-shadow: none; }
+.actions { gap: 8px; padding: 8px 12px; border-top-color: var(--line); }
+.actions .btn { padding: 6px 13px; font-size: 13.5px; }
+
+/* Editor and results */
+.work { border-left-color: var(--line); }
+.gutter { color: #55544f; }
+textarea.code:focus-visible { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--editor-ink) 25%, transparent); }
+.tabs { padding: 0 12px; gap: 4px; border-color: var(--line); }
+.tab { padding: 9px 10px; font-size: 13px; transition: color .15s; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { border-bottom-color: var(--ink); }
+.panel { padding: 16px 18px; }
+.tests li { border-radius: 10px; padding: 11px 13px; }
+.score { font-size: 56px; letter-spacing: -.03em; }
+.pill { letter-spacing: .06em; padding: 3px 10px; }
+.reward { border-radius: 10px; }
+
+/* Shop, characters, FAQ */
+.shop-grid, .team-grid { gap: 14px; }
+.shop-card, .team-card { border-radius: 14px; padding: 16px; box-shadow: var(--shadow-sm); transition: box-shadow .2s, border-color .2s, transform .2s; }
+.shop-card:hover, .team-card.pick:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.shop-card h4 { font-size: 15px; font-weight: 600; }
+.team-card.active { border-color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent); }
+.team-card.pick:hover { border-color: var(--line-strong); }
+.price { font-weight: 600; }
+.faq-search { border-radius: 10px; padding: 11px 14px; box-shadow: var(--shadow-sm); }
+.faq-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.faq-list { gap: 8px; }
+.faq-list details { border-radius: 12px; padding: 0 16px; transition: border-color .15s; }
+.faq-list details[open] { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
+.faq-list summary { padding: 12px 0; }
+.faq-dialog { border-radius: 16px; box-shadow: var(--shadow-md); padding: 22px; }
+
+.toast { border-radius: 11px; padding: 11px 18px; box-shadow: 0 10px 30px rgb(0 0 0 / .18); font-weight: 500; }
+button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus-visible { outline-color: var(--accent); }
+@media (max-width: 720px) {
+  .brief { padding: 22px max(16px, env(safe-area-inset-right)) 36px max(16px, env(safe-area-inset-left)); }
+  .brief h1 { font-size: 30px; }
+}
