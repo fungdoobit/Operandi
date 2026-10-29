@@ -35,6 +35,9 @@ const S = () => store.state;
 // to bring them back ("pyro" as a teammate and fighter, "kaela" as a fighter); a save that had them gets them back too.
 const ROSTER = ["nova"];
 const mate = () => (ROSTER.includes(S().equipped.teammate) ? S().equipped.teammate : ROSTER[0]);
+// The Shop's Looks (hats, glasses...) only show on the old DOT body, so they're hidden while testers play (Isaac
+// 2026-10-29). Set to true to sell them again; anything already bought stays owned.
+const SHOW_LOOKS = false;
 
 const dotStyle = document.createElement("style");
 dotStyle.textContent = DOT_CSS + NOVA_CSS + PYRO_CSS;
@@ -726,7 +729,7 @@ function renderShop() {
     return `<div class="team-card ${team === id ? "active" : ""}"><div class="team-dot" id="team-${id}"></div><div><h4>${name}</h4><p>${desc}</p>${btn}</div></div>`;
   };
   $("briefInner").innerHTML = `<p class="eyebrow">Shop</p><h1>Spend your Bits</h1>
-    <p>You have <b>◆ ${st.bits} Bits</b>. Error explanations, typo spotting and the FAQ are always free. Items here are for an extra push, or to make your teammate look sharp.</p>
+    <p>You have <b>◆ ${st.bits} Bits</b>. Error explanations, typo spotting and the FAQ are always free. Items here give you an extra push${SHOW_LOOKS ? ", or make your teammate look sharp" : ", or a new look for your editor"}.</p>
     ${ROSTER.includes("kaela") ? `<h3>Characters</h3>
     <div class="team-grid">
       <div class="team-card char-card"><img class="char-portrait" src="assets/kaela/portrait-red.png" alt="Kaela's portrait"><div><h4>Kaela</h4><p>A red-haired swordswoman, quick and fierce. She fights the bosses: pick her when a boss fight starts.</p><span class="owned">Yours</span></div></div>
@@ -736,8 +739,8 @@ function renderShop() {
       ${TEAMMATES.map(([id, n, d]) => teamCard(id, n, d)).join("")}
     </div>
     <h3>Help items</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "item").map(card).join("")}</div>
-    <h3>Looks</h3><p class="empty">Wear one hat, one pair of glasses, one moustache and one prop at the same time. (They don't show on NOVA yet.)</p>
-    <div class="shop-grid">${SHOP.filter((e) => e.kind === "dot").map(card).join("")}</div>
+    ${SHOW_LOOKS ? `<h3>Looks</h3><p class="empty">Wear one hat, one pair of glasses, one moustache and one prop at the same time. (They don't show on NOVA yet.)</p>
+    <div class="shop-grid">${SHOP.filter((e) => e.kind === "dot").map(card).join("")}</div>` : ""}
     <h3>Editor themes</h3><div class="shop-grid">${SHOP.filter((e) => e.kind === "theme").map(card).join("")}</div>`;
   for (const [id] of TEAMMATES) {
     const d = id === "nova" ? new NovaMate($("team-" + id), { size: 96, idles: false }) : new PyroMate($("team-" + id), { size: 72, idles: false });
