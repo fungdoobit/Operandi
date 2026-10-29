@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8"><title>New companions: drafts</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #eef0f5; color: #1c1f2a; }
+  h1 { font-size: 18px; margin: 18px 22px 4px; } p.sub { margin: 0 22px 12px; color: #5a6072; font-size: 13px; }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; padding: 6px 18px 18px; }
+  .card { background: #fff; border-radius: 14px; padding: 8px 8px 10px; box-shadow: 0 1px 3px #0002; width: 321px; flex: none; }
+  .card.dark { background: #1a1d26; color: #e8eaf2; }
+  .card h2 { margin: 2px 6px 0; font-size: 15px; letter-spacing: .06em; } .card .el { font-size: 12px; color: #7a8094; margin: 0 6px; }
+  .stage { display: flex; justify-content: center; }
+</style></head><body>
+<h1>New companions in NOVA's style (drafts)</h1>
+<p class="sub">Same renderer, same size and same body as NOVA (left). Moods cycle: idle, happy, angry, sad, sleepy.</p>
+<div class="row" id="row"></div>
+<script type="module">
+import { PixelNova } from "../../site/js/pixel/nova-px.js";
+import { PixelKin, KINS } from "./kin-px.js";
+const q = new URLSearchParams(location.search), dark = q.has("dark"), fixed = q.get("mood");
+const row = document.getElementById("row"), all = [];
+const card = (name, el) => { const c = document.createElement("div"); c.className = "card" + (dark ? " dark" : ""); c.innerHTML = `<h2>${name}</h2><div class="el">${el}</div><div class="stage"></div>`; row.append(c); return c.querySelector(".stage"); };
+const nova = new PixelNova(card("NOVA", "Void (for size)"), { kind: "mooncloak", w: 107, h: 113, px: 3, view: 4.79, shadow: false });
+all.push(nova);
+for (const k of KINS) all.push(new PixelKin(card(k.name, k.element), k.id, { px: 3 }));
+const moods = ["idle", "happy", "angry", "sad", "sleepy"];
+let i = 0;
+const set = (m) => all.forEach((a) => a.setMood(m));
+if (fixed) { set(fixed); all.forEach((a) => { a.nextBlink = 1e9; }); } else setInterval(() => set(moods[++i % moods.length]), 1800);
+window.__ready = true;
+</script></body></html>
