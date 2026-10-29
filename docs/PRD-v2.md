@@ -604,3 +604,56 @@ Isaac 2026-10-23: scrap "every level is a fight". Lessons and practice go back t
 2. **You pick your fighter** from the characters you own: Kaela, DOT, PYRO, and NOVA once won. Players may want to rematch GOLEM after getting NOVA.
 3. **Kaela only fights**; she doesn't roam the lessons.
 4. **Big boss only** for now.
+
+## Addendum N: full UI/UX revamp (draft 2026-10-30, awaiting "go")
+
+Isaac 2026-10-30: "revamp the whole site UI UX ... extremely high quality and professional", then "take inspiration from a lot of cool high-end sites with cool designs and interactive elements". A polish pass went live first (warm neutrals, ink buttons, one muted blue; not NOVA-themed); this is the full revamp, built on a preview link and only made live after Isaac approves.
+
+**Research (2026-10-30).** The sites themselves are blocked from this cloud session (linear.app, stripe.com, vercel.com, brilliant.org, boot.dev, awwwards.com, raycast.com, apple.com and duolingo.com all fail; Isaac can allow them under the environment's Network access), so this draws on published write-ups plus what I already know of them. What to borrow:
+
+| Reference | What makes it feel high-end | What Operandi takes |
+|---|---|---|
+| Linear | Off-black dark mode, precise type, backgrounds layered from gradient + noise + a faint grid, a spotlight that follows the cursor across cards, layered soft shadows | The dark theme, the spotlight on cards, the quiet layered backgrounds |
+| Raycast | The command palette is the product; shortcut keys shown as keycaps in a mono font; depth from layered shadows, not neon glow | A Ctrl/Cmd+K palette to jump anywhere; keycap chips on Run/Submit |
+| Vercel | Monochrome, thin grid lines, crisp mono code | The grid lines and code styling |
+| Stripe | Real, runnable code samples right on the marketing page | A live Python box in the home page hero |
+| Brilliant | "Try first, then learn"; visual, hands-on steps; sounds and feedback make it fun | Lessons open with a quick try; satisfying pass/fail feedback |
+| Duolingo | The learning path: one road of lessons with reviews mixed in, aimed at "less confusion". Users mocked it as Candy Crush | A course map, but calm and grown-up, not candy-coloured |
+| Codecademy | A dashboard that says what to do next | A "Continue" card on the course home |
+| Awwwards Site of the Year 2025 (e.g. Lando Norris by OFF+BRAND) | A cursor-reactive hero and one signature graphic motif carried through a modular layout | One signature motif, used on the home page only; lessons stay calm |
+| 2026 practice | CSS scroll-driven animation (now in all major browsers), View Transitions between pages, micro-interactions under 300 ms, respect for reduced motion; bento grids for overviews (they break on phones, so stack them) | All of these, CSS-first so it stays fast |
+
+1. **Problem.** The site works, but it reads as a prototype. The home page is a word and a button and says nothing about what Operandi is. The course page is a dense three-column tool whose menu hides behind ☰. Progress, Bits, levels and the bosses are hard to find, and nothing says what to do next. Testers will judge it in the first ten seconds.
+2. **Success criteria.**
+   - A first-time visitor understands what Operandi is and presses Run on lesson 1 within 30 seconds (timed with two or three testers).
+   - Every screen has one obvious next action. Run and Submit have keyboard shortcuts (Ctrl+Enter, Ctrl+Shift+Enter).
+   - It works at phone (390 px), iPad (768-1024), laptop (1440) and ultrawide sizes, in light and dark, and with reduced motion turned on.
+   - Home page Lighthouse performance 90+, no layout jumps, every click answered within 100 ms.
+   - Isaac calls it high-end next to the references above (his call).
+   - Nothing breaks: the validator, both boss fights, NOVA, and existing saves all keep working.
+3. **Scope (in).**
+   - **Design system:** one set of tokens (colour, type scale, spacing, radius, shadow, motion) and components (buttons, cards, tabs, chips, inputs, toasts, dialogs, keycaps) in light and dark.
+   - **Home page:** a hero with a live Python box (type, press Run; Python loads only when you first press it). Below it: how it works (learn → code → beat the boss), a preview of the course map with its bosses, why it's different (instant marking, free help, no AI at runtime), FAQ, footer. Cursor spotlight, scroll reveals, one signature motif. Language tiles and pricing stay hidden.
+   - **Course home:** a calm path of modules → lessons → boss, with done/next/locked states, a "Continue" card, and level, Bits and streak in a clean header.
+   - **Lesson workspace:** a top bar (where you are, progress, Bits, Ctrl+K), lesson text in a reading column, the task card always in reach, the editor with a proper Run/Submit bar showing keycaps, results redesigned (tests, score count-up), and a focus mode.
+   - **Command palette (Ctrl/Cmd+K):** jump to any lesson, the Shop, the FAQ (searching it), settings; actions like Run, Submit, Hint.
+   - **Feedback moments:** a small celebration on a pass (motion and sound), test rows sliding in, Bits flying to the counter. Short, calm, reduced-motion aware.
+   - **Shop, FAQ, Practice, Settings:** consistent pages; the Shop as a bento grid.
+   - **Page transitions** with View Transitions; scroll effects in CSS.
+   - **Phone layout:** lesson and editor as switchable tabs instead of a long stack.
+4. **Scope (out).** New lessons or content. The boss fights' game art and rules (only the frame and HUD around them change). New characters. Real sign-in (Firebase), payments, other language courses. Frameworks or a build step (it stays plain HTML, CSS and JS).
+5. **Constraints.** Zero cost: free fonts (Google Fonts or self-hosted) and no paid libraries. No build step. Vercel Hobby. Testers keep the current site until Isaac approves. Old saves must load unchanged. It must run well on Isaac's PC and iPad.
+6. **Plan (smallest working version first).**
+   1. **Style tiles:** the same lesson screen in three directions on one preview page. Isaac picks one (or mixes).
+   2. Design system plus the lesson workspace in the chosen direction, on a preview link.
+   3. Course home and path, command palette, shortcuts.
+   4. Home page with the live Python hero.
+   5. Shop, FAQ, Practice, Settings, feedback moments, page transitions, phone layout.
+   6. Full test pass (sizes, light and dark, reduced motion, Lighthouse, both boss fights, old saves). Isaac approves, then it goes live.
+7. **Open questions.**
+   1. **Direction** for the style tiles: (a) dark-first and precise like Linear/Raycast, (b) warm editorial paper (today's polish, pushed much further), (c) playful-premium like Brilliant (brighter, rounder, illustrated). Recommendation: tiles for all three; pick by eye.
+   2. **Preview branch:** a new branch (e.g. `revamp`) that Vercel builds as a preview only Isaac can open. (The session branch `claude/wizardly-wozniak-iu7om1` holds Kaela's untested Blood Orb work, so not that one.) OK to create it?
+   3. **NOVA on the home page:** the guide in the hero (characters sell a game), or a neutral home page?
+   4. **Sign in** opens the course without signing in: rename it "Start learning" until real sign-in exists?
+
+Sources: [Awwwards: Lando Norris](https://www.awwwards.com/sites/lando-norris), [DesignRush on the Lando Norris site](https://designrush.com/best-designs/websites/lando-norris-website-design), [Raycast design write-up](https://www.webdesignhot.com/design.md/raycast/), [Raycast design system notes](https://design.hagicode.com/designs/raycast/DESIGN.md), [Linear-style design notes](https://findskill.ai/de/skills/design-media/linear-modern-website-design/), [Duolingo: new home screen](https://blog.duolingo.com/new-duolingo-home-screen-design), [NBC on the Duolingo redesign](https://www.nbcnews.com/tech/tech-news/duolingos-update-redesign-luis-von-ahn-interview-rcna44655), [Brilliant on the App Store](https://apps.apple.com/app/brilliant-learn-by-doing/id913335252), [Fast Company on Codecademy](https://www.fastcompany.com/90184578/codecademycom-finally-an-interactive-coding-class-thats-fun), [Netguru: 2026 trends](https://www.netguru.com/blog/top-web-design-trends), [Line25: 2026 trends](https://line25.com/articles/web-design-trends-2026/).
