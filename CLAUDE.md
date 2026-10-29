@@ -52,6 +52,7 @@ Isaac's boot.dev-style Python learning game. `site/` is the main one: a standalo
   - A looping strip of language tiles: Python (opens `python.html`), VBA, C++, HTML, SQL ("Coming soon"). Icons are original inline SVGs.
   - It drifts slowly, and can be dragged, wheeled or swiped with momentum. Hover gives a Dock-style magnify (max ×1.28, eased every frame).
   - Sign in currently links straight to the course (temporary, Isaac 2026-10-20). Pricing scrolls to a small "Planned pricing" section (RM80 one-time, RM20/month, not available yet).
+  - **Hidden while testers play (Isaac 2026-10-29):** the language tiles, the Pricing button and the Planned pricing section carry the `hidden` attribute (code kept; a `[hidden]` CSS rule beats their own display). The page shows only the wordmark and Sign in. Remove the attributes to bring them back.
 - **The course is `site/python.html`** (was `index.html`). Its logo links home. `site/vercel.json` sets `cleanUrls`, so it's served at `/python`.
 
 ## How content works
