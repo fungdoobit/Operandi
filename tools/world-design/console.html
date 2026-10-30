@@ -150,7 +150,9 @@ if (!gl) {
   f.textContent = "This preview needs WebGL 2, which this browser doesn't have. Try it in a recent Chrome, Safari or Firefox.";
   document.body.append(f); return;
 }
-const floatFluid = !!(gl.getExtension("EXT_color_buffer_float") || gl.getExtension("EXT_color_buffer_half_float"));
+// Half-float targets for the liquid trail where the browser can render to them (WebGL 2 needs EXT_color_buffer_float);
+// otherwise 8-bit, with the velocity stored around the middle grey.
+let floatFluid = !!gl.getExtension("EXT_color_buffer_float");
 
 // ---------------------------------------------------------------- shaders
 const VERT = `#version 300 es
@@ -532,7 +534,7 @@ let conDirty = true;
 let scene, post, fluid;
 let sceneTex, sceneFB, sw = 0, sh = 0, scale = PHONE() ? .5 : .62;
 let fl = [], fw = 0, fh = 0, fi = 0;
-const fluidEnc = floatFluid ? 0 : 1;
+let fluidEnc = floatFluid ? 0 : 1;
 const mouse = { x: .5, y: .5, px: .5, py: .5, sx: 0, sy: 0, moved: false, cx: -1e4, cy: -1e4 };
 let scrollT = 0, scrollV = 0, zoomT = 1, zoomV = 1, time = 0, last = performance.now(), frameMs = 16;
 let rect = { x: 0, y: 0, w: 1, h: 1 }, con = null, dpr = 1;
@@ -541,6 +543,10 @@ let introStart = performance.now(), introT = 0, introDone = false, typedStarted 
 const P = { rx: 0, ry: -1.25, s: 1, ox: 280, oy: 40, vrx: 0, vry: 0, vs: 0, vox: 0, voy: 0, gx: 0, gy: 0, gz: 0, hover: false };
 
 function sizeTargets() {
+  try { makeTargets(); }
+  catch { floatFluid = false; fluidEnc = 1; fw = fh = 0; fl = []; makeTargets(); }   // fall back to 8-bit
+}
+function makeTargets() {
   dpr = Math.min(devicePixelRatio || 1, 2);
   canvas.width = Math.round(innerWidth * dpr); canvas.height = Math.round(innerHeight * dpr);
   sw = Math.max(64, Math.round(innerWidth * scale)); sh = Math.max(64, Math.round(innerHeight * scale));
@@ -552,7 +558,9 @@ function sizeTargets() {
     fw = nw; fh = nh;
     fl = [0, 1].map(() => {
       const t = floatFluid ? tex(fw, fh, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, gl.LINEAR) : tex(fw, fh, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
-      const fb = target(t); gl.viewport(0, 0, fw, fh);
+      const fb = target(t);
+      if (floatFluid && gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) throw new Error("no float targets");
+      gl.viewport(0, 0, fw, fh);
       gl.clearColor(fluidEnc ? 128 / 255 : 0, fluidEnc ? 128 / 255 : 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
       return { t, fb };
     });
