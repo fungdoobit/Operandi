@@ -1,0 +1,793 @@
+<title>Operandi Console Hero</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@1,9..144,800&family=Shrikhand&family=Caveat+Brush&family=Pixelify+Sans:wght@700&display=swap">
+<style>
+/* The Console hero (Isaac 2026-10-30 picked it from three layouts): a big left-aligned headline, and the Python box as
+   a panel standing in 3D in the Cosmos. Round 3 adds an opening sequence, a box that tilts toward the cursor on a
+   spring with a moving glare, a box that types and runs its own examples, and a separate font for "funnnnn" that the
+   menu links roll to on hover. The font is chosen at the bottom (preview only). */
+:root {
+  --ink: #f1eff9; --ink-soft: rgba(241, 239, 249, .62); --paper: #05060d;
+  --chip: rgba(255, 255, 255, .07); --chip-line: rgba(241, 239, 249, .16); --chip-on: #f1eff9; --chip-on-ink: #0b0c18;
+  --pill: #f1eff9; --pill-ink: #0b0c18; --pill-hover: #a9bcff; --pill-hover-ink: #0b0c18;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: Inter, "Segoe UI", system-ui, sans-serif;
+  --font-fun: "Fraunces", Georgia, serif; --fun-style: italic; --fun-weight: 800; --fun-scale: 1.08;
+  --spring: cubic-bezier(.34, 1.56, .64, 1); --ease: cubic-bezier(.22, 1, .36, 1);
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); overflow: hidden; font: 15px/1.45 var(--font-body); -webkit-font-smoothing: antialiased; }
+body.fine, body.fine button, body.fine a { cursor: none; }
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sr:focus-visible { clip: auto; width: auto; height: auto; padding: 6px 10px; background: var(--pill); color: var(--pill-ink); border-radius: 8px; z-index: 40; }
+
+.ui { position: fixed; inset: 0; pointer-events: none; touch-action: none; }
+.ui a, .ui button { pointer-events: auto; }
+.top { position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); right: max(22px, env(safe-area-inset-right, 0px));
+  top: calc(env(safe-area-inset-top, 0px) + 20px); display: flex; align-items: center; gap: 24px;
+  opacity: 0; translate: 0 -10px; transition: opacity .8s var(--ease), translate .9s var(--ease); }
+.top.in { opacity: 1; translate: 0 0; }
+.brand { font: 800 21px/1 var(--font-display); letter-spacing: -.04em; color: var(--ink); text-decoration: none; }
+.top nav { margin-left: auto; display: flex; align-items: center; gap: 24px; }
+
+/* Menu links: the same font as everything else; on hover the word rolls up into the "funnnnn" font. */
+.fx { display: inline-grid; overflow: hidden; height: 1.5em; line-height: 1.5em; color: var(--ink); text-decoration: none; font-weight: 500; }
+.fx > span { grid-area: 1 / 1; text-align: center; transition: transform .5s var(--ease); }
+.fx > span + span { font-family: var(--font-fun); font-style: var(--fun-style); font-weight: var(--fun-weight); font-size: calc(1em * var(--fun-scale)); transform: translateY(105%); }
+.fx:hover > span:first-child, .fx:focus-visible > span:first-child { transform: translateY(-105%); }
+.fx:hover > span + span, .fx:focus-visible > span + span { transform: none; }
+
+.pill { position: relative; overflow: hidden; border: 0; border-radius: 999px; background: var(--pill); color: var(--pill-ink);
+  font: 600 14px/1 var(--font-body); padding: 13px 22px; isolation: isolate; transition: color .35s var(--ease), transform .5s var(--spring); }
+.pill::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--pill-hover); z-index: -1;
+  transform: translateY(101%); transition: transform .45s var(--ease); }
+.pill:hover, .pill:focus-visible { color: var(--pill-hover-ink); }
+.pill:hover::before, .pill:focus-visible::before { transform: none; }
+.pill:active { transform: scale(.96); }
+.roll { display: inline-grid; overflow: hidden; height: 1.15em; line-height: 1.15em; }
+.roll > span { grid-area: 1 / 1; transition: transform .45s var(--ease); }
+.roll > span + span { transform: translateY(110%); }
+.pill:hover .roll > span:first-child, .pill:focus-visible .roll > span:first-child { transform: translateY(-110%); }
+.pill:hover .roll > span + span, .pill:focus-visible .roll > span + span { transform: none; }
+.pill.small { padding: 10px 16px; font-size: 13.5px; }
+.pill.big { padding: 17px 30px; font-size: 15.5px; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+#cta { position: absolute; left: 0; top: 0; }
+#cta .pill { opacity: 0; transform: translateY(16px) scale(.94); transition: opacity .6s var(--ease), transform .8s var(--spring), color .35s var(--ease); }
+#cta.in .pill { opacity: 1; transform: none; }
+#cta.in .pill:active { transform: scale(.96); }
+
+/* Preview controls (not part of the design): the font for "funnnnn", and replaying the opening. */
+.bottom { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); display: grid; justify-items: center; gap: 8px; pointer-events: none; }
+.controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; pointer-events: auto; }
+.picker { display: flex; gap: 3px; padding: 4px; border-radius: 999px; background: var(--chip); border: 1px solid var(--chip-line);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.picker button, .ghost { border: 0; background: transparent; color: var(--ink); font: 600 13px/1 var(--font-body); padding: 9px 14px; border-radius: 999px;
+  transition: background-color .3s var(--ease), color .3s var(--ease); }
+.picker button:hover, .ghost:hover { background: var(--chip-line); }
+.picker button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-ink); }
+.ghost { border: 1px solid var(--chip-line); background: var(--chip); }
+.picker [data-f="fraunces"] { font-family: "Fraunces", serif; font-style: italic; font-weight: 800; font-size: 14px; }
+.picker [data-f="shrikhand"] { font-family: "Shrikhand", cursive; font-weight: 400; font-size: 13.5px; }
+.picker [data-f="caveat"] { font-family: "Caveat Brush", cursive; font-weight: 400; font-size: 16px; }
+.picker [data-f="pixel"] { font-family: "Pixelify Sans", monospace; font-weight: 700; font-size: 14px; }
+.desc { margin: 0; max-width: 60ch; text-align: center; font-size: 13px; color: var(--ink-soft); text-wrap: balance; }
+
+.cursor { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 20; display: none; }
+body.fine .cursor { display: block; }
+.cursor i, .cursor b { position: absolute; left: 0; top: 0; border-radius: 50%; translate: -50% -50%; }
+.cursor i { width: 30px; height: 30px; border: 1.5px solid var(--ink); transition: width .35s var(--spring), height .35s var(--spring), background-color .3s, opacity .3s; }
+.cursor b { width: 4px; height: 4px; background: var(--ink); }
+.cursor.on i { width: 58px; height: 58px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.cursor.panel i { width: 18px; height: 18px; opacity: .6; }
+
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 76px); translate: -50% -12px; opacity: 0; pointer-events: none;
+  max-width: min(420px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 14px; background: var(--ink); color: var(--paper);
+  font-size: 13.5px; text-align: center; transition: opacity .3s, translate .45s var(--spring); z-index: 30; }
+.toast.show { opacity: 1; translate: -50% 0; }
+.fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+
+@media (max-width: 700px) {
+  .top nav .fx { display: none; }
+  .picker button { padding: 8px 10px; font-size: 12.5px; }
+  .desc { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+</style>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="ui">
+  <header class="top" id="top">
+    <a class="brand" href="#" aria-label="Operandi">operandi</a>
+    <nav aria-label="Main">
+      <a class="fx" href="#"><span>Course</span><span aria-hidden="true">Course</span></a>
+      <a class="fx" href="#"><span>FAQ</span><span aria-hidden="true">FAQ</span></a>
+      <button class="pill small" type="button" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button>
+    </nav>
+  </header>
+  <h1 class="sr">Learning Python should be fun.</h1>
+  <div id="cta"><button class="pill big" type="button" id="ctaBtn" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button></div>
+  <div id="conKeys"></div>
+  <p class="sr" id="conLive" aria-live="polite"></p>
+  <footer class="bottom">
+    <div class="controls">
+      <div class="picker" role="group" aria-label="Font for funnnnn">
+        <button type="button" data-f="fraunces">Fraunces</button>
+        <button type="button" data-f="shrikhand">Shrikhand</button>
+        <button type="button" data-f="caveat">Caveat Brush</button>
+        <button type="button" data-f="pixel">Pixelify</button>
+      </div>
+      <button class="ghost" type="button" id="replay">Replay the opening</button>
+    </div>
+    <p class="desc">Preview controls: pick the font for "funnnnn" (the menu links roll to it on hover), and replay the opening.</p>
+  </footer>
+</div>
+<div class="cursor" id="cur"><i></i><b></b></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+"use strict";
+const $ = (id) => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+const STILL = qs.has("still");                         // test hook: fixed frames, no animation loop
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const FINE = matchMedia("(pointer: fine)").matches && !STILL;
+const PHONE = () => innerWidth < 700 || innerWidth / innerHeight < .8;
+if (FINE) document.body.classList.add("fine");
+
+const canvas = $("gl");
+const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, preserveDrawingBuffer: STILL, powerPreference: "high-performance" });
+if (!gl) {
+  canvas.remove();
+  const f = document.createElement("div"); f.className = "fallback";
+  f.textContent = "This preview needs WebGL 2, which this browser doesn't have. Try it in a recent Chrome, Safari or Firefox.";
+  document.body.append(f); return;
+}
+const floatFluid = !!(gl.getExtension("EXT_color_buffer_float") || gl.getExtension("EXT_color_buffer_half_float"));
+
+// ---------------------------------------------------------------- shaders
+const VERT = `#version 300 es
+in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
+
+const LIB = `
+float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y)*p3.z); }
+float hash3(vec3 p3){ p3 = fract(p3*.1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y)*p3.z); }
+float noise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3. - 2.*f);
+  return mix(mix(mix(hash3(i), hash3(i + vec3(1,0,0)), f.x), mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), f.x), mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y), f.z); }
+float fbm(vec3 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a*noise(p); p = p*2.03 + vec3(1.7, 9.2, 3.1); a *= .5; } return s; }
+vec3 aces(vec3 x){ return clamp((x*(2.51*x + .03))/(x*(2.43*x + .59) + .14), 0., 1.); }
+`;
+
+// The Cosmos: nebula, stars, a violet planet below, drifting dust; the sun rises over its edge as you scroll.
+const SCENE_FS = `#version 300 es
+precision highp float;
+uniform vec2 uRes; uniform float uScroll, uTime, uFov, uExpo; uniform vec3 uCam, uTgt;
+out vec4 o;
+${LIB}
+const vec4 PL = vec4(0., -60., -44., 56.);
+vec3 space(vec3 rd, vec3 sd){
+  vec3 c = mix(vec3(.005, .007, .02), vec3(.02, .024, .06), smoothstep(-.3, .6, rd.y));
+  float n1 = fbm(rd*2.2 + vec3(0., uTime*.004, 0.)), n2 = fbm(rd*4.5 + 7.);
+  c += mix(vec3(.13, .05, .3), vec3(.02, .17, .32), n2)*pow(smoothstep(.36, .86, n1), 1.6)*1.1;
+  for (int l = 0; l < 2; l++) {
+    float sc = l == 0 ? 90. : 210.; vec3 q = rd*sc, id = floor(q), f = fract(q) - .5; float h = hash3(id + float(l)*13.1);
+    if (h > .965) { vec3 j = vec3(hash3(id + 1.7), hash3(id + 4.3), hash3(id + 9.1)) - .5;
+      float d = length(f - j*.7), tw = .65 + .35*sin(uTime*(.8 + h*3.) + h*50.);
+      c += mix(vec3(.75, .82, 1.), vec3(1., .85, .7), hash3(id + 2.2))*smoothstep(.1, 0., d)*tw*(l == 0 ? 1.5 : .7); } }
+  float s = max(dot(rd, sd), 0.);
+  return c + vec3(1., .84, .64)*pow(s, 900.)*30. + vec3(.95, .6, .9)*pow(s, 16.)*.28 + vec3(.5, .6, 1.)*pow(s, 4.)*.08; }
+vec3 dust(vec3 ro, vec3 rd){
+  vec3 acc = vec3(0.);
+  for (int i = 0; i < 4; i++) {
+    float zp = 4.5 - float(i)*3.5; float t = (zp - ro.z)/rd.z; if (t <= 0.) continue;
+    vec3 p = ro + rd*t; float cs = .55 + float(i)*.35;
+    vec2 g = p.xy/cs + vec2(0., uTime*.05*(1. + float(i)*.3)); vec2 id = floor(g), f = fract(g) - .5;
+    float h = hash(id + float(i)*7.3); if (h < .6) continue;
+    vec2 j = vec2(hash(id + 3.1), hash(id + 8.7)) - .5;
+    float d = length(f - j*.6)*cs, foc = abs(t - 7.), r = .012 + foc*.011;
+    float disc = smoothstep(r, r*.8, d)*(.55 + .45*smoothstep(r*.5, r*.95, d));
+    acc += mix(vec3(.45, .6, 1.), vec3(1., .8, .45), step(.86, h))*disc*(.55/(1. + foc*1.4))*(.6 + .4*sin(uTime*.7 + h*30.)); }
+  return acc; }
+vec3 world(vec3 ro, vec3 rd){
+  vec3 sd = normalize(vec3(.58, -.17 + .27*uScroll, -1.));
+  vec3 col = space(rd, sd);
+  vec3 oc = ro - PL.xyz; float b = dot(oc, rd), cc = dot(oc, oc) - PL.w*PL.w, h = b*b - cc;
+  vec3 pc = ro + rd*max(-b, 0.); float alt = length(pc - PL.xyz) - PL.w;
+  if (h > 0. && -b - sqrt(h) > 0.) {
+    vec3 p = ro + rd*(-b - sqrt(h)), n = normalize(p - PL.xyz);
+    float bands = fbm(vec3(n.x*2.5 + uTime*.003, n.y*18., n.z*2.5)), sw = fbm(n*6. + bands*1.5);
+    vec3 alb = mix(vec3(.07, .06, .16), vec3(.28, .21, .44), bands) + vec3(.08, .12, .2)*sw*.4;
+    float term = smoothstep(-.12, .25, dot(n, sd));
+    col = alb*(max(dot(n, sd), 0.)*2.2 + .015);
+    col += vec3(.25, .45, 1.)*pow(1. - max(dot(n, -rd), 0.), 3.)*(.22 + 1.6*term);
+  } else {
+    float a = exp(-max(alt, 0.)*.9); float lit = smoothstep(-.4, .6, dot(normalize(pc - PL.xyz), sd));
+    col += (vec3(.2, .4, 1.)*.55 + vec3(.95, .55, .85)*lit*.6)*a;
+  }
+  return col + dust(ro, rd)*.6; }
+void main(){
+  vec3 f = normalize(uTgt - uCam); vec3 r = normalize(cross(f, vec3(0., 1., 0.))); vec3 u = cross(r, f);
+  vec2 q = (gl_FragCoord.xy - .5*uRes)/uRes.y; vec3 rd = normalize(f + (q.x*r + q.y*u)*2.*uFov);
+  o = vec4(pow(aces(world(uCam, rd)*uExpo), vec3(1./2.2)), 1.); }`;
+
+// Final pass at full resolution: the scene, the code panel turned in 3D (with its shadow, a glare that follows the
+// cursor, and the liquid pushing it), and the headline on top (rising in line by line at the start, pushed by the
+// liquid with a soft tinted ghost behind it).
+const POST_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uScene, uFluid, uText, uCon; uniform vec2 uRes2; uniform float uTime, uEnc, uLiquid, uGrain, uDpr;
+uniform vec4 uTxRect; uniform float uMainV, uTexH, uEm, uIntro, uLineH, uTextA; uniform vec4 uBands; uniform vec4 uWave[5]; uniform vec2 uWaveOff[5];
+uniform vec3 uTextCol, uTrailCol;
+uniform float uConA, uPersp, uLift; uniform vec2 uConC, uConH, uEye; uniform vec3 uConU, uConV, uConN, uGlare;
+out vec4 o;
+float h2(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y)*p3.z); }
+vec2 dec(vec4 c){ return uEnc > .5 ? (c.xy - 128./255.)*2. : c.xy; }
+float waveY(float t){ float p = mod(t, 2.6)/2.6, k;
+  if (p < .2) { k = p/.2; k = 1.-(1.-k)*(1.-k); return -.12*k; }
+  if (p < .4) { k = (p-.2)/.2; k = 1.-(1.-k)*(1.-k); return mix(-.12, .03, k); }
+  if (p < .6) { k = (p-.4)/.2; k = 1.-(1.-k)*(1.-k); return mix(.03, 0., k); }
+  return 0.; }
+int band(float v){ return v < uBands.x ? 0 : (v < uBands.y ? 1 : (v < uBands.z ? 2 : 3)); }
+float sampleText(vec2 s, float lod){
+  float a = textureLod(uText, s, lod).a;
+  for (int i = 0; i < 5; i++) { vec4 w = uWave[i];
+    if (s.x > w.x && s.x < w.z && s.y > w.y && s.y < w.w)
+      a = max(a, textureLod(uText, s + uWaveOff[i] - vec2(0., waveY(uTime - float(i)*.08)*uEm), lod).a); }
+  return a; }
+float textPx(vec2 fc){
+  vec2 uv = vec2((fc.x - uTxRect.x)/uTxRect.z, 1. - (fc.y - uTxRect.y)/uTxRect.w);
+  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) return 0.;
+  vec2 s = vec2(uv.x, uv.y*uMainV);
+  float lod = log2(max(uTexH/uTxRect.w, 1.));
+  if (uIntro > 3.) return sampleText(s, lod)*uTextA;
+  // the opening: each line rises out of its own band in a wave from left to right
+  int b = band(s.y);
+  float p = clamp((uIntro - .3 - float(b)*.13 - uv.x*.5)/.6, 0., 1.); p = 1. - pow(1. - p, 3.);
+  vec2 q = s + vec2(0., (1. - p)*.65*uLineH);
+  if (band(q.y) != b) return 0.;
+  return sampleText(q, lod)*p*uTextA; }
+vec2 conLocal(vec2 fc){
+  vec3 E = vec3(uEye, uPersp), D = vec3(fc - uEye, -uPersp), C = vec3(uConC, 0.);
+  float t = dot(C - E, uConN)/dot(D, uConN); vec3 hp = E + D*t - C;
+  return vec2(dot(hp, uConU), dot(hp, uConV)); }
+float rrect(vec2 p, vec2 h, float r){ vec2 q = abs(p) - h + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
+void main(){
+  vec2 uv = gl_FragCoord.xy/uRes2;
+  vec2 v = dec(texture(uFluid, uv))*uLiquid; float flow = length(v);
+  vec2 dc = uv - .5;
+  vec2 fc = gl_FragCoord.xy - v*uRes2.y*.3;
+  vec3 c = texture(uScene, uv - v*.12).rgb;
+  if (uConA > .01) {
+    // the shadow it casts down onto the page grows as it lifts
+    float off = (46. + uLift*900.)*uDpr;
+    vec2 ls = conLocal(gl_FragCoord.xy + vec2(0., off));
+    float sd = rrect(ls, uConH, 18.*uDpr);
+    c *= 1. - .55*uConA*(1. - smoothstep(-40.*uDpr, (60. + uLift*600.)*uDpr, sd));
+    vec2 lp = conLocal(fc); float pd = rrect(lp, uConH, 18.*uDpr);
+    c += vec3(.35, .45, 1.)*.14*uConA*exp(-max(pd, 0.)/(26.*uDpr))*step(0., pd);
+    if (pd < 1.5) {
+      vec2 cu = vec2(lp.x/uConH.x*.5 + .5, .5 - lp.y/uConH.y*.5);
+      float lod = log2(max(float(textureSize(uCon, 0).y)/(2.*uConH.y), 1.));
+      vec4 cs = textureLod(uCon, cu, lod);
+      // glare: a soft light that follows the cursor across the glass
+      vec2 gl2 = lp/uConH - uGlare.xy;
+      cs.rgb += vec3(.75, .82, 1.)*uGlare.z*.16*exp(-dot(gl2*vec2(1.2, 1.8), gl2*vec2(1.2, 1.8))*1.6);
+      c = mix(c, cs.rgb, cs.a*uConA*clamp(.5 - pd, 0., 1.));
+    }
+  }
+  float a0 = textPx(fc), a1 = textPx(fc + v*uRes2.y*.22), k = smoothstep(.004, .06, flow);
+  c = mix(c, uTrailCol, a1*k*.5);
+  c = mix(c, mix(uTextCol, uTrailCol, k*.45), a0);
+  c *= 1. - .8*dot(dc, dc);
+  c += (h2(gl_FragCoord.xy + floor(uTime*24.)*17.13) - .5)*.045;
+  o = vec4(c, 1.); }`;
+
+const FLUID_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uPrev; uniform vec2 uFRes, uP0, uP1, uVel; uniform float uAspect, uDecay, uRad, uEnc;
+out vec4 o;
+vec2 dec(vec4 c){ return uEnc > .5 ? (c.xy - 128./255.)*2. : c.xy; }
+vec4 enc(vec2 v){ return uEnc > .5 ? vec4(v*.5 + 128./255., 0., 1.) : vec4(v, 0., 1.); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/uFRes, px = 1./uFRes;
+  vec2 back = uv - dec(texture(uPrev, uv))*.3;
+  vec2 v = dec(texture(uPrev, back));
+  vec2 b = dec(texture(uPrev, back + vec2(px.x, 0.))) + dec(texture(uPrev, back - vec2(px.x, 0.)))
+         + dec(texture(uPrev, back + vec2(0., px.y))) + dec(texture(uPrev, back - vec2(0., px.y)));
+  v = mix(v, b*.25, .45)*uDecay;
+  vec2 pa = (uv - uP0)*vec2(uAspect, 1.), ba = (uP1 - uP0)*vec2(uAspect, 1.);
+  float hh = clamp(dot(pa, ba)/max(dot(ba, ba), 1e-8), 0., 1.), d = length(pa - ba*hh);
+  v += uVel*exp(-d*d/(uRad*uRad));
+  o = enc(clamp(v, -.22, .22)); }`;
+
+// ---------------------------------------------------------------- GL plumbing
+function compile(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(s); console.error(log, src.split("\n").map((l, i) => i + 1 + ": " + l).join("\n"));
+    throw new Error("shader: " + log);
+  }
+  return s;
+}
+function program(fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, VERT)); gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, "a"); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("link: " + gl.getProgramInfoLog(p));
+  p.u = {}; return p;
+}
+const U = (p, n) => (n in p.u ? p.u[n] : (p.u[n] = gl.getUniformLocation(p, n)));
+const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+function tex(w, h, internal, format, type, filter) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+function target(t) { const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return f; }
+function uploadCanvas(t, src) {
+  if (!t) t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src); gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+
+// ---------------------------------------------------------------- math
+const v3 = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+};
+const basis = (pos, tgt) => { const f = v3.norm(v3.sub(tgt, pos)); const r = v3.norm(v3.cross(f, [0, 1, 0])); return { f, r, u: v3.cross(r, f) }; };
+const ease = (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const FOV = .44;
+
+// ---------------------------------------------------------------- the font for "funnnnn"
+const FUN = {
+  fraunces: { css: '"Fraunces", Georgia, serif', style: "italic", weight: 800, scale: 1.08, track: -.02 },
+  shrikhand: { css: '"Shrikhand", Georgia, cursive', style: "normal", weight: 400, scale: .94, track: 0 },
+  caveat: { css: '"Caveat Brush", "Comic Sans MS", cursive', style: "normal", weight: 400, scale: 1.24, track: .01 },
+  pixel: { css: '"Pixelify Sans", ui-monospace, monospace', style: "normal", weight: 700, scale: 1.0, track: 0 },
+};
+let funKey = "fraunces";
+try { funKey = localStorage.getItem("operandi:funfont") || funKey; } catch {}
+if (qs.get("font") && FUN[qs.get("font")]) funKey = qs.get("font");
+function applyFunCss() {
+  const f = FUN[funKey], r = document.documentElement.style;
+  r.setProperty("--font-fun", f.css); r.setProperty("--fun-style", f.style); r.setProperty("--fun-weight", f.weight); r.setProperty("--fun-scale", f.scale);
+  document.querySelectorAll(".picker button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f === funKey)));
+}
+
+// ---------------------------------------------------------------- headline texture
+const textCanvas = document.createElement("canvas");
+let textTex = null, T = { aspect: 3, boxes: [], offs: [], em: .2, mainV: 1, mainH: 1, bands: [9, 9, 9, 9], lineH: .1, pad: .05 };
+function drawHeadline(lines) {
+  const size = 200, lh = size * .98, pad = size * .3, fun = FUN[funKey];
+  const ctx = textCanvas.getContext("2d");
+  const DISPLAY = `800 ${size}px "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif`;
+  const FUNF = `${fun.style} ${fun.weight} ${Math.round(size * fun.scale)}px ${fun.css}`;
+  // which characters are in "funnnnn" (they get the other font)
+  const funMask = lines.map((line) => { const at = line.indexOf("funnnnn"); return [...line].map((_, i) => at >= 0 && i >= at && i < at + 7); });
+  const fontOf = (li, i) => (funMask[li][i] ? FUNF : DISPLAY);
+  const trackOf = (li, i) => (funMask[li][i] ? fun.track : -.045) * size;
+  const widthOf = (li) => [...lines[li]].reduce((w, ch, i) => { ctx.font = fontOf(li, i); return w + ctx.measureText(ch).width + trackOf(li, i); }, 0);
+  const W = Math.ceil(Math.max(...lines.map((_, li) => widthOf(li))) + pad * 2), mainH = Math.ceil(lh * lines.length + pad * 2), H = mainH + Math.ceil(lh * 1.3 + pad);
+  textCanvas.width = W; textCanvas.height = H;
+  ctx.fillStyle = "#fff";
+  const stripBase = mainH + pad * .5 + size * .95;
+  const boxes = [], offs = [], bands = [];
+  lines.forEach((line, li) => {
+    let x = pad; const base = pad + lh * li + size * .8;
+    bands.push((base + size * .22) / H);
+    [...line].forEach((ch, i) => {
+      ctx.font = fontOf(li, i);
+      const cw = ctx.measureText(ch).width, tr = trackOf(li, i);
+      const at = line.indexOf("funnnnn");
+      if (at >= 0 && i >= at + 2 && i < at + 7) {
+        // the waving n's go on a strip below, spaced apart; each is fetched from there with its own bob
+        const k = boxes.length, sx = pad + k * (cw + size * .45);
+        ctx.fillText(ch, sx, stripBase);
+        boxes.push([(x + tr / 2) / W, (base - size * .95) / H, (x + cw + tr / 2) / W, (base + size * .22) / H]);
+        offs.push((sx - x) / W, (stripBase - base) / H);
+      } else ctx.fillText(ch, x, base);
+      x += cw + tr;
+    });
+  });
+  while (bands.length < 4) bands.push(9);
+  T = { aspect: W / mainH, boxes, offs, em: size / H, mainV: mainH / H, mainH, bands, lineH: lh / H, pad: pad / W };
+  textTex = uploadCanvas(textTex, textCanvas);
+}
+
+// ---------------------------------------------------------------- the code panel: types, runs, reacts
+const conCanvas = document.createElement("canvas");
+const CW = 1100, CH = 740; conCanvas.width = CW; conCanvas.height = CH;
+const cx2 = conCanvas.getContext("2d");
+const EXAMPLES = [
+  { name: "Hello", code: 'name = "Ada"\nprint(f"Hello, {name}!")\nprint("2 + 3 =", 2 + 3)', out: ["Hello, Ada!", "2 + 3 = 5"] },
+  { name: "Maths", code: "price = 12.5\ntax = price * 0.06\nprint(round(price + tax, 2))", out: ["13.25"] },
+  { name: "A decision", code: 'temp = 31\nif temp > 30:\n    print("Hot today")\nelse:\n    print("Nice out")', out: ["Hot today"] },
+  { name: "A mistake", code: 'print("Hello)', err: ["SyntaxError: unterminated string literal"],
+    help: "You opened a quote but didn't close it. Add \" before the )." },
+];
+const CON = { ex: 0, typed: 0, typing: false, rate: 34, runAt: -1, outAt: -1, press: -1, auto: !REDUCED, doneAt: 0, hot: null, blink: true };
+let conTex = null, conRects = {}, conAnimating = true;
+const KW = /^(if|elif|else|and|or|not|True|False)$/, FN = /^(print|round)$/;
+const tokens = (line) => line.match(/(#.*$|f?"[^"]*"?|\b\d+(?:\.\d+)?\b|\w+|\s+|[^\w\s])/g) || [];
+const tokColor = (t) => /^f?"/.test(t) ? "#b6e8a4" : /^\d/.test(t) ? "#ffc38a" : KW.test(t) ? "#c9a6ff" : FN.test(t) ? "#8fd1ff" : "#e3e8ff";
+function drawConsole(now) {
+  const x = cx2; x.clearRect(0, 0, CW, CH);
+  const rr = (X, Y, w, h, r) => { x.beginPath(); x.roundRect(X, Y, w, h, r); };
+  rr(2, 2, CW - 4, CH - 4, 36); x.fillStyle = "rgba(13, 15, 30, .9)"; x.fill();
+  const g = x.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, "rgba(255,255,255,.07)"); g.addColorStop(.25, "rgba(255,255,255,0)");
+  x.fillStyle = g; x.fill(); x.lineWidth = 2; x.strokeStyle = "rgba(255,255,255,.14)"; x.stroke();
+  [["#ff7a7a", 44], ["#ffd36e", 72], ["#7ee08a", 100]].forEach(([c, cx]) => { x.fillStyle = c; x.beginPath(); x.arc(cx, 46, 9, 0, 7); x.fill(); });
+  x.font = '500 25px "JetBrains Mono", ui-monospace, monospace'; x.fillStyle = "#c8d0f0"; x.fillText("main.py", 138, 55);
+  x.font = '600 23px Inter, system-ui, sans-serif';
+  let cx = CW - 36; conRects = {};
+  for (let i = EXAMPLES.length - 1; i >= 0; i--) {
+    const w = x.measureText(EXAMPLES[i].name).width + 36; cx -= w;
+    rr(cx, 24, w, 46, 23);
+    x.fillStyle = i === CON.ex ? "rgba(255,255,255,.16)" : CON.hot === "ex" + i ? "rgba(255,255,255,.09)" : "rgba(255,255,255,0)"; x.fill();
+    x.strokeStyle = "rgba(255,255,255,.18)"; x.lineWidth = 2; x.stroke();
+    x.fillStyle = i === CON.ex ? "#fff" : "#c8d0f0"; x.fillText(EXAMPLES[i].name, cx + 18, 55);
+    conRects["ex" + i] = [cx, 24, w, 46]; cx -= 10;
+  }
+  x.fillStyle = "rgba(255,255,255,.1)"; x.fillRect(0, 92, CW, 2);
+  // the code, typed so far, with a blinking caret where the typing is
+  const ex = EXAMPLES[CON.ex], n = Math.floor(CON.typed);
+  x.font = '400 30px "JetBrains Mono", ui-monospace, monospace';
+  let used = 0, caret = [96, 150];
+  ex.code.split("\n").forEach((line, li) => {
+    if (used > n) return;
+    const y = 150 + li * 46;
+    x.fillStyle = "#4a5372"; x.fillText(String(li + 1), 40, y);
+    let px = 96;
+    for (const t of tokens(line)) {
+      const left = n - used; if (left <= 0) break;
+      const s = t.slice(0, left); x.fillStyle = tokColor(t); x.fillText(s, px, y); px += x.measureText(s).width; used += s.length;
+      if (s.length < t.length) break;
+    }
+    caret = [px, y];
+    used = Math.max(used, [...ex.code.split("\n").slice(0, li + 1)].join("\n").length) + 1;   // past this line and its newline
+  });
+  const blinkOn = CON.typing || Math.floor(now / 530) % 2 === 0;
+  if (blinkOn && CON.outAt < 0) { x.fillStyle = "#a9bcff"; x.fillRect(caret[0] + 2, caret[1] - 27, 3, 34); }
+  // the Run button sits on the divider; it presses in when it runs
+  const ry = 386;
+  x.fillStyle = "rgba(255,255,255,.1)"; x.fillRect(0, ry + 26, CW, 2);
+  const pr = CON.press > 0 ? clamp01((now - CON.press) / 260) : 1, ps = 1 - .1 * Math.sin(pr * Math.PI);
+  x.save(); x.translate(CW - 114, ry + 25); x.scale(ps, ps); x.translate(-(CW - 114), -(ry + 25));
+  rr(CW - 196, ry - 4, 164, 58, 29); x.fillStyle = CON.hot === "run" || pr < 1 ? "#c4d1ff" : "#a9bcff"; x.fill();
+  x.fillStyle = "#0b0c18"; x.beginPath(); x.moveTo(CW - 160, ry + 13); x.lineTo(CW - 160, ry + 39); x.lineTo(CW - 138, ry + 26); x.fill();
+  x.font = '600 26px Inter, system-ui, sans-serif'; x.fillText("Run", CW - 124, ry + 35);
+  x.restore();
+  conRects.run = [CW - 196, ry - 4, 164, 58];
+  // output: each line slides in after the last
+  const oy = 470; let anim = CON.typing || CON.runAt > 0 || pr < 1;
+  if (CON.outAt > 0) {
+    const lines = ex.err || ex.out;
+    const lp = clamp01((now - CON.outAt) / 260);
+    x.globalAlpha = lp; x.font = '500 22px Inter, system-ui, sans-serif';
+    x.fillStyle = ex.err ? "#ff9a8a" : "#8b93b3"; x.fillText(ex.err ? "Error" : "Output", 40, oy);
+    x.font = '400 30px "JetBrains Mono", ui-monospace, monospace';
+    lines.forEach((l, i) => {
+      const p = clamp01((now - CON.outAt - 120 - i * 130) / 300), e = 1 - Math.pow(1 - p, 3);
+      x.globalAlpha = e; x.fillStyle = ex.err ? "#ffc9bf" : "#eef1ff"; x.fillText(l, 40 - (1 - e) * 22, oy + 52 + i * 44);
+      if (p < 1) anim = true;
+    });
+    if (ex.help) {
+      const p = clamp01((now - CON.outAt - 260 - lines.length * 130) / 320), e = 1 - Math.pow(1 - p, 3);
+      x.globalAlpha = e; x.font = '400 25px Inter, system-ui, sans-serif'; x.fillStyle = "#dfe4ff";
+      x.fillText(ex.help, 40 - (1 - e) * 22, oy + 52 + lines.length * 44 + 18);
+      if (p < 1) anim = true;
+    }
+    x.globalAlpha = 1;
+  }
+  CON.blink = blinkOn; conAnimating = anim;
+  conTex = uploadCanvas(conTex, conCanvas);
+}
+function typeExample(i, rate) { CON.ex = i; CON.typed = 0; CON.typing = true; CON.rate = rate; CON.outAt = -1; CON.runAt = -1; }
+function pressRun(now) {
+  CON.press = now; CON.outAt = now + 160; CON.doneAt = now + 1600;
+  const ex = EXAMPLES[CON.ex];
+  $("conLive").textContent = (ex.err ? "Error: " : "Output: ") + (ex.err || ex.out).join(", ") + (ex.help ? ". " + ex.help : "");
+}
+function stepConsole(now, dt) {
+  const ex = EXAMPLES[CON.ex];
+  if (CON.typing) {
+    CON.typed += CON.rate * dt;
+    if (CON.typed >= ex.code.length) { CON.typed = ex.code.length; CON.typing = false; CON.runAt = now + 320; }
+  }
+  if (CON.runAt > 0 && now >= CON.runAt) { CON.runAt = -1; pressRun(now); }
+  // until you take over, it shows the next example every few seconds
+  if (CON.auto && introDone && !CON.typing && CON.runAt < 0 && CON.outAt > 0 && now - CON.doneAt > 6500) typeExample((CON.ex + 1) % EXAMPLES.length, 30);
+  const blinkOn = CON.typing || Math.floor(now / 530) % 2 === 0;
+  if (conAnimating || blinkOn !== CON.blink || conDirty) { conDirty = false; drawConsole(now); }
+}
+let conDirty = true;
+(function conKeys() {
+  const box = $("conKeys");
+  EXAMPLES.forEach((e, i) => { const b = document.createElement("button"); b.className = "sr"; b.type = "button"; b.textContent = "Run example: " + e.name;
+    b.onclick = () => { CON.auto = false; typeExample(i, 80); }; box.append(b); });
+})();
+
+// ---------------------------------------------------------------- state
+let scene, post, fluid;
+let sceneTex, sceneFB, sw = 0, sh = 0, scale = PHONE() ? .5 : .62;
+let fl = [], fw = 0, fh = 0, fi = 0;
+const fluidEnc = floatFluid ? 0 : 1;
+const mouse = { x: .5, y: .5, px: .5, py: .5, sx: 0, sy: 0, moved: false, cx: -1e4, cy: -1e4 };
+let scrollT = 0, scrollV = 0, zoomT = 1, zoomV = 1, time = 0, last = performance.now(), frameMs = 16;
+let rect = { x: 0, y: 0, w: 1, h: 1 }, con = null, dpr = 1;
+let introStart = performance.now(), introT = 0, introDone = false, typedStarted = false;
+// The panel's pose on springs: turn (rx, ry), lift (scale), slide (ox, oy); it settles with a little bounce.
+const P = { rx: 0, ry: -1.25, s: 1, ox: 280, oy: 40, vrx: 0, vry: 0, vs: 0, vox: 0, voy: 0, gx: 0, gy: 0, gz: 0, hover: false };
+
+function sizeTargets() {
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.round(innerWidth * dpr); canvas.height = Math.round(innerHeight * dpr);
+  sw = Math.max(64, Math.round(innerWidth * scale)); sh = Math.max(64, Math.round(innerHeight * scale));
+  if (sceneTex) { gl.deleteTexture(sceneTex); gl.deleteFramebuffer(sceneFB); }
+  sceneTex = tex(sw, sh, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR); sceneFB = target(sceneTex);
+  const nh = 180, nw = Math.round(180 * innerWidth / innerHeight);
+  if (nw !== fw || nh !== fh) {
+    fl.forEach((f) => { gl.deleteTexture(f.t); gl.deleteFramebuffer(f.fb); });
+    fw = nw; fh = nh;
+    fl = [0, 1].map(() => {
+      const t = floatFluid ? tex(fw, fh, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, gl.LINEAR) : tex(fw, fh, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
+      const fb = target(t); gl.viewport(0, 0, fw, fh);
+      gl.clearColor(fluidEnc ? 128 / 255 : 0, fluidEnc ? 128 / 255 : 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      return { t, fb };
+    });
+  }
+}
+
+function placeAll() {
+  const W = innerWidth, H = innerHeight, p = PHONE();
+  drawHeadline(["Learning", "Python should", "be funnnnn."]);
+  const cta = $("cta");
+  if (p) {
+    const w = W * .86; rect = { x: W * .07, y: 92, w, h: w / T.aspect };
+    const cw = W * .9, ch = cw * CH / CW, ctaTop = rect.y + rect.h - 8;
+    con = { cx: W / 2, cy: Math.min(H - 120 - ch / 2, ctaTop + 86 + ch / 2), w: cw, h: ch, ry: -.06, rx: -.1, tilt: .6 };
+    cta.style.left = rect.x + T.pad * rect.w + "px"; cta.style.top = ctaTop + "px";
+  } else {
+    const w = Math.min(W * .44, H * .62 * T.aspect, 780); rect = { x: W * .055, y: H * .47 - w / T.aspect / 2 - 20, w, h: w / T.aspect };
+    const cw = Math.min(W * .4, 640, H * .7 * CW / CH), ch = cw * CH / CW;
+    con = { cx: W * .725, cy: H * .48, w: cw, h: ch, ry: -.3, rx: -.09, tilt: 1 };
+    cta.style.left = rect.x + T.pad * rect.w + "px"; cta.style.top = rect.y + rect.h - 6 + "px";
+  }
+}
+
+// ---------------------------------------------------------------- the panel's frame (shared by the shader and clicks)
+function conFrame() {
+  const W = innerWidth, H = innerHeight, z = zoomV;
+  const cy = Math.cos(P.ry), sy = Math.sin(P.ry), cx = Math.cos(P.rx), sx = Math.sin(P.rx);
+  const Ux = [cy, 0, -sy], Vx = [sy * sx, cx, cy * sx], Nx = [sy * cx, -sx, cy * cx];   // R = Ry * Rx, y up
+  const bob = REDUCED ? 0 : Math.sin(time * .9) * 5;
+  const pcx = con.cx + P.ox, pcy = con.cy + P.oy + bob - (P.s - 1) * 120;
+  const ccx = W / 2 + (pcx - W / 2) * z, ccy = H / 2 + (pcy - H / 2) * z, k = z * P.s;
+  return { C: [ccx * dpr, (H - ccy) * dpr], Hs: [con.w / 2 * k * dpr, con.h / 2 * k * dpr], U: Ux, V: Vx, N: Nx, P: 1700 * dpr, E: [W / 2 * dpr, H / 2 * dpr] };
+}
+// Where a screen point lands on the panel, in -1..1 across it (outside the panel gives values beyond 1).
+function conLocalAt(clientX, clientY) {
+  const F = conFrame();
+  const fx = clientX * dpr, fy = (innerHeight - clientY) * dpr;
+  const E = [F.E[0], F.E[1], F.P], D = [fx - F.E[0], fy - F.E[1], -F.P], C = [F.C[0], F.C[1], 0];
+  const t = v3.dot(v3.sub(C, E), F.N) / v3.dot(D, F.N); const hp = v3.sub(v3.add(E, v3.mul(D, t)), C);
+  return [v3.dot(hp, F.U) / F.Hs[0], v3.dot(hp, F.V) / F.Hs[1]];
+}
+function conHit(clientX, clientY) {
+  const [lx, ly] = conLocalAt(clientX, clientY);
+  if (Math.abs(lx) > 1 || Math.abs(ly) > 1) return null;
+  const px = (lx * .5 + .5) * CW, py = (.5 - ly * .5) * CH;
+  for (const [key, [x, y, w, h]] of Object.entries(conRects)) if (px >= x && px <= x + w && py >= y && py <= y + h) return key;
+  return "panel";
+}
+function spring(key, target, k, d, dt) {
+  const v = "v" + key;
+  for (let i = 0; i < 2; i++) { const h = dt / 2; P[v] += (target - P[key]) * k * h; P[v] *= Math.exp(-d * h); P[key] += P[v] * h; }
+}
+
+// ---------------------------------------------------------------- frame
+let cam = null, adaptAt = performance.now() + 3000;
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (!STILL) { time += dt; introT = (now - introStart) / 1000; }
+  frameMs = frameMs * .95 + dt * 1000 * .05;
+  const it = REDUCED ? 9 : introT;
+  if (!introDone && it > 2.6) introDone = true;
+  if (!typedStarted && it > 1.25) { typedStarted = true; typeExample(CON.ex, 34); }
+  $("top").classList.toggle("in", it > .15);
+  $("cta").classList.toggle("in", it > 1.05);
+
+  mouse.sx += ((mouse.x - .5) * 2 - mouse.sx) * (1 - Math.pow(.02, dt));
+  mouse.sy += ((.5 - mouse.y) * 2 - mouse.sy) * (1 - Math.pow(.02, dt));
+  scrollV += (scrollT - scrollV) * (REDUCED ? 1 : 1 - Math.pow(.0015, dt));
+  zoomV += (zoomT - zoomV) * (1 - Math.pow(.004, dt));
+
+  // the panel: tilts toward the cursor when it is on it (that side dips away), otherwise leans a little with the mouse
+  const [lx, ly] = conLocalAt(mouse.cx, mouse.cy);
+  P.hover = (FINE || STILL) && Math.abs(lx) < 1.04 && Math.abs(ly) < 1.04;
+  const tilt = (REDUCED ? 0 : 1) * con.tilt;
+  const tRy = it < .55 ? -1.25 : con.ry + (P.hover ? lx * .3 : mouse.sx * .1) * tilt;
+  const tRx = it < .55 ? .25 : con.rx + (P.hover ? -ly * .22 : -mouse.sy * .07) * tilt;
+  const ready = it >= .55;
+  spring("ry", tRy, ready ? 90 : 400, 11, dt); spring("rx", tRx, ready ? 90 : 400, 11, dt);
+  spring("ox", ready ? 0 : 280, 70, 12, dt); spring("oy", ready ? 0 : 40, 70, 12, dt);
+  spring("s", P.hover ? 1.03 : 1, 160, 16, dt);
+  const conA = REDUCED ? 1 : smooth(.5, 1.05, it) * (1 - smooth(.06, .2, scrollV));
+  P.gx += ((P.hover ? lx : .2) - P.gx) * (1 - Math.pow(.001, dt)); P.gy += ((P.hover ? ly : .6) - P.gy) * (1 - Math.pow(.001, dt));
+  P.gz += ((P.hover ? 1 : .25) - P.gz) * (1 - Math.pow(.01, dt));
+  stepConsole(now, dt);
+
+  // camera: drifts in at the start, leans with the mouse, rises as you scroll
+  const k = ease(scrollV), din = REDUCED ? 0 : 1 - ease(clamp01(it / 2.4));
+  const c0 = { pos: [1.2, .3 + 3 * k + din * .6, 8 - 6 * k + din * 3], tgt: [1.2, .7 + 2 * k, -10] };
+  const b0 = basis(c0.pos, c0.tgt); const par = REDUCED ? 0 : .4;
+  cam = { pos: v3.add(v3.add(c0.pos, v3.mul(b0.r, mouse.sx * par)), v3.mul(b0.u, mouse.sy * par * .55)), tgt: v3.add(c0.tgt, v3.mul(b0.r, mouse.sx * par * .25)) };
+  const fov = FOV / zoomV;
+
+  // 1. liquid trail
+  gl.useProgram(fluid);
+  const src = fl[fi], dst = fl[1 - fi]; fi = 1 - fi;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fb); gl.viewport(0, 0, fw, fh);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.t); gl.uniform1i(U(fluid, "uPrev"), 0);
+  gl.uniform2f(U(fluid, "uFRes"), fw, fh); gl.uniform1f(U(fluid, "uAspect"), innerWidth / innerHeight);
+  const dx = mouse.x - mouse.px, dy = mouse.y - mouse.py, moved = mouse.moved && !REDUCED;
+  gl.uniform2f(U(fluid, "uP0"), mouse.px, 1 - mouse.py); gl.uniform2f(U(fluid, "uP1"), mouse.x, 1 - mouse.y);
+  const cap = (v) => Math.max(-.05, Math.min(.05, v));
+  gl.uniform2f(U(fluid, "uVel"), moved ? cap(dx * .9) : 0, moved ? cap(-dy * .9) : 0);
+  gl.uniform1f(U(fluid, "uDecay"), Math.pow(.955, dt * 60)); gl.uniform1f(U(fluid, "uRad"), .055); gl.uniform1f(U(fluid, "uEnc"), fluidEnc);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  mouse.px = mouse.x; mouse.py = mouse.y; mouse.moved = false;
+
+  // 2. the Cosmos at a lower resolution, fading up at the start
+  gl.useProgram(scene);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFB); gl.viewport(0, 0, sw, sh);
+  gl.uniform2f(U(scene, "uRes"), sw, sh); gl.uniform1f(U(scene, "uScroll"), scrollV); gl.uniform1f(U(scene, "uTime"), time);
+  gl.uniform1f(U(scene, "uFov"), fov); gl.uniform3fv(U(scene, "uCam"), cam.pos); gl.uniform3fv(U(scene, "uTgt"), cam.tgt);
+  gl.uniform1f(U(scene, "uExpo"), 1.05 * (REDUCED ? 1 : .15 + .85 * smooth(0, 1.4, it)));
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  // 3. to the screen: the panel, then the words, with the liquid and grain
+  gl.useProgram(post); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, textTex); gl.uniform1i(U(post, "uText"), 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, sceneTex); gl.uniform1i(U(post, "uScene"), 1);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(U(post, "uFluid"), 2);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, conTex); gl.uniform1i(U(post, "uCon"), 3);
+  gl.uniform2f(U(post, "uRes2"), canvas.width, canvas.height); gl.uniform1f(U(post, "uTime"), time); gl.uniform1f(U(post, "uDpr"), dpr);
+  gl.uniform1f(U(post, "uEnc"), fluidEnc); gl.uniform1f(U(post, "uLiquid"), REDUCED ? 0 : 1);
+  gl.uniform3f(U(post, "uTextCol"), .95, .94, 1); gl.uniform3f(U(post, "uTrailCol"), .62, .72, 1);
+  const W = innerWidth, H = innerHeight;
+  let r = { x: W / 2 + (rect.x - W / 2) * zoomV, y: H / 2 + (rect.y - H / 2) * zoomV, w: rect.w * zoomV, h: rect.h * zoomV };
+  if (!REDUCED) { r.x -= mouse.sx * 7; r.y += mouse.sy * 5; }
+  const fade = 1 - smooth(.02, .14, scrollV);
+  gl.uniform4f(U(post, "uTxRect"), r.x * dpr, (H - r.y - r.h) * dpr, r.w * dpr, r.h * dpr);
+  gl.uniform1f(U(post, "uMainV"), T.mainV); gl.uniform1f(U(post, "uTexH"), T.mainH); gl.uniform1f(U(post, "uEm"), T.em);
+  gl.uniform1f(U(post, "uIntro"), it > 3 ? 9 : it); gl.uniform1f(U(post, "uLineH"), T.lineH); gl.uniform4fv(U(post, "uBands"), T.bands);
+  const wv = new Float32Array(20); T.boxes.slice(0, 5).forEach((bx, i) => wv.set(bx, i * 4)); gl.uniform4fv(U(post, "uWave"), wv);
+  const wo = new Float32Array(10); wo.set(T.offs.slice(0, 10)); gl.uniform2fv(U(post, "uWaveOff"), wo);
+  gl.uniform1f(U(post, "uTextA"), fade);   // the words fade as you scroll on (the panel slides away with them)
+  const F = conFrame();
+  gl.uniform1f(U(post, "uConA"), conA);
+  gl.uniform2f(U(post, "uConC"), F.C[0], F.C[1] - (1 - fade) * 400 * dpr); gl.uniform2f(U(post, "uConH"), F.Hs[0], F.Hs[1]);
+  gl.uniform3fv(U(post, "uConU"), F.U); gl.uniform3fv(U(post, "uConV"), F.V); gl.uniform3fv(U(post, "uConN"), F.N);
+  gl.uniform1f(U(post, "uPersp"), F.P); gl.uniform2f(U(post, "uEye"), F.E[0], F.E[1]);
+  gl.uniform1f(U(post, "uLift"), P.s - 1); gl.uniform3f(U(post, "uGlare"), P.gx, P.gy, P.gz);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  const ctaEl = $("cta"); ctaEl.style.opacity = fade; ctaEl.style.visibility = fade < .02 ? "hidden" : "visible";
+  if (!STILL && now > adaptAt) {
+    adaptAt = now + 1500;
+    const ns = frameMs > 26 ? Math.max(.34, scale - .08) : frameMs < 13 && scale < (PHONE() ? .55 : .72) ? scale + .04 : scale;
+    if (ns !== scale) { scale = ns; sizeTargets(); }
+  }
+}
+function loop(now) { if (!document.hidden) frame(now); requestAnimationFrame(loop); }
+
+// ---------------------------------------------------------------- input
+const cursorEl = $("cur"); const cpos = { x: -100, y: -100, rx: -100, ry: -100 };
+addEventListener("pointermove", (e) => {
+  mouse.x = e.clientX / innerWidth; mouse.y = e.clientY / innerHeight; mouse.moved = true; mouse.cx = e.clientX; mouse.cy = e.clientY;
+  cpos.x = e.clientX; cpos.y = e.clientY;
+  const h = conHit(e.clientX, e.clientY), hot = h && h !== "panel" ? h : null;
+  if (hot !== CON.hot) { CON.hot = hot; conDirty = true; }
+  cursorEl.classList.toggle("on", !!hot || !!e.target.closest("button, a"));
+  cursorEl.classList.toggle("panel", !!h && !hot);
+}, { passive: true });
+document.addEventListener("pointerout", (e) => { if (!e.relatedTarget) mouse.cx = mouse.cy = -1e4; });   // left the window
+addEventListener("click", (e) => {
+  if (e.target.closest("button, a")) return;
+  const h = conHit(e.clientX, e.clientY);
+  if (h === "run") { CON.auto = false; if (!CON.typing) pressRun(performance.now()); }
+  else if (h && h.startsWith("ex")) { CON.auto = false; typeExample(+h.slice(2), 80); }
+});
+function cursorLoop() {
+  cpos.rx += (cpos.x - cpos.rx) * (REDUCED ? 1 : .22); cpos.ry += (cpos.y - cpos.ry) * (REDUCED ? 1 : .22);
+  cursorEl.children[0].style.transform = `translate(${cpos.rx}px, ${cpos.ry}px)`;
+  cursorEl.children[1].style.transform = `translate(${cpos.x}px, ${cpos.y}px)`;
+  requestAnimationFrame(cursorLoop);
+}
+addEventListener("wheel", (e) => { scrollT = Math.min(1, Math.max(0, scrollT + e.deltaY * .00055)); }, { passive: true });
+let touchY = null;
+addEventListener("touchstart", (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+addEventListener("touchmove", (e) => {
+  if (touchY === null) return; const y = e.touches[0].clientY;
+  scrollT = Math.min(1, Math.max(0, scrollT + (touchY - y) / innerHeight * .9)); touchY = y;
+  if (e.cancelable) e.preventDefault();
+}, { passive: false });
+addEventListener("keydown", (e) => {
+  if (["ArrowDown", "PageDown"].includes(e.key)) scrollT = Math.min(1, scrollT + .12);
+  else if (["ArrowUp", "PageUp"].includes(e.key)) scrollT = Math.max(0, scrollT - .12);
+});
+const cta = $("ctaBtn");
+["pointerenter", "focus"].forEach((ev) => cta.addEventListener(ev, () => { zoomT = 1.035; }));
+["pointerleave", "blur"].forEach((ev) => cta.addEventListener(ev, () => { zoomT = 1; }));
+let toastT;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
+document.querySelectorAll("[data-cta], .fx").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); toast("This page only previews the home page. On the real site, this opens the course."); }));
+
+// preview controls
+function replay() {
+  introStart = performance.now(); introT = 0; introDone = false; typedStarted = false;
+  Object.assign(P, { rx: .25, ry: -1.25, ox: 280, oy: 40, vrx: 0, vry: 0, vox: 0, voy: 0 });
+  CON.typed = 0; CON.typing = false; CON.outAt = -1; CON.runAt = -1; CON.auto = !REDUCED; conDirty = true;
+  $("top").classList.remove("in"); $("cta").classList.remove("in");
+}
+$("replay").addEventListener("click", replay);
+document.querySelectorAll(".picker button").forEach((b) => b.addEventListener("click", async () => {
+  funKey = b.dataset.f; try { localStorage.setItem("operandi:funfont", funKey); } catch {}
+  applyFunCss();
+  try { await document.fonts.load(`${FUN[funKey].style} ${FUN[funKey].weight} 100px ${FUN[funKey].css}`); } catch {}
+  placeAll();
+}));
+addEventListener("resize", () => { sizeTargets(); placeAll(); });
+
+// ---------------------------------------------------------------- start
+async function start() {
+  applyFunCss();
+  const f = FUN[funKey];
+  try { await Promise.race([Promise.all([document.fonts.load('800 100px "Bricolage Grotesque"'), document.fonts.load(`${f.style} ${f.weight} 100px ${f.css}`),
+    document.fonts.load('400 20px "JetBrains Mono"'), document.fonts.load('600 20px Inter')]), new Promise((r) => setTimeout(r, 2500))]); } catch {}
+  scene = program(SCENE_FS); post = program(POST_FS); fluid = program(FLUID_FS);
+  sizeTargets(); placeAll(); drawConsole(performance.now());
+  document.fonts.ready.then(() => { placeAll(); conDirty = true; });
+  introStart = performance.now();
+  if (STILL) {
+    // test hook: ?still&t=3&intro=9&mx=.7&my=.45&hx=.82&hy=.4&trail=1&font=shrikhand&typed=all
+    time = +(qs.get("t") || 3); introT = +(qs.get("intro") || 9); scrollT = scrollV = +(qs.get("s") || 0);
+    mouse.x = +(qs.get("mx") || .5); mouse.y = +(qs.get("my") || .5); mouse.sx = (mouse.x - .5) * 2; mouse.sy = (.5 - mouse.y) * 2;
+    if (qs.has("hx")) { mouse.cx = +qs.get("hx") * innerWidth; mouse.cy = +qs.get("hy") * innerHeight; }
+    if (introT >= .55) Object.assign(P, { ox: 0, oy: 0 });
+    if (qs.get("typed") === "all") { typedStarted = true; CON.typed = EXAMPLES[0].code.length; CON.outAt = 1; CON.doneAt = 1e12; }
+    else if (qs.has("typed")) { typedStarted = true; CON.typed = +qs.get("typed"); CON.typing = false; }
+    const trail = qs.has("trail");
+    for (let i = 0; i < 40; i++) {
+      if (trail && i >= 18) { const j = i - 18; mouse.px = .08 + j * .011; mouse.py = .42 + Math.sin(j * .35) * .04; mouse.x = mouse.px + .011; mouse.y = .42 + Math.sin((j + 1) * .35) * .04; mouse.moved = true; }
+      last = performance.now() - 16; frame(performance.now() + (CON.outAt === 1 ? 1e7 : 0));
+    }
+    window.__ready = true; return;
+  }
+  requestAnimationFrame(loop); if (FINE) cursorLoop();
+}
+start().catch((e) => { console.error(e); toast("The preview couldn't start on this device."); });
+})();
+</script>
