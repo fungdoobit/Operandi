@@ -10,42 +10,45 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@1,9..144,800&family=Shrikhand&family=Caveat+Brush&family=Pixelify+Sans:wght@700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@1,9..144,800&display=swap">
 <style>
-/* The Console hero (Isaac 2026-10-30 picked it from three layouts): a big left-aligned headline, and the Python box as
-   a panel standing in 3D in the Cosmos. Round 3 adds an opening sequence, a box that tilts toward the cursor on a
-   spring with a moving glare, a box that types and runs its own examples, and a separate font for "funnnnn" that the
-   menu links roll to on hover. The font is chosen at the bottom (preview only). */
+/* The Console home page, round 4 (Isaac 2026-10-30). The hero: a big headline and the Python box standing in 3D in the
+   Cosmos, with result cards floating round it and a ring of light under it. Scrolling: the box stays pinned and acts out
+   how Operandi works (a lesson types itself as you scroll, tests tick, Bits arrive, a boss rises), then the sections
+   below build in and bend when you scroll fast. "funnnnn" is playable (hop, add an n, stretch, tumble). */
 :root {
-  --ink: #f1eff9; --ink-soft: rgba(241, 239, 249, .62); --paper: #05060d;
-  --chip: rgba(255, 255, 255, .07); --chip-line: rgba(241, 239, 249, .16); --chip-on: #f1eff9; --chip-on-ink: #0b0c18;
+  --ink: #f1eff9; --ink-soft: rgba(241, 239, 249, .64); --ink-faint: rgba(241, 239, 249, .38); --paper: #05060d;
+  --glass: rgba(15, 17, 34, .72); --line: rgba(241, 239, 249, .14); --chip: rgba(255, 255, 255, .07);
+  --chip-on: #f1eff9; --chip-on-ink: #0b0c18;
   --pill: #f1eff9; --pill-ink: #0b0c18; --pill-hover: #a9bcff; --pill-hover-ink: #0b0c18;
+  --ember: #ff8a4c;
   --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --font-body: Inter, "Segoe UI", system-ui, sans-serif;
-  --font-fun: "Fraunces", Georgia, serif; --fun-style: italic; --fun-weight: 800; --fun-scale: 1.08;
+  --font-fun: "Fraunces", Georgia, serif;
   --spring: cubic-bezier(.34, 1.56, .64, 1); --ease: cubic-bezier(.22, 1, .36, 1);
   color-scheme: dark;
 }
-html, body { height: 100%; }
-body { margin: 0; background: var(--paper); color: var(--ink); overflow: hidden; font: 15px/1.45 var(--font-body); -webkit-font-smoothing: antialiased; }
-body.fine, body.fine button, body.fine a { cursor: none; }
-#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+body.fine, body.fine button, body.fine a, body.fine summary { cursor: none; }
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .sr:focus-visible { clip: auto; width: auto; height: auto; padding: 6px 10px; background: var(--pill); color: var(--pill-ink); border-radius: 8px; z-index: 40; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
-.ui { position: fixed; inset: 0; pointer-events: none; touch-action: none; }
-.ui a, .ui button { pointer-events: auto; }
-.top { position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); right: max(22px, env(safe-area-inset-right, 0px));
-  top: calc(env(safe-area-inset-top, 0px) + 20px); display: flex; align-items: center; gap: 24px;
-  opacity: 0; translate: 0 -10px; transition: opacity .8s var(--ease), translate .9s var(--ease); }
+/* top bar: stays put; gets a glass backing once you scroll */
+.top { position: fixed; z-index: 10; left: 0; right: 0; top: 0; padding: calc(env(safe-area-inset-top, 0px) + 18px) max(22px, env(safe-area-inset-right, 0px)) 14px max(22px, env(safe-area-inset-left, 0px));
+  display: flex; align-items: center; gap: 24px; opacity: 0; translate: 0 -10px; transition: opacity .8s var(--ease), translate .9s var(--ease), background-color .4s, border-color .4s;
+  border-bottom: 1px solid transparent; }
 .top.in { opacity: 1; translate: 0 0; }
+.top.scrolled { background: rgba(5, 6, 13, .55); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-color: var(--line); }
 .brand { font: 800 21px/1 var(--font-display); letter-spacing: -.04em; color: var(--ink); text-decoration: none; }
 .top nav { margin-left: auto; display: flex; align-items: center; gap: 24px; }
-
-/* Menu links: the same font as everything else; on hover the word rolls up into the "funnnnn" font. */
+/* menu links: the usual font; on hover the word rolls up into the "funnnnn" font */
 .fx { display: inline-grid; overflow: hidden; height: 1.5em; line-height: 1.5em; color: var(--ink); text-decoration: none; font-weight: 500; }
 .fx > span { grid-area: 1 / 1; text-align: center; transition: transform .5s var(--ease); }
-.fx > span + span { font-family: var(--font-fun); font-style: var(--fun-style); font-weight: var(--fun-weight); font-size: calc(1em * var(--fun-scale)); transform: translateY(105%); }
+.fx > span + span { font-family: var(--font-fun); font-style: italic; font-weight: 800; font-size: 1.08em; transform: translateY(105%); }
 .fx:hover > span:first-child, .fx:focus-visible > span:first-child { transform: translateY(-105%); }
 .fx:hover > span + span, .fx:focus-visible > span + span { transform: none; }
 
@@ -63,82 +66,281 @@ body.fine, body.fine button, body.fine a { cursor: none; }
 .pill:hover .roll > span + span, .pill:focus-visible .roll > span + span { transform: none; }
 .pill.small { padding: 10px 16px; font-size: 13.5px; }
 .pill.big { padding: 17px 30px; font-size: 15.5px; }
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
+main { position: relative; z-index: 1; }
+section { position: relative; }
+.hero { height: 100vh; height: 100svh; }
 #cta { position: absolute; left: 0; top: 0; }
 #cta .pill { opacity: 0; transform: translateY(16px) scale(.94); transition: opacity .6s var(--ease), transform .8s var(--spring), color .35s var(--ease); }
 #cta.in .pill { opacity: 1; transform: none; }
 #cta.in .pill:active { transform: scale(.96); }
 
-/* Preview controls (not part of the design): the font for "funnnnn", and replaying the opening. */
-.bottom { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); display: grid; justify-items: center; gap: 8px; pointer-events: none; }
-.controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; pointer-events: auto; }
-.picker { display: flex; gap: 3px; padding: 4px; border-radius: 999px; background: var(--chip); border: 1px solid var(--chip-line);
-  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
-.picker button, .ghost { border: 0; background: transparent; color: var(--ink); font: 600 13px/1 var(--font-body); padding: 9px 14px; border-radius: 999px;
-  transition: background-color .3s var(--ease), color .3s var(--ease); }
-.picker button:hover, .ghost:hover { background: var(--chip-line); }
-.picker button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-ink); }
-.ghost { border: 1px solid var(--chip-line); background: var(--chip); }
-.picker [data-f="fraunces"] { font-family: "Fraunces", serif; font-style: italic; font-weight: 800; font-size: 14px; }
-.picker [data-f="shrikhand"] { font-family: "Shrikhand", cursive; font-weight: 400; font-size: 13.5px; }
-.picker [data-f="caveat"] { font-family: "Caveat Brush", cursive; font-weight: 400; font-size: 16px; }
-.picker [data-f="pixel"] { font-family: "Pixelify Sans", monospace; font-weight: 700; font-size: 14px; }
-.desc { margin: 0; max-width: 60ch; text-align: center; font-size: 13px; color: var(--ink-soft); text-wrap: balance; }
+/* the story: a tall section whose inside stays pinned while you scroll through four steps */
+.story { height: 460vh; }
+.pin { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+.steps { position: absolute; left: max(24px, 6vw); top: 50%; translate: 0 -50%; width: min(32vw, 420px); margin: 0; padding: 0; list-style: none; }
+.steps li { position: absolute; left: 0; top: 0; translate: 0 -50%; opacity: 0; transition: opacity .5s var(--ease), transform .7s var(--ease); transform: translateY(28px); }
+.steps li.on { opacity: 1; transform: none; }
+.steps li.past { transform: translateY(-28px); }
+.steps .num { font: 500 13px/1 var(--font-body); color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.steps h2 { margin: 12px 0 12px; font: 800 clamp(34px, 4vw, 56px)/1 var(--font-display); letter-spacing: -.04em; text-wrap: balance; }
+.steps h2 em { font-family: var(--font-fun); font-weight: 800; letter-spacing: -.02em; }
+.steps p { margin: 0; color: var(--ink-soft); font-size: 17px; max-width: 34ch; }
+.dots { position: absolute; left: max(24px, 6vw); bottom: 9vh; display: flex; gap: 8px; }
+.dots i { width: 28px; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; position: relative; }
+.dots i::after { content: ""; position: absolute; inset: 0; background: var(--ink); transform-origin: left; transform: scaleX(var(--f, 0)); }
 
-.cursor { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 20; display: none; }
+/* the sections after the story: they build in as they arrive and bend with scroll speed */
+.wrap { width: min(1120px, calc(100% - 2 * max(20px, 5vw))); margin: 0 auto; }
+.course, .faq { padding-block: 16vh 6vh; }
+.sec-title { margin: 0 0 10px; font: 800 clamp(36px, 5vw, 64px)/1 var(--font-display); letter-spacing: -.045em; }
+.sec-sub { margin: 0 0 40px; color: var(--ink-soft); font-size: 17px; max-width: 46ch; }
+.mods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; perspective: 1100px; }
+.mod { position: relative; padding: 24px 24px 22px; border-radius: 22px; background: var(--glass); border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); transform-origin: 50% 0;
+  transform: rotateX(var(--bend, 0deg)) translateY(var(--rise, 0px)); min-width: 0; }
+.mod.soon { opacity: .62; }
+.mod .k { display: flex; justify-content: space-between; color: var(--ink-faint); font-size: 13px; font-variant-numeric: tabular-nums; }
+.mod h3 { margin: 26px 0 6px; font: 800 30px/1.05 var(--font-display); letter-spacing: -.035em; }
+.mod p { margin: 0 0 18px; color: var(--ink-soft); font-size: 15px; }
+.mod ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; }
+.mod li { display: flex; gap: 10px; color: var(--ink-soft); }
+.mod li b { width: 16px; color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.mod .boss { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.mod .boss i { width: 10px; height: 10px; border-radius: 50%; background: var(--c, var(--ember)); box-shadow: 0 0 12px var(--c, var(--ember)); }
+@property --rise { syntax: "<length>"; inherits: false; initial-value: 0px; }
+.build { opacity: 0; --rise: 40px; transition: opacity .8s var(--ease), --rise .9s var(--ease); }
+.build.seen { opacity: 1; --rise: 0px; }
+.mod.build.seen { opacity: 1; }
+.mod.soon.build.seen { opacity: .62; }
+.faq .list { display: grid; gap: 10px; max-width: 760px; }
+.faq details { border-radius: 18px; background: var(--glass); border: 1px solid var(--line); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  transform: rotateX(var(--bend, 0deg)) translateY(var(--rise, 0px)); transform-origin: 50% 0; }
+.faq summary { list-style: none; padding: 18px 22px; font: 700 19px/1.2 var(--font-display); letter-spacing: -.02em; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font: 400 24px/1 var(--font-body); color: var(--ink-soft); transition: transform .4s var(--spring); }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { margin: 0; padding: 0 22px 20px; color: var(--ink-soft); }
+.end { padding-block: 18vh 26vh; text-align: center; }
+.end h2 { margin: 0 0 28px; font: 800 clamp(40px, 7vw, 92px)/.98 var(--font-display); letter-spacing: -.05em; }
+.end h2 em { font-family: var(--font-fun); font-weight: 800; letter-spacing: -.02em; }
+
+/* the course as a spiral: every lesson and boss is a card on a helix round a line of light; scrolling turns it.
+   Reduced motion (and no script) gets the plain three-card list instead, which screen readers always use. */
+.course.helixed { height: calc(100vh + 13 * 22vh); padding: 0; }
+.course.helixed .flat { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.course .cpin { display: none; }
+.course.helixed .cpin { display: block; }
+.chead { position: absolute; left: max(24px, 6vw); top: 50%; translate: 0 -50%; width: min(34vw, 440px); z-index: 2; }
+.chead .sec-sub { margin-bottom: 0; }
+.now { margin: 28px 0 0; display: flex; gap: 12px; align-items: baseline; font: 500 14px/1 "JetBrains Mono", ui-monospace, monospace; color: var(--ink-faint); }
+.now b { color: var(--ink); font-weight: 500; }
+.helix { position: absolute; left: 64%; top: 52%; width: 0; height: 0; perspective: 1500px; }
+.hring { position: absolute; transform-style: preserve-3d; transform: translateZ(calc(var(--R) * -1)); }
+.spine { position: absolute; left: -1px; top: -60vh; width: 2px; height: 120vh; background: linear-gradient(transparent, rgba(169, 188, 255, .55) 30%, rgba(255, 154, 213, .45) 70%, transparent);
+  box-shadow: 0 0 18px rgba(169, 188, 255, .45); }
+.hcard { position: absolute; left: -160px; top: -70px; width: 320px; height: 140px; box-sizing: border-box; padding: 18px 22px; border-radius: 20px;
+  background: linear-gradient(160deg, rgba(28, 30, 58, .95), rgba(10, 11, 24, .95)); border: 1px solid var(--line); backface-visibility: hidden;
+  display: grid; align-content: start; gap: 6px; will-change: transform, opacity; transition: border-color .3s; }
+.hcard::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px; pointer-events: none; opacity: var(--front, 0);
+  background: conic-gradient(from var(--ang, 0deg), #a9bcff, #ff9ad5, #ffd36e, #7ee0a1, #8fd1ff, #a9bcff);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.hcard:hover { border-color: rgba(255, 255, 255, .34); }
+.hcard .k { font-size: 13px; color: var(--ink-faint); }
+.hcard b { font: 800 27px/1.05 var(--font-display); letter-spacing: -.035em; color: var(--ink); }
+.hcard .s { font-size: 14.5px; color: var(--ink-soft); }
+.hcard .ix { position: absolute; right: 20px; top: 12px; font: italic 800 34px/1 var(--font-fun); color: rgba(241, 239, 249, .16); }
+.hcard.boss { border-color: color-mix(in srgb, var(--c) 45%, transparent); box-shadow: 0 0 46px color-mix(in srgb, var(--c) 28%, transparent), inset 0 0 30px color-mix(in srgb, var(--c) 12%, transparent); }
+.hcard.boss .k { color: var(--c); }
+.hcard.boss .ix { width: 14px; height: 14px; top: 20px; border-radius: 50%; background: var(--c); box-shadow: 0 0 16px var(--c), 0 0 4px #fff inset; }
+.hcard.soon { background: linear-gradient(160deg, rgba(22, 23, 40, .9), rgba(10, 11, 22, .9)); }
+.hcard.soon b { color: var(--ink-soft); }
+@media (max-width: 760px) {
+  .chead { top: calc(env(safe-area-inset-top, 0px) + 84px); translate: none; left: 22px; right: 22px; width: auto; }
+  .chead .sec-sub { font-size: 15.5px; }
+  .now { margin-top: 16px; }
+  .helix { left: 50%; top: 64%; }
+  .hcard { left: -140px; width: 280px; height: 132px; top: -66px; }
+  .hcard b { font-size: 24px; }
+}
+
+/* the opening: Python's brackets with a caret between them; they ripple while the page loads, then part like a curtain */
+.loader { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; background: var(--paper); transition: opacity .7s var(--ease) .25s, visibility 0s 1s; }
+.loader svg { width: min(46vw, 260px); overflow: visible; }
+.loader path, .loader circle { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.loader .echo path { stroke: #a9bcff; opacity: 0; transform-box: fill-box; transform-origin: center; animation: echo 1.6s var(--ease) infinite; }
+.loader .echo.e2 path { animation-delay: .25s; } .loader .echo.e3 path { animation-delay: .5s; }
+.loader .echo .l { --dx: -26px; } .loader .echo .r { --dx: 26px; }
+@keyframes echo { 0% { opacity: .7; transform: translateX(0) scale(1); } 100% { opacity: 0; transform: translateX(var(--dx)) scale(1.5); } }
+.loader .caret { fill: #a9bcff; stroke: none; animation: blink 1.06s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.loader .lab { position: absolute; left: 50%; top: calc(50% + min(24vw, 140px)); translate: -50% 0; font: 500 13px/1 "JetBrains Mono", ui-monospace, monospace; color: var(--ink-faint); letter-spacing: .04em; }
+.loader .main .l, .loader .main .r, .loader .caret { transition: transform .9s var(--ease), opacity .6s var(--ease); transform-box: fill-box; transform-origin: center; }
+.loader.out { opacity: 0; visibility: hidden; pointer-events: none; }
+.loader.out .main .l { transform: translateX(-60vw) scale(3); opacity: 0; }
+.loader.out .main .r { transform: translateX(60vw) scale(3); opacity: 0; }
+.loader.out .caret { transform: scale(0, 1); }
+.loader.out .echo, .loader.out .lab { opacity: 0; transition: opacity .2s; }
+.paint-hint { margin: 22px 0 0; font: 500 13px/1 "JetBrains Mono", ui-monospace, monospace; color: var(--ink-faint); }
+@media (pointer: coarse) { .paint-hint { display: none; } }
+
+/* preview controls (not part of the design) */
+.controls { position: fixed; z-index: 10; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); translate: -50% 0; display: grid; justify-items: center; gap: 6px;
+  width: max-content; max-width: calc(100vw - 32px); transition: opacity .4s, translate .5s var(--ease); }
+.controls.away { opacity: 0; translate: -50% 20px; pointer-events: none; }
+.controls .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.picker { display: flex; gap: 3px; padding: 4px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.picker button, .ghost { border: 0; background: transparent; color: var(--ink); font: 600 13px/1 var(--font-body); padding: 9px 13px; border-radius: 999px; transition: background-color .3s, color .3s; }
+.picker button:hover, .ghost:hover { background: var(--line); }
+.picker button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-ink); }
+.ghost { border: 1px solid var(--line); background: var(--chip); }
+.controls p { margin: 0; font-size: 12.5px; color: var(--ink-soft); text-align: center; text-wrap: balance; }
+
+.cursor { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 30; display: none; opacity: 0; transition: opacity .3s; }
+.cursor.live { opacity: 1; }
 body.fine .cursor { display: block; }
-.cursor i, .cursor b { position: absolute; left: 0; top: 0; border-radius: 50%; translate: -50% -50%; }
-.cursor i { width: 30px; height: 30px; border: 1.5px solid var(--ink); transition: width .35s var(--spring), height .35s var(--spring), background-color .3s, opacity .3s; }
-.cursor b { width: 4px; height: 4px; background: var(--ink); }
+.cursor i, .cursor b, .cursor span { position: absolute; left: 0; top: 0; translate: -50% -50%; }
+.cursor i { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--ink); transition: width .35s var(--spring), height .35s var(--spring), background-color .3s, opacity .3s; }
+.cursor b { width: 4px; height: 4px; border-radius: 50%; background: var(--ink); }
+.cursor span { font: 600 12px/1 var(--font-body); color: var(--ink); white-space: nowrap; opacity: 0; transition: opacity .2s; }
 .cursor.on i { width: 58px; height: 58px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
 .cursor.panel i { width: 18px; height: 18px; opacity: .6; }
+.cursor.word i { width: 64px; height: 64px; background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.cursor.word b { opacity: 0; }
+.cursor.word span { opacity: 1; }
 
-.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 76px); translate: -50% -12px; opacity: 0; pointer-events: none;
-  max-width: min(420px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 14px; background: var(--ink); color: var(--paper);
-  font-size: 13.5px; text-align: center; transition: opacity .3s, translate .45s var(--spring); z-index: 30; }
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 80px); translate: -50% -12px; opacity: 0; pointer-events: none; z-index: 40;
+  max-width: min(420px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 14px; background: var(--ink); color: var(--paper); font-size: 13.5px; text-align: center;
+  transition: opacity .3s, translate .45s var(--spring); }
 .toast.show { opacity: 1; translate: -50% 0; }
 .fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+body.still *, body.still *::before, body.still *::after { transition: none !important; animation: none !important; }
 
-@media (max-width: 700px) {
+@media (max-width: 760px) {
   .top nav .fx { display: none; }
+  .steps { left: 22px; right: 22px; width: auto; top: auto; bottom: 14vh; translate: none; }
+  .steps li { translate: 0 -100%; }
+  .steps h2 { font-size: 34px; }
+  .steps p { font-size: 15.5px; }
+  .dots { bottom: 6vh; left: 22px; }
+  .mods { grid-template-columns: 1fr; }
   .picker button { padding: 8px 10px; font-size: 12.5px; }
-  .desc { display: none; }
+  .controls p { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; } .build { opacity: 1; --rise: 0px; } }
 </style>
 </head>
 <body>
-
 <canvas id="gl" aria-hidden="true"></canvas>
-<div class="ui">
-  <header class="top" id="top">
-    <a class="brand" href="#" aria-label="Operandi">operandi</a>
-    <nav aria-label="Main">
-      <a class="fx" href="#"><span>Course</span><span aria-hidden="true">Course</span></a>
-      <a class="fx" href="#"><span>FAQ</span><span aria-hidden="true">FAQ</span></a>
-      <button class="pill small" type="button" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button>
-    </nav>
-  </header>
-  <h1 class="sr">Learning Python should be fun.</h1>
-  <div id="cta"><button class="pill big" type="button" id="ctaBtn" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button></div>
-  <div id="conKeys"></div>
-  <p class="sr" id="conLive" aria-live="polite"></p>
-  <footer class="bottom">
-    <div class="controls">
-      <div class="picker" role="group" aria-label="Font for funnnnn">
-        <button type="button" data-f="fraunces">Fraunces</button>
-        <button type="button" data-f="shrikhand">Shrikhand</button>
-        <button type="button" data-f="caveat">Caveat Brush</button>
-        <button type="button" data-f="pixel">Pixelify</button>
-      </div>
-      <button class="ghost" type="button" id="replay">Replay the opening</button>
-    </div>
-    <p class="desc">Preview controls: pick the font for "funnnnn" (the menu links roll to it on hover), and replay the opening.</p>
-  </footer>
+<div class="loader" id="loader" aria-hidden="true">
+  <svg viewBox="-60 -50 120 100">
+    <g class="echo e1"><path class="l" d="M-20 -42 Q-46 0 -20 42"/><path class="r" d="M20 -42 Q46 0 20 42"/></g>
+    <g class="echo e2"><path class="l" d="M-20 -42 Q-46 0 -20 42"/><path class="r" d="M20 -42 Q46 0 20 42"/></g>
+    <g class="echo e3"><path class="l" d="M-20 -42 Q-46 0 -20 42"/><path class="r" d="M20 -42 Q46 0 20 42"/></g>
+    <g class="main"><path class="l" d="M-20 -42 Q-46 0 -20 42"/><path class="r" d="M20 -42 Q46 0 20 42"/></g>
+    <rect class="caret" x="-2" y="-16" width="4" height="32" rx="1"/>
+  </svg>
+  <span class="lab" id="loadLab">import fun</span>
 </div>
-<div class="cursor" id="cur"><i></i><b></b></div>
+<header class="top" id="top">
+  <a class="brand" href="#" aria-label="Operandi">operandi</a>
+  <nav aria-label="Main">
+    <a class="fx" href="#course"><span>Course</span><span aria-hidden="true">Course</span></a>
+    <a class="fx" href="#faq"><span>FAQ</span><span aria-hidden="true">FAQ</span></a>
+    <button class="pill small" type="button" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button>
+  </nav>
+</header>
+
+<main>
+  <section class="hero" id="hero">
+    <h1 class="sr">Learning Python should be fun.</h1>
+    <div id="cta"><button class="pill big" type="button" id="ctaBtn" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button></div>
+    <div id="conKeys"></div>
+    <p class="sr" id="conLive" aria-live="polite"></p>
+  </section>
+
+  <section class="story" id="story" aria-label="How Operandi works">
+    <div class="pin">
+      <ol class="steps" id="steps">
+        <li data-s="0"><span class="num">1 of 4</span><h2>Read a little.</h2><p>Each lesson is one idea in plain words, with an example you can run.</p></li>
+        <li data-s="1"><span class="num">2 of 4</span><h2>Write it, then Submit.</h2><p>Real tests run your code the moment you press Submit, and show you what passed.</p></li>
+        <li data-s="2"><span class="num">3 of 4</span><h2>Get a mark, earn Bits.</h2><p>Every answer gets a mark out of 10, and Bits you can spend on hints and themes.</p></li>
+        <li data-s="3"><span class="num">4 of 4</span><h2>Beat the <em>boss</em>.</h2><p>Every module ends in a boss fight. Each challenge you pass is a strike.</p></li>
+      </ol>
+      <div class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </section>
+
+  <section class="course" id="course">
+    <div class="pin cpin">
+      <div class="chead" aria-hidden="true">
+        <h2 class="sec-title build">The course</h2>
+        <p class="sec-sub build">Eight modules, from your first print() to real projects. The first two are open now.</p>
+        <p class="now build"><span id="nowK">Module 1</span><b id="nowT">Lesson 1</b></p>
+      </div>
+      <div class="helix" id="helix" aria-hidden="true"><div class="hring" id="hring"><div class="spine"></div></div></div>
+    </div>
+    <div class="wrap flat">
+      <h2 class="sec-title build">The course</h2>
+      <p class="sec-sub build">Eight modules, from your first print() to real projects. The first two are open now.</p>
+      <div class="mods">
+        <article class="mod build bend">
+          <div class="k"><span>Module 1</span><span>5 lessons</span></div>
+          <h3>Basics</h3><p>Printing, variables, numbers and text.</p>
+          <ol><li><b>1</b>Your first program</li><li><b>2</b>Variables</li><li><b>3</b>Numbers and maths</li><li><b>4</b>Working with text</li><li><b>5</b>f-strings</li></ol>
+          <div class="boss"><i></i>Boss: GOLEM</div>
+        </article>
+        <article class="mod build bend">
+          <div class="k"><span>Module 2</span><span>5 lessons</span></div>
+          <h3>Decisions</h3><p>True or False, and doing different things.</p>
+          <ol><li><b>1</b>True or False</li><li><b>2</b>if</li><li><b>3</b>else</li><li><b>4</b>elif</li><li><b>5</b>and, or, not</li></ol>
+          <div class="boss" style="--c:#ff5c86"><i></i>Boss: The Abyssal Maw</div>
+        </article>
+        <article class="mod soon build bend">
+          <div class="k"><span>Module 3 onwards</span><span>Coming soon</span></div>
+          <h3>Loops and more</h3><p>Repeating work, then lists, functions and real projects.</p>
+          <ol><li><b>3</b>Loops</li><li><b>4</b>Lists</li><li><b>5</b>Functions</li><li><b>6</b>Dictionaries</li><li><b>7</b>Files and errors</li><li><b>8</b>Real-world projects</li></ol>
+          <div class="boss" style="--c:#8b93b3"><i></i>More bosses on the way</div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq" id="faq">
+    <div class="wrap">
+      <h2 class="sec-title build">Questions</h2>
+      <div class="list">
+        <details class="build bend"><summary>Do I need to install Python?</summary><p>No. Python runs right in your browser, on a laptop, a desktop or an iPad.</p></details>
+        <details class="build bend"><summary>How is my code checked?</summary><p>Each task has tests. They run your code and check what it prints and the values it makes.</p></details>
+        <details class="build bend"><summary>What if I get stuck?</summary><p>Every mistake gets a plain explanation. Hints and peeks are there when you want them.</p></details>
+        <details class="build bend"><summary>What are Bits?</summary><p>What you earn for passing. Spend them in the shop on hints, peeks and editor themes.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="end">
+    <div class="wrap">
+      <h2 class="build">Start with <em>Lesson 1</em>.</h2>
+      <button class="pill big build" type="button" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button>
+      <p class="paint-hint" aria-hidden="true">Move the cursor here to paint with light. Click to splash.</p>
+    </div>
+  </section>
+</main>
+
+<div class="controls" id="controls">
+  <div class="row">
+    <div class="picker" role="group" aria-label="What funnnnn does">
+      <button type="button" data-m="all">All</button>
+      <button type="button" data-m="hop">Hop</button>
+      <button type="button" data-m="plus">+n</button>
+      <button type="button" data-m="stretch">Stretch</button>
+      <button type="button" data-m="tumble">Tumble</button>
+    </div>
+    <button class="ghost" type="button" id="replay">Replay the opening</button>
+  </div>
+  <p id="modeHelp"></p>
+</div>
+<div class="cursor" id="cur"><i></i><b></b><span id="curLabel"></span></div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -149,8 +351,10 @@ const qs = new URLSearchParams(location.search);
 const STILL = qs.has("still");                         // test hook: fixed frames, no animation loop
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const FINE = matchMedia("(pointer: fine)").matches && !STILL;
-const PHONE = () => innerWidth < 700 || innerWidth / innerHeight < .8;
+const PHONE = () => innerWidth < 760 || innerWidth / innerHeight < .8;
 if (FINE) document.body.classList.add("fine");
+if (STILL) document.body.classList.add("still");
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
 const canvas = $("gl");
 const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, preserveDrawingBuffer: STILL, powerPreference: "high-performance" });
@@ -160,11 +364,10 @@ if (!gl) {
   f.textContent = "This preview needs WebGL 2, which this browser doesn't have. Try it in a recent Chrome, Safari or Firefox.";
   document.body.append(f); return;
 }
-// Half-float targets for the liquid trail where the browser can render to them (WebGL 2 needs EXT_color_buffer_float);
-// otherwise 8-bit, with the velocity stored around the middle grey.
+// Half-float targets for the liquid trail where the browser can render to them; otherwise 8-bit around middle grey.
 let floatFluid = !!gl.getExtension("EXT_color_buffer_float");
 
-// ---------------------------------------------------------------- shaders
+// ================================================================ shaders
 const VERT = `#version 300 es
 in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
 
@@ -178,10 +381,11 @@ float fbm(vec3 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a*no
 vec3 aces(vec3 x){ return clamp((x*(2.51*x + .03))/(x*(2.43*x + .59) + .14), 0., 1.); }
 `;
 
-// The Cosmos: nebula, stars, a violet planet below, drifting dust; the sun rises over its edge as you scroll.
+// The Cosmos: nebula, stars, a violet planet, drifting dust; the sun rises as you go down the page. In the boss step a
+// dark rock with ember cracks rises over the planet's edge and the sky warms to ember.
 const SCENE_FS = `#version 300 es
 precision highp float;
-uniform vec2 uRes; uniform float uScroll, uTime, uFov, uExpo; uniform vec3 uCam, uTgt;
+uniform vec2 uRes; uniform float uScroll, uTime, uFov, uExpo, uBoss; uniform vec3 uCam, uTgt; uniform vec4 uBossP;
 out vec4 o;
 ${LIB}
 const vec4 PL = vec4(0., -60., -44., 56.);
@@ -213,86 +417,150 @@ vec3 world(vec3 ro, vec3 rd){
   vec3 col = space(rd, sd);
   vec3 oc = ro - PL.xyz; float b = dot(oc, rd), cc = dot(oc, oc) - PL.w*PL.w, h = b*b - cc;
   vec3 pc = ro + rd*max(-b, 0.); float alt = length(pc - PL.xyz) - PL.w;
-  if (h > 0. && -b - sqrt(h) > 0.) {
-    vec3 p = ro + rd*(-b - sqrt(h)), n = normalize(p - PL.xyz);
+  float tP = (h > 0. && -b - sqrt(h) > 0.) ? -b - sqrt(h) : 1e9;
+  // the boss: a dark rock with ember cracks, rising from behind the planet's edge in the last story step
+  vec4 B = uBossP;
+  vec3 ob = ro - B.xyz; float bb = dot(ob, rd), hb = bb*bb - dot(ob, ob) + B.w*B.w;
+  float tB = (uBoss > .01 && hb > 0. && -bb - sqrt(hb) > 0.) ? -bb - sqrt(hb) : 1e9;
+  vec3 ember = vec3(1., .42, .15);
+  if (tB < tP) {
+    vec3 n = normalize(ro + rd*tB - B.xyz);
+    float cr = fbm(n*3.2 + vec3(0., uTime*.06, 0.)), crack = smoothstep(.06, 0., abs(cr - .5));
+    col = mix(vec3(.05, .035, .04), vec3(.13, .08, .08), fbm(n*7.))*(max(dot(n, sd), 0.)*1.4 + .08);
+    col += ember*(crack*3.2 + pow(1. - max(dot(n, -rd), 0.), 3.)*1.2)*(.75 + .25*sin(uTime*2.3));
+  } else if (tP < 1e8) {
+    vec3 p = ro + rd*tP, n = normalize(p - PL.xyz);
     float bands = fbm(vec3(n.x*2.5 + uTime*.003, n.y*18., n.z*2.5)), sw = fbm(n*6. + bands*1.5);
     vec3 alb = mix(vec3(.07, .06, .16), vec3(.28, .21, .44), bands) + vec3(.08, .12, .2)*sw*.4;
     float term = smoothstep(-.12, .25, dot(n, sd));
     col = alb*(max(dot(n, sd), 0.)*2.2 + .015);
-    col += vec3(.25, .45, 1.)*pow(1. - max(dot(n, -rd), 0.), 3.)*(.22 + 1.6*term);
+    col += mix(vec3(.25, .45, 1.), ember, uBoss*.8)*pow(1. - max(dot(n, -rd), 0.), 3.)*(.22 + 1.6*term);
   } else {
     float a = exp(-max(alt, 0.)*.9); float lit = smoothstep(-.4, .6, dot(normalize(pc - PL.xyz), sd));
-    col += (vec3(.2, .4, 1.)*.55 + vec3(.95, .55, .85)*lit*.6)*a;
+    col += mix(vec3(.2, .4, 1.)*.55 + vec3(.95, .55, .85)*lit*.6, ember*.9, uBoss*.7)*a;
   }
+  if (uBoss > .01 && tB > 1e8 && tP > 1e8) {   // its glow
+    float dl = length(ob - rd*dot(ob, rd)) - B.w;
+    col += ember*exp(-max(dl, 0.)/(B.w*.42))*.55*uBoss;
+  }
+  col = mix(col, col*vec3(1.55, .62, .45) + vec3(.03, .005, 0.), uBoss*.75);
   return col + dust(ro, rd)*.6; }
 void main(){
   vec3 f = normalize(uTgt - uCam); vec3 r = normalize(cross(f, vec3(0., 1., 0.))); vec3 u = cross(r, f);
   vec2 q = (gl_FragCoord.xy - .5*uRes)/uRes.y; vec3 rd = normalize(f + (q.x*r + q.y*u)*2.*uFov);
   o = vec4(pow(aces(world(uCam, rd)*uExpo), vec3(1./2.2)), 1.); }`;
 
-// Final pass at full resolution: the scene, the code panel turned in 3D (with its shadow, a glare that follows the
-// cursor, and the liquid pushing it), and the headline on top (rising in line by line at the start, pushed by the
-// liquid with a soft tinted ghost behind it).
+// Final pass at full resolution, back to front: the scene; the ring of light and the reflection under the box; the
+// box's shadow and the box (turned in 3D, a glare following the cursor); the result cards floating round it; the
+// headline (main lines from the texture; each n of "funnnnn" and the full stop placed and moved on their own).
+// The liquid trail pushes everything, with a soft tinted ghost behind the words.
 const POST_FS = `#version 300 es
 precision highp float;
-uniform sampler2D uScene, uFluid, uText, uCon; uniform vec2 uRes2; uniform float uTime, uEnc, uLiquid, uGrain, uDpr;
-uniform vec4 uTxRect; uniform float uMainV, uTexH, uEm, uIntro, uLineH, uTextA; uniform vec4 uBands; uniform vec4 uWave[5]; uniform vec2 uWaveOff[5];
-uniform vec3 uTextCol, uTrailCol;
-uniform float uConA, uPersp, uLift; uniform vec2 uConC, uConH, uEye; uniform vec3 uConU, uConV, uConN, uGlare;
+uniform sampler2D uScene, uFluid, uText, uCon, uSat; uniform vec2 uRes2; uniform float uTime, uEnc, uLiquid, uDpr;
+uniform vec4 uTxRect; uniform float uMainV, uTexH, uIntro, uLineH, uTextA; uniform vec4 uBands; uniform vec2 uTexPx;
+uniform int uN; uniform vec2 uNPen, uNStrip, uDotStrip; uniform float uNAdv; uniform vec4 uNG, uDotG, uDotT; uniform vec4 uNT[14];
+uniform vec3 uTextCol, uTrailCol; uniform float uPaint;
+uniform float uConA, uPersp, uLift, uStage; uniform vec2 uConC, uConH, uEye; uniform vec3 uConU, uConV, uConN, uGlare;
+uniform vec4 uSatC[7]; uniform vec4 uSatH[7]; uniform vec2 uSatS[7];
 out vec4 o;
 float h2(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y)*p3.z); }
 vec2 dec(vec4 c){ return uEnc > .5 ? (c.xy - 128./255.)*2. : c.xy; }
-float waveY(float t){ float p = mod(t, 2.6)/2.6, k;
-  if (p < .2) { k = p/.2; k = 1.-(1.-k)*(1.-k); return -.12*k; }
-  if (p < .4) { k = (p-.2)/.2; k = 1.-(1.-k)*(1.-k); return mix(-.12, .03, k); }
-  if (p < .6) { k = (p-.4)/.2; k = 1.-(1.-k)*(1.-k); return mix(.03, 0., k); }
-  return 0.; }
 int band(float v){ return v < uBands.x ? 0 : (v < uBands.y ? 1 : (v < uBands.z ? 2 : 3)); }
-float sampleText(vec2 s, float lod){
-  float a = textureLod(uText, s, lod).a;
-  for (int i = 0; i < 5; i++) { vec4 w = uWave[i];
-    if (s.x > w.x && s.x < w.z && s.y > w.y && s.y < w.w)
-      a = max(a, textureLod(uText, s + uWaveOff[i] - vec2(0., waveY(uTime - float(i)*.08)*uEm), lod).a); }
-  return a; }
+// One glyph from the strip, placed at pen (texture units), moved by T = (dx, dy, angle, scale).
+float glyph(vec2 s, vec2 pen, vec4 T, vec4 G, vec2 strip, float lod){
+  if (T.w < .01) return 0.;
+  vec2 mid = (G.xy + G.zw)*.5;
+  vec2 d = (s - pen - mid - T.xy)*uTexPx;
+  float c = cos(T.z), sn = sin(T.z);
+  d = mat2(c, -sn, sn, c)*d/T.w;
+  vec2 g = strip + mid + d/uTexPx;
+  if (any(lessThan(g, strip + G.xy)) || any(greaterThan(g, strip + G.zw))) return 0.;
+  return textureLod(uText, g, lod).a; }
 float textPx(vec2 fc){
   vec2 uv = vec2((fc.x - uTxRect.x)/uTxRect.z, 1. - (fc.y - uTxRect.y)/uTxRect.w);
-  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) return 0.;
+  if (uv.x < -.1 || uv.x > 2.2 || uv.y < -.4 || uv.y > 1.9) return 0.;
   vec2 s = vec2(uv.x, uv.y*uMainV);
-  float lod = log2(max(uTexH/uTxRect.w, 1.));
-  if (uIntro > 3.) return sampleText(s, lod)*uTextA;
-  // the opening: each line rises out of its own band in a wave from left to right
-  int b = band(s.y);
-  float p = clamp((uIntro - .3 - float(b)*.13 - uv.x*.5)/.6, 0., 1.); p = 1. - pow(1. - p, 3.);
-  vec2 q = s + vec2(0., (1. - p)*.65*uLineH);
-  if (band(q.y) != b) return 0.;
-  return sampleText(q, lod)*p*uTextA; }
-vec2 conLocal(vec2 fc){
-  vec3 E = vec3(uEye, uPersp), D = vec3(fc - uEye, -uPersp), C = vec3(uConC, 0.);
+  float lod = log2(max(uTexH/uTxRect.w, 1.)), a = 0.;
+  if (uv.x >= 0. && uv.x <= 1. && uv.y >= 0. && uv.y <= 1.) {
+    if (uIntro > 3.) a = textureLod(uText, s, lod).a;
+    else {   // the opening: each line rises out of its own band, left to right
+      int b = band(s.y);
+      float p = clamp((uIntro - .3 - float(b)*.13 - uv.x*.5)/.6, 0., 1.); p = 1. - pow(1. - p, 3.);
+      vec2 q = s + vec2(0., (1. - p)*.65*uLineH);
+      if (band(q.y) == b) a = textureLod(uText, q, lod).a*p;
+    }
+  }
+  for (int i = 0; i < 14; i++) { if (i >= uN) break; a = max(a, glyph(s, uNPen + vec2(float(i)*uNAdv, 0.), uNT[i], uNG, uNStrip, lod)); }
+  a = max(a, glyph(s, uNPen + vec2(float(uN)*uNAdv, 0.), uDotT, uDotG, uDotStrip, lod));
+  return a*uTextA; }
+vec2 planeLocal(vec2 fc, vec3 C){
+  vec3 E = vec3(uEye, uPersp), D = vec3(fc - uEye, -uPersp);
   float t = dot(C - E, uConN)/dot(D, uConN); vec3 hp = E + D*t - C;
   return vec2(dot(hp, uConU), dot(hp, uConV)); }
 float rrect(vec2 p, vec2 h, float r){ vec2 q = abs(p) - h + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
+vec3 iri(float t){ return .5 + .5*cos(6.2832*(t + vec3(0., .33, .67))); }
+// a chrome edge: mostly bright metal, with a film of colour that slides round as the plane turns
+vec3 chrome(vec2 lp, vec2 h, float turn){
+  float ang = atan(lp.y/h.y, lp.x/h.x);
+  return mix(vec3(.86, .9, 1.), iri(ang*.32 + turn + uTime*.05), .62); }
+vec4 panelAt(vec2 fc){
+  vec2 lp = planeLocal(fc, vec3(uConC, 0.)); float pd = rrect(lp, uConH, 18.*uDpr);
+  if (pd > 1.5) return vec4(0.);
+  vec2 cu = vec2(lp.x/uConH.x*.5 + .5, .5 - lp.y/uConH.y*.5);
+  float lod = log2(max(float(textureSize(uCon, 0).y)/(2.*uConH.y), 1.));
+  vec4 cs = textureLod(uCon, cu, lod);
+  vec2 g2 = (lp/uConH - uGlare.xy)*vec2(1.2, 1.8);
+  float gw = exp(-dot(g2, g2)*1.6);
+  cs.rgb += vec3(.75, .82, 1.)*uGlare.z*.16*gw;
+  float rim = smoothstep(-3.4*uDpr, -.8*uDpr, pd);
+  cs.rgb = mix(cs.rgb, chrome(lp, uConH, uConN.x*1.6 + uConN.y*1.1), rim*(.42 + .5*gw*uGlare.z));
+  return vec4(cs.rgb, max(cs.a, rim)*clamp(.5 - pd, 0., 1.)); }
 void main(){
   vec2 uv = gl_FragCoord.xy/uRes2;
-  vec2 v = dec(texture(uFluid, uv))*uLiquid; float flow = length(v);
+  vec4 fs = texture(uFluid, uv);
+  vec2 v = dec(fs)*uLiquid; float flow = length(v);
   vec2 dc = uv - .5;
   vec2 fc = gl_FragCoord.xy - v*uRes2.y*.3;
   vec3 c = texture(uScene, uv - v*.12).rgb;
+  float paint = fs.z*uPaint;
+  if (paint > .002) {
+    float t = fract(uv.x*.45 - uv.y*.3 + uTime*.03 + paint*.25)*3.;
+    vec3 A = vec3(.5, .6, 1.), B = vec3(1., .45, .78), G = vec3(1., .76, .38);
+    vec3 pc = t < 1. ? mix(A, B, smoothstep(0., 1., t)) : t < 2. ? mix(B, G, smoothstep(1., 2., t)) : mix(G, A, smoothstep(2., 3., t));
+    c += pc*(1. - exp(-paint*1.6))*1.1;
+  }
   if (uConA > .01) {
-    // the shadow it casts down onto the page grows as it lifts
+    // the ring of light it stands over, and its reflection in it
+    vec2 base = vec2(uConC.x, uConC.y - uConH.y - 34.*uDpr);
+    vec2 e = (gl_FragCoord.xy - base)/vec2(uConH.x*1.08, uConH.x*.13);
+    float r = length(e);
+    c += vec3(.45, .55, 1.)*uStage*uConA*(exp(-abs(r - 1.)*9.)*.55 + exp(-r*r*1.4)*.16 + exp(-abs(r - 1.)*2.2)*.08);
+    if (gl_FragCoord.y < base.y + 30.*uDpr) {
+      vec4 rf = panelAt(vec2(fc.x, 2.*(base.y + 22.*uDpr) - fc.y));
+      float fall = exp(-max(base.y - gl_FragCoord.y + 30.*uDpr, 0.)/(70.*uDpr));
+      c = mix(c, rf.rgb, rf.a*.16*fall*uStage*uConA);
+    }
+    // its shadow, which grows as it lifts
     float off = (46. + uLift*900.)*uDpr;
-    vec2 ls = conLocal(gl_FragCoord.xy + vec2(0., off));
-    float sd = rrect(ls, uConH, 18.*uDpr);
-    c *= 1. - .55*uConA*(1. - smoothstep(-40.*uDpr, (60. + uLift*600.)*uDpr, sd));
-    vec2 lp = conLocal(fc); float pd = rrect(lp, uConH, 18.*uDpr);
+    float sd = rrect(planeLocal(gl_FragCoord.xy + vec2(0., off), vec3(uConC, 0.)), uConH, 18.*uDpr);
+    c *= 1. - .5*uConA*(1. - smoothstep(-40.*uDpr, (60. + uLift*600.)*uDpr, sd));
+    float pd = rrect(planeLocal(fc, vec3(uConC, 0.)), uConH, 18.*uDpr);
     c += vec3(.35, .45, 1.)*.14*uConA*exp(-max(pd, 0.)/(26.*uDpr))*step(0., pd);
-    if (pd < 1.5) {
-      vec2 cu = vec2(lp.x/uConH.x*.5 + .5, .5 - lp.y/uConH.y*.5);
-      float lod = log2(max(float(textureSize(uCon, 0).y)/(2.*uConH.y), 1.));
-      vec4 cs = textureLod(uCon, cu, lod);
-      // glare: a soft light that follows the cursor across the glass
-      vec2 gl2 = lp/uConH - uGlare.xy;
-      cs.rgb += vec3(.75, .82, 1.)*uGlare.z*.16*exp(-dot(gl2*vec2(1.2, 1.8), gl2*vec2(1.2, 1.8))*1.6);
-      c = mix(c, cs.rgb, cs.a*uConA*clamp(.5 - pd, 0., 1.));
+    vec4 pc = panelAt(fc);
+    c = mix(c, pc.rgb, pc.a*uConA);
+  }
+  // result cards, parallel to the box, floating in front of it at their own depths
+  for (int i = 0; i < 7; i++) {
+    vec4 C = uSatC[i]; if (C.w < .01) continue;
+    vec2 hs = uSatH[i].xy;
+    float sh = rrect(planeLocal(gl_FragCoord.xy + vec2(0., 22.*uDpr), vec3(C.xy, C.z)), hs, 14.*uDpr);
+    c *= 1. - .35*C.w*(1. - smoothstep(-10.*uDpr, 40.*uDpr, sh));
+    vec2 lp = planeLocal(fc, vec3(C.xy, C.z)); float sd = rrect(lp, hs, 14.*uDpr);
+    if (sd < 1.5) {
+      vec4 sc = texture(uSat, uSatH[i].zw + uSatS[i]*vec2(lp.x/hs.x*.5 + .5, .5 - lp.y/hs.y*.5));
+      float rim = smoothstep(-2.6*uDpr, -.6*uDpr, sd);
+      sc.rgb = mix(sc.rgb, chrome(lp, hs, uConN.x*1.6 + float(i)*.4), rim*.3); sc.a = max(sc.a, rim*.8);
+      c = mix(c, sc.rgb, sc.a*C.w*clamp(.5 - sd, 0., 1.));
     }
   }
   float a0 = textPx(fc), a1 = textPx(fc + v*uRes2.y*.22), k = smoothstep(.004, .06, flow);
@@ -304,23 +572,33 @@ void main(){
 
 const FLUID_FS = `#version 300 es
 precision highp float;
-uniform sampler2D uPrev; uniform vec2 uFRes, uP0, uP1, uVel; uniform float uAspect, uDecay, uRad, uEnc;
+uniform sampler2D uPrev; uniform vec2 uFRes, uP0, uP1, uVel; uniform float uAspect, uDecay, uRad, uEnc, uDyeIn, uDyeDecay, uTime; uniform vec3 uBurst;
 out vec4 o;
 vec2 dec(vec4 c){ return uEnc > .5 ? (c.xy - 128./255.)*2. : c.xy; }
 vec4 enc(vec2 v){ return uEnc > .5 ? vec4(v*.5 + 128./255., 0., 1.) : vec4(v, 0., 1.); }
 void main(){
   vec2 uv = gl_FragCoord.xy/uFRes, px = 1./uFRes;
   vec2 back = uv - dec(texture(uPrev, uv))*.3;
-  vec2 v = dec(texture(uPrev, back));
+  vec4 pv = texture(uPrev, back);
+  vec2 v = dec(pv);
+  float dye = pv.z*uDyeDecay;
   vec2 b = dec(texture(uPrev, back + vec2(px.x, 0.))) + dec(texture(uPrev, back - vec2(px.x, 0.)))
          + dec(texture(uPrev, back + vec2(0., px.y))) + dec(texture(uPrev, back - vec2(0., px.y)));
   v = mix(v, b*.25, .45)*uDecay;
   vec2 pa = (uv - uP0)*vec2(uAspect, 1.), ba = (uP1 - uP0)*vec2(uAspect, 1.);
   float hh = clamp(dot(pa, ba)/max(dot(ba, ba), 1e-8), 0., 1.), d = length(pa - ba*hh);
   v += uVel*exp(-d*d/(uRad*uRad));
-  o = enc(clamp(v, -.22, .22)); }`;
+  dye += uDyeIn*clamp(length(uVel)*40., 0., 1.)*exp(-d*d/(uRad*uRad*.45));
+  if (uDyeIn > 0.) v += vec2(sin(uv.y*9. + uTime*.4), cos(uv.x*7. - uTime*.3))*.00018*uDyeIn;   // a slow swirl, so paint curls
+  if (uBurst.z > 0.) {   // a splash: petals of paint pushed out from the click
+    vec2 pb = (uv - uBurst.xy)*vec2(uAspect, 1.); float r = length(pb), a = atan(pb.y, pb.x);
+    float petal = .35 + .65*pow(.5 + .5*sin(a*6. + uTime*3.), 2.);
+    v += pb/max(r, 1e-4)*uBurst.z*petal*exp(-r*r/.01);
+    dye += uBurst.z*9.*petal*exp(-pow(r - .03, 2.)/.0004);
+  }
+  o = vec4(enc(clamp(v, -.22, .22)).xy, clamp(dye, 0., 1.), 1.); }`;
 
-// ---------------------------------------------------------------- GL plumbing
+// ================================================================ GL plumbing
 function compile(type, src) {
   const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
   if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
@@ -337,7 +615,7 @@ function program(fs) {
   p.u = {}; return p;
 }
 const U = (p, n) => (n in p.u ? p.u[n] : (p.u[n] = gl.getUniformLocation(p, n)));
-const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+gl.bindVertexArray(gl.createVertexArray());
 gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
@@ -349,16 +627,17 @@ function tex(w, h, internal, format, type, filter) {
   return t;
 }
 function target(t) { const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return f; }
-function uploadCanvas(t, src) {
+function uploadCanvas(t, src, mips = true) {
   if (!t) t = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, t); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src); gl.generateMipmap(gl.TEXTURE_2D);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+  if (mips) gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mips ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   return t;
 }
 
-// ---------------------------------------------------------------- math
+// ================================================================ small maths
 const v3 = {
   add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
   mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
@@ -369,80 +648,141 @@ const basis = (pos, tgt) => { const f = v3.norm(v3.sub(tgt, pos)); const r = v3.
 const ease = (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const lerp = (a, b, t) => a + (b - a) * t;
 const FOV = .44;
-
-// ---------------------------------------------------------------- the font for "funnnnn"
-const FUN = {
-  fraunces: { css: '"Fraunces", Georgia, serif', style: "italic", weight: 800, scale: 1.08, track: -.02 },
-  shrikhand: { css: '"Shrikhand", Georgia, cursive', style: "normal", weight: 400, scale: .94, track: 0 },
-  caveat: { css: '"Caveat Brush", "Comic Sans MS", cursive', style: "normal", weight: 400, scale: 1.24, track: .01 },
-  pixel: { css: '"Pixelify Sans", ui-monospace, monospace', style: "normal", weight: 700, scale: 1.0, track: 0 },
-};
-let funKey = "fraunces";
-try { funKey = localStorage.getItem("operandi:funfont") || funKey; } catch {}
-if (qs.get("font") && FUN[qs.get("font")]) funKey = qs.get("font");
-function applyFunCss() {
-  const f = FUN[funKey], r = document.documentElement.style;
-  r.setProperty("--font-fun", f.css); r.setProperty("--fun-style", f.style); r.setProperty("--fun-weight", f.weight); r.setProperty("--fun-scale", f.scale);
-  document.querySelectorAll(".picker button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f === funKey)));
+// a damped spring on o[key] towards target (its velocity is o["v" + key])
+function spring(o, key, target, k, d, dt) {
+  const v = "v" + key;
+  for (let i = 0; i < 2; i++) { const h = dt / 2; o[v] += (target - o[key]) * k * h; o[v] *= Math.exp(-d * h); o[key] += o[v] * h; }
+}
+// the little wave the n's do when left alone (in em; negative is up), the same as the CSS one on the real home page
+function waveY(t) {
+  const p = ((t % 2.6) + 2.6) % 2.6 / 2.6, eo = (k) => 1 - (1 - k) * (1 - k);
+  if (p < .2) return -.12 * eo(p / .2);
+  if (p < .4) return lerp(-.12, .03, eo((p - .2) / .2));
+  if (p < .6) return lerp(.03, 0, eo((p - .4) / .2));
+  return 0;
 }
 
-// ---------------------------------------------------------------- headline texture
+// ================================================================ headline texture
+// The main lines are drawn without the n's and the full stop; one "n" and one "." sit on a strip below, and the shader
+// places as many n's as there are, each moved on its own (so "funnnnn" can grow, hop, stretch and tumble).
 const textCanvas = document.createElement("canvas");
-let textTex = null, T = { aspect: 3, boxes: [], offs: [], em: .2, mainV: 1, mainH: 1, bands: [9, 9, 9, 9], lineH: .1, pad: .05 };
-function drawHeadline(lines) {
-  const size = 200, lh = size * .98, pad = size * .3, fun = FUN[funKey];
+let textTex = null;
+const TX = { aspect: 3, mainV: 1, mainH: 1, W: 1, H: 1, bands: [9, 9, 9, 9], lineH: .1, pad: .05, pen: [0, 0], adv: .05,
+  nG: [0, 0, 0, 0], nStrip: [0, 0], dotG: [0, 0, 0, 0], dotStrip: [0, 0], em: .2, emX: .1 };
+function drawHeadline() {
+  const size = 200, lh = size * .98, pad = size * .3;
   const ctx = textCanvas.getContext("2d");
   const DISPLAY = `800 ${size}px "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif`;
-  const FUNF = `${fun.style} ${fun.weight} ${Math.round(size * fun.scale)}px ${fun.css}`;
-  // which characters are in "funnnnn" (they get the other font)
-  const funMask = lines.map((line) => { const at = line.indexOf("funnnnn"); return [...line].map((_, i) => at >= 0 && i >= at && i < at + 7); });
-  const fontOf = (li, i) => (funMask[li][i] ? FUNF : DISPLAY);
-  const trackOf = (li, i) => (funMask[li][i] ? fun.track : -.045) * size;
-  const widthOf = (li) => [...lines[li]].reduce((w, ch, i) => { ctx.font = fontOf(li, i); return w + ctx.measureText(ch).width + trackOf(li, i); }, 0);
-  const W = Math.ceil(Math.max(...lines.map((_, li) => widthOf(li))) + pad * 2), mainH = Math.ceil(lh * lines.length + pad * 2), H = mainH + Math.ceil(lh * 1.3 + pad);
+  const FUNF = `italic 800 ${Math.round(size * 1.08)}px "Fraunces", Georgia, serif`;
+  const lines = [["Learning"], ["Python should"], ["be ", "fu"]];   // pieces: display, then fun
+  const T_D = -.045 * size, T_F = -.02 * size;
+  const runWidth = (str, font, tr) => { ctx.font = font; return [...str].reduce((w, ch) => w + ctx.measureText(ch).width + tr, 0); };
+  ctx.font = FUNF; const nm = ctx.measureText("n"); const nAdv = nm.width + T_F;
+  ctx.font = DISPLAY; const dm = ctx.measureText(".");
+  const w3 = runWidth("be ", DISPLAY, T_D) + runWidth("fu", FUNF, T_F);
+  const W = Math.ceil(Math.max(runWidth("Learning", DISPLAY, T_D), runWidth("Python should", DISPLAY, T_D), w3 + nAdv * 5 + dm.width) + pad * 2);
+  const mainH = Math.ceil(lh * 3 + pad * 2), H = mainH + Math.ceil(lh * 1.3 + pad);
   textCanvas.width = W; textCanvas.height = H;
   ctx.fillStyle = "#fff";
-  const stripBase = mainH + pad * .5 + size * .95;
-  const boxes = [], offs = [], bands = [];
-  lines.forEach((line, li) => {
+  const bands = [];
+  let pen3 = 0, base3 = 0;
+  lines.forEach((pieces, li) => {
     let x = pad; const base = pad + lh * li + size * .8;
     bands.push((base + size * .22) / H);
-    [...line].forEach((ch, i) => {
-      ctx.font = fontOf(li, i);
-      const cw = ctx.measureText(ch).width, tr = trackOf(li, i);
-      const at = line.indexOf("funnnnn");
-      if (at >= 0 && i >= at + 2 && i < at + 7) {
-        // the waving n's go on a strip below, spaced apart; each is fetched from there with its own bob
-        const k = boxes.length, sx = pad + k * (cw + size * .45);
-        ctx.fillText(ch, sx, stripBase);
-        boxes.push([(x + tr / 2) / W, (base - size * .95) / H, (x + cw + tr / 2) / W, (base + size * .22) / H]);
-        offs.push((sx - x) / W, (stripBase - base) / H);
-      } else ctx.fillText(ch, x, base);
-      x += cw + tr;
+    pieces.forEach((str, pi) => {
+      const fun = li === 2 && pi === 1;
+      ctx.font = fun ? FUNF : DISPLAY;
+      for (const ch of str) { ctx.fillText(ch, x, base); x += ctx.measureText(ch).width + (fun ? T_F : T_D); }
     });
+    if (li === 2) { pen3 = x; base3 = base; }
   });
   while (bands.length < 4) bands.push(9);
-  T = { aspect: W / mainH, boxes, offs, em: size / H, mainV: mainH / H, mainH, bands, lineH: lh / H, pad: pad / W };
+  const stripBase = mainH + pad * .5 + size * .95, m = 6;
+  ctx.font = FUNF; ctx.fillText("n", pad, stripBase);
+  const dotX = pad + nm.width + size * .6;
+  ctx.font = DISPLAY; ctx.fillText(".", dotX, stripBase);
+  const box = (mt) => [(-mt.actualBoundingBoxLeft - m) / W, (-mt.actualBoundingBoxAscent - m) / H, (mt.actualBoundingBoxRight + m) / W, (mt.actualBoundingBoxDescent + m) / H];
+  Object.assign(TX, { aspect: W / mainH, mainV: mainH / H, mainH, W, H, bands, lineH: lh / H, pad: pad / W,
+    pen: [pen3 / W, base3 / H], adv: nAdv / W, nG: box(nm), nStrip: [pad / W, stripBase / H], dotG: box(dm), dotStrip: [dotX / W, stripBase / H], em: size / H, emX: size / W });
   textTex = uploadCanvas(textTex, textCanvas);
 }
 
-// ---------------------------------------------------------------- the code panel: types, runs, reacts
+// ================================================================ "funnnnn": the n's and the full stop as little bodies
+const FUN = { mode: "all", items: [], dot: null, drag: null, shake: [], lastSign: 0, tumbleUntil: 0, hoverIdx: -1 };
+const body = () => ({ x: 0, y: 0, r: 0, s: 1, vx: 0, vy: 0, vr: 0, vs: 0, phys: false, dying: false, delay: 0 });
+function resetFun() { FUN.items = Array.from({ length: 5 }, body); FUN.dot = body(); }
+resetFun();
+const funOn = (m) => FUN.mode === "all" || FUN.mode === m;
+const liveN = () => FUN.items.filter((b) => !b.dying).length;
+function addN() {
+  if (liveN() >= 14) return false;
+  const b = body(); b.s = 0; b.vs = 6; FUN.items.splice(liveN(), 0, b);
+  FUN.items.forEach((it, i) => { if (!it.dying && it !== b) { it.vy -= 2.6; it.delay = i * .025; } });
+  FUN.dot.vy -= 2; return true;
+}
+function removeN() { const live = FUN.items.filter((b) => !b.dying); if (live.length > 5) live[live.length - 1].dying = true; }
+function hop(i, power = 1) { const b = FUN.items[i]; if (b && !b.phys) { b.vy = Math.min(b.vy, -5.2 * power); b.vs += 1.4 * power; b.vr += (Math.random() - .5) * 3 * power; } }
+function tumble(now) {
+  FUN.tumbleUntil = now + 1700;
+  [...FUN.items, FUN.dot].forEach((b) => { b.phys = true; b.vy = -(3 + Math.random() * 5); b.vx = (Math.random() - .5) * 7; b.vr = (Math.random() - .5) * 16; });
+}
+function stepFun(now, dt) {
+  const G = 38, FLOOR = 1.5;   // em/s², and how far below the line they land
+  const tumbling = now < FUN.tumbleUntil;
+  [...FUN.items, FUN.dot].forEach((b) => {
+    if (b.phys && tumbling) {
+      b.vy += G * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.r += b.vr * dt;
+      if (b.y > FLOOR) { b.y = FLOOR; b.vy *= -.42; b.vx *= .7; b.vr *= .6; if (Math.abs(b.vy) < 1) b.vy = 0; }
+      return;
+    }
+    if (b.phys) { b.phys = false; b.delay = Math.random() * .25; }
+    if (b.delay > 0) { b.delay -= dt; return; }
+    spring(b, "x", 0, 120, 13, dt); spring(b, "y", 0, 160, 11, dt); spring(b, "r", 0, 140, 9, dt);
+    spring(b, "s", b.dying ? 0 : 1, 260, 12, dt);
+  });
+  FUN.items = FUN.items.filter((b) => !(b.dying && b.s < .03));
+  if (FUN.drag && funOn("stretch") && FUN.drag.moved) FUN.items.forEach((b) => { b.r += (Math.max(-.5, Math.min(.5, FUN.drag.vx * -.02)) - b.r) * .25; });
+}
+// per n: dx, dy (texture units), angle, scale. Each n sits after the ones before it by their size, so a growing or
+// shrinking n pushes the rest along smoothly; the opening pops them in after their line has risen.
+function funUniforms(it) {
+  const arr = new Float32Array(56); let cum = 0;
+  const n = Math.min(14, FUN.items.length);
+  for (let i = 0; i < n; i++) {
+    const b = FUN.items[i];
+    const pop = it > 3 ? 1 : clamp01((it - .95 - i * .06) / .3), pe = 1 - Math.pow(1 - pop, 3);
+    const wave = REDUCED || b.phys ? 0 : waveY(time - i * .08);
+    arr.set([(cum - i) * TX.adv + b.x * TX.emX, (b.y + wave) * TX.em, b.r, Math.max(0, b.s) * pe], i * 4);
+    cum += clamp01(b.s);
+  }
+  const d = FUN.dot, dpop = it > 3 ? 1 : clamp01((it - 1.3) / .3);
+  return { arr, n, dot: [(cum - n) * TX.adv + d.x * TX.emX, d.y * TX.em, d.r, d.s * dpop], cum };
+}
+
+// ================================================================ the code panel: types, runs, reacts
 const conCanvas = document.createElement("canvas");
 const CW = 1100, CH = 740; conCanvas.width = CW; conCanvas.height = CH;
 const cx2 = conCanvas.getContext("2d");
 const EXAMPLES = [
-  { name: "Hello", code: 'name = "Ada"\nprint(f"Hello, {name}!")\nprint("2 + 3 =", 2 + 3)', out: ["Hello, Ada!", "2 + 3 = 5"] },
-  { name: "Maths", code: "price = 12.5\ntax = price * 0.06\nprint(round(price + tax, 2))", out: ["13.25"] },
-  { name: "A decision", code: 'temp = 31\nif temp > 30:\n    print("Hot today")\nelse:\n    print("Nice out")', out: ["Hot today"] },
+  { name: "Hello", code: 'name = "Ada"\nprint(f"Hello, {name}!")\nprint("2 + 3 =", 2 + 3)', out: ["Hello, Ada!", "2 + 3 = 5"],
+    tests: ["Prints two lines", "First line says Hello", "Shows 2 + 3 = 5"], bits: 12 },
+  { name: "Maths", code: "price = 12.5\ntax = price * 0.06\nprint(round(price + tax, 2))", out: ["13.25"],
+    tests: ["Uses price and tax", "Rounds to 2 places", "Prints 13.25"], bits: 12 },
+  { name: "A decision", code: 'temp = 31\nif temp > 30:\n    print("Hot today")\nelse:\n    print("Nice out")', out: ["Hot today"],
+    tests: ["Prints one line", "Hot when temp is over 30", "Works for other temps"], bits: 25 },
   { name: "A mistake", code: 'print("Hello)', err: ["SyntaxError: unterminated string literal"],
-    help: "You opened a quote but didn't close it. Add \" before the )." },
+    help: "You opened a quote but didn't close it. Add \" before the ).", tests: ["Runs without an error", "Prints Hello"], bits: 0 },
 ];
-const CON = { ex: 0, typed: 0, typing: false, rate: 34, runAt: -1, outAt: -1, press: -1, auto: !REDUCED, doneAt: 0, hot: null, blink: true };
-let conTex = null, conRects = {}, conAnimating = true;
-const KW = /^(if|elif|else|and|or|not|True|False)$/, FN = /^(print|round)$/;
+// the lesson the story types as you scroll
+const LESSON = { name: "Lesson", code: 'name = "Ada"\nage = 36\nprint(name, "is", age)', out: ["Ada is 36"], tests: ["Makes name and age", "Prints Ada is 36", "No answer typed in by hand"], bits: 12 };
+const CON = { ex: 0, typed: 0, typing: false, rate: 34, runAt: -1, outAt: -1, press: -1, auto: !REDUCED, doneAt: 0, hot: null, blink: true, story: false };
+const curEx = () => (CON.story ? LESSON : EXAMPLES[CON.ex]);
+let conTex = null, conRects = {}, conAnimating = true, conDirty = true;
+const KW = /^(if|elif|else|and|or|not|True|False)$/, FNW = /^(print|round)$/;
 const tokens = (line) => line.match(/(#.*$|f?"[^"]*"?|\b\d+(?:\.\d+)?\b|\w+|\s+|[^\w\s])/g) || [];
-const tokColor = (t) => /^f?"/.test(t) ? "#b6e8a4" : /^\d/.test(t) ? "#ffc38a" : KW.test(t) ? "#c9a6ff" : FN.test(t) ? "#8fd1ff" : "#e3e8ff";
+const tokColor = (t) => /^f?"/.test(t) ? "#b6e8a4" : /^\d/.test(t) ? "#ffc38a" : KW.test(t) ? "#c9a6ff" : FNW.test(t) ? "#8fd1ff" : "#e3e8ff";
 function drawConsole(now) {
   const x = cx2; x.clearRect(0, 0, CW, CH);
   const rr = (X, Y, w, h, r) => { x.beginPath(); x.roundRect(X, Y, w, h, r); };
@@ -450,23 +790,26 @@ function drawConsole(now) {
   const g = x.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, "rgba(255,255,255,.07)"); g.addColorStop(.25, "rgba(255,255,255,0)");
   x.fillStyle = g; x.fill(); x.lineWidth = 2; x.strokeStyle = "rgba(255,255,255,.14)"; x.stroke();
   [["#ff7a7a", 44], ["#ffd36e", 72], ["#7ee08a", 100]].forEach(([c, cx]) => { x.fillStyle = c; x.beginPath(); x.arc(cx, 46, 9, 0, 7); x.fill(); });
-  x.font = '500 25px "JetBrains Mono", ui-monospace, monospace'; x.fillStyle = "#c8d0f0"; x.fillText("main.py", 138, 55);
-  x.font = '600 23px Inter, system-ui, sans-serif';
-  let cx = CW - 36; conRects = {};
-  for (let i = EXAMPLES.length - 1; i >= 0; i--) {
-    const w = x.measureText(EXAMPLES[i].name).width + 36; cx -= w;
-    rr(cx, 24, w, 46, 23);
-    x.fillStyle = i === CON.ex ? "rgba(255,255,255,.16)" : CON.hot === "ex" + i ? "rgba(255,255,255,.09)" : "rgba(255,255,255,0)"; x.fill();
-    x.strokeStyle = "rgba(255,255,255,.18)"; x.lineWidth = 2; x.stroke();
-    x.fillStyle = i === CON.ex ? "#fff" : "#c8d0f0"; x.fillText(EXAMPLES[i].name, cx + 18, 55);
-    conRects["ex" + i] = [cx, 24, w, 46]; cx -= 10;
-  }
+  x.font = '500 25px "JetBrains Mono", ui-monospace, monospace'; x.fillStyle = "#c8d0f0"; x.fillText(CON.story ? "lesson.py" : "main.py", 138, 55);
+  conRects = {};
+  if (!CON.story) {
+    x.font = '600 23px Inter, system-ui, sans-serif';
+    let cx = CW - 36;
+    for (let i = EXAMPLES.length - 1; i >= 0; i--) {
+      const w = x.measureText(EXAMPLES[i].name).width + 36; cx -= w;
+      rr(cx, 24, w, 46, 23);
+      x.fillStyle = i === CON.ex ? "rgba(255,255,255,.16)" : CON.hot === "ex" + i ? "rgba(255,255,255,.09)" : "rgba(255,255,255,0)"; x.fill();
+      x.strokeStyle = "rgba(255,255,255,.18)"; x.lineWidth = 2; x.stroke();
+      x.fillStyle = i === CON.ex ? "#fff" : "#c8d0f0"; x.fillText(EXAMPLES[i].name, cx + 18, 55);
+      conRects["ex" + i] = [cx, 24, w, 46]; cx -= 10;
+    }
+  } else { x.font = '500 22px Inter, system-ui, sans-serif'; x.fillStyle = "#8b93b3"; x.textAlign = "right"; x.fillText("Lesson 2: Variables", CW - 40, 55); x.textAlign = "left"; }
   x.fillStyle = "rgba(255,255,255,.1)"; x.fillRect(0, 92, CW, 2);
-  // the code, typed so far, with a blinking caret where the typing is
-  const ex = EXAMPLES[CON.ex], n = Math.floor(CON.typed);
+  const ex = curEx(), n = Math.floor(CON.typed);
   x.font = '400 30px "JetBrains Mono", ui-monospace, monospace';
   let used = 0, caret = [96, 150];
-  ex.code.split("\n").forEach((line, li) => {
+  const lines = ex.code.split("\n");
+  lines.forEach((line, li) => {
     if (used > n) return;
     const y = 150 + li * 46;
     x.fillStyle = "#4a5372"; x.fillText(String(li + 1), 40, y);
@@ -477,80 +820,214 @@ function drawConsole(now) {
       if (s.length < t.length) break;
     }
     caret = [px, y];
-    used = Math.max(used, [...ex.code.split("\n").slice(0, li + 1)].join("\n").length) + 1;   // past this line and its newline
+    used = lines.slice(0, li + 1).join("\n").length + 1;
   });
   const blinkOn = CON.typing || Math.floor(now / 530) % 2 === 0;
   if (blinkOn && CON.outAt < 0) { x.fillStyle = "#a9bcff"; x.fillRect(caret[0] + 2, caret[1] - 27, 3, 34); }
-  // the Run button sits on the divider; it presses in when it runs
   const ry = 386;
   x.fillStyle = "rgba(255,255,255,.1)"; x.fillRect(0, ry + 26, CW, 2);
   const pr = CON.press > 0 ? clamp01((now - CON.press) / 260) : 1, ps = 1 - .1 * Math.sin(pr * Math.PI);
-  x.save(); x.translate(CW - 114, ry + 25); x.scale(ps, ps); x.translate(-(CW - 114), -(ry + 25));
-  rr(CW - 196, ry - 4, 164, 58, 29); x.fillStyle = CON.hot === "run" || pr < 1 ? "#c4d1ff" : "#a9bcff"; x.fill();
-  x.fillStyle = "#0b0c18"; x.beginPath(); x.moveTo(CW - 160, ry + 13); x.lineTo(CW - 160, ry + 39); x.lineTo(CW - 138, ry + 26); x.fill();
-  x.font = '600 26px Inter, system-ui, sans-serif'; x.fillText("Run", CW - 124, ry + 35);
+  const label = CON.story ? "Submit" : "Run", bw = CON.story ? 204 : 164, bx = CW - 32 - bw;
+  x.save(); x.translate(bx + bw / 2, ry + 25); x.scale(ps, ps); x.translate(-(bx + bw / 2), -(ry + 25));
+  rr(bx, ry - 4, bw, 58, 29); x.fillStyle = CON.hot === "run" || pr < 1 ? "#c4d1ff" : "#a9bcff"; x.fill();
+  x.fillStyle = "#0b0c18"; x.beginPath(); x.moveTo(bx + 36, ry + 13); x.lineTo(bx + 36, ry + 39); x.lineTo(bx + 58, ry + 26); x.fill();
+  x.font = '600 26px Inter, system-ui, sans-serif'; x.fillText(label, bx + 72, ry + 35);
   x.restore();
-  conRects.run = [CW - 196, ry - 4, 164, 58];
-  // output: each line slides in after the last
+  conRects.run = [bx, ry - 4, bw, 58];
   const oy = 470; let anim = CON.typing || CON.runAt > 0 || pr < 1;
   if (CON.outAt > 0) {
-    const lines = ex.err || ex.out;
-    const lp = clamp01((now - CON.outAt) / 260);
-    x.globalAlpha = lp; x.font = '500 22px Inter, system-ui, sans-serif';
+    const out = ex.err || ex.out;
+    x.globalAlpha = clamp01((now - CON.outAt) / 260); x.font = '500 22px Inter, system-ui, sans-serif';
     x.fillStyle = ex.err ? "#ff9a8a" : "#8b93b3"; x.fillText(ex.err ? "Error" : "Output", 40, oy);
     x.font = '400 30px "JetBrains Mono", ui-monospace, monospace';
-    lines.forEach((l, i) => {
+    out.forEach((l, i) => {
       const p = clamp01((now - CON.outAt - 120 - i * 130) / 300), e = 1 - Math.pow(1 - p, 3);
       x.globalAlpha = e; x.fillStyle = ex.err ? "#ffc9bf" : "#eef1ff"; x.fillText(l, 40 - (1 - e) * 22, oy + 52 + i * 44);
       if (p < 1) anim = true;
     });
-    if (ex.help) {
-      const p = clamp01((now - CON.outAt - 260 - lines.length * 130) / 320), e = 1 - Math.pow(1 - p, 3);
-      x.globalAlpha = e; x.font = '400 25px Inter, system-ui, sans-serif'; x.fillStyle = "#dfe4ff";
-      x.fillText(ex.help, 40 - (1 - e) * 22, oy + 52 + lines.length * 44 + 18);
-      if (p < 1) anim = true;
-    }
     x.globalAlpha = 1;
   }
   CON.blink = blinkOn; conAnimating = anim;
   conTex = uploadCanvas(conTex, conCanvas);
 }
-function typeExample(i, rate) { CON.ex = i; CON.typed = 0; CON.typing = true; CON.rate = rate; CON.outAt = -1; CON.runAt = -1; }
+function typeExample(i, rate) { CON.story = false; CON.ex = i; CON.typed = 0; CON.typing = true; CON.rate = rate; CON.outAt = -1; CON.runAt = -1; SAT.runAt = -1; conDirty = true; }
 function pressRun(now) {
-  CON.press = now; CON.outAt = now + 160; CON.doneAt = now + 1600;
-  const ex = EXAMPLES[CON.ex];
+  CON.press = now; CON.outAt = now + 160; CON.doneAt = now + 2200; SAT.runAt = now + 200; satDirty = true;
+  const ex = curEx();
   $("conLive").textContent = (ex.err ? "Error: " : "Output: ") + (ex.err || ex.out).join(", ") + (ex.help ? ". " + ex.help : "");
 }
 function stepConsole(now, dt) {
-  const ex = EXAMPLES[CON.ex];
+  const ex = curEx();
   if (CON.typing) {
     CON.typed += CON.rate * dt;
     if (CON.typed >= ex.code.length) { CON.typed = ex.code.length; CON.typing = false; CON.runAt = now + 320; }
   }
   if (CON.runAt > 0 && now >= CON.runAt) { CON.runAt = -1; pressRun(now); }
-  // until you take over, it shows the next example every few seconds
-  if (CON.auto && introDone && !CON.typing && CON.runAt < 0 && CON.outAt > 0 && now - CON.doneAt > 6500) typeExample((CON.ex + 1) % EXAMPLES.length, 30);
+  // until you take over, it shows the next example every few seconds (only while the hero is on screen)
+  if (CON.auto && introDone && !CON.story && !CON.typing && CON.runAt < 0 && CON.outAt > 0 && now - CON.doneAt > 6500 && page.heroP < .1)
+    typeExample((CON.ex + 1) % EXAMPLES.length, 30);
   const blinkOn = CON.typing || Math.floor(now / 530) % 2 === 0;
   if (conAnimating || blinkOn !== CON.blink || conDirty) { conDirty = false; drawConsole(now); }
 }
-let conDirty = true;
-(function conKeys() {
-  const box = $("conKeys");
-  EXAMPLES.forEach((e, i) => { const b = document.createElement("button"); b.className = "sr"; b.type = "button"; b.textContent = "Run example: " + e.name;
-    b.onclick = () => { CON.auto = false; typeExample(i, 80); }; box.append(b); });
-})();
 
-// ---------------------------------------------------------------- state
+// ================================================================ result cards round the box
+// Each card is drawn into its own rectangle of one atlas canvas; the atlas is uploaded when a card changes.
+const SAT_LAYOUT = {   // atlas rect (px, drawn at 2x), and where it floats: offset from the box centre in box half sizes, depth in px (phone: ph)
+  tests: { r: [0, 0, 520, 250], at: [-.35, 1.34, 70], ph: [-.3, -1.22, 70] },
+  mark: { r: [530, 0, 230, 230], at: [1.12, -.5, 120], ph: [.76, -1.22, 110] },
+  bits: { r: [770, 0, 300, 96], at: [.55, -1.06, 95], ph: [.5, 1.25, 95] },
+  level: { r: [1080, 0, 400, 130], at: [.62, 1.22, 110], ph: [-.5, 1.3, 100] },
+  hint: { r: [0, 260, 520, 200], at: [-.66, -.9, 100], ph: [-.1, -1.25, 90] },
+  lesson: { r: [530, 260, 560, 300], at: [-1.2, .3, 70], ph: [-.2, -1.15, 70] },
+  boss: { r: [1100, 260, 480, 150], at: [-.18, 1.24, 90], ph: [0, -1.25, 90] },
+};
+const SAT_KEYS = Object.keys(SAT_LAYOUT);
+const satAtlas = document.createElement("canvas"); satAtlas.width = 1600; satAtlas.height = 600;
+const satCtx = satAtlas.getContext("2d");
+let satTex = null, satDirty = true;
+const SAT = { runAt: -1, a: Object.fromEntries(SAT_KEYS.map((k) => [k, 0])), bitsY: 0, boss: 0, hitAt: -1, key: "" };
+SAT_KEYS.forEach((k) => (SAT.a["v" + k] = 0));
+function card(key, draw) {
+  const [X, Y, w, h] = SAT_LAYOUT[key].r, x = satCtx;
+  x.save(); x.beginPath(); x.rect(X, Y, w, h); x.clip(); x.clearRect(X, Y, w, h); x.translate(X, Y);
+  x.beginPath(); x.roundRect(2, 2, w - 4, h - 4, 26); x.fillStyle = "rgba(16, 18, 36, .93)"; x.fill();
+  x.lineWidth = 2; x.strokeStyle = "rgba(255,255,255,.14)"; x.stroke();
+  draw(x, w, h); x.restore();
+}
+const FONT = (w, s) => `${w} ${s}px Inter, system-ui, sans-serif`;
+const BIG = (s) => `800 ${s}px "Bricolage Grotesque", Inter, sans-serif`;
+function wrap(x, text, X, Y, maxW, lh) {
+  let line = "", y = Y;
+  for (const word of text.split(" ")) { const t = line ? line + " " + word : word; if (x.measureText(t).width > maxW && line) { x.fillText(line, X, y); line = word; y += lh; } else line = t; }
+  if (line) x.fillText(line, X, y);
+}
+function drawSats({ ex, ticks, fail, mark, bits, hp, bitsTotal }) {
+  card("tests", (x, w) => {
+    x.font = FONT(600, 24); x.fillStyle = "#c8d0f0"; x.fillText("Tests", 28, 46);
+    x.font = FONT(500, 21); x.fillStyle = "#8b93b3"; x.textAlign = "right"; x.fillText(`${Math.min(ticks, ex.tests.length)} of ${ex.tests.length}`, w - 28, 46); x.textAlign = "left";
+    ex.tests.forEach((t, i) => {
+      const y = 92 + i * 52, done = i < ticks, bad = done && fail;
+      x.beginPath(); x.roundRect(28, y - 20, 74, 32, 16);
+      x.fillStyle = !done ? "rgba(255,255,255,.06)" : bad ? "rgba(255,120,100,.18)" : "rgba(126,224,161,.16)"; x.fill();
+      x.font = FONT(700, 16); x.fillStyle = !done ? "#5d6584" : bad ? "#ff9a8a" : "#7ee0a1"; x.textAlign = "center";
+      x.fillText(!done ? "..." : bad ? "FAIL" : "PASS", 65, y + 2); x.textAlign = "left";
+      x.font = FONT(500, 21); x.fillStyle = done ? "#e6e9fb" : "#6f7798"; x.fillText(t, 120, y + 3);
+    });
+  });
+  card("mark", (x, w, h) => {
+    const cx = w / 2, cy = h / 2 - 6, r = 74;
+    x.lineWidth = 12; x.strokeStyle = "rgba(255,255,255,.08)"; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.stroke();
+    x.strokeStyle = mark >= 9.99 ? "#7ee0a1" : "#a9bcff"; x.lineCap = "round";
+    if (mark > .05) { x.beginPath(); x.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (mark / 10)); x.stroke(); }
+    x.font = BIG(58); x.fillStyle = "#f1eff9"; x.textAlign = "center"; x.fillText(String(Math.round(mark)), cx, cy + 18);
+    x.font = FONT(500, 20); x.fillStyle = "#8b93b3"; x.fillText("mark out of 10", cx, h - 22); x.textAlign = "left";
+  });
+  card("bits", (x) => {
+    x.fillStyle = "#ffd36e"; x.beginPath(); x.arc(52, 48, 22, 0, 7); x.fill();
+    x.fillStyle = "#b8862b"; x.font = BIG(22); x.textAlign = "center"; x.fillText("B", 52, 56); x.textAlign = "left";
+    x.font = BIG(34); x.fillStyle = "#f1eff9"; x.fillText(`+${bits} Bits`, 92, 60);
+  });
+  card("level", (x, w) => {
+    x.font = FONT(500, 20); x.fillStyle = "#8b93b3"; x.fillText("Level 1", 28, 44);
+    x.font = BIG(36); x.fillStyle = "#f1eff9"; x.fillText("Operator", 28, 92);
+    x.textAlign = "right"; x.font = FONT(500, 20); x.fillStyle = "#8b93b3"; x.fillText("Bits", w - 28, 44);
+    x.font = BIG(36); x.fillStyle = "#ffd36e"; x.fillText(String(Math.round(bitsTotal)), w - 28, 92); x.textAlign = "left";
+  });
+  card("hint", (x, w) => {
+    x.font = FONT(600, 22); x.fillStyle = "#ffd36e"; x.fillText("What went wrong", 28, 48);
+    x.font = FONT(400, 22); x.fillStyle = "#e6e9fb"; wrap(x, EXAMPLES[3].help, 28, 92, w - 56, 32);
+  });
+  card("lesson", (x, w) => {
+    x.font = FONT(500, 20); x.fillStyle = "#8b93b3"; x.fillText("Lesson 2", 30, 48);
+    x.font = BIG(40); x.fillStyle = "#f1eff9"; x.fillText("Variables", 30, 98);
+    x.font = FONT(400, 22); x.fillStyle = "#c8d0f0"; wrap(x, "A variable is a name for a value. Make one with =, then use the name.", 30, 142, w - 60, 32);
+    x.beginPath(); x.roundRect(30, 214, w - 60, 56, 14); x.fillStyle = "rgba(255,255,255,.06)"; x.fill();
+    x.font = '400 24px "JetBrains Mono", ui-monospace, monospace'; x.fillStyle = "#b6e8a4"; x.fillText('name = "Ada"', 52, 250);
+  });
+  card("boss", (x, w) => {
+    x.font = FONT(500, 20); x.fillStyle = "#ff9a6a"; x.fillText("Module 1 boss", 28, 44);
+    x.font = BIG(38); x.fillStyle = "#f1eff9"; x.fillText("GOLEM", 28, 90);
+    x.textAlign = "right"; x.font = FONT(600, 22); x.fillStyle = "#ffcfb3"; x.fillText(`${Math.round(hp)} / 100`, w - 28, 90); x.textAlign = "left";
+    x.beginPath(); x.roundRect(28, 108, w - 56, 16, 8); x.fillStyle = "rgba(255,255,255,.08)"; x.fill();
+    x.beginPath(); x.roundRect(28, 108, Math.max(16, (w - 56) * hp / 100), 16, 8); x.fillStyle = "#ff8a4c"; x.fill();
+  });
+  satTex = uploadCanvas(satTex, satAtlas, false);
+}
+
+// ================================================================ the course spiral
+const LESSONS = [
+  ["Your first program", "print() and text"], ["Variables", "Giving values a name"], ["Numbers and maths", "Calculating with Python"],
+  ["Working with text", "Joining, measuring, cleaning"], ["f-strings", "Putting values inside text"],
+  ["True or False", "Comparing values"], ["if", "Doing something only when…"], ["else", "Two paths"], ["elif", "Many paths"], ["and, or, not", "Combining conditions"],
+];
+const HELIX = [
+  ...LESSONS.slice(0, 5).map(([t, s2], i) => ({ m: "Module 1", k: `Module 1 · Lesson ${i + 1}`, t, s: s2, ix: i + 1 })),
+  { m: "Module 1", k: "Module 1 boss", t: "GOLEM", s: "Each challenge you pass lands a strike.", boss: "#ff8a4c" },
+  ...LESSONS.slice(5).map(([t, s2], i) => ({ m: "Module 2", k: `Module 2 · Lesson ${i + 1}`, t, s: s2, ix: i + 1 })),
+  { m: "Module 2", k: "Module 2 boss", t: "The Abyssal Maw", s: "A sleepy cat with a mouth full of tentacles.", boss: "#ff5c86" },
+  { m: "Module 3", k: "Module 3 · Coming soon", t: "Loops", s: "Repeating work without repeating yourself.", soon: true },
+  { m: "Modules 4 to 8", k: "Modules 4 to 8 · Coming soon", t: "Lists to real projects", s: "Functions, dictionaries, files, then your own.", soon: true },
+];
+const HX = { on: false, f: 0, cards: [], R: 430, rise: 156, step: 26, front: -1 };
+function buildHelix() {
+  HX.on = !REDUCED; if (!HX.on) return;
+  $("course").classList.add("helixed");
+  const ring = $("hring");
+  HELIX.forEach((h, i) => {
+    const el = document.createElement("div");
+    el.className = "hcard" + (h.boss ? " boss" : "") + (h.soon ? " soon" : "");
+    if (h.boss) el.style.setProperty("--c", h.boss);
+    const k = document.createElement("span"); k.className = "k"; k.textContent = h.k;
+    const t = document.createElement("b"); t.textContent = h.t;
+    const sub = document.createElement("span"); sub.className = "s"; sub.textContent = h.s;
+    const ix = document.createElement("i"); ix.className = "ix"; if (h.ix) ix.textContent = String(h.ix).padStart(2, "0");
+    el.append(k, t, sub, ix);
+    el.addEventListener("click", () => {   // bring that card to the front
+      const sec = $("course"), len = sec.offsetHeight - innerHeight;
+      scrollTo({ top: sec.offsetTop + len * i / (HELIX.length - 1), behavior: "smooth" });
+    });
+    ring.append(el); HX.cards.push(el);
+  });
+}
+function stepHelix(dt) {
+  if (!HX.on) return;
+  const sec = $("course"), H = innerHeight, top = sec.offsetTop, len = sec.offsetHeight - H;
+  if (scrollY < top - H * 1.2 || scrollY > top + len + H) return;
+  const ph = PHONE();
+  Object.assign(HX, ph ? { R: Math.min(200, innerWidth * .4), rise: 150, step: 26 } : { R: 430, rise: 156, step: 26 });
+  const want = clamp01((page.ys - top) / len) * (HELIX.length - 1);
+  HX.f = STILL ? want : lerp(HX.f, want, 1 - Math.pow(.002, dt));
+  $("hring").style.setProperty("--R", HX.R + "px");
+  HX.cards.forEach((el, i) => {
+    const rel = i - HX.f, ang = rel * HX.step, c = Math.cos(ang * Math.PI / 180);
+    let op = Math.abs(ang) > 95 ? 0 : clamp01((c - .12) / .6) * clamp01(1.25 - Math.abs(rel) * .16);
+    if (ph && rel < 0) op *= clamp01(1 + (rel + 1.2) * .9);   // on a phone, cards you've passed fade before reaching the title
+    el.style.transform = `translateY(${(rel * HX.rise).toFixed(1)}px) rotateY(${ang.toFixed(2)}deg) translateZ(${HX.R}px)`;
+    el.style.opacity = op.toFixed(3);
+    el.style.visibility = op < .01 ? "hidden" : "visible";
+    el.style.setProperty("--front", clamp01(1 - Math.abs(rel) * 1.4).toFixed(3));
+    el.style.setProperty("--ang", (ang * 4 + HX.f * 50).toFixed(1) + "deg");
+    el.style.zIndex = String(100 - Math.round(Math.abs(rel) * 10));
+  });
+  const fi = Math.round(HX.f);
+  if (fi !== HX.front) {   // the readout under the title says where you are, scrambling as it changes
+    HX.front = fi; const h = HELIX[fi];
+    $("nowK").textContent = h.m; $("nowT").textContent = h.boss ? "Boss: " + h.t : h.soon ? h.t : "Lesson " + h.ix;
+    const nt = $("nowT"); nt._final = null; scramble(nt, 420);
+  }
+}
+
+// ================================================================ page state
 let scene, post, fluid;
 let sceneTex, sceneFB, sw = 0, sh = 0, scale = PHONE() ? .5 : .62;
-let fl = [], fw = 0, fh = 0, fi = 0;
-let fluidEnc = floatFluid ? 0 : 1;
+let fl = [], fw = 0, fh = 0, fi = 0, fluidEnc = floatFluid ? 0 : 1;
 const mouse = { x: .5, y: .5, px: .5, py: .5, sx: 0, sy: 0, moved: false, cx: -1e4, cy: -1e4 };
-let scrollT = 0, scrollV = 0, zoomT = 1, zoomV = 1, time = 0, last = performance.now(), frameMs = 16;
-let rect = { x: 0, y: 0, w: 1, h: 1 }, con = null, dpr = 1;
+const burst = { x: .5, y: .5, s: 0 };
+let zoomT = 1, zoomV = 1, time = 0, last = performance.now(), frameMs = 16;
+let rect = { x: 0, y: 0, w: 1, h: 1 }, heroCon = null, storyCon = null, con = null, dpr = 1, conAlpha = 0, lastBoxes = null;
 let introStart = performance.now(), introT = 0, introDone = false, typedStarted = false;
-// The panel's pose on springs: turn (rx, ry), lift (scale), slide (ox, oy); it settles with a little bounce.
-const P = { rx: 0, ry: -1.25, s: 1, ox: 280, oy: 40, vrx: 0, vry: 0, vs: 0, vox: 0, voy: 0, gx: 0, gy: 0, gz: 0, hover: false };
+const P = { rx: .25, ry: -1.25, s: 1, ox: 280, oy: 40, vrx: 0, vry: 0, vs: 0, vox: 0, voy: 0, gx: 0, gy: 0, gz: 0, hover: false, shake: 0 };
+const page = { y: 0, ys: 0, heroP: 0, sp: 0, step: -1, after: 0, v: 0, lastY: 0, endP: 0 };
 
 function sizeTargets() {
   try { makeTargets(); }
@@ -577,34 +1054,66 @@ function makeTargets() {
   }
 }
 
+// Where the words, the button and the box go (CSS px): the hero at the top of the page, and the story spot while pinned.
 function placeAll() {
   const W = innerWidth, H = innerHeight, p = PHONE();
-  drawHeadline(["Learning", "Python should", "be funnnnn."]);
+  drawHeadline();
   const cta = $("cta");
   if (p) {
-    const w = W * .86; rect = { x: W * .07, y: 92, w, h: w / T.aspect };
+    const w = W * .86; rect = { x: W * .07, y: 92, w, h: w / TX.aspect };
     const cw = W * .9, ch = cw * CH / CW, ctaTop = rect.y + rect.h - 8;
-    con = { cx: W / 2, cy: Math.min(H - 120 - ch / 2, ctaTop + 86 + ch / 2), w: cw, h: ch, ry: -.06, rx: -.1, tilt: .6 };
-    cta.style.left = rect.x + T.pad * rect.w + "px"; cta.style.top = ctaTop + "px";
+    heroCon = { cx: W / 2, cy: Math.min(H - 110 - ch / 2, ctaTop + 96 + ch / 2), w: cw, h: ch, ry: -.06, rx: -.1, tilt: .6, sats: 1.45 };
+    const sw2 = W * .84;
+    storyCon = { cx: W / 2, cy: H * .34, w: sw2, h: sw2 * CH / CW, ry: -.05, rx: -.08, tilt: .6, sats: 1.45 };
+    cta.style.left = rect.x + TX.pad * rect.w + "px"; cta.style.top = ctaTop + "px";
   } else {
-    const w = Math.min(W * .44, H * .62 * T.aspect, 780); rect = { x: W * .055, y: H * .47 - w / T.aspect / 2 - 20, w, h: w / T.aspect };
-    const cw = Math.min(W * .4, 640, H * .7 * CW / CH), ch = cw * CH / CW;
-    con = { cx: W * .725, cy: H * .48, w: cw, h: ch, ry: -.3, rx: -.09, tilt: 1 };
-    cta.style.left = rect.x + T.pad * rect.w + "px"; cta.style.top = rect.y + rect.h - 6 + "px";
+    const w = Math.min(W * .44, H * .62 * TX.aspect, 780); rect = { x: W * .055, y: H * .47 - w / TX.aspect / 2 - 20, w, h: w / TX.aspect };
+    const cw = Math.min(W * .38, 620, H * .66 * CW / CH), ch = cw * CH / CW;
+    heroCon = { cx: W * .72, cy: H * .5, w: cw, h: ch, ry: -.3, rx: -.09, tilt: 1, sats: 1 };
+    const sw2 = Math.min(W * .36, 600, H * .62 * CW / CH);
+    storyCon = { cx: W * .66, cy: H * .52, w: sw2, h: sw2 * CH / CW, ry: -.16, rx: -.06, tilt: 1, sats: 1 };
+    cta.style.left = rect.x + TX.pad * rect.w + "px"; cta.style.top = rect.y + rect.h - 6 + "px";
   }
 }
 
-// ---------------------------------------------------------------- the panel's frame (shared by the shader and clicks)
+// Scrolling stays the browser's own (no hijacking); what it drives (the box moving over, the lesson typing, the steps)
+// follows a gently eased copy of it, so a mouse wheel's jumps still play smoothly.
+function readPage(dt) {
+  const H = innerHeight, y = scrollY, story = $("story");
+  page.v = page.v * .8 + (y - page.lastY) * .2; page.lastY = y; page.y = y;
+  page.ys = STILL || REDUCED || Math.abs(y - page.ys) > H * 3 ? y : lerp(page.ys, y, 1 - Math.pow(.0004, dt));
+  const ys = page.ys;
+  page.heroP = clamp01(ys / (H * .85));
+  const top = story.offsetTop, len = story.offsetHeight - H;
+  page.sp = clamp01((ys - top) / len);
+  page.after = y - (top + len);
+  const step = ys < top - H * .35 ? -1 : ys - (top + len) > H * .2 ? 4 : Math.min(3, Math.floor(page.sp * 4 + .0001));
+  if (step !== page.step) {
+    page.step = step;
+    document.querySelectorAll("#steps li").forEach((li) => { const s = +li.dataset.s; li.classList.toggle("on", s === step); li.classList.toggle("past", s < step); });
+    const on = document.querySelector(`#steps li[data-s="${step}"] h2`); if (on) scramble(on, 650);
+  }
+  const end = document.querySelector(".end");
+  page.endP = smooth(end.offsetTop - H * .75, end.offsetTop - H * .2, y);
+  document.querySelectorAll(".dots i").forEach((d, i) => d.style.setProperty("--f", clamp01(page.sp * 4 - i)));
+  $("top").classList.toggle("scrolled", y > 12);
+  $("controls").classList.toggle("away", page.heroP > .25);
+  // cards bend with scroll speed, like paper
+  const bend = Math.max(-14, Math.min(14, -page.v * .55));
+  document.documentElement.style.setProperty("--bend", (REDUCED ? 0 : bend).toFixed(2) + "deg");
+}
+
+// ================================================================ the box's frame (shared by the shader and clicks)
 function conFrame() {
   const W = innerWidth, H = innerHeight, z = zoomV;
   const cy = Math.cos(P.ry), sy = Math.sin(P.ry), cx = Math.cos(P.rx), sx = Math.sin(P.rx);
   const Ux = [cy, 0, -sy], Vx = [sy * sx, cx, cy * sx], Nx = [sy * cx, -sx, cy * cx];   // R = Ry * Rx, y up
   const bob = REDUCED ? 0 : Math.sin(time * .9) * 5;
-  const pcx = con.cx + P.ox, pcy = con.cy + P.oy + bob - (P.s - 1) * 120;
+  const shake = P.shake > 0 ? Math.sin(time * 90) * 14 * P.shake : 0;
+  const pcx = con.cx + P.ox + shake, pcy = con.cy + P.oy + bob - (P.s - 1) * 120;
   const ccx = W / 2 + (pcx - W / 2) * z, ccy = H / 2 + (pcy - H / 2) * z, k = z * P.s;
-  return { C: [ccx * dpr, (H - ccy) * dpr], Hs: [con.w / 2 * k * dpr, con.h / 2 * k * dpr], U: Ux, V: Vx, N: Nx, P: 1700 * dpr, E: [W / 2 * dpr, H / 2 * dpr] };
+  return { C: [ccx * dpr, (H - ccy) * dpr], Hs: [con.w / 2 * k * dpr, con.h / 2 * k * dpr], U: Ux, V: Vx, N: Nx, P: 1700 * dpr, E: [W / 2 * dpr, H / 2 * dpr], k };
 }
-// Where a screen point lands on the panel, in -1..1 across it (outside the panel gives values beyond 1).
 function conLocalAt(clientX, clientY) {
   const F = conFrame();
   const fx = clientX * dpr, fy = (innerHeight - clientY) * dpr;
@@ -613,19 +1122,26 @@ function conLocalAt(clientX, clientY) {
   return [v3.dot(hp, F.U) / F.Hs[0], v3.dot(hp, F.V) / F.Hs[1]];
 }
 function conHit(clientX, clientY) {
+  if (!con || conAlpha < .3) return null;
   const [lx, ly] = conLocalAt(clientX, clientY);
   if (Math.abs(lx) > 1 || Math.abs(ly) > 1) return null;
   const px = (lx * .5 + .5) * CW, py = (.5 - ly * .5) * CH;
   for (const [key, [x, y, w, h]] of Object.entries(conRects)) if (px >= x && px <= x + w && py >= y && py <= y + h) return key;
   return "panel";
 }
-function spring(key, target, k, d, dt) {
-  const v = "v" + key;
-  for (let i = 0; i < 2; i++) { const h = dt / 2; P[v] += (target - P[key]) * k * h; P[v] *= Math.exp(-d * h); P[key] += P[v] * h; }
+// screen boxes of the n's and of the whole fun word (for hover, click, drag and shake)
+function funBoxes(r, cum) {
+  const toX = (u) => r.x + u * r.w, toY = (v) => r.y + (v / TX.mainV) * r.h;
+  let c = 0;
+  const nb = FUN.items.map((b) => {
+    const px = TX.pen[0] + c * TX.adv; c += clamp01(b.s);
+    return { x0: toX(px + TX.nG[0]), x1: toX(px + TX.nG[2]), y0: toY(TX.pen[1] + TX.nG[1]), y1: toY(TX.pen[1] + TX.nG[3]) };
+  });
+  return { nb, word: { x0: toX(TX.pen[0] - TX.adv * 2.2), x1: toX(TX.pen[0] + cum * TX.adv + TX.dotG[2]), y0: toY(TX.pen[1] - TX.lineH * .78), y1: toY(TX.pen[1] + TX.nG[3]) }, nAdvPx: TX.adv * r.w };
 }
 
-// ---------------------------------------------------------------- frame
-let cam = null, adaptAt = performance.now() + 3000;
+// ================================================================ frame
+let cam = null, adaptAt = performance.now() + 3000, lastStep = -1, bossHitAt = -1;
 function frame(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   if (!STILL) { time += dt; introT = (now - introStart) / 1000; }
@@ -635,31 +1151,79 @@ function frame(now) {
   if (!typedStarted && it > 1.25) { typedStarted = true; typeExample(CON.ex, 34); }
   $("top").classList.toggle("in", it > .15);
   $("cta").classList.toggle("in", it > 1.05);
-
+  readPage(dt);
   mouse.sx += ((mouse.x - .5) * 2 - mouse.sx) * (1 - Math.pow(.02, dt));
   mouse.sy += ((.5 - mouse.y) * 2 - mouse.sy) * (1 - Math.pow(.02, dt));
-  scrollV += (scrollT - scrollV) * (REDUCED ? 1 : 1 - Math.pow(.0015, dt));
   zoomV += (zoomT - zoomV) * (1 - Math.pow(.004, dt));
 
-  // the panel: tilts toward the cursor when it is on it (that side dips away), otherwise leans a little with the mouse
+  // ---- the box: from its hero spot to the story spot as you scroll, pinned through the story, then it scrolls away
+  const b = ease(page.heroP);
+  con = { cx: lerp(heroCon.cx, storyCon.cx, b), cy: lerp(heroCon.cy, storyCon.cy, b) - Math.max(0, page.after), w: lerp(heroCon.w, storyCon.w, b), h: lerp(heroCon.h, storyCon.h, b),
+    ry: lerp(heroCon.ry, storyCon.ry, b), rx: lerp(heroCon.rx, storyCon.rx, b), tilt: heroCon.tilt, sats: lerp(heroCon.sats, storyCon.sats, b) };
   const [lx, ly] = conLocalAt(mouse.cx, mouse.cy);
-  P.hover = (FINE || STILL) && Math.abs(lx) < 1.04 && Math.abs(ly) < 1.04;
-  const tilt = (REDUCED ? 0 : 1) * con.tilt;
-  const tRy = it < .55 ? -1.25 : con.ry + (P.hover ? lx * .3 : mouse.sx * .1) * tilt;
-  const tRx = it < .55 ? .25 : con.rx + (P.hover ? -ly * .22 : -mouse.sy * .07) * tilt;
-  const ready = it >= .55;
-  spring("ry", tRy, ready ? 90 : 400, 11, dt); spring("rx", tRx, ready ? 90 : 400, 11, dt);
-  spring("ox", ready ? 0 : 280, 70, 12, dt); spring("oy", ready ? 0 : 40, 70, 12, dt);
-  spring("s", P.hover ? 1.03 : 1, 160, 16, dt);
-  const conA = REDUCED ? 1 : smooth(.5, 1.05, it) * (1 - smooth(.06, .2, scrollV));
+  P.hover = (FINE || STILL) && conAlpha > .3 && Math.abs(lx) < 1.04 && Math.abs(ly) < 1.04;
+  const tilt = (REDUCED ? 0 : 1) * con.tilt, ready = it >= .55;
+  spring(P, "ry", !ready ? -1.25 : con.ry + (P.hover ? lx * .3 : mouse.sx * .1) * tilt, ready ? 90 : 400, 11, dt);
+  spring(P, "rx", !ready ? .25 : con.rx + (P.hover ? -ly * .22 : -mouse.sy * .07) * tilt, ready ? 90 : 400, 11, dt);
+  spring(P, "ox", ready ? 0 : 280, 70, 12, dt); spring(P, "oy", ready ? 0 : 40, 70, 12, dt);
+  spring(P, "s", P.hover ? 1.03 : 1, 160, 16, dt);
+  P.shake = Math.max(0, P.shake - dt * 2.2);
+  const leave = 1 - smooth(.3 * innerHeight, innerHeight, page.after);
+  conAlpha = (REDUCED ? 1 : smooth(.5, 1.05, it)) * leave;
   P.gx += ((P.hover ? lx : .2) - P.gx) * (1 - Math.pow(.001, dt)); P.gy += ((P.hover ? ly : .6) - P.gy) * (1 - Math.pow(.001, dt));
   P.gz += ((P.hover ? 1 : .25) - P.gz) * (1 - Math.pow(.01, dt));
+
+  // ---- the story drives the box: the lesson types as you scroll, then it is submitted; going back up gives the examples back
+  const storyMode = page.step >= 0 && page.heroP > .6;
+  if (storyMode && !CON.story) { CON.story = true; CON.typing = false; CON.runAt = -1; CON.outAt = -1; conDirty = true; }
+  if (!storyMode && CON.story) { CON.story = false; CON.typed = EXAMPLES[CON.ex].code.length; CON.outAt = now - 2000; SAT.runAt = now - 3000; conDirty = true; satDirty = true; }
+  const lp = page.sp * 4 - Math.max(0, page.step);   // progress inside the current step, 0..1
+  if (CON.story) {
+    const want = page.step === 0 ? Math.floor(clamp01(lp / .8) * LESSON.code.length) : LESSON.code.length;
+    if (want !== Math.floor(CON.typed)) { CON.typed = want; conDirty = true; }
+    const ran = page.step >= 1 || lp > .9;
+    if (ran && CON.outAt < 0) pressRun(now);
+    if (!ran && CON.outAt > 0) { CON.outAt = -1; conDirty = true; }
+  }
+  // the boss step: it rises, then lands a hit on the box (a strike back), and its health drops
+  if (page.step === 3 && lastStep !== 3) { bossHitAt = now + 900; SAT.hitAt = -1; }
+  if (page.step !== 3) { SAT.hitAt = -1; bossHitAt = -1; }
+  if (bossHitAt > 0 && now > bossHitAt) { bossHitAt = -1; P.shake = 1; SAT.hitAt = now; }
+  lastStep = page.step;
   stepConsole(now, dt);
 
-  // camera: drifts in at the start, leans with the mouse, rises as you scroll
-  const k = ease(scrollV), din = REDUCED ? 0 : 1 - ease(clamp01(it / 2.4));
-  const c0 = { pos: [1.2, .3 + 3 * k + din * .6, 8 - 6 * k + din * 3], tgt: [1.2, .7 + 2 * k, -10] };
-  const b0 = basis(c0.pos, c0.tgt); const par = REDUCED ? 0 : .4;
+  // ---- the result cards: which show, and what they say
+  const ex = curEx(), fail = !!ex.err;
+  const sinceRun = SAT.runAt > 0 ? (now - SAT.runAt) / 1000 : -1;
+  let ticks, mark, show;
+  if (CON.story) {
+    const s = page.step;
+    ticks = s === 0 ? 0 : s === 1 ? Math.floor(clamp01((lp - .1) / .6) * 3.999) : 3;
+    mark = s === 0 ? 0 : s === 1 ? 10 * clamp01((lp - .65) / .3) : 10;
+    show = { lesson: s === 0 ? 1 : 0, tests: s === 1 || s === 2 ? 1 : 0, mark: s === 1 || s === 2 ? 1 : 0, bits: s === 2 ? clamp01(lp / .3) : 0, level: s === 2 ? 1 : 0, boss: s === 3 ? 1 : 0, hint: 0 };
+  } else {
+    ticks = sinceRun < 0 ? 0 : Math.floor(sinceRun / .22);
+    mark = fail || sinceRun < 0 ? 0 : 10 * smooth(.75, 1.5, sinceRun);
+    const on = conAlpha > .5 && page.heroP < .6 ? 1 : 0;
+    show = { tests: on * (sinceRun >= 0 && !(PHONE() && fail && sinceRun > .6) ? 1 : 0), mark: on * (sinceRun > .4 && !fail ? 1 : 0), bits: on * (!fail && sinceRun > 1.2 ? 1 - smooth(2.6, 3.4, sinceRun) : 0),
+      hint: on * (fail && sinceRun > .6 ? 1 : 0), lesson: 0, level: 0, boss: 0 };
+  }
+  const hp = SAT.hitAt > 0 ? 100 - 36 * smooth(0, .5, (now - SAT.hitAt) / 1000) : 100;
+  const bitsTotal = 120 + (page.step === 2 ? 12 * smooth(.25, .7, lp) : page.step >= 3 ? 12 : 0);
+  const key = JSON.stringify([CON.story ? "L" : CON.ex, ticks, Math.round(mark * 4), Math.round(hp), Math.round(bitsTotal), fail]);
+  if (key !== SAT.key || satDirty) { SAT.key = key; satDirty = false; drawSats({ ex, ticks, fail, mark, bits: ex.bits || 12, hp, bitsTotal }); }
+  SAT_KEYS.forEach((k) => spring(SAT.a, k, (show[k] || 0) * conAlpha, 120, 13, dt));
+  SAT.bitsY = !CON.story && sinceRun > 1.2 ? (sinceRun - 1.2) * 40 : page.step === 2 ? lp * 60 : 0;
+  SAT.boss += ((page.step === 3 ? smooth(0, .45, lp) : 0) - SAT.boss) * (1 - Math.pow(.02, dt));
+
+  // ---- funnnnn, and the course spiral
+  stepFun(now, dt); stepHelix(dt);
+
+  // ---- camera: drifts in at the start, leans with the mouse, rises as you go down the page
+  const pageP = clamp01(page.y / Math.max(1, document.documentElement.scrollHeight - innerHeight));
+  const kk = ease(pageP), din = REDUCED ? 0 : 1 - ease(clamp01(it / 2.4));
+  const c0 = { pos: [1.2, .3 + 3 * kk + din * .6, 8 - 6 * kk + din * 3], tgt: [1.2, .7 + 2 * kk, -10] };
+  const b0 = basis(c0.pos, c0.tgt), par = REDUCED ? 0 : .4;
   cam = { pos: v3.add(v3.add(c0.pos, v3.mul(b0.r, mouse.sx * par)), v3.mul(b0.u, mouse.sy * par * .55)), tgt: v3.add(c0.tgt, v3.mul(b0.r, mouse.sx * par * .25)) };
   const fov = FOV / zoomV;
 
@@ -674,45 +1238,66 @@ function frame(now) {
   const cap = (v) => Math.max(-.05, Math.min(.05, v));
   gl.uniform2f(U(fluid, "uVel"), moved ? cap(dx * .9) : 0, moved ? cap(-dy * .9) : 0);
   gl.uniform1f(U(fluid, "uDecay"), Math.pow(.955, dt * 60)); gl.uniform1f(U(fluid, "uRad"), .055); gl.uniform1f(U(fluid, "uEnc"), fluidEnc);
+  gl.uniform1f(U(fluid, "uDyeIn"), REDUCED ? 0 : page.endP * .55); gl.uniform1f(U(fluid, "uTime"), time); gl.uniform1f(U(fluid, "uDyeDecay"), Math.pow(.988, dt * 60));
+  gl.uniform3f(U(fluid, "uBurst"), burst.x, 1 - burst.y, REDUCED ? 0 : burst.s); burst.s = 0;
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   mouse.px = mouse.x; mouse.py = mouse.y; mouse.moved = false;
 
-  // 2. the Cosmos at a lower resolution, fading up at the start
+  // 2. the Cosmos at a lower resolution (dimmer behind the sections)
   gl.useProgram(scene);
   gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFB); gl.viewport(0, 0, sw, sh);
-  gl.uniform2f(U(scene, "uRes"), sw, sh); gl.uniform1f(U(scene, "uScroll"), scrollV); gl.uniform1f(U(scene, "uTime"), time);
+  gl.uniform2f(U(scene, "uRes"), sw, sh); gl.uniform1f(U(scene, "uScroll"), pageP); gl.uniform1f(U(scene, "uTime"), time);
   gl.uniform1f(U(scene, "uFov"), fov); gl.uniform3fv(U(scene, "uCam"), cam.pos); gl.uniform3fv(U(scene, "uTgt"), cam.tgt);
-  gl.uniform1f(U(scene, "uExpo"), 1.05 * (REDUCED ? 1 : .15 + .85 * smooth(0, 1.4, it)));
+  const dim = smooth(-.2, .6, page.after / innerHeight);
+  gl.uniform1f(U(scene, "uExpo"), 1.05 * (REDUCED ? 1 : .15 + .85 * smooth(0, 1.4, it)) * (1 - .4 * dim));
+  gl.uniform1f(U(scene, "uBoss"), SAT.boss);
+  gl.uniform4fv(U(scene, "uBossP"), PHONE() ? [8.9, 11 + 12 * SAT.boss, -75, 4.5] : [-8, -12 + 19.5 * SAT.boss, -75, 9]);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-  // 3. to the screen: the panel, then the words, with the liquid and grain
+  // 3. to the screen
   gl.useProgram(post); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, textTex); gl.uniform1i(U(post, "uText"), 0);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, sceneTex); gl.uniform1i(U(post, "uScene"), 1);
   gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(U(post, "uFluid"), 2);
   gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, conTex); gl.uniform1i(U(post, "uCon"), 3);
+  gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, satTex); gl.uniform1i(U(post, "uSat"), 4);
   gl.uniform2f(U(post, "uRes2"), canvas.width, canvas.height); gl.uniform1f(U(post, "uTime"), time); gl.uniform1f(U(post, "uDpr"), dpr);
   gl.uniform1f(U(post, "uEnc"), fluidEnc); gl.uniform1f(U(post, "uLiquid"), REDUCED ? 0 : 1);
-  gl.uniform3f(U(post, "uTextCol"), .95, .94, 1); gl.uniform3f(U(post, "uTrailCol"), .62, .72, 1);
+  gl.uniform3f(U(post, "uTextCol"), .95, .94, 1); gl.uniform3f(U(post, "uTrailCol"), .62, .72, 1); gl.uniform1f(U(post, "uPaint"), page.endP);
   const W = innerWidth, H = innerHeight;
-  let r = { x: W / 2 + (rect.x - W / 2) * zoomV, y: H / 2 + (rect.y - H / 2) * zoomV, w: rect.w * zoomV, h: rect.h * zoomV };
+  // the words scroll up with the page, lean in with the button and drift a little with the mouse
+  const r = { x: W / 2 + (rect.x - W / 2) * zoomV, y: H / 2 + (rect.y - H / 2) * zoomV - page.y, w: rect.w * zoomV, h: rect.h * zoomV };
   if (!REDUCED) { r.x -= mouse.sx * 7; r.y += mouse.sy * 5; }
-  const fade = 1 - smooth(.02, .14, scrollV);
+  const fu = funUniforms(it);
+  lastBoxes = funBoxes(r, fu.cum);
   gl.uniform4f(U(post, "uTxRect"), r.x * dpr, (H - r.y - r.h) * dpr, r.w * dpr, r.h * dpr);
-  gl.uniform1f(U(post, "uMainV"), T.mainV); gl.uniform1f(U(post, "uTexH"), T.mainH); gl.uniform1f(U(post, "uEm"), T.em);
-  gl.uniform1f(U(post, "uIntro"), it > 3 ? 9 : it); gl.uniform1f(U(post, "uLineH"), T.lineH); gl.uniform4fv(U(post, "uBands"), T.bands);
-  const wv = new Float32Array(20); T.boxes.slice(0, 5).forEach((bx, i) => wv.set(bx, i * 4)); gl.uniform4fv(U(post, "uWave"), wv);
-  const wo = new Float32Array(10); wo.set(T.offs.slice(0, 10)); gl.uniform2fv(U(post, "uWaveOff"), wo);
-  gl.uniform1f(U(post, "uTextA"), fade);   // the words fade as you scroll on (the panel slides away with them)
+  gl.uniform1f(U(post, "uMainV"), TX.mainV); gl.uniform1f(U(post, "uTexH"), TX.mainH); gl.uniform2f(U(post, "uTexPx"), TX.W, TX.H);
+  gl.uniform1f(U(post, "uIntro"), it > 3 ? 9 : it); gl.uniform1f(U(post, "uLineH"), TX.lineH); gl.uniform4fv(U(post, "uBands"), TX.bands);
+  gl.uniform1f(U(post, "uTextA"), 1 - smooth(.35, .8, page.heroP));
+  gl.uniform1i(U(post, "uN"), fu.n); gl.uniform4fv(U(post, "uNT"), fu.arr); gl.uniform4fv(U(post, "uDotT"), fu.dot);
+  gl.uniform2fv(U(post, "uNPen"), TX.pen); gl.uniform1f(U(post, "uNAdv"), TX.adv); gl.uniform4fv(U(post, "uNG"), TX.nG); gl.uniform2fv(U(post, "uNStrip"), TX.nStrip);
+  gl.uniform4fv(U(post, "uDotG"), TX.dotG); gl.uniform2fv(U(post, "uDotStrip"), TX.dotStrip);
   const F = conFrame();
-  gl.uniform1f(U(post, "uConA"), conA);
-  gl.uniform2f(U(post, "uConC"), F.C[0], F.C[1] - (1 - fade) * 400 * dpr); gl.uniform2f(U(post, "uConH"), F.Hs[0], F.Hs[1]);
+  gl.uniform1f(U(post, "uConA"), conAlpha); gl.uniform1f(U(post, "uStage"), 1);
+  gl.uniform2f(U(post, "uConC"), F.C[0], F.C[1]); gl.uniform2f(U(post, "uConH"), F.Hs[0], F.Hs[1]);
   gl.uniform3fv(U(post, "uConU"), F.U); gl.uniform3fv(U(post, "uConV"), F.V); gl.uniform3fv(U(post, "uConN"), F.N);
   gl.uniform1f(U(post, "uPersp"), F.P); gl.uniform2f(U(post, "uEye"), F.E[0], F.E[1]);
   gl.uniform1f(U(post, "uLift"), P.s - 1); gl.uniform3f(U(post, "uGlare"), P.gx, P.gy, P.gz);
+  // the cards: centres in the box's own 3D frame, so they turn and float with it
+  const satC = new Float32Array(28), satH = new Float32Array(28), satS = new Float32Array(14);
+  SAT_KEYS.forEach((k2, i) => {
+    const L = SAT_LAYOUT[k2], a = SAT.a[k2]; if (a < .01) return;
+    const [ax, ay, az] = PHONE() ? L.ph : L.at, bobS = REDUCED ? 0 : Math.sin(time * .8 + i * 1.7) * 6, orb = REDUCED ? 0 : Math.cos(time * .45 + i * 2.3) * 7;
+    const lift = k2 === "bits" ? SAT.bitsY : 0;
+    const off = v3.add(v3.add(v3.mul(F.U, ax * F.Hs[0] + orb * dpr), v3.mul(F.V, ay * F.Hs[1] + (bobS + lift) * dpr)), v3.mul(F.N, az * dpr * con.sats));
+    const pop = .82 + .18 * Math.min(1, a), sz = F.k * con.sats * pop * dpr * (con.w / 560) / 4;
+    satC.set([F.C[0] + off[0], F.C[1] + off[1], off[2], Math.min(1, a)], i * 4);
+    satH.set([L.r[2] * sz, L.r[3] * sz, L.r[0] / 1600, L.r[1] / 600], i * 4);
+    satS.set([L.r[2] / 1600, L.r[3] / 600], i * 2);
+  });
+  gl.uniform4fv(U(post, "uSatC"), satC); gl.uniform4fv(U(post, "uSatH"), satH); gl.uniform2fv(U(post, "uSatS"), satS);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-  const ctaEl = $("cta"); ctaEl.style.opacity = fade; ctaEl.style.visibility = fade < .02 ? "hidden" : "visible";
   if (!STILL && now > adaptAt) {
     adaptAt = now + 1500;
     const ns = frameMs > 26 ? Math.max(.34, scale - .08) : frameMs < 13 && scale < (PHONE() ? .55 : .72) ? scale + .04 : scale;
@@ -721,86 +1306,180 @@ function frame(now) {
 }
 function loop(now) { if (!document.hidden) frame(now); requestAnimationFrame(loop); }
 
-// ---------------------------------------------------------------- input
-const cursorEl = $("cur"); const cpos = { x: -100, y: -100, rx: -100, ry: -100 };
+// ================================================================ input
+const cursorEl = $("cur"), curLabel = $("curLabel"); const cpos = { x: -100, y: -100, rx: -100, ry: -100 };
+const inBox = (bx, x, y, pad = 0) => bx && x >= bx.x0 - pad && x <= bx.x1 + pad && y >= bx.y0 - pad && y <= bx.y1 + pad;
+const LABELS = { all: "+n", hop: "", plus: "+n", stretch: "drag", tumble: "shake" };
+let lastMoveT = 0;
 addEventListener("pointermove", (e) => {
+  const now = performance.now(), dtm = Math.max(1, now - lastMoveT); lastMoveT = now;
+  const vx = (e.clientX - (mouse.cx > -1e3 ? mouse.cx : e.clientX)) / dtm * 1000;
   mouse.x = e.clientX / innerWidth; mouse.y = e.clientY / innerHeight; mouse.moved = true; mouse.cx = e.clientX; mouse.cy = e.clientY;
-  cpos.x = e.clientX; cpos.y = e.clientY;
+  cpos.x = e.clientX; cpos.y = e.clientY; if (!cursorEl.classList.contains("live")) { cpos.rx = cpos.x; cpos.ry = cpos.y; cursorEl.classList.add("live"); }
   const h = conHit(e.clientX, e.clientY), hot = h && h !== "panel" ? h : null;
   if (hot !== CON.hot) { CON.hot = hot; conDirty = true; }
-  cursorEl.classList.toggle("on", !!hot || !!e.target.closest("button, a"));
-  cursorEl.classList.toggle("panel", !!h && !hot);
+  // "funnnnn": each n hops as the cursor passes it; it stretches while dragged; it tumbles when the cursor shakes over it
+  const B = lastBoxes, live = !!B && page.heroP < .3, overWord = live && inBox(B.word, e.clientX, e.clientY, 10);
+  if (live && funOn("hop")) {
+    const idx = B.nb.findIndex((nb) => inBox(nb, e.clientX, e.clientY, 4));
+    if (idx >= 0 && idx !== FUN.hoverIdx) hop(idx, Math.min(1.4, .7 + Math.abs(vx) / 1500));
+    FUN.hoverIdx = idx;
+  }
+  if (FUN.drag) {
+    const d = FUN.drag; d.vx = e.clientX - d.lastX; d.lastX = e.clientX;
+    if (Math.abs(e.clientX - d.x0) > 6) d.moved = true;
+    if (funOn("stretch") && d.moved && B) {
+      const want = Math.max(5, Math.min(14, 5 + Math.floor((e.clientX - d.x0) / Math.max(10, B.nAdvPx) + .35)));
+      while (liveN() < want && addN());
+      while (liveN() > want) removeN();
+    }
+  }
+  if (overWord && funOn("tumble")) {
+    const sgn = Math.sign(vx);
+    if (Math.abs(vx) > 700 && sgn !== FUN.lastSign) { FUN.shake.push(now); FUN.lastSign = sgn; }
+    FUN.shake = FUN.shake.filter((t) => now - t < 700);
+    if (FUN.shake.length >= 4 && now > FUN.tumbleUntil) { FUN.shake = []; tumble(now); }
+  }
+  const painting = page.endP > .5 && !e.target.closest("button, a");
+  cursorEl.classList.toggle("word", (overWord && !!LABELS[FUN.mode]) || painting);
+  curLabel.textContent = painting ? "paint" : LABELS[FUN.mode];
+  cursorEl.classList.toggle("on", !overWord && (!!hot || !!e.target.closest("button, a, summary, .hcard")));
+  cursorEl.classList.toggle("panel", !overWord && !!h && !hot);
 }, { passive: true });
-document.addEventListener("pointerout", (e) => { if (!e.relatedTarget) mouse.cx = mouse.cy = -1e4; });   // left the window
-addEventListener("click", (e) => {
-  if (e.target.closest("button, a")) return;
+document.addEventListener("pointerout", (e) => { if (!e.relatedTarget) mouse.cx = mouse.cy = -1e4; });
+addEventListener("pointerdown", (e) => {
+  const B = lastBoxes;
+  if (B && page.heroP < .3 && inBox(B.word, e.clientX, e.clientY, 10) && !e.target.closest("button, a")) {
+    FUN.drag = { x0: e.clientX, lastX: e.clientX, vx: 0, moved: false };
+    e.preventDefault();
+  }
+});
+addEventListener("pointerup", (e) => {
+  const d = FUN.drag; FUN.drag = null;
+  if (d) {
+    if (!d.moved && funOn("plus")) {   // a click: one more n; after fourteen, back to five
+      if (!addN()) { FUN.items.slice(5).forEach((x) => (x.dying = true)); for (let i = 0; i < 5; i++) hop(i, 1.2); }
+    } else if (d.moved && funOn("stretch")) {   // let go: back to five, one by one, with a wobble
+      const extra = liveN() - 5;
+      for (let i = 0; i < extra; i++) setTimeout(removeN, 45 * i);
+      FUN.items.forEach((x, i) => { x.vr += (i % 2 ? 1 : -1) * 6; x.vy -= 2; });
+    }
+    return;
+  }
+  if (e.target.closest("button, a, summary")) return;
+  if (page.endP > .5) { burst.x = e.clientX / innerWidth; burst.y = e.clientY / innerHeight; burst.s = .06; return; }
   const h = conHit(e.clientX, e.clientY);
-  if (h === "run") { CON.auto = false; if (!CON.typing) pressRun(performance.now()); }
+  if (h === "run") { CON.auto = false; if (!CON.typing && !CON.story) pressRun(performance.now()); }
   else if (h && h.startsWith("ex")) { CON.auto = false; typeExample(+h.slice(2), 80); }
 });
 function cursorLoop() {
   cpos.rx += (cpos.x - cpos.rx) * (REDUCED ? 1 : .22); cpos.ry += (cpos.y - cpos.ry) * (REDUCED ? 1 : .22);
   cursorEl.children[0].style.transform = `translate(${cpos.rx}px, ${cpos.ry}px)`;
   cursorEl.children[1].style.transform = `translate(${cpos.x}px, ${cpos.y}px)`;
+  curLabel.style.transform = `translate(${cpos.rx}px, ${cpos.ry}px)`;
   requestAnimationFrame(cursorLoop);
 }
-addEventListener("wheel", (e) => { scrollT = Math.min(1, Math.max(0, scrollT + e.deltaY * .00055)); }, { passive: true });
-let touchY = null;
-addEventListener("touchstart", (e) => { touchY = e.touches[0].clientY; }, { passive: true });
-addEventListener("touchmove", (e) => {
-  if (touchY === null) return; const y = e.touches[0].clientY;
-  scrollT = Math.min(1, Math.max(0, scrollT + (touchY - y) / innerHeight * .9)); touchY = y;
-  if (e.cancelable) e.preventDefault();
-}, { passive: false });
-addEventListener("keydown", (e) => {
-  if (["ArrowDown", "PageDown"].includes(e.key)) scrollT = Math.min(1, scrollT + .12);
-  else if (["ArrowUp", "PageUp"].includes(e.key)) scrollT = Math.max(0, scrollT - .12);
-});
+(function conKeys() {
+  const box = $("conKeys");
+  EXAMPLES.forEach((e, i) => { const bt = document.createElement("button"); bt.className = "sr"; bt.type = "button"; bt.textContent = "Run example: " + e.name;
+    bt.onclick = () => { CON.auto = false; typeExample(i, 80); }; box.append(bt); });
+})();
 const cta = $("ctaBtn");
 ["pointerenter", "focus"].forEach((ev) => cta.addEventListener(ev, () => { zoomT = 1.035; }));
 ["pointerleave", "blur"].forEach((ev) => cta.addEventListener(ev, () => { zoomT = 1; }));
 let toastT;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
-document.querySelectorAll("[data-cta], .fx").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); toast("This page only previews the home page. On the real site, this opens the course."); }));
+document.querySelectorAll("[data-cta]").forEach((bt) => bt.addEventListener("click", () => toast("This page only previews the home page. On the real site, this opens the course.")));
+// Titles arrive as scrambled code that settles into words, left to right (screen readers get the real words).
+const GLYPHS = "{}[]()<>=+-*/_:;#%&!?01";
+function scramble(el, dur = 700) {
+  if (REDUCED || STILL || !el) return;
+  if (!el._final) {
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); el._nodes = []; while (walk.nextNode()) el._nodes.push(walk.currentNode);
+    el._final = el._nodes.map((n) => n.nodeValue); el.setAttribute("aria-label", el.textContent);
+  }
+  const t0 = performance.now(), total = el._final.reduce((a, f) => a + f.length, 0) || 1; el._run = t0;
+  const tick = (now) => {
+    if (el._run !== t0) return;
+    const k = (now - t0) / dur; let i0 = 0, done = true;
+    el._nodes.forEach((n, j) => {
+      const f = el._final[j]; let out = "";
+      for (let i = 0; i < f.length; i++) {
+        const at = ((i0 + i) / total) * .7, ch = f[i];
+        if (ch === " " || k >= at + .3) out += ch; else { done = false; out += GLYPHS[(Math.random() * GLYPHS.length) | 0]; }
+      }
+      n.nodeValue = out; i0 += f.length;
+    });
+    if (!done) requestAnimationFrame(tick); else el._nodes.forEach((n, j) => (n.nodeValue = el._final[j]));
+  };
+  requestAnimationFrame(tick);
+}
+// the sections build in once, as they arrive (their titles scramble in)
+const io = new IntersectionObserver((es) => es.forEach((en) => {
+  if (!en.isIntersecting) return;
+  en.target.classList.add("seen"); io.unobserve(en.target);
+  if (en.target.matches(".sec-title, .end h2")) scramble(en.target, 800);
+}), { threshold: .15 });
+document.querySelectorAll(".build").forEach((el) => {
+  const sib = [...el.parentElement.children].filter((c) => c.classList.contains("build")).indexOf(el);
+  if (el.classList.contains("mod") || el.tagName === "DETAILS") el.style.transitionDelay = sib * 90 + "ms";
+  io.observe(el);
+});
 
 // preview controls
-function replay() {
-  introStart = performance.now(); introT = 0; introDone = false; typedStarted = false;
-  Object.assign(P, { rx: .25, ry: -1.25, ox: 280, oy: 40, vrx: 0, vry: 0, vox: 0, voy: 0 });
-  CON.typed = 0; CON.typing = false; CON.outAt = -1; CON.runAt = -1; CON.auto = !REDUCED; conDirty = true;
-  $("top").classList.remove("in"); $("cta").classList.remove("in");
+const HELP = {
+  all: "Hover \"funnnnn\", click it for more n's, drag it to stretch it, or shake the cursor over it.",
+  hop: "Run the cursor across the n's: each one hops as you pass.", plus: "Click \"funnnnn\" to add an n. After 14 it goes back to five.",
+  stretch: "Grab \"funnnnn\" and drag it to the right, then let go.", tumble: "Shake the cursor quickly from side to side over \"funnnnn\".",
+};
+function setMode(m) {
+  FUN.mode = m; $("modeHelp").textContent = "Preview controls. " + HELP[m];
+  document.querySelectorAll(".picker button").forEach((bt) => bt.setAttribute("aria-pressed", String(bt.dataset.m === m)));
 }
-$("replay").addEventListener("click", replay);
-document.querySelectorAll(".picker button").forEach((b) => b.addEventListener("click", async () => {
-  funKey = b.dataset.f; try { localStorage.setItem("operandi:funfont", funKey); } catch {}
-  applyFunCss();
-  try { await document.fonts.load(`${FUN[funKey].style} ${FUN[funKey].weight} 100px ${FUN[funKey].css}`); } catch {}
-  placeAll();
-}));
+document.querySelectorAll(".picker button").forEach((bt) => bt.addEventListener("click", () => setMode(bt.dataset.m)));
+setMode("all");
+$("replay").addEventListener("click", () => {
+  scrollTo(0, 0); introStart = performance.now(); introT = 0; introDone = false; typedStarted = false;
+  Object.assign(P, { rx: .25, ry: -1.25, ox: 280, oy: 40, vrx: 0, vry: 0, vox: 0, voy: 0 });
+  CON.typed = 0; CON.typing = false; CON.outAt = -1; CON.runAt = -1; CON.auto = !REDUCED; SAT.runAt = -1; conDirty = true; resetFun();
+  $("top").classList.remove("in"); $("cta").classList.remove("in");
+});
 addEventListener("resize", () => { sizeTargets(); placeAll(); });
 
-// ---------------------------------------------------------------- start
+// ================================================================ start
 async function start() {
-  applyFunCss();
-  const f = FUN[funKey];
-  try { await Promise.race([Promise.all([document.fonts.load('800 100px "Bricolage Grotesque"'), document.fonts.load(`${f.style} ${f.weight} 100px ${f.css}`),
-    document.fonts.load('400 20px "JetBrains Mono"'), document.fonts.load('600 20px Inter')]), new Promise((r) => setTimeout(r, 2500))]); } catch {}
+  // the brackets stay up while the fonts load (at least a moment, at most 2.5 s; a click or key skips the wait)
+  const loader = $("loader");
+  let skip; const skipped = new Promise((r) => (skip = r));
+  if (STILL) loader.remove(); else { loader.addEventListener("pointerdown", () => skip()); addEventListener("keydown", () => skip(), { once: true }); }
+  const fonts = Promise.all([document.fonts.load('800 100px "Bricolage Grotesque"'), document.fonts.load('italic 800 100px "Fraunces"'),
+    document.fonts.load('400 20px "JetBrains Mono"'), document.fonts.load('600 20px Inter')]).catch(() => {});
+  const atLeast = new Promise((r) => setTimeout(r, Math.max(0, 1100 - performance.now())));
+  try { await Promise.race([Promise.all([fonts, atLeast]), skipped, new Promise((r) => setTimeout(r, 2500))]); } catch {}
   scene = program(SCENE_FS); post = program(POST_FS); fluid = program(FLUID_FS);
+  buildHelix();
   sizeTargets(); placeAll(); drawConsole(performance.now());
-  document.fonts.ready.then(() => { placeAll(); conDirty = true; });
-  introStart = performance.now();
+  drawSats({ ex: EXAMPLES[0], ticks: 0, fail: false, mark: 0, bits: 12, hp: 100, bitsTotal: 120 });
+  document.fonts.ready.then(() => { placeAll(); conDirty = true; satDirty = true; });
+  introStart = performance.now() + 250;
+  if (!STILL) { loader.classList.add("out"); setTimeout(() => loader.remove(), 1300); }
   if (STILL) {
-    // test hook: ?still&t=3&intro=9&mx=.7&my=.45&hx=.82&hy=.4&trail=1&font=shrikhand&typed=all
-    time = +(qs.get("t") || 3); introT = +(qs.get("intro") || 9); scrollT = scrollV = +(qs.get("s") || 0);
+    // test hook: ?still&t=3&intro=9&typed=all&scroll=1.6 (screen heights)&hx=.86&hy=.32&trail=1&n=9&tumble&burst=.5,.4
+    document.querySelectorAll(".build").forEach((el) => el.classList.add("seen"));
+    time = +(qs.get("t") || 3); introT = +(qs.get("intro") || 9);
+    scrollTo(0, (+(qs.get("scroll") || 0)) * innerHeight);
     mouse.x = +(qs.get("mx") || .5); mouse.y = +(qs.get("my") || .5); mouse.sx = (mouse.x - .5) * 2; mouse.sy = (.5 - mouse.y) * 2;
     if (qs.has("hx")) { mouse.cx = +qs.get("hx") * innerWidth; mouse.cy = +qs.get("hy") * innerHeight; }
-    if (introT >= .55) Object.assign(P, { ox: 0, oy: 0 });
-    if (qs.get("typed") === "all") { typedStarted = true; CON.typed = EXAMPLES[0].code.length; CON.outAt = 1; CON.doneAt = 1e12; }
-    else if (qs.has("typed")) { typedStarted = true; CON.typed = +qs.get("typed"); CON.typing = false; }
+    if (introT >= .55) Object.assign(P, { ox: 0, oy: 0, ry: -.3, rx: -.09 });
+    if (qs.get("typed") === "all") { typedStarted = true; CON.typed = EXAMPLES[0].code.length; CON.outAt = 1; CON.doneAt = 1e12; SAT.runAt = 1; }
+    for (let i = 5; i < +(qs.get("n") || 5); i++) addN();
     const trail = qs.has("trail");
-    for (let i = 0; i < 40; i++) {
-      if (trail && i >= 18) { const j = i - 18; mouse.px = .08 + j * .011; mouse.py = .42 + Math.sin(j * .35) * .04; mouse.x = mouse.px + .011; mouse.y = .42 + Math.sin((j + 1) * .35) * .04; mouse.moved = true; }
-      last = performance.now() - 16; frame(performance.now() + (CON.outAt === 1 ? 1e7 : 0));
+    for (let i = 0; i < 44; i++) {
+      if (trail && i >= 22) { const j = i - 22; mouse.px = .08 + j * .011; mouse.py = .42 + Math.sin(j * .35) * .04; mouse.x = mouse.px + .011; mouse.y = .42 + Math.sin((j + 1) * .35) * .04; mouse.moved = true; }
+      if (qs.has("tumble") && i === 24) { tumble(performance.now()); FUN.tumbleUntil = 1e15; }
+      if (qs.has("burst") && i === 30) { const [bx, by] = qs.get("burst").split(",").map(Number); Object.assign(burst, { x: bx, y: by, s: .06 }); }
+      last = performance.now() - 16;
+      frame(performance.now() + (CON.outAt === 1 ? 1e7 : 0));
     }
     window.__ready = true; return;
   }
