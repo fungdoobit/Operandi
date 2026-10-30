@@ -14,8 +14,8 @@
    springy feedback. Neutral: no characters here (Isaac 2026-10-30). The old language tiles and the planned pricing
    stay in the code, hidden while testers play. */
 :root {
-  --bg: #f6f4ef; --surface: #fffefb; --surface-2: #faf8f3; --ink: #17181b; --ink-2: #3a3b41; --muted: #6d6b65; --faint: #a8a59e;
-  --line: #e7e3da; --line-strong: #d6d1c6; --accent: #2f5bd3; --accent-soft: #e9eefb; --gold: #a67400; --gold-soft: #fbf1d6;
+  --bg: #f6f4ef; --surface: #fffefb; --surface-2: #faf8f3; --ink: #17181b; --ink-2: #3a3b41; --muted: #6d6b65; --faint: #8a877f;
+  --line: #e7e3da; --line-strong: #d6d1c6; --accent: #2f5bd3; --accent-soft: #e9eefb; --gold: #8a6000; --gold-soft: #fbf1d6;
   --pass: #1b7a48; --fail: #b8402c;
   --console: #121316; --console-2: #17181c; --console-ink: #eceae4; --console-muted: #8c8a84; --console-line: #25262b;
   --tile: #e4e2dc; --tile-shadow: rgb(60 50 30 / .14); --pill: #c8bea9; --card: #fffefb;
@@ -78,6 +78,8 @@ kbd { font: 500 11px/1 var(--font-mono); padding: 3px 6px 4px; border-radius: 6p
 .hero::before { content: ""; position: absolute; inset: -1px 0 0; pointer-events: none; z-index: -1;
   background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 56px 56px;
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); opacity: .7; }
+.hero .wrap > div > *, .hero .stage { animation: rise .9s var(--spring) both; }
+.hero h1 { animation-delay: .06s; } .hero .lede { animation-delay: .12s; } .hero .cta { animation-delay: .18s; } .hero .ticks { animation-delay: .24s; } .hero .stage { animation-delay: .14s; }
 .hero .wrap { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
 .badge { display: inline-flex; align-items: center; gap: 9px; height: 32px; padding: 0 14px 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-sm); font-size: 13px; font-weight: 500; color: var(--ink-2); }
 .badge i { width: 8px; height: 8px; border-radius: 50%; background: #28c840; box-shadow: 0 0 0 4px rgb(40 200 64 / .16); animation: pulse 2.4s ease-in-out infinite; }
@@ -285,20 +287,20 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
   <section class="hero">
     <div class="wrap">
       <div>
-        <span class="badge reveal"><i aria-hidden="true"></i>Python course · Modules 1 and 2 are open</span>
-        <h1 class="reveal d1">Learn Python by actually <em>writing</em> it.</h1>
-        <p class="lede reveal d2">Short lessons, real code in your browser, and a mark out of 10 the moment you submit, with feedback in plain words. Every module ends in a boss fight that tests what you learned.</p>
-        <div class="cta reveal d3">
+        <span class="badge"><i aria-hidden="true"></i>Python course · Modules 1 and 2 are open</span>
+        <h1>Learn Python by actually <em>writing</em> it.</h1>
+        <p class="lede">Short lessons, real code in your browser, and a mark out of 10 the moment you submit, with feedback in plain words. Every module ends in a boss fight that tests what you learned.</p>
+        <div class="cta">
           <a class="btn primary" href="python.html">Start learning <span class="arr" aria-hidden="true">→</span></a>
           <a class="btn" href="#how">See how it works</a>
         </div>
-        <ul class="ticks reveal d3">
+        <ul class="ticks">
           <li>Free while it's being built</li>
           <li>Nothing to install</li>
           <li>Made for complete beginners</li>
         </ul>
       </div>
-      <div class="stage reveal d2">
+      <div class="stage">
         <div class="console" id="console">
           <div class="con-head">
             <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -432,7 +434,6 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 <footer><div class="wrap"><span>operandi.code</span><span>Learn Python by writing it.</span></div></footer>
 
 <script type="module">
-import { MODULES, ALL_LESSONS } from "./content/index.js";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -443,14 +444,6 @@ $("liveKbd").textContent = mac ? "⌘ ↵" : "Ctrl ↵";
 const nav = $("nav");
 const onScroll = () => nav.classList.toggle("scrolled", scrollY > 8);
 addEventListener("scroll", onScroll, { passive: true }); onScroll();
-
-// The course, straight from the content: each open module as a trail of its lessons ending in its boss.
-const BOSSES = { 1: "GOLEM", 2: "THE ABYSSAL MAW" };
-const open = MODULES.filter((m) => !m.soon), soon = MODULES.filter((m) => m.soon);
-$("modules").innerHTML = open.map((m, i) => `<div class="module reveal ${i ? "d1" : ""}">
-    <div><span class="num">Module ${m.id}</span><h3>${esc(m.title)}</h3><p>${esc(m.blurb || "")}</p></div>
-    <div class="trail">${ALL_LESSONS.filter((l) => l.module === m.id).map((l) => `<div class="ls"><span>${esc(l.title)}</span></div>`).join("")}${BOSSES[m.id] ? `<div class="ls boss"><span>Boss · ${esc(BOSSES[m.id])}</span></div>` : ""}</div>
-  </div>`).join("") + (soon.length ? `<div class="soon-row reveal"><b>Coming next</b>${soon.map((m) => `<span>${m.id} · ${esc(m.title)}</span>`).join("")}</div>` : "");
 
 // Scroll reveals and the little demos that play when they come into view.
 const countTo = (el) => {
@@ -467,6 +460,21 @@ const io = new IntersectionObserver((entries) => entries.forEach((e) => {
   io.unobserve(e.target);
 }), { threshold: 0.18, rootMargin: "0px 0px -6% 0px" });
 document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+// The course, straight from the content (loaded after the first paint: the lesson files are big): each open module as a
+// trail of its lessons ending in its boss.
+async function loadCourse() {
+  const { MODULES, ALL_LESSONS } = await import("./content/index.js");
+  const BOSSES = { 1: "GOLEM", 2: "THE ABYSSAL MAW" };
+  
+  const open = MODULES.filter((m) => !m.soon), soon = MODULES.filter((m) => m.soon);
+  $("modules").innerHTML = open.map((m, i) => `<div class="module reveal ${i ? "d1" : ""}">
+      <div><span class="num">Module ${m.id}</span><h3>${esc(m.title)}</h3><p>${esc(m.blurb || "")}</p></div>
+      <div class="trail">${ALL_LESSONS.filter((l) => l.module === m.id).map((l) => `<div class="ls"><span>${esc(l.title)}</span></div>`).join("")}${BOSSES[m.id] ? `<div class="ls boss"><span>Boss · ${esc(BOSSES[m.id])}</span></div>` : ""}</div>
+    </div>`).join("") + (soon.length ? `<div class="soon-row reveal"><b>Coming next</b>${soon.map((m) => `<span>${m.id} · ${esc(m.title)}</span>`).join("")}</div>` : "");
+  document.querySelectorAll("#modules .reveal").forEach((el) => io.observe(el));
+}
+loadCourse();
 
 // A soft spotlight follows the pointer across the cards and the console; the console tilts a touch toward it.
 document.addEventListener("pointermove", (e) => {
