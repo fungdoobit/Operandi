@@ -1,0 +1,958 @@
+<title>Operandi Worlds</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* World previews (revamp, Isaac 2026-10-30): four candidate 3D worlds for the home page, drawn in WebGL with no
+   libraries. The headline lives inside the canvas, so the cursor can push it like water and the glass ball can bend it.
+   Each world sets its own colours (light worlds: ink on paper; dark worlds: white on night). */
+:root {
+  --ink: #1d1a24; --ink-soft: rgba(29, 26, 36, .62); --paper: #efe4dc;
+  --chip: rgba(255, 255, 255, .5); --chip-line: rgba(29, 26, 36, .14); --chip-on: #1d1a24; --chip-on-ink: #fff;
+  --pill: #fff; --pill-ink: #1d1a24; --pill-hover: #1d1a24; --pill-hover-ink: #fff;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: Inter, "Segoe UI", system-ui, sans-serif;
+  --spring: cubic-bezier(.34, 1.56, .64, 1); --ease: cubic-bezier(.22, 1, .36, 1);
+  color-scheme: light;
+}
+[data-world="courtyard"] { --paper: #e6e3d6; }
+[data-world="cosmos"], [data-world="code"] {
+  --ink: #f2f0fa; --ink-soft: rgba(242, 240, 250, .6); --paper: #04050c;
+  --chip: rgba(255, 255, 255, .07); --chip-line: rgba(242, 240, 250, .16); --chip-on: #f2f0fa; --chip-on-ink: #0b0c18;
+  --pill: #f2f0fa; --pill-ink: #0b0c18; --pill-hover: #9db4ff; --pill-hover-ink: #0b0c18;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); overflow: hidden; font: 15px/1.45 var(--font-body);
+  -webkit-font-smoothing: antialiased; transition: background-color .6s var(--ease), color .6s var(--ease); }
+body.fine, body.fine button, body.fine a { cursor: none; }
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; transition: opacity .45s var(--ease); }
+#gl.out { opacity: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.ui { position: fixed; inset: 0; pointer-events: none; touch-action: none;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.ui a, .ui button { pointer-events: auto; }
+.top { position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); right: max(22px, env(safe-area-inset-right, 0px));
+  top: calc(env(safe-area-inset-top, 0px) + 20px); display: flex; align-items: center; gap: 22px; }
+.brand { font: 800 21px/1 var(--font-display); letter-spacing: -.04em; color: var(--ink); text-decoration: none; }
+.top nav { margin-left: auto; display: flex; align-items: center; gap: 22px; }
+.top nav a { color: var(--ink); text-decoration: none; font-weight: 500; }
+.top nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+/* Buttons: white pills that fill dark and roll their label on hover (Unseen's button, Isaac's video). */
+.pill { position: relative; overflow: hidden; border: 0; border-radius: 999px; background: var(--pill); color: var(--pill-ink);
+  font: 600 14px/1 var(--font-body); padding: 13px 22px; isolation: isolate; transition: color .35s var(--ease), transform .5s var(--spring); }
+.pill::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--pill-hover); z-index: -1;
+  transform: translateY(101%); transition: transform .45s var(--ease); }
+.pill:hover, .pill:focus-visible { color: var(--pill-hover-ink); }
+.pill:hover::before, .pill:focus-visible::before { transform: none; }
+.pill:active { transform: scale(.96); }
+.roll { display: inline-grid; overflow: hidden; height: 1.15em; line-height: 1.15em; }
+.roll > span { grid-area: 1 / 1; transition: transform .45s var(--ease); }
+.roll > span + span { transform: translateY(110%); }
+.pill:hover .roll > span:first-child, .pill:focus-visible .roll > span:first-child { transform: translateY(-110%); }
+.pill:hover .roll > span + span, .pill:focus-visible .roll > span + span { transform: none; }
+.pill.small { padding: 10px 16px; font-size: 13.5px; }
+.pill.big { padding: 17px 30px; font-size: 15.5px; box-shadow: 0 10px 30px -12px rgba(20, 16, 40, .35); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+#cta { position: absolute; left: 50%; top: 66%; transform: translate(-50%, -50%); transition: opacity .3s linear; }
+
+.labels { position: absolute; inset: 0; }
+.lab { position: absolute; left: 0; top: 0; transform: translate(-50%, -100%); text-align: center; white-space: nowrap; will-change: transform, opacity; }
+.lab b { display: block; font: 800 clamp(17px, 2vw, 24px)/1.05 var(--font-display); letter-spacing: -.03em; }
+.lab small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--ink-soft); }
+.lab.boss b { color: #fff; text-shadow: 0 1px 14px rgba(0, 0, 0, .35); }
+.lab.boss small { color: rgba(255, 255, 255, .8); }
+
+.bottom { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); display: grid; justify-items: center; gap: 10px; }
+.picker { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--chip); border: 1px solid var(--chip-line);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); }
+.picker button { border: 0; background: transparent; color: var(--ink); font: 600 13.5px/1 var(--font-body); padding: 10px 16px;
+  border-radius: 999px; transition: background-color .3s var(--ease), color .3s var(--ease); }
+.picker button:hover { background: var(--chip-line); }
+.picker button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-ink); }
+.desc { margin: 0; max-width: 54ch; text-align: center; font-size: 13.5px; color: var(--ink-soft); text-wrap: balance; min-height: 2.9em; }
+.hint { position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  margin: 0; max-width: 24ch; font-size: 12.5px; color: var(--ink-soft); }
+
+.cursor { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 20; display: none; }
+body.fine .cursor { display: block; }
+.cursor i, .cursor b { position: absolute; left: 0; top: 0; border-radius: 50%; translate: -50% -50%; }
+.cursor i { width: 30px; height: 30px; border: 1.5px solid var(--ink); transition: width .35s var(--spring), height .35s var(--spring), background-color .3s, opacity .3s; }
+.cursor b { width: 4px; height: 4px; background: var(--ink); }
+.cursor.on i { width: 58px; height: 58px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 76px); translate: -50% -12px; opacity: 0; pointer-events: none;
+  max-width: min(420px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 14px; background: var(--ink); color: var(--paper);
+  font-size: 13.5px; text-align: center; transition: opacity .3s, translate .45s var(--spring); z-index: 30; }
+.toast.show { opacity: 1; translate: -50% 0; }
+.fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+
+@media (max-width: 700px) {
+  .top nav a { display: none; }
+  .hint { display: none; }
+  .picker button { padding: 9px 12px; font-size: 13px; }
+  .desc { font-size: 12.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; }
+}
+</style>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="ui">
+  <header class="top">
+    <a class="brand" href="#path" aria-label="Operandi">operandi</a>
+    <nav aria-label="Main">
+      <a href="#path">Course</a>
+      <a href="#path">FAQ</a>
+      <button class="pill small" type="button" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button>
+    </nav>
+  </header>
+  <h1 class="sr">Learning Python should be fun.</h1>
+  <div id="cta"><button class="pill big" type="button" id="ctaBtn" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button></div>
+  <div class="labels" id="labels"></div>
+  <p class="hint" id="hint">Move your mouse through the words. Scroll to travel.</p>
+  <footer class="bottom">
+    <div class="picker" role="group" aria-label="Choose a world">
+      <button type="button" data-w="path">Path</button>
+      <button type="button" data-w="courtyard">Courtyard</button>
+      <button type="button" data-w="cosmos">Cosmos</button>
+      <button type="button" data-w="code">Code</button>
+    </div>
+    <p class="desc" id="desc"></p>
+  </footer>
+</div>
+<div class="cursor" id="cur"><i></i><b></b></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+"use strict";
+const $ = (id) => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+const STILL = qs.has("still");                         // test hook: render fixed frames, no animation loop
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const FINE = matchMedia("(pointer: fine)").matches && !STILL;
+const PHONE = Math.min(innerWidth, innerHeight) < 600;
+if (FINE) document.body.classList.add("fine");
+
+const canvas = $("gl");
+const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, preserveDrawingBuffer: STILL, powerPreference: "high-performance" });
+if (!gl) {
+  canvas.remove();
+  const f = document.createElement("div"); f.className = "fallback";
+  f.textContent = "This preview needs WebGL 2, which this browser doesn't have. Try it in a recent Chrome, Safari or Firefox.";
+  document.body.append(f); return;
+}
+const floatFluid = !!(gl.getExtension("EXT_color_buffer_float") || gl.getExtension("EXT_color_buffer_half_float"));
+
+// ---------------------------------------------------------------- shaders
+const VERT = `#version 300 es
+in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
+
+// Shared by the scene pass and the final pass: the camera and the headline (a flat sign standing in the world).
+const TEXT_GLSL = `
+uniform vec3 uCam, uTgt; uniform float uFov;
+uniform vec3 uTxC, uTxR, uTxU; uniform sampler2D uText; uniform vec4 uWave[5]; uniform vec2 uWaveOff[5]; uniform float uEm, uTextA, uTime, uTexH, uMainV;
+vec3 camRay(vec2 frag, vec2 res){
+  vec3 f = normalize(uTgt - uCam); vec3 r = normalize(cross(f, vec3(0., 1., 0.))); vec3 u = cross(r, f);
+  vec2 q = (frag - .5*res)/res.y; return normalize(f + (q.x*r + q.y*u)*2.*uFov); }
+// The "n"s of "funnnnn" bob like the CSS wave on the real home page.
+float waveY(float t){ float p = mod(t, 2.6)/2.6, k;
+  if (p < .2) { k = p/.2; k = 1.-(1.-k)*(1.-k); return -.12*k; }
+  if (p < .4) { k = (p-.2)/.2; k = 1.-(1.-k)*(1.-k); return mix(-.12, .03, k); }
+  if (p < .6) { k = (p-.4)/.2; k = 1.-(1.-k)*(1.-k); return mix(.03, 0., k); }
+  return 0.; }
+// pw: the size of one pixel at distance 1, so the right mip level can be picked by hand
+float textAt(vec3 ro, vec3 rd, float pw){
+  vec3 n = cross(uTxR, uTxU); float dn = dot(rd, n); if (abs(dn) < 1e-7) return 0.;
+  float t = dot(uTxC - ro, n)/dn; if (t <= 0.) return 0.;
+  vec3 p = ro + rd*t - uTxC;
+  vec2 uv = vec2(dot(p, uTxR)/dot(uTxR, uTxR), dot(p, uTxU)/dot(uTxU, uTxU));
+  if (abs(uv.x) > 1. || abs(uv.y) > 1.) return 0.;
+  uv = vec2(uv.x*.5 + .5, (.5 - uv.y*.5)*uMainV);         // the sign shows the top part of the texture
+  float lod = log2(max(t*pw*uTexH/(2.*length(uTxU)), 1.));
+  float a = textureLod(uText, uv, lod).a;
+  // the n's of "funnnnn" are drawn on a strip below the words; each is fetched from there, bobbing in turn
+  for (int i = 0; i < 5; i++) { vec4 w = uWave[i];
+    if (uv.x > w.x && uv.x < w.z && uv.y > w.y && uv.y < w.w)
+      a = max(a, textureLod(uText, uv + uWaveOff[i] - vec2(0., waveY(uTime - float(i)*.08)*uEm), lod).a); }
+  return a*uTextA; }
+`;
+
+const LIB = `
+#define PI 3.14159265
+mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y)*p3.z); }
+float hash3(vec3 p3){ p3 = fract(p3*.1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y)*p3.z); }
+float noise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3. - 2.*f);
+  return mix(mix(mix(hash3(i), hash3(i + vec3(1,0,0)), f.x), mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), f.x), mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y), f.z); }
+float fbm(vec3 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a*noise(p); p = p*2.03 + vec3(1.7, 9.2, 3.1); a *= .5; } return s; }
+float sdBox(vec3 p, vec3 b){ vec3 q = abs(p) - b; return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.); }
+float sdRBox(vec3 p, vec3 b, float r){ return sdBox(p, b - r) - r; }
+float sdCylY(vec3 p, float r, float h){ vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(r, h); return min(max(d.x, d.y), 0.) + length(max(d, 0.)); }
+float sdCylZ(vec3 p, float r, float h){ vec2 d = abs(vec2(length(p.xy), p.z)) - vec2(r, h); return min(max(d.x, d.y), 0.) + length(max(d, 0.)); }
+vec3 aces(vec3 x){ return clamp((x*(2.51*x + .03))/(x*(2.43*x + .59) + .14), 0., 1.); }
+`;
+
+// Marching helpers for the worlds built from distance functions (they need the world's own map()).
+const MARCH = `
+float march(vec3 ro, vec3 rd, float maxT, int steps, out float mat){
+  float t = .02; mat = -1.;
+  for (int i = 0; i < 160; i++) { if (i >= steps) break;
+    vec2 h = map(ro + rd*t); if (h.x < .0012*t) { mat = h.y; return t; }
+    t += h.x*.9; if (t > maxT) break; }
+  return -1.; }
+vec3 calcN(vec3 p){ const vec2 k = vec2(1., -1.); const float e = .0015;
+  return normalize(k.xyy*map(p + k.xyy*e).x + k.yyx*map(p + k.yyx*e).x + k.yxy*map(p + k.yxy*e).x + k.xxx*map(p + k.xxx*e).x); }
+float shadow(vec3 ro, vec3 rd, float k){ float res = 1., t = .03;
+  for (int i = 0; i < 40; i++) { float h = map(ro + rd*t).x; res = min(res, k*h/t); t += clamp(h, .03, .5); if (res < .002 || t > 22.) break; }
+  return clamp(res, 0., 1.); }
+float calcAO(vec3 p, vec3 n){ float o = 0., s = 1.;
+  for (int i = 0; i < 5; i++) { float h = .02 + .14*float(i); o += (h - map(p + n*h).x)*s; s *= .7; }
+  return clamp(1. - 1.6*o, 0., 1.); }
+`;
+
+// ---- World 1: the course as a place. Stepping stones across still water at dawn, a gate for each module,
+// a dark monolith with a glowing core for each boss (ember for GOLEM, rose for the Maw).
+const W_PATH = `
+const vec3 SUN = normalize(vec3(.75, .42, .3));
+const vec3 GLOW = normalize(vec3(-.25, .06, -1.));
+float xpath(float z){ return 2.2*sin(z*.09) + .8*sin(z*.23 + 1.); }
+vec3 sky(vec3 rd){
+  float y = max(rd.y, 0.);
+  vec3 hor = vec3(1., .6, .5), zen = vec3(.26, .3, .8);
+  vec3 c = mix(hor, mix(vec3(.8, .48, .76), zen, smoothstep(.06, .42, y)), smoothstep(0., .12, y));
+  float s = max(dot(rd, GLOW), 0.);
+  c += vec3(1., .62, .4)*pow(s, 6.)*.3 + vec3(1., .93, .78)*pow(s, 350.)*4.;
+  if (rd.y > 0.) {
+    vec2 cp = rd.xz/(rd.y + .1);
+    float cl = smoothstep(.5, .78, fbm(vec3(cp.x*.3 + uTime*.004, cp.y*.9, 2.)))*smoothstep(0., .22, rd.y);
+    c = mix(c, vec3(1., .9, .88) + vec3(.25, .15, .05)*pow(s, 2.), cl*.55);
+  }
+  float az = atan(rd.x, -rd.z);
+  float h1 = .03*fbm(vec3(az*2.4, 1., 0.)) + .004, h2 = .018*fbm(vec3(az*6., 5., 0.)) - .002;
+  c = mix(c, mix(vec3(.8, .6, .72), hor, .35), smoothstep(h1 + .0025, h1 - .0025, rd.y)*.85);
+  c = mix(c, vec3(.62, .48, .64), smoothstep(h2 + .002, h2 - .002, rd.y)*.85);
+  return c; }
+vec3 fogC(vec3 rd){ return mix(vec3(.96, .64, .6), vec3(1., .74, .56), pow(max(dot(rd, GLOW), 0.), 3.)); }
+vec2 map(vec3 p){
+  const float SP = 1.75;
+  float k = clamp(floor(p.z/SP + .5), -34., 2.), zc = k*SP;
+  vec3 q = p - vec3(xpath(zc) + .3*(hash(vec2(k, 1.)) - .5), 0., zc);
+  float r = .5 + .14*hash(vec2(k, 2.));
+  vec2 res = vec2((sdCylY(q - vec3(0., -.12, 0.), r - .08, .22) - .08)*.8, 1.);
+  for (int i = 0; i < 3; i++) {
+    float zg = i == 0 ? -12. : (i == 1 ? -30. : -48.);
+    vec3 g = p - vec3(xpath(zg), 0., zg);
+    if (abs(g.z) - .5 > res.x) continue;
+    float outer = sdRBox(g - vec3(0., 2., 0.), vec3(2.05, 2.45, .32), .05);
+    float open = min(sdBox(g - vec3(0., 1., 0.), vec3(1.15, 1.6, 1.)), sdCylZ(g - vec3(0., 2.6, 0.), 1.15, 1.));
+    float d = max(outer, -open);
+    if (d < res.x) res = vec2(d, 2.);
+  }
+  for (int i = 0; i < 2; i++) {
+    float zb = i == 0 ? -22. : -40.;
+    vec3 b = p - vec3(xpath(zb) + 3.3, 0., zb);
+    if (length(b - vec3(0., 3., 0.)) - 4. > res.x) continue;
+    b.xz *= rot(.4);
+    float m = sdRBox(b - vec3(0., 3., 0.), vec3(.8, 3.2, .7), .1);
+    if (m < res.x) res = vec2(m, 3.);
+    float c = length(b - vec3(0., 4.5, .72)) - .36;
+    if (c < res.x) res = vec2(c, 4. + float(i));
+  }
+  return res; }
+${MARCH}
+vec3 shadeObj(vec3 p, vec3 n, vec3 rd, float mat, bool cheap){
+  vec3 alb; vec3 emi = vec3(0.); float sp = .06, pw = 14.;
+  if (mat < 1.5) alb = vec3(.9, .86, .82)*(.9 + .1*noise(p*5.));
+  else if (mat < 2.5) alb = vec3(.86, .6, .48)*(.84 + .16*fbm(p*1.6));
+  else if (mat < 3.5) { alb = vec3(.09, .085, .12); sp = .7; pw = 50.; }
+  else { vec3 cc = mat < 4.5 ? vec3(1., .42, .15) : vec3(1., .28, .45); alb = vec3(.05); emi = cc*(4. + 1.6*sin(uTime*1.7 + mat)); }
+  float dif = max(dot(n, SUN), 0.);
+  float sh = cheap ? 1. : shadow(p + n*.01, SUN, 12.);
+  float ao = cheap ? 1. : calcAO(p, n);
+  vec3 amb = mix(vec3(.66, .6, .74), vec3(.5, .6, .9), n.y*.5 + .5);
+  vec3 col = alb*(vec3(2.3, 1.8, 1.4)*dif*sh + amb*.55*ao + vec3(.95, .7, .66)*.16*ao);
+  col += vec3(1., .88, .76)*pow(max(dot(reflect(rd, n), SUN), 0.), pw)*sp*sh;
+  if (mat > 2.5 && mat < 3.5) col += vec3(.5, .55, .85)*pow(1. - max(dot(n, -rd), 0.), 3.)*.25;
+  // the cores light the monolith around them
+  for (int i = 0; i < 2; i++) { float zb = i == 0 ? -22. : -40.;
+    vec3 b = p - vec3(xpath(zb) + 3.3, 0., zb); b.xz *= rot(.4);
+    float d = length(b - vec3(0., 4.5, .72)); vec3 cc = i == 0 ? vec3(1., .42, .15) : vec3(1., .28, .45);
+    col += cc*1.2/(1. + d*d*3.)*alb*6.; }
+  return col + emi; }
+float waterH(vec2 p){ return .01*sin(p.x*1.3 + uTime*.7)*sin(p.y*1.1 - uTime*.5) + .005*sin(dot(p, vec2(2.3, 3.1)) - uTime*1.3) + .003*sin(dot(p, vec2(-4.1, 2.7)) + uTime*1.7); }
+vec3 world(vec3 ro, vec3 rd){
+  float tw = rd.y < 0. ? -ro.y/rd.y : 1e5;
+  float mat; float t = march(ro, rd, min(tw, 150.), 130, mat);
+  if (t > 0.) { vec3 p = ro + rd*t; return mix(shadeObj(p, calcN(p), rd, mat, false), fogC(rd), 1. - exp(-t*.005)); }
+  if (tw > 1e4) return sky(rd);
+  vec3 p = ro + rd*tw; const float e = .04;
+  vec3 n = normalize(vec3(waterH(p.xz - vec2(e, 0.)) - waterH(p.xz + vec2(e, 0.)), 2.*e, waterH(p.xz - vec2(0., e)) - waterH(p.xz + vec2(0., e))));
+  vec3 rr = reflect(rd, n);
+  float m2; float t2 = march(p + n*.02, rr, 70., 70, m2);
+  vec3 rc = t2 > 0. ? mix(shadeObj(p + rr*t2, calcN(p + rr*t2), rr, m2, true), fogC(rr), 1. - exp(-t2*.005)) : sky(rr);
+  float fr = .04 + .96*pow(1. - max(dot(n, -rd), 0.), 5.);
+  vec3 col = mix(vec3(.26, .2, .5), rc, clamp(.42 + fr, 0., 1.));
+  col *= .78 + .22*smoothstep(0., .45, map(p).x);
+  return mix(col, fogC(rd), 1. - exp(-tw*.005)); }
+`;
+
+// ---- World 2: a calm sunlit courtyard. Limewashed sage walls, a round moon gate onto the sea, a pergola that
+// throws stripes of shadow, a shallow pool with stepping pads, terracotta pots.
+const W_COURT = `
+const vec3 SUN = normalize(vec3(.5, .64, .58));
+vec3 sky(vec3 rd){
+  float s = max(dot(rd, SUN), 0.);
+  if (rd.y >= 0.) {
+    vec3 c = mix(vec3(.8, .87, .93), vec3(.4, .6, .88), pow(rd.y, .5));
+    c += vec3(1., .9, .75)*pow(s, 6.)*.25;
+    vec2 cp = rd.xz/(rd.y + .1);
+    float cl = smoothstep(.55, .8, fbm(vec3(cp*.22 + vec2(uTime*.006, 0.), 3.)));
+    return mix(c, vec3(1.), cl*.6*smoothstep(0., .2, rd.y)); }
+  float d = -rd.y;
+  vec3 sea = mix(vec3(.5, .7, .82), vec3(.08, .3, .5), smoothstep(0., .08, d));
+  vec2 sp = rd.xz/d;
+  float rip = noise(vec3(sp*9. + vec2(uTime*.4, 0.), uTime*.5))*.6 + noise(vec3(sp*23., uTime*.7))*.4;
+  sea *= .93 + .14*rip*smoothstep(0., .03, d);
+  return sea; }
+vec2 map(vec3 p){
+  float fl = max(max(p.y, -p.z - 9.5), -sdBox(p - vec3(0., -.3, -3.5), vec3(2.6, .3, 1.55)));
+  vec2 res = vec2(fl, 1.);
+  float wb = sdBox(p - vec3(0., 3.6, -6.35), vec3(9.5, 3.6, .35));
+  wb = max(wb, -sdCylZ(p - vec3(0., 2.65, -6.35), 2.35, .6));
+  float wl = sdBox(p - vec3(-7.35, 3.6, -1.2), vec3(.35, 3.6, 5.5));
+  vec3 ws = p - vec3(-7.35, 3.3, -1.2); ws.z -= 2.4*clamp(floor(ws.z/2.4 + .5), -1., 1.);
+  wl = max(wl, -sdRBox(ws, vec3(.6, 1.5, .34), .02));
+  float w = min(min(wb, wl), sdRBox(p - vec3(-6.45, .36, -1.2), vec3(.55, .36, 2.4), .05));
+  if (w < res.x) res = vec2(w, 2.);
+  vec3 pp = p - vec3(0., -.05, -3.5); pp.z -= .95*clamp(floor(pp.z/.95 + .5), -1., 1.);
+  float pad = sdRBox(pp, vec3(.5, .13, .34), .03);
+  if (pad < res.x) res = vec2(pad, 3.);
+  vec3 q = p - vec3(6.3, 0., -1.8); vec3 qp = q; qp.z -= 3.6*clamp(floor(qp.z/3.6 + .5), -1., 1.);
+  float perg = sdBox(qp - vec3(0., 2.8, 0.), vec3(.13, 2.8, .13));
+  perg = min(perg, sdBox(q - vec3(0., 5.55, 0.), vec3(.15, .13, 4.2)));
+  vec3 sl = p - vec3(-.4, 5.86, 0.); sl.z -= .62*clamp(floor(sl.z/.62 + .5), -9., 4.);
+  perg = min(perg, sdBox(sl, vec3(6.9, .1, .065)));
+  if (perg < res.x) res = vec2(perg, 4.);
+  vec3 a = p - vec3(-4.7, 0., -4.4), b = p - vec3(3.95, 0., -5.3);
+  float pot = min(sdCylY(a - vec3(0., .48, 0.), .6, .48) - .06, sdCylY(b - vec3(0., .36, 0.), .42, .36) - .05);
+  if (pot < res.x) res = vec2(pot, 5.);
+  float shr = min(length((a - vec3(0., 1.72, 0.))*vec3(1., 1.12, 1.)) - 1.02 + .14*(noise(a*3.2 + 2.) - .5),
+                  length(b - vec3(0., 1.18, 0.)) - .68 + .12*(noise(b*3.8) - .5));
+  if (shr*.7 < res.x) res = vec2(shr*.7, 6.);
+  return res; }
+${MARCH}
+vec3 shadeObj(vec3 p, vec3 n, vec3 rd, float mat, bool cheap){
+  vec3 alb; float sp = .05, pw = 16.;
+  if (mat < 1.5) {
+    if (p.y < -.02) alb = vec3(.5, .72, .74);
+    else { vec2 g = p.xz*16.; float h = hash(floor(g)); float chip = step(.88, h)*smoothstep(.45, .3, length(fract(g) - .5));
+      alb = mix(vec3(.88, .76, .62), mix(vec3(.62, .55, .5), vec3(.74, .5, .4), hash(floor(g) + 3.)), chip*.7); } }
+  else if (mat < 2.5) alb = vec3(.66, .76, .62)*(.92 + .08*fbm(p*1.4));
+  else if (mat < 3.5) alb = vec3(.89, .87, .83);
+  else if (mat < 4.5) alb = vec3(.95, .94, .91);
+  else if (mat < 5.5) alb = vec3(.76, .43, .31)*(.9 + .1*noise(p*8.));
+  else { alb = mix(vec3(.2, .36, .2), vec3(.42, .56, .3), noise(p*5.)); sp = .02; }
+  float dif = max(dot(n, SUN), 0.);
+  float sh = cheap ? 1. : shadow(p + n*.01, SUN, 20.);
+  float ao = cheap ? 1. : calcAO(p, n);
+  vec3 col = alb*(vec3(2.3, 2.08, 1.82)*dif*sh + mix(vec3(.5, .52, .5), vec3(.58, .7, .9), n.y*.5 + .5)*.62*ao + vec3(.92, .86, .76)*.16*ao*(1. - n.y));
+  col += vec3(1., .95, .85)*pow(max(dot(reflect(rd, n), SUN), 0.), pw)*sp*sh;
+  return col; }
+vec3 world(vec3 ro, vec3 rd){
+  float mat; float t = march(ro, rd, 90., 140, mat);
+  vec3 col;
+  float tw = rd.y < 0. ? (-.1 - ro.y)/rd.y : 1e5; vec3 pw = ro + rd*tw;
+  bool water = tw < 1e4 && (t < 0. || tw < t) && abs(pw.x) < 2.6 && abs(pw.z + 3.5) < 1.55;
+  if (t > 0.) { vec3 p = ro + rd*t; col = shadeObj(p, calcN(p), rd, mat, false); col = mix(col, vec3(.9, .92, .94), 1. - exp(-t*.006)); }
+  else col = sky(rd);
+  if (water) {
+    vec2 w = pw.xz; float e = .03;
+    float h0 = sin(w.x*3. + uTime*.9)*sin(w.y*2.6 - uTime*.7);
+    vec3 n = normalize(vec3(.012*cos(w.x*3. + uTime*.9)*3., 1., .012*cos(w.y*2.6 - uTime*.7)*2.6) + vec3(0., 0., h0*.004));
+    vec3 rr = reflect(rd, n);
+    float m2; float t2 = march(pw + n*.02, rr, 40., 60, m2);
+    vec3 rc = t2 > 0. ? shadeObj(pw + rr*t2, calcN(pw + rr*t2), rr, m2, true) : sky(rr);
+    float fr = .03 + .97*pow(1. - max(dot(n, -rd), 0.), 5.);
+    vec3 under = col*vec3(.55, .85, .86);
+    col = mix(under, rc, clamp(fr + .28, 0., 1.));
+  }
+  return col; }
+`;
+
+// ---- World 3: dark space above a violet planet. Nebula, stars, drifting dust; the sun rises over the edge as you scroll.
+const W_COSMOS = `
+const vec4 PL = vec4(0., -60., -44., 56.);
+vec3 sunD(){ return normalize(vec3(.58, -.17 + .27*uScroll, -1.)); }
+vec3 space(vec3 rd, vec3 sd){
+  vec3 c = mix(vec3(.005, .007, .02), vec3(.02, .024, .06), smoothstep(-.3, .6, rd.y));
+  float n1 = fbm(rd*2.2 + vec3(0., uTime*.004, 0.)), n2 = fbm(rd*4.5 + 7.);
+  c += mix(vec3(.13, .05, .3), vec3(.02, .17, .32), n2)*pow(smoothstep(.36, .86, n1), 1.6)*1.1;
+  for (int l = 0; l < 2; l++) {
+    float sc = l == 0 ? 90. : 210.; vec3 q = rd*sc, id = floor(q), f = fract(q) - .5; float h = hash3(id + float(l)*13.1);
+    if (h > .965) { vec3 j = vec3(hash3(id + 1.7), hash3(id + 4.3), hash3(id + 9.1)) - .5;
+      float d = length(f - j*.7), tw = .65 + .35*sin(uTime*(.8 + h*3.) + h*50.);
+      c += mix(vec3(.75, .82, 1.), vec3(1., .85, .7), hash3(id + 2.2))*smoothstep(.1, 0., d)*tw*(l == 0 ? 1.5 : .7); } }
+  float s = max(dot(rd, sd), 0.);
+  return c + vec3(1., .84, .64)*pow(s, 900.)*30. + vec3(.95, .6, .9)*pow(s, 16.)*.28 + vec3(.5, .6, 1.)*pow(s, 4.)*.08; }
+vec3 dust(vec3 ro, vec3 rd){
+  vec3 acc = vec3(0.);
+  for (int i = 0; i < 4; i++) {
+    float zp = 4.5 - float(i)*3.5; float t = (zp - ro.z)/rd.z; if (t <= 0.) continue;
+    vec3 p = ro + rd*t; float cs = .55 + float(i)*.35;
+    vec2 g = p.xy/cs + vec2(0., uTime*.05*(1. + float(i)*.3)); vec2 id = floor(g), f = fract(g) - .5;
+    float h = hash(id + float(i)*7.3); if (h < .6) continue;
+    vec2 j = vec2(hash(id + 3.1), hash(id + 8.7)) - .5;
+    float d = length(f - j*.6)*cs, foc = abs(t - 7.), r = .012 + foc*.011;
+    float disc = smoothstep(r, r*.8, d)*(.55 + .45*smoothstep(r*.5, r*.95, d));
+    acc += mix(vec3(.45, .6, 1.), vec3(1., .8, .45), step(.86, h))*disc*(.55/(1. + foc*1.4))*(.6 + .4*sin(uTime*.7 + h*30.)); }
+  return acc; }
+vec3 world(vec3 ro, vec3 rd){
+  vec3 sd = sunD(); vec3 col = space(rd, sd);
+  vec3 oc = ro - PL.xyz; float b = dot(oc, rd), cc = dot(oc, oc) - PL.w*PL.w, h = b*b - cc;
+  vec3 pc = ro + rd*max(-b, 0.); float alt = length(pc - PL.xyz) - PL.w;
+  if (h > 0. && -b - sqrt(h) > 0.) {
+    vec3 p = ro + rd*(-b - sqrt(h)), n = normalize(p - PL.xyz);
+    float bands = fbm(vec3(n.x*2.5 + uTime*.003, n.y*18., n.z*2.5)), sw = fbm(n*6. + bands*1.5);
+    vec3 alb = mix(vec3(.07, .06, .16), vec3(.28, .21, .44), bands) + vec3(.08, .12, .2)*sw*.4;
+    float term = smoothstep(-.12, .25, dot(n, sd));
+    col = alb*(max(dot(n, sd), 0.)*2.2 + .015);
+    col += vec3(.25, .45, 1.)*pow(1. - max(dot(n, -rd), 0.), 3.)*(.22 + 1.6*term);
+  } else {
+    float a = exp(-max(alt, 0.)*.9); float lit = smoothstep(-.4, .6, dot(normalize(pc - PL.xyz), sd));
+    col += (vec3(.2, .4, 1.)*.55 + vec3(.95, .55, .85)*lit*.6)*a;
+  }
+  return col + dust(ro, rd); }
+`;
+
+// ---- World 4: a tunnel of floating Python from Modules 1 and 2; scrolling flies you through it.
+const W_CODE = `
+uniform sampler2D uAtlas;
+vec3 world(vec3 ro, vec3 rd){
+  vec3 bg = mix(vec3(.004, .006, .016), vec3(.016, .022, .05), smoothstep(-.4, .7, rd.y));
+  bg += vec3(.08, .14, .38)*pow(max(-rd.z, 0.), 18.)*.22;
+  if (rd.y < 0.) { float t = (-3.2 - ro.y)/rd.y; vec2 g = (ro + rd*t).xz/1.2;
+    vec2 gd = abs(fract(g - .5) - .5)/fwidth(g); bg += vec3(.2, .34, .85)*(1. - min(min(gd.x, gd.y), 1.))*.16*exp(-t*.06); }
+  vec3 acc = vec3(0.); float accA = 0., reveal = 1., travel = 6. - uCam.z;
+  for (int i = 0; i < 18; i++) {
+    float fi = float(i), L = 18.*2.6;
+    float zr = 2.5 - mod(fi*2.6 - uTime*.35 - travel, L);
+    float a = fi*2.39996 + .4, rad = 3.1 + 1.2*hash(vec2(fi, 1.));
+    vec3 c = vec3(cos(a)*rad*1.3, sin(a)*rad*.8 + .2, uCam.z + zr);
+    float yaw = (hash(vec2(fi, 2.)) - .5)*.6 - c.x*.07;
+    vec3 n = vec3(sin(yaw), 0., cos(yaw)), r = vec3(cos(yaw), 0., -sin(yaw));
+    float dn = dot(rd, n); if (abs(dn) < 1e-4) continue;
+    float t = dot(c - ro, n)/dn; if (t <= .05) continue;
+    vec3 p = ro + rd*t - c; vec2 hs = vec2(1.3, .81), q = vec2(dot(p, r), p.y);
+    vec2 e = abs(q) - hs + .07; float sd = length(max(e, 0.)) + min(max(e.x, e.y), 0.) - .07;
+    if (sd > 0.) continue;
+    vec2 uv = q/hs*.5 + .5; uv.y = 1. - uv.y;
+    int ti = i % 16; vec4 tx = texture(uAtlas, (vec2(float(ti % 4), float(ti / 4)) + uv)/4.);
+    float fade = smoothstep(-44., -22., zr)*smoothstep(1.2, -1.4, zr);
+    float border = smoothstep(-.03, -.006, sd), head = step(uv.y, .14);
+    vec3 pc = vec3(.035, .05, .1) + vec3(.03, .045, .08)*head + tx.rgb*1.5 + vec3(.35, .5, 1.)*border*.8;
+    float pa = clamp(.58 + tx.a*.35 + border*.4, 0., 1.)*fade;
+    float w = pa*clamp(3./(1e-3 + pow(t/8., 3.)), 1e-2, 3e3);
+    acc += pc*pa*w; accA += pa*w; reveal *= 1. - pa; }
+  return accA > 0. ? mix(bg, acc/accA, 1. - reveal) : bg; }
+`;
+
+// Scene pass: the world, then the glass ball (which sees the world and the headline through itself).
+const SCENE_MAIN = `
+uniform vec4 uGlass; uniform vec3 uGlassTint, uTextCol; uniform float uIri, uExpo, uIor;
+vec3 behind(vec3 ro, vec3 rd){ return mix(world(ro, rd), pow(uTextCol, vec3(2.2)), textAt(ro, rd, 2.*uFov/uRes.y)); }
+vec3 glassShade(vec3 ro, vec3 rd){
+  vec3 c = uGlass.xyz; float R = uGlass.w, ior = uIor;
+  vec3 oc = ro - c; float b = dot(oc, rd), h = max(b*b - dot(oc, oc) + R*R, 0.);
+  vec3 p1 = ro + rd*(-b - sqrt(h)), n1 = normalize(p1 - c);
+  vec3 r1 = refract(rd, n1, 1./ior);
+  vec3 o2 = p1 - c; float b2 = dot(o2, r1), h2 = max(b2*b2 - dot(o2, o2) + R*R, 0.);
+  vec3 p2 = p1 + r1*(-b2 + sqrt(h2)), n2 = normalize(p2 - c);
+  vec3 r2 = refract(r1, -n2, ior); if (dot(r2, r2) < .01) r2 = reflect(r1, -n2);
+  float ct = max(dot(n1, -rd), 0.), fr = .04 + .96*pow(1. - ct, 5.);
+  vec3 col = behind(p2 + r2*.02, r2)*uGlassTint;
+  col = mix(col, world(p1 + n1*.02, reflect(rd, n1)), fr);
+  vec3 film = .5 + .5*cos(6.2831*(vec3(0., .33, .67) + 1.3*ct + .15 + uTime*.03));
+  col = mix(col, vec3(1., .98, 1.)*.9, .1*uIri);
+  col += film*uIri*pow(1. - ct, 1.4)*.5;
+  col += vec3(1.)*pow(max(dot(reflect(rd, n1), normalize(vec3(-.45, .65, .6))), 0.), 70.)*2.;
+  return col*mix(1., .82, pow(1. - ct, 4.)); }
+void main(){
+  vec3 rd = camRay(gl_FragCoord.xy, uRes);
+  vec3 col = world(uCam, rd); float mask = 0.;
+  if (uGlass.w > 0.) {
+    vec3 oc = uGlass.xyz - uCam; float tc = dot(oc, rd);
+    if (tc > 0.) { float dl = length(oc - rd*tc), px = tc*2.*uFov/uRes.y;
+      mask = clamp((uGlass.w - dl)/px + .5, 0., 1.);
+      if (mask > 0.) col = mix(col, glassShade(uCam, rd), mask); }
+  }
+  o = vec4(pow(aces(col*uExpo), vec3(1./2.2)), mask); }
+`;
+
+function sceneFS(worldSrc) {
+  return `#version 300 es
+precision highp float;
+uniform vec2 uRes; uniform float uScroll;
+out vec4 o;
+${TEXT_GLSL}
+${LIB}
+${worldSrc}
+${SCENE_MAIN}`;
+}
+
+// Final pass: scale the scene up, add the crisp headline pushed around by the liquid trail (with a colour split
+// along the flow), a little lens fringe at the edges, vignette and film grain.
+const POST_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uScene, uFluid; uniform vec2 uRes2; uniform vec3 uTextCol, uTrailCol;
+uniform float uGrain, uVig, uCA, uEnc, uLiquid;
+out vec4 o;
+${TEXT_GLSL}
+float h2(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y)*p3.z); }
+vec2 dec(vec4 c){ return uEnc > .5 ? (c.xy - 128./255.)*2. : c.xy; }
+float textPx(vec2 frag){ return textAt(uCam, camRay(frag, uRes2), 2.*uFov/uRes2.y); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/uRes2;
+  vec2 v = dec(texture(uFluid, uv))*uLiquid;
+  float flow = length(v);
+  vec2 dc = uv - .5; float ca = uCA*dot(dc, dc);
+  vec2 su = uv - v*.18;
+  vec3 c = vec3(texture(uScene, su - dc*ca).r, texture(uScene, su).g, texture(uScene, su + dc*ca).b);
+  float mask = texture(uScene, su).a;
+  vec2 fc = gl_FragCoord.xy - v*uRes2.y*.3;            // the letters, pushed along the flow
+  float a0 = textPx(fc)*(1. - mask);
+  float a1 = textPx(fc + v*uRes2.y*.22)*(1. - mask);    // a soft tinted ghost left behind
+  float k = smoothstep(.004, .06, flow);
+  c = mix(c, uTrailCol, a1*k*.5);
+  c = mix(c, mix(uTextCol, uTrailCol, k*.45), a0);
+  c *= 1. - uVig*dot(dc, dc);
+  c += (h2(gl_FragCoord.xy + floor(uTime*24.)*17.13) - .5)*uGrain;
+  o = vec4(c, 1.); }`;
+
+// The liquid trail: a small velocity field that the cursor stirs; it drifts along itself, spreads and fades.
+const FLUID_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uPrev; uniform vec2 uFRes, uP0, uP1, uVel; uniform float uAspect, uDecay, uRad, uEnc;
+out vec4 o;
+vec2 dec(vec4 c){ return uEnc > .5 ? (c.xy - 128./255.)*2. : c.xy; }
+vec4 enc(vec2 v){ return uEnc > .5 ? vec4(v*.5 + 128./255., 0., 1.) : vec4(v, 0., 1.); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/uFRes, px = 1./uFRes;
+  vec2 back = uv - dec(texture(uPrev, uv))*.3;
+  vec2 v = dec(texture(uPrev, back));
+  vec2 b = dec(texture(uPrev, back + vec2(px.x, 0.))) + dec(texture(uPrev, back - vec2(px.x, 0.)))
+         + dec(texture(uPrev, back + vec2(0., px.y))) + dec(texture(uPrev, back - vec2(0., px.y)));
+  v = mix(v, b*.25, .45)*uDecay;
+  vec2 pa = (uv - uP0)*vec2(uAspect, 1.), ba = (uP1 - uP0)*vec2(uAspect, 1.);
+  float hh = clamp(dot(pa, ba)/max(dot(ba, ba), 1e-8), 0., 1.), d = length(pa - ba*hh);
+  v += uVel*exp(-d*d/(uRad*uRad));
+  o = enc(clamp(v, -.22, .22)); }`;
+
+// ---------------------------------------------------------------- GL plumbing
+function compile(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(s); console.error(log, src.split("\n").map((l, i) => i + 1 + ": " + l).join("\n"));
+    throw new Error("shader: " + log);
+  }
+  return s;
+}
+function program(fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, VERT)); gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, "a"); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("link: " + gl.getProgramInfoLog(p));
+  p.u = {}; return p;
+}
+const U = (p, n) => (n in p.u ? p.u[n] : (p.u[n] = gl.getUniformLocation(p, n)));
+const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+function tex(w, h, internal, format, type, filter) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+function target(t) { const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return f; }
+function canvasTex(src) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src); gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+
+// ---------------------------------------------------------------- math
+const v3 = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+  mix: (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t],
+};
+const basis = (pos, tgt) => { const f = v3.norm(v3.sub(tgt, pos)); const r = v3.norm(v3.cross(f, [0, 1, 0])); return { f, r, u: v3.cross(r, f) }; };
+const ease = (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const xpath = (z) => 2.2 * Math.sin(z * .09) + .8 * Math.sin(z * .23 + 1);
+const FOV = .44;   // tan(half the vertical field of view)
+
+// ---------------------------------------------------------------- the worlds
+const WORLDS = {
+  path: {
+    src: W_PATH, dark: false, expo: .74, text: [.12, .1, .16], trail: [.5, .38, .78], tint: [1, .97, 1], iri: .9, par: .35, grain: .045,
+    desc: "The course as a place. Stepping stones across still water, a gate for each module and a boss at the end of each one.",
+    cam(s) { const z = 9 - 42 * ease(s); return { pos: [xpath(z) + .7 * (1 - s), 2.7 - .9 * s, z], tgt: [xpath(z - 15), .9 + .4 * s, z - 15] }; },
+    glass: [.94, .56, .5],
+    labels: [
+      { p: [xpath(-12), 4.95, -12], t: "Module 1", s: "Basics" },
+      { p: [xpath(-22) + 3.3, 6.9, -22], t: "GOLEM", s: "Module 1 boss", boss: 1 },
+      { p: [xpath(-30), 4.95, -30], t: "Module 2", s: "Decisions" },
+      { p: [xpath(-40) + 3.3, 6.9, -40], t: "The Abyssal Maw", s: "Module 2 boss", boss: 1 },
+      { p: [xpath(-48), 4.95, -48], t: "Module 3", s: "Loops, coming soon" },
+    ],
+  },
+  courtyard: {
+    src: W_COURT, dark: false, expo: .8, text: [.11, .13, .12], trail: [.3, .5, .62], tint: [.97, 1, .99], iri: .55, par: .3, grain: .04,
+    desc: "A calm sunlit courtyard. A round gate looks out to the sea, and the pergola throws stripes of shadow across the floor.",
+    cam(s) { const k = ease(s); return { pos: v3.mix([1.1, 1.75, 7.4], [0, 1.95, -8.8], k), tgt: v3.mix([0, 2.35, -6], [0, 1.7, -30], k) }; },
+    glass: [-.94, .56, .48],
+  },
+  cosmos: {
+    src: W_COSMOS, dark: true, expo: 1.1, text: [.95, .94, 1], trail: [.62, .72, 1], tint: [.93, .96, 1.04], iri: .35, par: .5, grain: .05,
+    desc: "Dark space above a violet planet. Dust drifts past, and the sun rises over the planet's edge as you scroll.",
+    cam(s) { const k = ease(s); return { pos: [0, .3 + 3.4 * k, 8 - 7 * k], tgt: [0, .45 + 2.2 * k, -10] }; },
+    glass: [.94, .56, .5],
+  },
+  code: {
+    src: W_CODE, dark: true, expo: 1.0, text: [.95, .96, 1], trail: [.55, .8, 1], tint: [.92, 1, 1.05], iri: .3, par: .45, grain: .045,
+    desc: "A tunnel of floating Python from Modules 1 and 2. Scroll to fly through it.",
+    cam(s) { const z = 6 - 34 * ease(s); return { pos: [0, 0, z], tgt: [0, 0, z - 12] }; },
+    glass: [.94, .56, .48],
+  },
+};
+const ORDER = ["path", "courtyard", "cosmos", "code"];
+
+// ---------------------------------------------------------------- headline texture
+const textCanvas = document.createElement("canvas");
+let textTex = null, textAspect = 3, waveBoxes = [], waveOffs = [], textEm = .2, textMainV = 1, textTexH = 1;
+function drawHeadline() {
+  const portrait = innerWidth / innerHeight < .9;
+  const lines = portrait ? ["Learning", "Python should", "be funnnnn."] : ["Learning Python", "should be funnnnn."];
+  const size = 200, lh = size * .98, pad = size * .3;
+  const ctx = textCanvas.getContext("2d");
+  const font = `800 ${size}px "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif`;
+  ctx.font = font;
+  const track = -.045 * size;
+  const widthOf = (s) => [...s].reduce((w, ch) => w + ctx.measureText(ch).width + track, -track);
+  const W = Math.ceil(Math.max(...lines.map(widthOf)) + pad * 2), mainH = Math.ceil(lh * lines.length + pad * 2), H = mainH + Math.ceil(lh + pad);
+  textCanvas.width = W; textCanvas.height = H;
+  const stripBase = mainH + pad * .5 + size * .8;
+  ctx.font = font; ctx.fillStyle = "#fff"; ctx.textBaseline = "alphabetic";
+  waveBoxes = []; waveOffs = [];
+  lines.forEach((line, li) => {
+    let x = (W - widthOf(line)) / 2; const base = pad + lh * li + size * .8;
+    const funAt = line.indexOf("funnnnn");
+    [...line].forEach((ch, i) => {
+      const cw = ctx.measureText(ch).width;
+      if (funAt >= 0 && i >= funAt + 2 && i < funAt + 7) {
+        // on the strip, spaced apart so no two share a column; the boxes meet half-way between letters
+        const k = waveBoxes.length, sx = pad + k * (cw + size * .4);
+        ctx.fillText(ch, sx, stripBase);
+        waveBoxes.push([(x + track / 2) / W, (base - size * .78) / H, (x + cw + track / 2) / W, (base + size * .16) / H]);
+        waveOffs.push((sx - x) / W, (stripBase - base) / H);
+      } else ctx.fillText(ch, x, base);
+      x += cw + track;
+    });
+  });
+  textAspect = W / mainH; textEm = size / H; textMainV = mainH / H; textTexH = mainH;
+  if (textTex) gl.deleteTexture(textTex);
+  textTex = canvasTex(textCanvas);
+}
+
+// ---------------------------------------------------------------- code atlas (world 4)
+const SNIPPETS = [
+  'print("Hello, Ada!")\nprint(2 + 3)', 'name = "Ada"\nage = 36\nprint(name, "is", age)',
+  'price = 12.5\ntax = price * 0.06\nprint(round(price + tax, 2))', '# a comment starts with #\nscore = 0\nscore = score + 10',
+  'is_raining = True\nprint(not is_raining)', 'temp = 31\nif temp > 30:\n    print("Hot today")',
+  'age = 15\nif age >= 18:\n    print("Adult")\nelse:\n    print("Not yet")', 'score = 72\nif score >= 80:\n    grade = "A"\nelif score >= 60:\n    grade = "B"',
+  'reply = "yes"\nprint(reply == "yes")', 'whole = 7 // 2\nleft = 7 % 2\nprint(whole, left)',
+  'x = 10\nx = x + 5\nprint(x)', 'has_ticket = True\nhas_id = False\nprint(has_ticket and has_id)',
+  'print("ha" * 3)', 'hour = 9\nopen_now = hour >= 8 and hour < 17\nprint(open_now)',
+  'a = 5\nb = 3\nprint(a ** b)', 'print(10 / 4)\nprint(10 // 4)',
+];
+let atlasTex = null;
+function drawAtlas() {
+  const TW = 512, TH = 320, c = document.createElement("canvas"); c.width = TW * 4; c.height = TH * 4;
+  const x = c.getContext("2d");
+  const KW = /\b(if|elif|else|and|or|not|True|False)\b/, FN = /\b(print|round)\b/;
+  const col = { kw: "#c9a6ff", fn: "#8fd1ff", str: "#b6e8a4", num: "#ffc38a", com: "#6b7593", txt: "#dfe5ff" };
+  SNIPPETS.forEach((src, i) => {
+    const ox = (i % 4) * TW, oy = Math.floor(i / 4) * TH;
+    [["#ff7a7a", 22], ["#ffd36e", 40], ["#7ee08a", 58]].forEach(([cl, cx]) => { x.fillStyle = cl; x.globalAlpha = .85; x.beginPath(); x.arc(ox + cx, oy + 22, 5.5, 0, 7); x.fill(); });
+    x.globalAlpha = .55; x.fillStyle = "#c8d0f0"; x.font = '500 17px "JetBrains Mono", ui-monospace, monospace'; x.fillText("main.py", ox + 78, oy + 28);
+    x.globalAlpha = 1; x.font = '500 23px "JetBrains Mono", ui-monospace, monospace';
+    src.split("\n").forEach((line, li) => {
+      const y = oy + 86 + li * 34;
+      x.fillStyle = "#4a5372"; x.fillText(String(li + 1), ox + 22, y);
+      let px = ox + 58;
+      const toks = line.match(/(#.*$|"[^"]*"|\b\d+(?:\.\d+)?\b|\w+|\s+|[^\w\s])/g) || [];
+      toks.forEach((t) => {
+        x.fillStyle = t[0] === "#" ? col.com : t[0] === '"' ? col.str : /^\d/.test(t) ? col.num : KW.test(t) ? col.kw : FN.test(t) ? col.fn : col.txt;
+        x.fillText(t, px, y); px += x.measureText(t).width;
+      });
+    });
+  });
+  atlasTex = canvasTex(c);
+}
+
+// ---------------------------------------------------------------- state
+const progs = {};
+let post, fluid, cur = null, curName = null;
+let sceneTex, sceneFB, sw = 0, sh = 0, scale = PHONE ? .5 : .62;
+let fl = [], fw = 0, fh = 0, fi = 0;
+const fluidEnc = floatFluid ? 0 : 1;
+const mouse = { x: .5, y: .5, px: .5, py: .5, sx: 0, sy: 0, moved: false };
+let scrollT = 0, scrollV = 0, zoomT = 1, zoomV = 1, time = 0, last = performance.now(), frameMs = 16, textBase = null;
+
+function sizeTargets() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.round(innerWidth * dpr); canvas.height = Math.round(innerHeight * dpr);
+  sw = Math.max(64, Math.round(innerWidth * scale)); sh = Math.max(64, Math.round(innerHeight * scale));
+  if (sceneTex) { gl.deleteTexture(sceneTex); gl.deleteFramebuffer(sceneFB); }
+  sceneTex = tex(sw, sh, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR); sceneFB = target(sceneTex);
+  const nh = 180, nw = Math.round(180 * innerWidth / innerHeight);
+  if (nw !== fw || nh !== fh) {
+    fl.forEach((f) => { gl.deleteTexture(f.t); gl.deleteFramebuffer(f.fb); });
+    fw = nw; fh = nh;
+    fl = [0, 1].map(() => {
+      const t = floatFluid ? tex(fw, fh, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, gl.LINEAR) : tex(fw, fh, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
+      const fb = target(t); gl.viewport(0, 0, fw, fh);
+      gl.clearColor(fluidEnc ? 128 / 255 : 0, fluidEnc ? 128 / 255 : 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      return { t, fb };
+    });
+  }
+}
+
+// Headline and glass are fixed in the world, placed from the starting camera so the words sit centred.
+function placeText(w) {
+  const { pos, tgt } = w.cam(0); const b = basis(pos, tgt); const aspect = innerWidth / innerHeight;
+  const D = 2.6, halfH = D * FOV;                       // half the view height at the sign's distance
+  const portrait = aspect < .9;
+  let wFrac = portrait ? .9 : Math.min(.64, 1.3 / aspect + .1);      // share of the screen width the words take
+  let hw = wFrac * aspect * halfH, hh = hw / textAspect;
+  const maxH = (portrait ? .36 : .4) * halfH; if (hh > maxH) { hh = maxH; hw = hh * textAspect; }
+  const lift = (portrait ? .2 : .14) * halfH;
+  const C = v3.add(v3.add(pos, v3.mul(b.f, D)), v3.mul(b.u, lift));
+  const R = v3.mul(b.r, hw), Up = v3.mul(b.u, hh);
+  // the glass ball: in front of the words, over one end of the first line
+  let [gx, gy, gr] = w.glass; const Dg = .9;
+  if (portrait) { gx = Math.sign(gx) * .86; gy = .78; gr *= .8; }   // phones: beside "Learning", which is the short line
+  const G = v3.add(pos, v3.mul(v3.sub(v3.add(v3.add(C, v3.mul(R, gx)), v3.mul(Up, gy)), pos), Dg));
+  textBase = { C, R, Up, G, gr: gr * hh * Dg, b, D, lift, hh };
+}
+
+function useWorld(name) {
+  if (!WORLDS[name]) name = "path";
+  const w = WORLDS[name];
+  try { if (!progs[name]) progs[name] = program(sceneFS(w.src)); }
+  catch (e) { toast("This world didn't load on this device."); console.error(e); return; }
+  cur = w; curName = name;
+  document.documentElement.dataset.world = name;
+  document.querySelectorAll(".picker button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.w === name)));
+  $("desc").textContent = w.desc;
+  scrollT = scrollV = 0;
+  placeText(w); buildLabels(w);
+}
+
+// ---------------------------------------------------------------- labels (Path world)
+let labelEls = [];
+function buildLabels(w) {
+  const box = $("labels"); box.textContent = ""; labelEls = [];
+  (w.labels || []).forEach((l) => {
+    const el = document.createElement("div"); el.className = "lab" + (l.boss ? " boss" : "");
+    const t = document.createElement("b"); t.textContent = l.t; const s = document.createElement("small"); s.textContent = l.s;
+    el.append(t, s); box.append(el); labelEls.push({ el, p: l.p });
+  });
+}
+function project(P, cam, b, fov) {
+  const v = v3.sub(P, cam); const z = v3.dot(v, b.f); if (z < .2) return null;
+  const qx = v3.dot(v, b.r) / z / (2 * fov), qy = v3.dot(v, b.u) / z / (2 * fov);
+  return { x: innerWidth / 2 + qx * innerHeight, y: innerHeight / 2 - qy * innerHeight, z };
+}
+
+// ---------------------------------------------------------------- frame
+function camera() {
+  const c = cur.cam(scrollV); const b = basis(c.pos, c.tgt);
+  const k = REDUCED ? 0 : cur.par;
+  const pos = v3.add(v3.add(c.pos, v3.mul(b.r, mouse.sx * k)), v3.mul(b.u, mouse.sy * k * .55));
+  const tgt = v3.add(c.tgt, v3.mul(b.r, mouse.sx * k * .25));
+  return { pos, tgt };
+}
+function setText(p, fov) {
+  const T = textBase; const fade = 1 - smooth(.02, .14, scrollV);
+  gl.uniform3fv(U(p, "uCam"), cam.pos); gl.uniform3fv(U(p, "uTgt"), cam.tgt); gl.uniform1f(U(p, "uFov"), fov);
+  gl.uniform3fv(U(p, "uTxC"), T.C); gl.uniform3fv(U(p, "uTxR"), T.R); gl.uniform3fv(U(p, "uTxU"), T.Up);
+  gl.uniform1f(U(p, "uEm"), textEm); gl.uniform1f(U(p, "uTexH"), textTexH); gl.uniform1f(U(p, "uMainV"), textMainV);
+  const wo = new Float32Array(10); wo.set(waveOffs.slice(0, 10)); gl.uniform2fv(U(p, "uWaveOff"), wo); gl.uniform1f(U(p, "uTextA"), fade); gl.uniform1f(U(p, "uTime"), time);
+  const wv = new Float32Array(20); waveBoxes.slice(0, 5).forEach((bx, i) => wv.set(bx, i * 4));
+  gl.uniform4fv(U(p, "uWave"), wv);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, textTex); gl.uniform1i(U(p, "uText"), 0);
+}
+let cam = null;
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (!STILL) time += dt;
+  frameMs = frameMs * .95 + dt * 1000 * .05;
+  // inputs, smoothed
+  const ls = REDUCED ? 1 : 1 - Math.pow(.0015, dt);
+  mouse.sx += ((mouse.x - .5) * 2 - mouse.sx) * (1 - Math.pow(.02, dt));
+  mouse.sy += ((.5 - mouse.y) * 2 - mouse.sy) * (1 - Math.pow(.02, dt));
+  scrollV += (scrollT - scrollV) * ls;
+  zoomV += (zoomT - zoomV) * (1 - Math.pow(.004, dt));
+  cam = camera(); const fov = FOV / zoomV;
+
+  // 1. liquid trail
+  const pr = fluid; gl.useProgram(pr);
+  const src = fl[fi], dst = fl[1 - fi]; fi = 1 - fi;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fb); gl.viewport(0, 0, fw, fh);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.t); gl.uniform1i(U(pr, "uPrev"), 0);
+  gl.uniform2f(U(pr, "uFRes"), fw, fh); gl.uniform1f(U(pr, "uAspect"), innerWidth / innerHeight);
+  const dx = mouse.x - mouse.px, dy = mouse.y - mouse.py, moved = mouse.moved && !REDUCED;
+  gl.uniform2f(U(pr, "uP0"), mouse.px, 1 - mouse.py); gl.uniform2f(U(pr, "uP1"), mouse.x, 1 - mouse.y);
+  const gain = moved ? .9 : 0, cap = (v) => Math.max(-.05, Math.min(.05, v));
+  gl.uniform2f(U(pr, "uVel"), cap(dx * gain), cap(-dy * gain));
+  gl.uniform1f(U(pr, "uDecay"), Math.pow(.955, dt * 60)); gl.uniform1f(U(pr, "uRad"), .055); gl.uniform1f(U(pr, "uEnc"), fluidEnc);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  mouse.px = mouse.x; mouse.py = mouse.y; mouse.moved = false;
+
+  // 2. the world at a lower resolution
+  const sp = progs[curName]; gl.useProgram(sp);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFB); gl.viewport(0, 0, sw, sh);
+  setText(sp, fov);
+  gl.uniform2f(U(sp, "uRes"), sw, sh); gl.uniform1f(U(sp, "uScroll"), scrollV);
+  const T = textBase; const bob = REDUCED ? 0 : Math.sin(time * .9) * .025;
+  const gScale = 1 - smooth(.08, .22, scrollV);
+  gl.uniform4f(U(sp, "uGlass"), T.G[0], T.G[1] + bob, T.G[2], T.gr * gScale);
+  gl.uniform3fv(U(sp, "uGlassTint"), cur.tint); gl.uniform3fv(U(sp, "uTextCol"), cur.text);
+  gl.uniform1f(U(sp, "uIri"), cur.iri); gl.uniform1f(U(sp, "uIor"), cur.ior || 1.08); gl.uniform1f(U(sp, "uExpo"), cur.expo);
+  if (curName === "code") { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, atlasTex); gl.uniform1i(U(sp, "uAtlas"), 1); }
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  // 3. up to the screen with the crisp, liquid headline
+  gl.useProgram(post); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+  setText(post, fov);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, sceneTex); gl.uniform1i(U(post, "uScene"), 1);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(U(post, "uFluid"), 2);
+  gl.uniform2f(U(post, "uRes2"), canvas.width, canvas.height);
+  gl.uniform3fv(U(post, "uTextCol"), cur.text); gl.uniform3fv(U(post, "uTrailCol"), cur.trail);
+  gl.uniform1f(U(post, "uGrain"), cur.grain); gl.uniform1f(U(post, "uVig"), cur.dark ? .9 : .55);
+  gl.uniform1f(U(post, "uCA"), .012); gl.uniform1f(U(post, "uEnc"), fluidEnc); gl.uniform1f(U(post, "uLiquid"), REDUCED ? 0 : 1);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  // HTML that follows the world: the button under the words, the module and boss labels
+  const fade = 1 - smooth(.02, .14, scrollV);
+  const ctaEl = $("cta");
+  const bottom = project(v3.sub(T.C, T.Up), cam.pos, basis(cam.pos, cam.tgt), fov);
+  if (bottom) ctaEl.style.top = Math.min(innerHeight - 150, bottom.y + (PHONE ? 46 : 58)) + "px";
+  ctaEl.style.opacity = fade; ctaEl.style.visibility = fade < .02 ? "hidden" : "visible";
+  if (labelEls.length) {
+    const b = basis(cam.pos, cam.tgt);
+    labelEls.forEach(({ el, p }) => {
+      const s = project(p, cam.pos, b, fov);
+      const a = s ? smooth(4, 7, s.z) * (1 - smooth(19, 25, s.z)) * smooth(.06, .16, scrollV) : 0;
+      el.style.opacity = a;
+      if (s && a > 0) el.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%) scale(${Math.min(1.25, 9 / s.z + .45)})`;
+    });
+  }
+  // keep it smooth: lower the scene's resolution on slow devices, raise it on fast ones
+  if (!STILL && now > adaptAt) {
+    adaptAt = now + 1500;
+    const ns = frameMs > 26 ? Math.max(.34, scale - .08) : frameMs < 13 && scale < (PHONE ? .55 : .72) ? scale + .04 : scale;
+    if (ns !== scale) { scale = ns; sizeTargets(); }
+  }
+}
+let adaptAt = performance.now() + 2500;
+function loop(now) { if (!document.hidden) frame(now); requestAnimationFrame(loop); }
+
+// ---------------------------------------------------------------- input
+const cursorEl = $("cur"); const cpos = { x: -100, y: -100, rx: -100, ry: -100 };
+addEventListener("pointermove", (e) => {
+  mouse.x = e.clientX / innerWidth; mouse.y = e.clientY / innerHeight; mouse.moved = true;
+  cpos.x = e.clientX; cpos.y = e.clientY;
+}, { passive: true });
+function cursorLoop() {
+  cpos.rx += (cpos.x - cpos.rx) * (REDUCED ? 1 : .22); cpos.ry += (cpos.y - cpos.ry) * (REDUCED ? 1 : .22);
+  cursorEl.children[0].style.transform = `translate(${cpos.rx}px, ${cpos.ry}px)`;
+  cursorEl.children[1].style.transform = `translate(${cpos.x}px, ${cpos.y}px)`;
+  requestAnimationFrame(cursorLoop);
+}
+document.addEventListener("pointerover", (e) => cursorEl.classList.toggle("on", !!e.target.closest("button, a")));
+addEventListener("wheel", (e) => { scrollT = Math.min(1, Math.max(0, scrollT + e.deltaY * .00055)); }, { passive: true });
+let touchY = null;
+addEventListener("touchstart", (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+addEventListener("touchmove", (e) => {
+  if (touchY === null) return; const y = e.touches[0].clientY;
+  scrollT = Math.min(1, Math.max(0, scrollT + (touchY - y) / innerHeight * .9)); touchY = y;
+  if (e.cancelable) e.preventDefault();
+}, { passive: false });
+addEventListener("keydown", (e) => {
+  if (["ArrowDown", "PageDown", " "].includes(e.key)) scrollT = Math.min(1, scrollT + .12);
+  else if (["ArrowUp", "PageUp"].includes(e.key)) scrollT = Math.max(0, scrollT - .12);
+  else if (e.key === "Home") scrollT = 0; else if (e.key === "End") scrollT = 1;
+});
+// The button: the whole world leans in a little while the cursor is on it (Unseen's hover, from Isaac's video).
+const cta = $("ctaBtn");
+["pointerenter", "focus"].forEach((ev) => cta.addEventListener(ev, () => { zoomT = 1.035; }));
+["pointerleave", "blur"].forEach((ev) => cta.addEventListener(ev, () => { zoomT = 1; }));
+let toastT;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
+document.querySelectorAll("[data-cta]").forEach((b) => b.addEventListener("click", () => toast("This page only previews the world. On the real site, this button opens the course.")));
+
+// worlds: buttons and the address (#path, #courtyard, #cosmos, #code)
+function go(name, push) {
+  if (name === curName) return;
+  canvas.classList.add("out");
+  setTimeout(() => { useWorld(name); if (push) history.replaceState(null, "", "#" + name); requestAnimationFrame(() => canvas.classList.remove("out")); }, REDUCED ? 0 : 420);
+}
+document.querySelectorAll(".picker button").forEach((b) => b.addEventListener("click", () => go(b.dataset.w, true)));
+addEventListener("hashchange", () => go(location.hash.slice(1), false));
+addEventListener("resize", () => { sizeTargets(); drawHeadline(); if (cur) placeText(cur); });
+if (PHONE) $("hint").textContent = "Drag across the words. Swipe up to travel.";
+
+// ---------------------------------------------------------------- start
+async function start() {
+  try { await Promise.race([Promise.all([document.fonts.load('800 100px "Bricolage Grotesque"'), document.fonts.load('500 20px "JetBrains Mono"')]), new Promise((r) => setTimeout(r, 2500))]); } catch {}
+  post = program(POST_FS); fluid = program(FLUID_FS);
+  drawHeadline(); drawAtlas(); sizeTargets();
+  const first = qs.get("w") || location.hash.slice(1);
+  useWorld(ORDER.includes(first) ? first : "path");
+  document.fonts.ready.then(() => { drawHeadline(); drawAtlas(); if (cur) placeText(cur); });
+  if (STILL) {
+    // test hook: ?still&w=path&t=3&s=.3&mx=.6&my=.4&trail=1&zoom=1
+    time = +(qs.get("t") || 2); scrollT = scrollV = +(qs.get("s") || 0); zoomT = zoomV = +(qs.get("zoom") || 1);
+    mouse.x = +(qs.get("mx") || .5); mouse.y = +(qs.get("my") || .5); mouse.sx = (mouse.x - .5) * 2; mouse.sy = (.5 - mouse.y) * 2;
+    const trail = qs.has("trail");
+    for (let i = 0; i < 22; i++) {
+      if (trail) { mouse.px = .3 + i * .011; mouse.py = .36 + Math.sin(i * .35) * .04; mouse.x = mouse.px + .011; mouse.y = .36 + Math.sin((i + 1) * .35) * .04; mouse.moved = true; }
+      frame(performance.now());
+    }
+    window.__ready = true; return;
+  }
+  requestAnimationFrame(loop); if (FINE) cursorLoop();
+}
+start().catch((e) => { console.error(e); toast("The preview couldn't start on this device."); });
+})();
+</script>
