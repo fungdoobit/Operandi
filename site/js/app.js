@@ -20,6 +20,7 @@ import { MODULES, ALL_LESSONS, ALL_TEMPLATES } from "../content/index.js";
 import { HELP, LINT_PENALTY, compareOutput } from "../content/help.js";
 import { FAQ } from "../content/faq.js";
 import { initPalette } from "./palette.js";
+import { wireThemeButton, toggleTheme, isDark, THEME_ICONS } from "./theme.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1233,6 +1234,7 @@ function paletteItems(q) {
     if (lessonUnlocked(i)) add("Lessons", { label: l.title, sub: `Module ${l.module}${lessonDone(l.id) ? " · done" : ""}`, icon: lessonDone(l.id) ? "✓" : String(MODULE_LESSONS(l.module).indexOf(l) + 1), run: go(() => openLesson(l.id)), tags: l.sub });
   });
   MODULES.forEach((m) => { if (BOSSES[m.id] && bossUnlocked(m.id)) add("Lessons", { label: `Boss: ${BOSSES[m.id].name}`, sub: `Module ${m.id}${bossBeaten(m.id) ? " · beaten" : ""}`, icon: "⚔", run: () => { if (!busy) openBoss(m.id); }, tags: "fight" }); });
+  add("Settings", { label: `Switch to ${isDark() ? "light" : "dark"} mode`, icon: isDark() ? "☀" : "☾", run: () => toggleTheme($("themeBtn")), tags: "theme dark light night" });
   const s = sound.settings;
   add("Settings", { label: `${s.music ? "Turn off" : "Turn on"} music`, icon: "♪", run: () => $("setMusic").click(), tags: "sound" });
   add("Settings", { label: `${s.sfx ? "Turn off" : "Turn on"} sound effects`, icon: "♫", run: () => $("setSfx").click(), tags: "sound" });
@@ -1241,6 +1243,7 @@ function paletteItems(q) {
   return out;
 }
 $("cmdkBtn").addEventListener("click", () => palette.open());
+$("themeBtn").innerHTML = THEME_ICONS; wireThemeButton($("themeBtn"));
 document.addEventListener("keydown", (e) => {
   const mod = e.metaKey || e.ctrlKey, typing = e.target.closest?.("input, textarea, select, [contenteditable]");
   if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); palette.isOpen ? palette.close() : palette.open(); return; }

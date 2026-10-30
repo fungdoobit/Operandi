@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:opsz,wght@14..32,400..700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<script>try { var t = localStorage.getItem("operandi:theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <style>
 /* The home page (revamp, PRD Addendum N): warm editorial paper, a dark precise console for the live Python box,
    springy feedback. Neutral: no characters here (Isaac 2026-10-30). The old language tiles and the planned pricing
@@ -35,12 +36,17 @@
   :root { --spring: linear(0, .009, .035 2.1%, .141, .281 6.7%, .723 12.9%, .938 16.7%, 1.017, 1.077, 1.121 24%, 1.149 27.3%, 1.159, 1.163, 1.161, 1.154 36%, 1.124 40.2%, 1.035 50.1%, 1.017, 1.003 59.3%, .991 61.2%, .984 66.9%, .993 81.6%, 1); }
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #0f1012; --surface: #16171a; --surface-2: #131416; --ink: #ecebe6; --ink-2: #c9c7c0; --muted: #9b988f; --faint: #66645f;
+  :root:not([data-theme="light"]) { --bg: #0f1012; --surface: #16171a; --surface-2: #131416; --ink: #ecebe6; --ink-2: #c9c7c0; --muted: #9b988f; --faint: #66645f;
     --line: #24252a; --line-strong: #33343a; --accent: #8ea8f2; --accent-soft: #1c2336; --gold: #e6bb52; --gold-soft: #2b2412; --pass: #5cc48a; --fail: #f08b78;
     --console: #0b0c0e; --console-2: #111215; --console-line: #1f2024; --tile: #24262c; --tile-shadow: rgb(0 0 0 / .45); --pill: #5b5548; --card: #1b1d22;
     --shadow-sm: 0 1px 2px rgb(0 0 0 / .35); --shadow-md: 0 1px 2px rgb(0 0 0 / .3), 0 14px 36px -10px rgb(0 0 0 / .55); --shadow-lg: 0 40px 90px -24px rgb(0 0 0 / .8);
     color-scheme: dark; }
 }
+:root[data-theme="dark"] { --bg: #0f1012; --surface: #16171a; --surface-2: #131416; --ink: #ecebe6; --ink-2: #c9c7c0; --muted: #9b988f; --faint: #66645f;
+    --line: #24252a; --line-strong: #33343a; --accent: #8ea8f2; --accent-soft: #1c2336; --gold: #e6bb52; --gold-soft: #2b2412; --pass: #5cc48a; --fail: #f08b78;
+    --console: #0b0c0e; --console-2: #111215; --console-line: #1f2024; --tile: #24262c; --tile-shadow: rgb(0 0 0 / .45); --pill: #5b5548; --card: #1b1d22;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / .35); --shadow-md: 0 1px 2px rgb(0 0 0 / .3), 0 14px 36px -10px rgb(0 0 0 / .55); --shadow-lg: 0 40px 90px -24px rgb(0 0 0 / .8);
+    color-scheme: dark; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; overflow-x: hidden; }
@@ -61,6 +67,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn.small { height: 38px; padding: 0 16px; font-size: 14px; border-radius: 11px; }
 kbd { font: 500 11px/1 var(--font-mono); padding: 3px 6px 4px; border-radius: 6px; border: 1px solid #ffffff22; border-bottom-width: 2px; background: #ffffff10; color: #c9c7c0; }
 
+.icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); transition: transform .5s var(--spring), background .2s; }
+.icon-btn:hover { transform: translateY(-1px); }
+.icon-btn:active { transform: scale(.92); transition-duration: .08s; }
+/* the sun/moon button (js/theme.js): shows the icon for where you'd go */
+.theme-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: transform .6s var(--spring), opacity .3s; }
+.theme-btn > svg { grid-area: 1 / 1; }
+.theme-btn[data-mode="dark"] .i-moon, .theme-btn:not([data-mode="dark"]) .i-sun { opacity: 0; transform: rotate(-90deg) scale(.5); }
+/* the theme switch spreads from the button (a view transition): no cross-fade, nothing else animates */
+:root.theming::view-transition-old(root), :root.theming::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 /* nav */
 .nav { position: sticky; top: 0; z-index: 20; transition: background .3s, border-color .3s; border-bottom: 1px solid transparent; }
 .nav.scrolled { background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: saturate(1.5) blur(16px); backdrop-filter: saturate(1.5) blur(16px); border-bottom-color: var(--line); }
@@ -71,7 +86,7 @@ kbd { font: 500 11px/1 var(--font-mono); padding: 3px 6px 4px; border-radius: 6p
 .nav-links { display: flex; gap: 6px; margin-left: 8px; }
 .nav-links a { text-decoration: none; font-size: 14.5px; font-weight: 500; color: var(--muted); padding: 7px 12px; border-radius: 10px; transition: color .2s, background .2s; }
 .nav-links a:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, transparent); }
-.nav .btn { margin-left: auto; }
+.nav .theme-btn { margin-left: auto; }
 
 /* hero */
 .hero { position: relative; padding: clamp(40px, 7vw, 96px) 0 clamp(56px, 8vw, 110px); overflow: hidden; }
@@ -281,6 +296,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
       <a href="#faq">FAQ</a>
     </nav>
     <!-- No real sign-in yet, so the button says what it does (Isaac 2026-10-30). -->
+    <button class="icon-btn theme-btn" id="themeBtn" type="button" data-theme-btn aria-label="Switch theme"></button>
     <a class="btn primary small" href="python.html">Start learning <span class="arr" aria-hidden="true">→</span></a>
   </div>
 </header>
@@ -321,7 +337,6 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 
   <section class="band" id="how">
     <div class="wrap">
-      <p class="kicker reveal" style="margin-bottom: 22px">How it works</p>
       <div class="bento">
         <article class="cell c3 reveal">
           <span class="step">01 · Learn</span>
@@ -428,7 +443,9 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 <footer><div class="wrap"><span>operandi.code</span><span>Learning Python should be fun.</span></div></footer>
 
 <script type="module">
+import { wireThemeButton, THEME_ICONS } from "./js/theme.js";
 const $ = (id) => document.getElementById(id);
+$("themeBtn").innerHTML = THEME_ICONS; wireThemeButton($("themeBtn"));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);

@@ -62,7 +62,7 @@
   :root { --spring: linear(0, .009, .035 2.1%, .141, .281 6.7%, .723 12.9%, .938 16.7%, 1.017, 1.077, 1.121 24%, 1.149 27.3%, 1.159, 1.163, 1.161, 1.154 36%, 1.124 40.2%, 1.035 50.1%, 1.017, 1.003 59.3%, .991 61.2%, .984 66.9%, .993 81.6%, 1); }
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0f1012; --surface: #16171a; --surface-2: #131416; --ink: #ecebe6; --ink-2: #d2d0c9; --muted: #9b988f; --faint: #66645f;
     --line: #24252a; --line-strong: #33343a; --accent: #8ea8f2; --accent-soft: #1c2336; --on-accent: #0f1115;
     --primary: #ecebe6; --on-primary: #141518; --gold: #e6bb52; --gold-soft: #2b2412; --pass: #5cc48a; --pass-soft: #13281b;
@@ -73,6 +73,16 @@
     color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+    --bg: #0f1012; --surface: #16171a; --surface-2: #131416; --ink: #ecebe6; --ink-2: #d2d0c9; --muted: #9b988f; --faint: #66645f;
+    --line: #24252a; --line-strong: #33343a; --accent: #8ea8f2; --accent-soft: #1c2336; --on-accent: #0f1115;
+    --primary: #ecebe6; --on-primary: #141518; --gold: #e6bb52; --gold-soft: #2b2412; --pass: #5cc48a; --pass-soft: #13281b;
+    --fail: #f08b78; --fail-soft: #321915; --code-inline: #222328;
+    --console: #0b0c0e; --console-2: #111215; --console-line: #1f2024; --editor-bg: var(--console);
+    --shadow-xs: 0 1px 1px rgb(0 0 0 / .3); --shadow-sm: 0 1px 2px rgb(0 0 0 / .35);
+    --shadow-md: 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px -8px rgb(0 0 0 / .5); --shadow-lg: 0 30px 80px -20px rgb(0 0 0 / .7);
+    color-scheme: dark;
+  }
 /* editor themes from the Shop */
 :root[data-editor="theme-forest"] { --editor-bg: #10211a; --editor-ink: #dcefe3; --editor-dim: #5e8a72; --editor-caret: #9be37a; }
 :root[data-editor="theme-dusk"] { --editor-bg: #1e1528; --editor-ink: #f0e6f7; --editor-dim: #8a73a0; --editor-caret: #ff9ec7; }
@@ -407,6 +417,14 @@ textarea.code:focus-visible { outline: none; }
 .node .lbl { font-size: 12.5px; font-weight: 500; line-height: 1.25; max-width: 110px; color: var(--ink); }
 .node:disabled .lbl { color: var(--faint); }
 .node .lbl small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+/* the sun/moon button (js/theme.js): shows the icon for where you'd go */
+.theme-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: transform .6s var(--spring), opacity .3s; }
+.theme-btn > svg { grid-area: 1 / 1; }
+.theme-btn[data-mode="dark"] .i-moon, .theme-btn:not([data-mode="dark"]) .i-sun { opacity: 0; transform: rotate(-90deg) scale(.5); }
+/* the theme switch spreads from the button (a view transition): no cross-fade, nothing else animates */
+:root.theming::view-transition-old(root), :root.theming::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+:root.theming #briefInner { view-transition-name: none; }
 
 /* ---------- Command palette ---------- */
 .palette { width: min(640px, calc(100vw - 24px)); max-height: min(560px, 78vh); margin: 11vh auto auto; padding: 0; border: 1px solid var(--line); border-radius: 18px; background: color-mix(in srgb, var(--surface) 94%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); color: var(--ink); box-shadow: var(--shadow-lg); overflow: hidden; }

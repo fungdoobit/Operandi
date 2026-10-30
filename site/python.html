@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:opsz,wght@14..32,400..700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="css/app.css">
+<script>try { var t = localStorage.getItem("operandi:theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 </head>
 <body>
 <div class="app">
@@ -25,6 +26,7 @@
       <div class="lvl" id="lvl" aria-label="Level"></div>
       <div class="stat bits" title="Bits: Operandi's in-game currency"><b id="bitsVal">0</b><span>Bits</span></div>
       <div class="stat streak" title="Days in a row with a pass"><b id="streakVal">0</b><span>day streak</span></div>
+      <button class="icon-btn theme-btn" id="themeBtn" type="button" data-theme-btn aria-label="Switch theme"></button>
       <button class="cmdk" id="cmdkBtn" type="button" title="Search lessons, pages and the FAQ">
         <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
         <span>Search</span><kbd class="kc" data-mod>K</kbd>
