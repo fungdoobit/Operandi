@@ -1,0 +1,935 @@
+<title>Operandi Layouts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Home page layouts, round 2 (Isaac 2026-10-30: the first worlds copied Unseen's background and layout too much).
+   Three layouts built on what only Operandi has, all in the Cosmos world he kept:
+   Console (the live Python box as a 3D panel), Map (the course as islands in space), Letters (the world seen through
+   the headline). The headline is drawn in WebGL so the cursor can push it like water; the button leans the scene in. */
+:root {
+  --ink: #f1eff9; --ink-soft: rgba(241, 239, 249, .62); --paper: #05060d;
+  --chip: rgba(255, 255, 255, .07); --chip-line: rgba(241, 239, 249, .16); --chip-on: #f1eff9; --chip-on-ink: #0b0c18;
+  --pill: #f1eff9; --pill-ink: #0b0c18; --pill-hover: #a9bcff; --pill-hover-ink: #0b0c18;
+  --card: rgba(14, 16, 32, .82);
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: Inter, "Segoe UI", system-ui, sans-serif;
+  --spring: cubic-bezier(.34, 1.56, .64, 1); --ease: cubic-bezier(.22, 1, .36, 1);
+  color-scheme: dark;
+}
+[data-layout="letters"] {
+  --ink: #17141f; --ink-soft: rgba(23, 20, 31, .6); --paper: #e7e5ee;
+  --chip: rgba(255, 255, 255, .55); --chip-line: rgba(23, 20, 31, .14); --chip-on: #17141f; --chip-on-ink: #fff;
+  --pill: #17141f; --pill-ink: #fff; --pill-hover: #5b4bd6; --pill-hover-ink: #fff;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); overflow: hidden; font: 15px/1.45 var(--font-body);
+  -webkit-font-smoothing: antialiased; transition: background-color .6s var(--ease), color .6s var(--ease); }
+body.fine, body.fine button, body.fine a { cursor: none; }
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; transition: opacity .45s var(--ease); }
+#gl.out { opacity: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sr:focus-visible { clip: auto; width: auto; height: auto; padding: 6px 10px; background: var(--pill); color: var(--pill-ink); border-radius: 8px; z-index: 40; }
+
+.ui { position: fixed; inset: 0; pointer-events: none; touch-action: none; }
+.ui a, .ui button { pointer-events: auto; }
+.top { position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); right: max(22px, env(safe-area-inset-right, 0px));
+  top: calc(env(safe-area-inset-top, 0px) + 20px); display: flex; align-items: center; gap: 22px; }
+.brand { font: 800 21px/1 var(--font-display); letter-spacing: -.04em; color: var(--ink); text-decoration: none; }
+.top nav { margin-left: auto; display: flex; align-items: center; gap: 22px; }
+.top nav a { color: var(--ink); text-decoration: none; font-weight: 500; }
+.top nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+.pill { position: relative; overflow: hidden; border: 0; border-radius: 999px; background: var(--pill); color: var(--pill-ink);
+  font: 600 14px/1 var(--font-body); padding: 13px 22px; isolation: isolate; transition: color .35s var(--ease), transform .5s var(--spring); }
+.pill::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--pill-hover); z-index: -1;
+  transform: translateY(101%); transition: transform .45s var(--ease); }
+.pill:hover, .pill:focus-visible { color: var(--pill-hover-ink); }
+.pill:hover::before, .pill:focus-visible::before { transform: none; }
+.pill:active { transform: scale(.96); }
+.roll { display: inline-grid; overflow: hidden; height: 1.15em; line-height: 1.15em; }
+.roll > span { grid-area: 1 / 1; transition: transform .45s var(--ease); }
+.roll > span + span { transform: translateY(110%); }
+.pill:hover .roll > span:first-child, .pill:focus-visible .roll > span:first-child { transform: translateY(-110%); }
+.pill:hover .roll > span + span, .pill:focus-visible .roll > span + span { transform: none; }
+.pill.small { padding: 10px 16px; font-size: 13.5px; }
+.pill.big { padding: 17px 30px; font-size: 15.5px; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+#cta { position: absolute; left: 0; top: 0; transition: opacity .3s linear; }
+.labels { position: absolute; inset: 0; }
+.lab { position: absolute; left: 0; top: 0; text-align: center; white-space: nowrap; will-change: transform, opacity; transition: color .3s; }
+.lab b { display: block; font: 800 clamp(16px, 1.6vw, 21px)/1.05 var(--font-display); letter-spacing: -.03em; }
+.lab small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--ink-soft); }
+.lab.on b { color: #b9c8ff; }
+.card { position: absolute; left: 0; top: 0; width: 232px; padding: 14px 16px 12px; border-radius: 16px; background: var(--card);
+  border: 1px solid var(--chip-line); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  opacity: 0; transform: translateY(6px) scale(.97); transition: opacity .25s var(--ease), transform .4s var(--spring); pointer-events: none; }
+.card.show { opacity: 1; transform: none; }
+.card h3 { margin: 0 0 8px; font: 800 17px/1.1 var(--font-display); letter-spacing: -.02em; }
+.card ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; font-size: 13px; }
+.card li { display: flex; gap: 9px; color: var(--ink-soft); }
+.card li span { width: 18px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.card p { margin: 10px 0 0; padding-top: 9px; border-top: 1px solid var(--chip-line); font-size: 13px; }
+.card p b { font-weight: 600; }
+
+.bottom { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); display: grid; justify-items: center; gap: 10px; pointer-events: none; }
+.picker { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--chip); border: 1px solid var(--chip-line);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); pointer-events: auto; }
+.picker button { border: 0; background: transparent; color: var(--ink); font: 600 13.5px/1 var(--font-body); padding: 10px 16px;
+  border-radius: 999px; transition: background-color .3s var(--ease), color .3s var(--ease); }
+.picker button:hover { background: var(--chip-line); }
+.picker button[aria-pressed="true"] { background: var(--chip-on); color: var(--chip-on-ink); }
+.desc { margin: 0; max-width: 56ch; text-align: center; font-size: 13.5px; color: var(--ink-soft); text-wrap: balance; min-height: 2.9em; }
+.hint { position: absolute; right: max(22px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  margin: 0; max-width: 22ch; text-align: right; font-size: 12.5px; color: var(--ink-soft); }
+
+.cursor { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 20; display: none; }
+body.fine .cursor { display: block; }
+.cursor i, .cursor b { position: absolute; left: 0; top: 0; border-radius: 50%; translate: -50% -50%; }
+.cursor i { width: 30px; height: 30px; border: 1.5px solid var(--ink); transition: width .35s var(--spring), height .35s var(--spring), background-color .3s; }
+.cursor b { width: 4px; height: 4px; background: var(--ink); }
+.cursor.on i { width: 58px; height: 58px; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 76px); translate: -50% -12px; opacity: 0; pointer-events: none;
+  max-width: min(420px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 14px; background: var(--ink); color: var(--paper);
+  font-size: 13.5px; text-align: center; transition: opacity .3s, translate .45s var(--spring); z-index: 30; }
+.toast.show { opacity: 1; translate: -50% 0; }
+.fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; }
+
+@media (max-width: 700px) {
+  .top nav a { display: none; }
+  .hint { display: none; }
+  .picker button { padding: 9px 13px; font-size: 13px; }
+  .desc { font-size: 12.5px; }
+  .card { width: 210px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+</style>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="ui">
+  <header class="top">
+    <a class="brand" href="#console" aria-label="Operandi">operandi</a>
+    <nav aria-label="Main">
+      <a href="#map">Course</a>
+      <a href="#console">FAQ</a>
+      <button class="pill small" type="button" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button>
+    </nav>
+  </header>
+  <h1 class="sr">Learning Python should be fun.</h1>
+  <div id="cta"><button class="pill big" type="button" id="ctaBtn" data-cta><span class="roll"><span>Start learning</span><span aria-hidden="true">Start learning</span></span></button></div>
+  <div class="labels" id="labels"></div>
+  <div class="card" id="card" aria-live="polite"></div>
+  <div id="conKeys"></div>
+  <p class="sr" id="conLive" aria-live="polite"></p>
+  <p class="hint" id="hint"></p>
+  <footer class="bottom">
+    <div class="picker" role="group" aria-label="Choose a layout">
+      <button type="button" data-l="console">Console</button>
+      <button type="button" data-l="map">Map</button>
+      <button type="button" data-l="letters">Letters</button>
+    </div>
+    <p class="desc" id="desc"></p>
+  </footer>
+</div>
+<div class="cursor" id="cur"><i></i><b></b></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+"use strict";
+const $ = (id) => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+const STILL = qs.has("still");                         // test hook: fixed frames, no animation loop
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const FINE = matchMedia("(pointer: fine)").matches && !STILL;
+const PHONE = () => innerWidth < 700 || innerWidth / innerHeight < .8;
+if (FINE) document.body.classList.add("fine");
+
+const canvas = $("gl");
+const gl = canvas.getContext("webgl2", { antialias: false, alpha: false, preserveDrawingBuffer: STILL, powerPreference: "high-performance" });
+if (!gl) {
+  canvas.remove();
+  const f = document.createElement("div"); f.className = "fallback";
+  f.textContent = "This preview needs WebGL 2, which this browser doesn't have. Try it in a recent Chrome, Safari or Firefox.";
+  document.body.append(f); return;
+}
+const floatFluid = !!(gl.getExtension("EXT_color_buffer_float") || gl.getExtension("EXT_color_buffer_half_float"));
+
+// ---------------------------------------------------------------- shaders
+const VERT = `#version 300 es
+in vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }`;
+
+const LIB = `
+#define PI 3.14159265
+mat2 rot(float a){ float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y)*p3.z); }
+float hash3(vec3 p3){ p3 = fract(p3*.1031); p3 += dot(p3, p3.zyx + 31.32); return fract((p3.x + p3.y)*p3.z); }
+float noise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3. - 2.*f);
+  return mix(mix(mix(hash3(i), hash3(i + vec3(1,0,0)), f.x), mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), f.x), mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y), f.z); }
+float fbm(vec3 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a*noise(p); p = p*2.03 + vec3(1.7, 9.2, 3.1); a *= .5; } return s; }
+float sdBox(vec3 p, vec3 b){ vec3 q = abs(p) - b; return length(max(q, 0.)) + min(max(q.x, max(q.y, q.z)), 0.); }
+float sdRBox(vec3 p, vec3 b, float r){ return sdBox(p, b - r) - r; }
+float sdCylY(vec3 p, float r, float h){ vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(r, h); return min(max(d.x, d.y), 0.) + length(max(d, 0.)); }
+float smin(float a, float b, float k){ float h = clamp(.5 + .5*(b - a)/k, 0., 1.); return mix(b, a, h) - k*h*(1. - h); }
+vec3 aces(vec3 x){ return clamp((x*(2.51*x + .03))/(x*(2.43*x + .59) + .14), 0., 1.); }
+`;
+
+// Space shared by both worlds: nebula, two layers of stars, a sun, and drifting bokeh dust.
+const SPACE = `
+vec3 space(vec3 rd, vec3 sd){
+  vec3 c = mix(vec3(.005, .007, .02), vec3(.02, .024, .06), smoothstep(-.3, .6, rd.y));
+  float n1 = fbm(rd*2.2 + vec3(0., uTime*.004, 0.)), n2 = fbm(rd*4.5 + 7.);
+  c += mix(vec3(.13, .05, .3), vec3(.02, .17, .32), n2)*pow(smoothstep(.36, .86, n1), 1.6)*1.1;
+  for (int l = 0; l < 2; l++) {
+    float sc = l == 0 ? 90. : 210.; vec3 q = rd*sc, id = floor(q), f = fract(q) - .5; float h = hash3(id + float(l)*13.1);
+    if (h > .965) { vec3 j = vec3(hash3(id + 1.7), hash3(id + 4.3), hash3(id + 9.1)) - .5;
+      float d = length(f - j*.7), tw = .65 + .35*sin(uTime*(.8 + h*3.) + h*50.);
+      c += mix(vec3(.75, .82, 1.), vec3(1., .85, .7), hash3(id + 2.2))*smoothstep(.1, 0., d)*tw*(l == 0 ? 1.5 : .7); } }
+  float s = max(dot(rd, sd), 0.);
+  return c + vec3(1., .84, .64)*pow(s, 900.)*30. + vec3(.95, .6, .9)*pow(s, 16.)*.28 + vec3(.5, .6, 1.)*pow(s, 4.)*.08; }
+vec3 dust(vec3 ro, vec3 rd, float z0){
+  vec3 acc = vec3(0.);
+  for (int i = 0; i < 4; i++) {
+    float zp = z0 - float(i)*3.5; float t = (zp - ro.z)/rd.z; if (t <= 0.) continue;
+    vec3 p = ro + rd*t; float cs = .55 + float(i)*.35;
+    vec2 g = p.xy/cs + vec2(0., uTime*.05*(1. + float(i)*.3)); vec2 id = floor(g), f = fract(g) - .5;
+    float h = hash(id + float(i)*7.3); if (h < .6) continue;
+    vec2 j = vec2(hash(id + 3.1), hash(id + 8.7)) - .5;
+    float d = length(f - j*.6)*cs, foc = abs(t - 7.), r = .012 + foc*.011;
+    float disc = smoothstep(r, r*.8, d)*(.55 + .45*smoothstep(r*.5, r*.95, d));
+    acc += mix(vec3(.45, .6, 1.), vec3(1., .8, .45), step(.86, h))*disc*(.55/(1. + foc*1.4))*(.6 + .4*sin(uTime*.7 + h*30.)); }
+  return acc; }
+`;
+
+// ---- Cosmos (kept from round 1): a violet planet below, nebula, dust; the sun rises over the edge as you scroll.
+const W_COSMOS = `
+const vec4 PL = vec4(0., -60., -44., 56.);
+vec3 world(vec3 ro, vec3 rd){
+  vec3 sd = normalize(vec3(.58, -.17 + .27*uScroll, -1.));
+  vec3 col = space(rd, sd);
+  vec3 oc = ro - PL.xyz; float b = dot(oc, rd), cc = dot(oc, oc) - PL.w*PL.w, h = b*b - cc;
+  vec3 pc = ro + rd*max(-b, 0.); float alt = length(pc - PL.xyz) - PL.w;
+  if (h > 0. && -b - sqrt(h) > 0.) {
+    vec3 p = ro + rd*(-b - sqrt(h)), n = normalize(p - PL.xyz);
+    float bands = fbm(vec3(n.x*2.5 + uTime*.003, n.y*18., n.z*2.5)), sw = fbm(n*6. + bands*1.5);
+    vec3 alb = mix(vec3(.07, .06, .16), vec3(.28, .21, .44), bands) + vec3(.08, .12, .2)*sw*.4;
+    float term = smoothstep(-.12, .25, dot(n, sd));
+    col = alb*(max(dot(n, sd), 0.)*2.2 + .015);
+    col += vec3(.25, .45, 1.)*pow(1. - max(dot(n, -rd), 0.), 3.)*(.22 + 1.6*term);
+  } else {
+    float a = exp(-max(alt, 0.)*.9); float lit = smoothstep(-.4, .6, dot(normalize(pc - PL.xyz), sd));
+    col += (vec3(.2, .4, 1.)*.55 + vec3(.95, .55, .85)*lit*.6)*a;
+  }
+  return col + dust(ro, rd, 4.5)*uDust; }
+`;
+
+// ---- Map: the course as floating islands in the same space. Each module is an island with its five lesson stones
+// and its boss's monolith (ember core for GOLEM, rose for the Maw); stepping stones float between them; Module 3 is
+// still in the haze.
+const W_MAP = `
+const vec3 KEY = normalize(vec3(-.55, .75, .35));
+vec3 islandPos(int i){ return i == 0 ? vec3(-4.2, 0., 0.) : (i == 1 ? vec3(3.4, -.8, -7.6) : vec3(11.2, -1.6, -15.6)); }
+float islandR(int i){ return i == 0 ? 3.1 : (i == 1 ? 3.3 : 2.9); }
+vec3 bob(int i){ return vec3(0., .12*sin(uTime*.5 + float(i)*2.1), 0.); }
+float sdIsland(vec3 p, float r){
+  float top = sdCylY(p - vec3(0., -.22, 0.), r - .15, .22) - .15;
+  float k = clamp(-p.y/3.8, 0., 1.);
+  float under = max(length(p.xz) - r*(1. - k*k*.9) + .05, max(p.y + .05, -p.y - 3.9));
+  under += .3*(noise(p*1.3 + 3.) - .5);
+  return smin(top, under, .35); }
+vec2 map(vec3 p){
+  vec2 res = vec2(1e5, 0.);
+  for (int i = 0; i < 3; i++) {
+    float r = islandR(i); vec3 q = p - islandPos(i) - bob(i);
+    if (length(q) - r - 4.5 > res.x) continue;
+    float d = sdIsland(q, r)*.72;
+    if (d < res.x) res = vec2(d, 1.);
+    for (int j = 0; j < 5; j++) {
+      float a = -2.5 + float(j)*.8;
+      float sd = sdCylY(q - vec3(cos(a)*r*.6, .27, sin(a)*r*.6), .3, .08) - .04;
+      if (sd < res.x) res = vec2(sd, 10. + float(i)); }
+    float ab = -2.5 + 4.*.8 + .95; vec3 bp = q - vec3(cos(ab)*r*.55, 1.4, sin(ab)*r*.55);
+    float m = sdRBox(bp, vec3(.38, 1.25, .34), .06);
+    if (m < res.x) res = vec2(m, 20. + float(i));
+    float core = length(bp - vec3(0., .55, .34)) - .2;
+    if (core < res.x) res = vec2(core, 30. + float(i));
+  }
+  for (int b = 0; b < 2; b++) {
+    vec3 a0 = islandPos(b), a1 = islandPos(b + 1), ab = a1 - a0;
+    vec3 pa = p - a0; float hseg = clamp(dot(pa, ab)/dot(ab, ab), .25, .75);
+    if (length(pa - ab*hseg) - 1.2 > res.x) continue;    // far from this bridge
+    for (int k = 0; k < 5; k++) {
+      float t = .3 + .1*float(k);
+      vec3 sp = mix(a0, a1, t) + vec3(0., .5*sin(t*PI) + .08*sin(uTime*.9 + float(k + b*5)), 0.);
+      float sd = sdCylY(p - sp, .26, .06) - .03;
+      if (sd < res.x) res = vec2(sd, 40.); }
+  }
+  return res; }
+float march(vec3 ro, vec3 rd, float maxT, out float mat){
+  float t = .05; mat = -1.;
+  for (int i = 0; i < 120; i++) { vec2 h = map(ro + rd*t); if (h.x < .0015*t) { mat = h.y; return t; } t += h.x; if (t > maxT) break; }
+  return -1.; }
+vec3 calcN(vec3 p){ const vec2 k = vec2(1., -1.); const float e = .002;
+  return normalize(k.xyy*map(p + k.xyy*e).x + k.yyx*map(p + k.yyx*e).x + k.yxy*map(p + k.yxy*e).x + k.xxx*map(p + k.xxx*e).x); }
+float shadow(vec3 ro, vec3 rd){ float res = 1., t = .04;
+  for (int i = 0; i < 32; i++) { float h = map(ro + rd*t).x; res = min(res, 10.*h/t); t += clamp(h, .04, .6); if (res < .01 || t > 12.) break; }
+  return clamp(res, 0., 1.); }
+vec3 shade(vec3 p, vec3 n, vec3 rd, float mat){
+  int isl = mat < 9.5 ? -1 : int(mod(mat, 10.) + .5);
+  if (mat < 1.5) { float best = 1e5; for (int i = 0; i < 3; i++) { float d = length(p - islandPos(i)); if (d < best) { best = d; isl = i; } } }
+  vec3 alb, emi = vec3(0.); float sp = .08, pw = 20.;
+  if (mat < 1.5) {
+    float topness = smoothstep(.55, .85, n.y);
+    vec3 rock = mix(vec3(.05, .04, .09), vec3(.12, .08, .17), fbm(p*vec3(1.2, 4., 1.2)));
+    alb = mix(rock, mix(vec3(.3, .28, .4), vec3(.22, .32, .4), noise(p*.7))*(.88 + .12*noise(p*3.)), topness);
+  } else if (mat < 19.5) { alb = vec3(.8, .82, .92); emi = vec3(.35, .5, 1.)*smoothstep(.7, 1., n.y)*(isl == 2 ? .05 : .25); }
+  else if (mat < 29.5) { alb = vec3(.06, .055, .09); sp = .7; pw = 50.; }
+  else if (mat < 39.5) { alb = vec3(.05); emi = (isl == 0 ? vec3(1., .42, .15) : (isl == 1 ? vec3(1., .28, .45) : vec3(.3, .3, .4)))*(isl == 2 ? .8 : 4. + 1.5*sin(uTime*1.7 + float(isl))); }
+  else { alb = vec3(.7, .7, .82); emi = vec3(.3, .4, .9)*.12; }
+  float dif = max(dot(n, KEY), 0.), sh = shadow(p + n*.02, KEY);
+  float rim = pow(1. - max(dot(n, -rd), 0.), 3.);
+  vec3 col = alb*(vec3(1.6, 1.5, 1.4)*dif*sh + vec3(.3, .2, .55)*max(-n.y, 0.)*.25 + vec3(.07, .07, .15));
+  col += vec3(1., .92, .85)*pow(max(dot(reflect(rd, n), KEY), 0.), pw)*sp*sh;
+  col += vec3(.45, .55, 1.)*rim*.32;
+  if (isl == uHover) col += vec3(.4, .5, 1.)*(rim*1.2 + .06) + alb*.25;
+  col += emi;
+  // the monolith takes the colour of its own core
+  if (mat > 19.5 && mat < 29.5) col += (isl == 0 ? vec3(1., .42, .15) : vec3(1., .28, .45))*.07*smoothstep(.2, 1., n.z)*(isl == 2 ? 0. : 1.);
+  if (isl == 2) col = mix(col, vec3(.06, .05, .13), .5);
+  return col; }
+vec3 world(vec3 ro, vec3 rd){
+  vec3 sd = normalize(vec3(-.6, .55, -.6));
+  vec3 col = space(rd, sd);
+  // a soft violet glow below the islands, where the Cosmos planet would be
+  col += vec3(.2, .12, .4)*smoothstep(-.35, -.9, rd.y)*.18;
+  float mat; float t = march(ro, rd, 80., mat);
+  if (t > 0.) { vec3 p = ro + rd*t; col = shade(p, calcN(p), rd, mat); }
+  return col + dust(ro, rd, 8.)*.5*uDust; }
+`;
+
+function sceneFS(worldSrc) {
+  return `#version 300 es
+precision highp float;
+uniform vec2 uRes; uniform float uScroll, uTime, uFov, uExpo, uDust; uniform vec3 uCam, uTgt; uniform int uHover;
+out vec4 o;
+${LIB}
+${SPACE}
+${worldSrc}
+void main(){
+  vec3 f = normalize(uTgt - uCam); vec3 r = normalize(cross(f, vec3(0., 1., 0.))); vec3 u = cross(r, f);
+  vec2 q = (gl_FragCoord.xy - .5*uRes)/uRes.y; vec3 rd = normalize(f + (q.x*r + q.y*u)*2.*uFov);
+  o = vec4(pow(aces(world(uCam, rd)*uExpo), vec3(1./2.2)), 1.); }`;
+}
+
+// Final pass, at full resolution: the scene, the headline (screen space, pushed by the liquid trail, a soft tinted
+// ghost behind it), and for Console the code panel tilted in 3D with its shadow. Letters mode shows the scene only
+// through the letters, on plain paper.
+const POST_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uScene, uFluid, uText, uCon; uniform vec2 uRes2; uniform float uTime, uEnc, uLiquid, uGrain, uVig, uMode, uDpr;
+uniform vec4 uTxRect; uniform float uMainV, uTexH, uEm, uTextA; uniform vec4 uWave[5]; uniform vec2 uWaveOff[5];
+uniform vec3 uTextCol, uTrailCol, uPaper;
+uniform float uConOn, uPersp; uniform vec2 uConC, uConH, uEye; uniform vec3 uConU, uConV, uConN;
+out vec4 o;
+float h2(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y)*p3.z); }
+vec2 dec(vec4 c){ return uEnc > .5 ? (c.xy - 128./255.)*2. : c.xy; }
+float waveY(float t){ float p = mod(t, 2.6)/2.6, k;
+  if (p < .2) { k = p/.2; k = 1.-(1.-k)*(1.-k); return -.12*k; }
+  if (p < .4) { k = (p-.2)/.2; k = 1.-(1.-k)*(1.-k); return mix(-.12, .03, k); }
+  if (p < .6) { k = (p-.4)/.2; k = 1.-(1.-k)*(1.-k); return mix(.03, 0., k); }
+  return 0.; }
+float textPx(vec2 fc){
+  vec2 uv = vec2((fc.x - uTxRect.x)/uTxRect.z, 1. - (fc.y - uTxRect.y)/uTxRect.w);
+  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) return 0.;
+  uv.y *= uMainV;
+  float lod = log2(max(uTexH/uTxRect.w, 1.));
+  float a = textureLod(uText, uv, lod).a;
+  for (int i = 0; i < 5; i++) { vec4 w = uWave[i];
+    if (uv.x > w.x && uv.x < w.z && uv.y > w.y && uv.y < w.w)
+      a = max(a, textureLod(uText, uv + uWaveOff[i] - vec2(0., waveY(uTime - float(i)*.08)*uEm), lod).a); }
+  return a*uTextA; }
+// The code panel: a rectangle in front of the page, turned in 3D, seen with a CSS-like perspective.
+vec2 conLocal(vec2 fc){
+  vec3 E = vec3(uEye, uPersp), D = vec3(fc - uEye, -uPersp), C = vec3(uConC, 0.);
+  float t = dot(C - E, uConN)/dot(D, uConN); vec3 hp = E + D*t - C;
+  return vec2(dot(hp, uConU), dot(hp, uConV)); }
+float rrect(vec2 p, vec2 h, float r){ vec2 q = abs(p) - h + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
+void main(){
+  vec2 uv = gl_FragCoord.xy/uRes2;
+  vec2 v = dec(texture(uFluid, uv))*uLiquid; float flow = length(v);
+  vec2 dc = uv - .5;
+  vec2 fc = gl_FragCoord.xy - v*uRes2.y*.3;
+  float a0 = textPx(fc), a1 = textPx(fc + v*uRes2.y*.22), k = smoothstep(.004, .06, flow);
+  vec3 c;
+  if (uMode > .5) {
+    // Letters: the world only through the letters; a soft inner shadow along their top-left edges, like windows.
+    vec3 w = texture(uScene, uv - v*.12).rgb;
+    float lum = dot(w, vec3(.299, .587, .114)); if (lum > .58) w *= .58/lum;   // never as light as the paper
+    float sh = textPx(fc + vec2(-1., 1.)*uRes2.y*.006);
+    w *= 1. - .5*clamp(a0 - sh, 0., 1.);
+    c = mix(uPaper, w, a0);
+    c = mix(c, uTrailCol, a1*k*.35*(1. - a0));
+    c *= 1. - .18*dot(dc, dc);
+  } else {
+    c = texture(uScene, uv - v*.12).rgb;
+    if (uConOn > .5) {
+      // soft shadow cast down onto the page, then the panel itself (pushed by the liquid like everything else)
+      vec2 ls = conLocal(gl_FragCoord.xy + vec2(0., 46.*uDpr));
+      float sd = rrect(ls, uConH, 18.*uDpr);
+      c *= 1. - .55*(1. - smoothstep(-40.*uDpr, 60.*uDpr, sd));
+      vec2 lp = conLocal(fc); float pd = rrect(lp, uConH, 18.*uDpr);
+      c += vec3(.35, .45, 1.)*.14*exp(-max(pd, 0.)/(26.*uDpr))*step(0., pd);
+      if (pd < 1.5) {
+        vec2 cu = vec2(lp.x/uConH.x*.5 + .5, .5 - lp.y/uConH.y*.5);
+        float lod = log2(max(float(textureSize(uCon, 0).y)/(2.*uConH.y), 1.));
+        vec4 cs = textureLod(uCon, cu, lod);
+        c = mix(c, cs.rgb, cs.a*clamp(.5 - pd, 0., 1.));
+      }
+    }
+    c = mix(c, uTrailCol, a1*k*.5);
+    c = mix(c, mix(uTextCol, uTrailCol, k*.45), a0);
+    c *= 1. - uVig*dot(dc, dc);
+  }
+  c += (h2(gl_FragCoord.xy + floor(uTime*24.)*17.13) - .5)*uGrain;
+  o = vec4(c, 1.); }`;
+
+// The liquid trail: a small velocity field the cursor stirs; it drifts along itself, spreads and fades.
+const FLUID_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uPrev; uniform vec2 uFRes, uP0, uP1, uVel; uniform float uAspect, uDecay, uRad, uEnc;
+out vec4 o;
+vec2 dec(vec4 c){ return uEnc > .5 ? (c.xy - 128./255.)*2. : c.xy; }
+vec4 enc(vec2 v){ return uEnc > .5 ? vec4(v*.5 + 128./255., 0., 1.) : vec4(v, 0., 1.); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/uFRes, px = 1./uFRes;
+  vec2 back = uv - dec(texture(uPrev, uv))*.3;
+  vec2 v = dec(texture(uPrev, back));
+  vec2 b = dec(texture(uPrev, back + vec2(px.x, 0.))) + dec(texture(uPrev, back - vec2(px.x, 0.)))
+         + dec(texture(uPrev, back + vec2(0., px.y))) + dec(texture(uPrev, back - vec2(0., px.y)));
+  v = mix(v, b*.25, .45)*uDecay;
+  vec2 pa = (uv - uP0)*vec2(uAspect, 1.), ba = (uP1 - uP0)*vec2(uAspect, 1.);
+  float hh = clamp(dot(pa, ba)/max(dot(ba, ba), 1e-8), 0., 1.), d = length(pa - ba*hh);
+  v += uVel*exp(-d*d/(uRad*uRad));
+  o = enc(clamp(v, -.22, .22)); }`;
+
+// ---------------------------------------------------------------- GL plumbing
+function compile(type, src) {
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(s); console.error(log, src.split("\n").map((l, i) => i + 1 + ": " + l).join("\n"));
+    throw new Error("shader: " + log);
+  }
+  return s;
+}
+function program(fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, VERT)); gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, "a"); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("link: " + gl.getProgramInfoLog(p));
+  p.u = {}; return p;
+}
+const U = (p, n) => (n in p.u ? p.u[n] : (p.u[n] = gl.getUniformLocation(p, n)));
+const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+function tex(w, h, internal, format, type, filter) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+function target(t) { const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return f; }
+function uploadCanvas(t, src) {
+  if (!t) t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src); gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+
+// ---------------------------------------------------------------- math
+const v3 = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+  mix: (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t],
+};
+const basis = (pos, tgt) => { const f = v3.norm(v3.sub(tgt, pos)); const r = v3.norm(v3.cross(f, [0, 1, 0])); return { f, r, u: v3.cross(r, f) }; };
+const ease = (t) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const FOV = .44;
+
+// ---------------------------------------------------------------- content
+const MODULES = [
+  { n: 1, title: "Basics", boss: "GOLEM", lessons: ["Your first program", "Variables", "Numbers and maths", "Working with text", "f-strings"], pos: [-4.2, 0, 0], r: 3.1 },
+  { n: 2, title: "Decisions", boss: "The Abyssal Maw", lessons: ["True or False", "if", "else", "elif", "and, or, not"], pos: [3.4, -.8, -7.6], r: 3.3 },
+  { n: 3, title: "Loops", boss: null, lessons: [], pos: [11.2, -1.6, -15.6], r: 2.9 },
+];
+const EXAMPLES = [
+  { name: "Hello", code: 'name = "Ada"\nprint(f"Hello, {name}!")\nprint("2 + 3 =", 2 + 3)', out: ["Hello, Ada!", "2 + 3 = 5"] },
+  { name: "Maths", code: "price = 12.5\ntax = price * 0.06\nprint(round(price + tax, 2))", out: ["13.25"] },
+  { name: "A decision", code: 'temp = 31\nif temp > 30:\n    print("Hot today")\nelse:\n    print("Nice out")', out: ["Hot today"] },
+  { name: "A mistake", code: 'print("Hello)', err: ["SyntaxError: unterminated string literal"],
+    help: "You opened a quote but didn't close it. Add \" before the )." },
+];
+
+const LAYOUTS = {
+  console: {
+    world: "cosmos", mode: 0, expo: 1.05, dust: .6, grain: .045, vig: .8, text: [.95, .94, 1], trail: [.62, .72, 1], paper: [0, 0, 0],
+    desc: "The live Python box is the hero, standing in 3D next to the words. It tilts with your mouse, and the water effect ripples the code too.",
+    hint: "Move through the words or the code. Try the examples on the box.",
+    lines: (p) => p ? ["Learning", "Python should", "be funnnnn."] : ["Learning", "Python should", "be funnnnn."], align: "left",
+    cam(s) { const k = ease(s); return { pos: [1.2, .3 + 3 * k, 8 - 6 * k], tgt: [1.2, .7 + 2 * k, -10] }; },
+  },
+  map: {
+    world: "map", mode: 0, expo: .9, dust: 1, grain: .045, vig: .8, text: [.95, .94, 1], trail: [.62, .72, 1], paper: [0, 0, 0],
+    desc: "The course is a chain of islands in space. Each module has its five lessons and its boss. Hover an island to see inside; scroll to fly along.",
+    hint: "Hover an island. Scroll to fly along the course.",
+    lines: () => ["Learning Python", "should be funnnnn."], align: "left",
+    cam(s) {
+      const k = ease(s), ph = PHONE();   // phones: further back and aimed higher, so the islands sit below the words
+      return { pos: v3.add(ph ? [-12, 15, 24] : [-11, 11.5, 15.5], v3.mul([14, -2, -15.5], k)), tgt: v3.add(ph ? [1.8, 2.6, -6.5] : [-.6, -1.2, -5.4], v3.mul([11, -1.4, -12.5], k)) };
+    },
+  },
+  letters: {
+    world: "cosmos", mode: 1, expo: 1.75, dust: 1.6, grain: .035, vig: 0, text: [.09, .08, .12], trail: [.36, .29, .84], paper: [.906, .898, .933],
+    desc: "The headline is huge, and the world only shows through the letters. Scroll to dive into the first letter.",
+    hint: "Move through the letters. Scroll to dive in.",
+    lines: (p) => p ? ["Learning", "Python", "should be", "funnnnn."] : ["Learning Python", "should be funnnnn."], align: "center",
+    cam(s) { const k = ease(s); return { pos: [0, 1.6 + 2 * k, 8 - 5 * k], tgt: [0, -.5 + 2.6 * k, -10] }; },
+  },
+};
+const ORDER = ["console", "map", "letters"];
+
+// ---------------------------------------------------------------- headline texture
+const textCanvas = document.createElement("canvas");
+let textTex = null, T = { aspect: 3, boxes: [], offs: [], em: .2, mainV: 1, mainH: 1, focus: [.1, .3] };
+function drawHeadline(lines, align) {
+  const size = 200, lh = size * .98, pad = size * .3;
+  const ctx = textCanvas.getContext("2d");
+  const font = `800 ${size}px "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif`;
+  ctx.font = font;
+  const track = -.045 * size;
+  const widthOf = (s) => [...s].reduce((w, ch) => w + ctx.measureText(ch).width + track, -track);
+  const W = Math.ceil(Math.max(...lines.map(widthOf)) + pad * 2), mainH = Math.ceil(lh * lines.length + pad * 2), H = mainH + Math.ceil(lh + pad);
+  textCanvas.width = W; textCanvas.height = H;
+  ctx.font = font; ctx.fillStyle = "#fff";
+  const stripBase = mainH + pad * .5 + size * .8;
+  const boxes = [], offs = []; let focus = null;
+  lines.forEach((line, li) => {
+    let x = align === "center" ? (W - widthOf(line)) / 2 : pad; const base = pad + lh * li + size * .8;
+    const funAt = line.indexOf("funnnnn");
+    [...line].forEach((ch, i) => {
+      const cw = ctx.measureText(ch).width;
+      if (!focus && li === 0 && i === 0) focus = [(x + size * .1) / W, (base - size * .36) / mainH];   // the stem of the "L"
+      if (funAt >= 0 && i >= funAt + 2 && i < funAt + 7) {
+        const k = boxes.length, sx = pad + k * (cw + size * .4);
+        ctx.fillText(ch, sx, stripBase);
+        boxes.push([(x + track / 2) / W, (base - size * .78) / H, (x + cw + track / 2) / W, (base + size * .16) / H]);
+        offs.push((sx - x) / W, (stripBase - base) / H);
+      } else ctx.fillText(ch, x, base);
+      x += cw + track;
+    });
+  });
+  T = { aspect: W / mainH, boxes, offs, em: size / H, mainV: mainH / H, mainH, focus, pad: pad / W };
+  textTex = uploadCanvas(textTex, textCanvas);
+}
+
+// ---------------------------------------------------------------- the code panel (Console layout)
+const conCanvas = document.createElement("canvas");
+const CW = 1100, CH = 740; conCanvas.width = CW; conCanvas.height = CH;
+let conTex = null, exIdx = 0, shown = 0, conHot = null, conRects = {};
+function drawConsole() {
+  const x = conCanvas.getContext("2d"); x.clearRect(0, 0, CW, CH);
+  const rr = (X, Y, w, h, r) => { x.beginPath(); x.roundRect(X, Y, w, h, r); };
+  rr(2, 2, CW - 4, CH - 4, 36); x.fillStyle = "rgba(13, 15, 30, .9)"; x.fill();
+  const g = x.createLinearGradient(0, 0, 0, CH); g.addColorStop(0, "rgba(255,255,255,.07)"); g.addColorStop(.25, "rgba(255,255,255,0)");
+  x.fillStyle = g; x.fill(); x.lineWidth = 2; x.strokeStyle = "rgba(255,255,255,.14)"; x.stroke();
+  [["#ff7a7a", 44], ["#ffd36e", 72], ["#7ee08a", 100]].forEach(([c, cx]) => { x.fillStyle = c; x.beginPath(); x.arc(cx, 46, 9, 0, 7); x.fill(); });
+  x.font = '500 25px "JetBrains Mono", ui-monospace, monospace'; x.fillStyle = "#c8d0f0"; x.fillText("main.py", 138, 55);
+  // example chips, right-aligned in the header
+  x.font = '600 23px Inter, system-ui, sans-serif';
+  let cx = CW - 36; conRects = {};
+  for (let i = EXAMPLES.length - 1; i >= 0; i--) {
+    const w = x.measureText(EXAMPLES[i].name).width + 36; cx -= w;
+    rr(cx, 24, w, 46, 23);
+    x.fillStyle = i === exIdx ? "rgba(255,255,255,.16)" : conHot === "ex" + i ? "rgba(255,255,255,.08)" : "rgba(255,255,255,0)"; x.fill();
+    x.strokeStyle = "rgba(255,255,255,.18)"; x.lineWidth = 2; x.stroke();
+    x.fillStyle = i === exIdx ? "#fff" : "#c8d0f0"; x.fillText(EXAMPLES[i].name, cx + 18, 55);
+    conRects["ex" + i] = [cx, 24, w, 46]; cx -= 10;
+  }
+  x.fillStyle = "rgba(255,255,255,.1)"; x.fillRect(0, 92, CW, 2);
+  // code
+  const ex = EXAMPLES[exIdx];
+  const KW = /^(if|elif|else|and|or|not|True|False)$/, FN = /^(print|round)$/;
+  x.font = '400 30px "JetBrains Mono", ui-monospace, monospace';
+  ex.code.split("\n").forEach((line, li) => {
+    const y = 150 + li * 46;
+    x.fillStyle = "#4a5372"; x.fillText(String(li + 1), 40, y);
+    let px = 96;
+    (line.match(/(#.*$|f?"[^"]*"?|\b\d+(?:\.\d+)?\b|\w+|\s+|[^\w\s])/g) || []).forEach((t) => {
+      x.fillStyle = /^f?"/.test(t) ? "#b6e8a4" : /^\d/.test(t) ? "#ffc38a" : KW.test(t) ? "#c9a6ff" : FN.test(t) ? "#8fd1ff" : "#e3e8ff";
+      x.fillText(t, px, y); px += x.measureText(t).width;
+    });
+  });
+  // run button on the divider
+  const ry = 386;
+  x.fillStyle = "rgba(255,255,255,.1)"; x.fillRect(0, ry + 26, CW, 2);
+  rr(CW - 196, ry - 4, 164, 58, 29); x.fillStyle = conHot === "run" ? "#c4d1ff" : "#a9bcff"; x.fill();
+  x.fillStyle = "#0b0c18"; x.beginPath(); x.moveTo(CW - 160, ry + 13); x.lineTo(CW - 160, ry + 39); x.lineTo(CW - 138, ry + 26); x.fill();
+  x.font = '600 26px Inter, system-ui, sans-serif'; x.fillText("Run", CW - 124, ry + 35);
+  conRects.run = [CW - 196, ry - 4, 164, 58];
+  // output
+  const oy = 470;
+  x.font = '500 22px Inter, system-ui, sans-serif';
+  x.fillStyle = ex.err ? "#ff9a8a" : "#8b93b3"; x.fillText(ex.err ? "Error" : "Output", 40, oy);
+  x.font = '400 30px "JetBrains Mono", ui-monospace, monospace';
+  const lines = ex.err || ex.out;
+  lines.slice(0, shown).forEach((l, i) => { x.fillStyle = ex.err ? "#ffc9bf" : "#eef1ff"; x.fillText(l, 40, oy + 52 + i * 44); });
+  if (ex.help && shown >= lines.length) {
+    x.font = '400 25px Inter, system-ui, sans-serif'; x.fillStyle = "#dfe4ff";
+    x.fillText(ex.help, 40, oy + 52 + lines.length * 44 + 18);
+  }
+  conTex = uploadCanvas(conTex, conCanvas);
+}
+let typeTimer = null;
+function runExample(i) {
+  exIdx = i; shown = 0; drawConsole(); clearTimeout(typeTimer);
+  const ex = EXAMPLES[i], total = (ex.err || ex.out).length;
+  const step = () => { shown++; drawConsole(); if (shown < total) typeTimer = setTimeout(step, 160); };
+  typeTimer = setTimeout(step, REDUCED ? 0 : 260);
+  $("conLive").textContent = (ex.err ? "Error: " : "Output: ") + (ex.err || ex.out).join(", ") + (ex.help ? ". " + ex.help : "");
+}
+// keyboard and screen reader access to the panel's buttons
+(function conKeys() {
+  const box = $("conKeys");
+  EXAMPLES.forEach((e, i) => { const b = document.createElement("button"); b.className = "sr"; b.type = "button"; b.textContent = "Run example: " + e.name; b.onclick = () => runExample(i); box.append(b); });
+})();
+
+// ---------------------------------------------------------------- state
+const progs = {};
+let post, fluid, L = null, LName = null;
+let sceneTex, sceneFB, sw = 0, sh = 0, scale = PHONE() ? .5 : .62;
+let fl = [], fw = 0, fh = 0, fi = 0;
+const fluidEnc = floatFluid ? 0 : 1;
+const mouse = { x: .5, y: .5, px: .5, py: .5, sx: 0, sy: 0, moved: false, cx: -1, cy: -1 };
+let scrollT = 0, scrollV = 0, zoomT = 1, zoomV = 1, time = 0, last = performance.now(), frameMs = 16, hover = -1;
+let rect = { x: 0, y: 0, w: 1, h: 1 }, con = null, dpr = 1, forceHover = null;
+
+function sizeTargets() {
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.round(innerWidth * dpr); canvas.height = Math.round(innerHeight * dpr);
+  sw = Math.max(64, Math.round(innerWidth * scale)); sh = Math.max(64, Math.round(innerHeight * scale));
+  if (sceneTex) { gl.deleteTexture(sceneTex); gl.deleteFramebuffer(sceneFB); }
+  sceneTex = tex(sw, sh, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR); sceneFB = target(sceneTex);
+  const nh = 180, nw = Math.round(180 * innerWidth / innerHeight);
+  if (nw !== fw || nh !== fh) {
+    fl.forEach((f) => { gl.deleteTexture(f.t); gl.deleteFramebuffer(f.fb); });
+    fw = nw; fh = nh;
+    fl = [0, 1].map(() => {
+      const t = floatFluid ? tex(fw, fh, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, gl.LINEAR) : tex(fw, fh, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
+      const fb = target(t); gl.viewport(0, 0, fw, fh);
+      gl.clearColor(fluidEnc ? 128 / 255 : 0, fluidEnc ? 128 / 255 : 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      return { t, fb };
+    });
+  }
+}
+
+// Where the words, the button and the code panel sit for this layout and screen (CSS px, top-left origin).
+function placeAll() {
+  const W = innerWidth, H = innerHeight, p = PHONE();
+  drawHeadline(L.lines(p), L.align);
+  const cta = $("cta");
+  con = null;
+  if (LName === "console") {
+    if (p) {
+      const w = W * .86; rect = { x: W * .07, y: 92, w, h: w / T.aspect };
+      const cw = W * .9, ch = cw * CH / CW;
+      const ctaTop = rect.y + rect.h - 8;
+      con = { cx: W / 2, cy: Math.min(H - 150 - ch / 2, ctaTop + 86 + ch / 2), w: cw, h: ch, ry: -.06, rx: -.1 };
+      cta.style.left = rect.x + T.pad * rect.w + "px"; cta.style.top = ctaTop + "px";
+    } else {
+      const w = Math.min(W * .44, H * .62 * T.aspect, 760); rect = { x: W * .055, y: H * .47 - w / T.aspect / 2 - 20, w, h: w / T.aspect };
+      const cw = Math.min(W * .4, 640, H * .7 * CW / CH), ch = cw * CH / CW;
+      con = { cx: W * .725, cy: H * .48, w: cw, h: ch, ry: -.3, rx: -.09 };
+      cta.style.left = rect.x + T.pad * rect.w + "px"; cta.style.top = rect.y + rect.h - 6 + "px";
+    }
+  } else if (LName === "map") {
+    const w = p ? W * .86 : Math.min(W * .34, 560); rect = { x: p ? W * .07 : W * .045, y: p ? 84 : 96, w, h: w / T.aspect };
+    cta.style.left = rect.x + T.pad * rect.w + "px"; cta.style.top = rect.y + rect.h - 6 + "px";
+  } else {
+    const w = W * (p ? .98 : .94); const h = Math.min(w / T.aspect, H * (p ? .62 : .66)); const ww = h * T.aspect;
+    rect = { x: (W - ww) / 2, y: H * (p ? .44 : .45) - h / 2, w: ww, h };
+    cta.style.left = p ? W / 2 - 80 + "px" : Math.max(22, W * .05) + "px"; cta.style.top = p ? rect.y + rect.h + 4 + "px" : H - 150 + "px";
+  }
+}
+
+function useLayout(name) {
+  if (!LAYOUTS[name]) name = "console";
+  const l = LAYOUTS[name];
+  try { if (!progs[l.world]) progs[l.world] = program(sceneFS(l.world === "map" ? W_MAP : W_COSMOS)); }
+  catch (e) { toast("This layout didn't load on this device."); console.error(e); return; }
+  L = l; LName = name;
+  document.documentElement.dataset.layout = name;
+  document.querySelectorAll(".picker button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === name)));
+  $("desc").textContent = l.desc; $("hint").textContent = l.hint;
+  $("conKeys").hidden = name !== "console";
+  scrollT = scrollV = 0; hover = -1; $("card").classList.remove("show");
+  placeAll(); buildLabels();
+  if (name === "console") runExample(exIdx);
+}
+
+// ---------------------------------------------------------------- map labels and the hover card
+let labelEls = [];
+function buildLabels() {
+  const box = $("labels"); box.textContent = ""; labelEls = [];
+  if (LName !== "map") return;
+  MODULES.forEach((m) => {
+    const el = document.createElement("div"); el.className = "lab";
+    const t = document.createElement("b"); t.textContent = "Module " + m.n;
+    const s = document.createElement("small"); s.textContent = m.boss ? `${m.title}, boss: ${m.boss}` : `${m.title}, coming soon`;
+    el.append(t, s); box.append(el); labelEls.push(el);
+  });
+}
+function showCard(i) {
+  const card = $("card");
+  if (i < 0) { card.classList.remove("show"); return; }
+  const m = MODULES[i]; card.textContent = "";
+  const h = document.createElement("h3"); h.textContent = `Module ${m.n}: ${m.title}`; card.append(h);
+  if (m.lessons.length) {
+    const ol = document.createElement("ol");
+    m.lessons.forEach((t, k) => { const li = document.createElement("li"); const n = document.createElement("span"); n.textContent = k + 1; li.append(n, t); ol.append(li); });
+    card.append(ol);
+    const p = document.createElement("p"); p.innerHTML = "Boss: <b></b>"; p.querySelector("b").textContent = m.boss; card.append(p);
+  } else { const p = document.createElement("p"); p.textContent = "Repeating work with while and for. Coming soon."; p.style.cssText = "border:0;padding:0;margin:0"; card.append(p); }
+  card.classList.add("show");
+}
+function project(P, cam, b, fov) {
+  const v = v3.sub(P, cam); const z = v3.dot(v, b.f); if (z < .2) return null;
+  const qx = v3.dot(v, b.r) / z / (2 * fov), qy = v3.dot(v, b.u) / z / (2 * fov);
+  return { x: innerWidth / 2 + qx * innerHeight, y: innerHeight / 2 - qy * innerHeight, z };
+}
+
+// ---------------------------------------------------------------- the code panel's 3D frame (shared by shader and clicks)
+function conFrame() {
+  if (!con) return null;
+  const k = REDUCED ? 0 : 1;
+  const ry = con.ry + mouse.sx * .12 * k, rx = con.rx - mouse.sy * .09 * k;
+  const cy = Math.cos(ry), sy = Math.sin(ry), cx = Math.cos(rx), sx = Math.sin(rx);
+  // R = Ry * Rx, in a y-up frame (device px)
+  const Ux = [cy, 0, -sy], Vx = [sy * sx, cx, cy * sx], Nx = [sy * cx, -sx, cy * cx];
+  const z = zoomV, W = innerWidth, H = innerHeight;
+  const ccx = W / 2 + (con.cx - W / 2) * z, ccy = H / 2 + (con.cy - H / 2) * z;
+  return { C: [ccx * dpr, (H - ccy) * dpr], Hs: [con.w / 2 * z * dpr, con.h / 2 * z * dpr], U: Ux, V: Vx, N: Nx, P: 1700 * dpr, E: [W / 2 * dpr, H / 2 * dpr] };
+}
+function conHit(clientX, clientY) {
+  const F = conFrame(); if (!F) return null;
+  const fx = clientX * dpr, fy = (innerHeight - clientY) * dpr;
+  const E = [F.E[0], F.E[1], F.P], D = [fx - F.E[0], fy - F.E[1], -F.P], C = [F.C[0], F.C[1], 0];
+  const t = v3.dot(v3.sub(C, E), F.N) / v3.dot(D, F.N); const hp = v3.sub(v3.add(E, v3.mul(D, t)), C);
+  const lx = v3.dot(hp, F.U) / F.Hs[0], ly = v3.dot(hp, F.V) / F.Hs[1];
+  if (Math.abs(lx) > 1 || Math.abs(ly) > 1) return null;
+  const px = (lx * .5 + .5) * CW, py = (.5 - ly * .5) * CH;
+  for (const [key, [x, y, w, h]] of Object.entries(conRects)) if (px >= x && px <= x + w && py >= y && py <= y + h) return key;
+  return "panel";
+}
+
+// ---------------------------------------------------------------- frame
+let cam = null, adaptAt = performance.now() + 2500;
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (!STILL) time += dt;
+  frameMs = frameMs * .95 + dt * 1000 * .05;
+  mouse.sx += ((mouse.x - .5) * 2 - mouse.sx) * (1 - Math.pow(.02, dt));
+  mouse.sy += ((.5 - mouse.y) * 2 - mouse.sy) * (1 - Math.pow(.02, dt));
+  scrollV += (scrollT - scrollV) * (REDUCED ? 1 : 1 - Math.pow(.0015, dt));
+  zoomV += (zoomT - zoomV) * (1 - Math.pow(.004, dt));
+  const c0 = L.cam(scrollV); const b0 = basis(c0.pos, c0.tgt); const par = REDUCED ? 0 : .4;
+  cam = { pos: v3.add(v3.add(c0.pos, v3.mul(b0.r, mouse.sx * par)), v3.mul(b0.u, mouse.sy * par * .55)), tgt: v3.add(c0.tgt, v3.mul(b0.r, mouse.sx * par * .25)) };
+  const fov = FOV / zoomV;
+
+  // 1. liquid trail
+  gl.useProgram(fluid);
+  const src = fl[fi], dst = fl[1 - fi]; fi = 1 - fi;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fb); gl.viewport(0, 0, fw, fh);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.t); gl.uniform1i(U(fluid, "uPrev"), 0);
+  gl.uniform2f(U(fluid, "uFRes"), fw, fh); gl.uniform1f(U(fluid, "uAspect"), innerWidth / innerHeight);
+  const dx = mouse.x - mouse.px, dy = mouse.y - mouse.py, moved = mouse.moved && !REDUCED;
+  gl.uniform2f(U(fluid, "uP0"), mouse.px, 1 - mouse.py); gl.uniform2f(U(fluid, "uP1"), mouse.x, 1 - mouse.y);
+  const cap = (v) => Math.max(-.05, Math.min(.05, v));
+  gl.uniform2f(U(fluid, "uVel"), moved ? cap(dx * .9) : 0, moved ? cap(-dy * .9) : 0);
+  gl.uniform1f(U(fluid, "uDecay"), Math.pow(.955, dt * 60)); gl.uniform1f(U(fluid, "uRad"), .055); gl.uniform1f(U(fluid, "uEnc"), fluidEnc);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  mouse.px = mouse.x; mouse.py = mouse.y; mouse.moved = false;
+
+  // 2. the world at a lower resolution
+  const sp = progs[L.world]; gl.useProgram(sp);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFB); gl.viewport(0, 0, sw, sh);
+  gl.uniform2f(U(sp, "uRes"), sw, sh); gl.uniform1f(U(sp, "uScroll"), scrollV); gl.uniform1f(U(sp, "uTime"), time);
+  gl.uniform1f(U(sp, "uFov"), fov); gl.uniform3fv(U(sp, "uCam"), cam.pos); gl.uniform3fv(U(sp, "uTgt"), cam.tgt);
+  gl.uniform1f(U(sp, "uExpo"), L.expo); gl.uniform1f(U(sp, "uDust"), L.dust); gl.uniform1i(U(sp, "uHover"), hover);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  // 3. to the screen: words (and code panel) on top, liquid, grain
+  gl.useProgram(post); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, textTex); gl.uniform1i(U(post, "uText"), 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, sceneTex); gl.uniform1i(U(post, "uScene"), 1);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, dst.t); gl.uniform1i(U(post, "uFluid"), 2);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, conTex); gl.uniform1i(U(post, "uCon"), 3);
+  gl.uniform2f(U(post, "uRes2"), canvas.width, canvas.height); gl.uniform1f(U(post, "uTime"), time); gl.uniform1f(U(post, "uDpr"), dpr);
+  gl.uniform1f(U(post, "uEnc"), fluidEnc); gl.uniform1f(U(post, "uLiquid"), REDUCED ? 0 : 1);
+  gl.uniform1f(U(post, "uGrain"), L.grain); gl.uniform1f(U(post, "uVig"), L.vig); gl.uniform1f(U(post, "uMode"), L.mode);
+  gl.uniform3fv(U(post, "uTextCol"), L.text); gl.uniform3fv(U(post, "uTrailCol"), L.trail); gl.uniform3fv(U(post, "uPaper"), L.paper);
+  // the words: parallax with the mouse, lean in with the button, and in Letters grow into the first letter as you scroll
+  let r = { ...rect };
+  const pz = zoomV, W = innerWidth, H = innerHeight;
+  r = { x: W / 2 + (r.x - W / 2) * pz, y: H / 2 + (r.y - H / 2) * pz, w: r.w * pz, h: r.h * pz };
+  if (L.mode === 1) {
+    const dive = Math.exp(ease(scrollV) * 4.4);
+    const fx = r.x + T.focus[0] * r.w, fy = r.y + T.focus[1] * r.h;
+    const tx = W / 2 + (fx - W / 2) * (1 - smooth(0, .5, scrollV)), ty = H / 2 + (fy - H / 2) * (1 - smooth(0, .5, scrollV));
+    r = { x: tx + (r.x - fx) * dive, y: ty + (r.y - fy) * dive, w: r.w * dive, h: r.h * dive };
+  }
+  if (!REDUCED) { r.x -= mouse.sx * 7; r.y += mouse.sy * 5; }
+  const fade = L.mode === 1 ? 1 : 1 - smooth(.02, .14, scrollV);
+  gl.uniform4f(U(post, "uTxRect"), r.x * dpr, (H - r.y - r.h) * dpr, r.w * dpr, r.h * dpr);
+  gl.uniform1f(U(post, "uMainV"), T.mainV); gl.uniform1f(U(post, "uTexH"), T.mainH); gl.uniform1f(U(post, "uEm"), T.em); gl.uniform1f(U(post, "uTextA"), fade);
+  const wv = new Float32Array(20); T.boxes.slice(0, 5).forEach((bx, i) => wv.set(bx, i * 4)); gl.uniform4fv(U(post, "uWave"), wv);
+  const wo = new Float32Array(10); wo.set(T.offs.slice(0, 10)); gl.uniform2fv(U(post, "uWaveOff"), wo);
+  const F = conFrame();
+  gl.uniform1f(U(post, "uConOn"), F && fade > .02 ? 1 : 0);
+  if (F) {
+    const lift = (1 - fade) * 400 * dpr;   // the panel slides away as you travel
+    gl.uniform2f(U(post, "uConC"), F.C[0], F.C[1] - lift); gl.uniform2f(U(post, "uConH"), F.Hs[0], F.Hs[1]);
+    gl.uniform3fv(U(post, "uConU"), F.U); gl.uniform3fv(U(post, "uConV"), F.V); gl.uniform3fv(U(post, "uConN"), F.N);
+    gl.uniform1f(U(post, "uPersp"), F.P); gl.uniform2f(U(post, "uEye"), F.E[0], F.E[1]);
+  }
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  // HTML that follows: the button, and on the map the module labels, the hover and its card
+  const ctaEl = $("cta"); const ctaFade = L.mode === 1 ? 1 - smooth(.02, .12, scrollV) : fade;
+  ctaEl.style.opacity = ctaFade; ctaEl.style.visibility = ctaFade < .02 ? "hidden" : "visible";
+  if (LName === "map") {
+    const b = basis(cam.pos, cam.tgt);
+    let best = -1, bestD = 1e9;
+    MODULES.forEach((m, i) => {
+      const yb = .12 * Math.sin(time * .5 + i * 2.1);
+      const top = project([m.pos[0], m.pos[1] + 2.5 + yb, m.pos[2]], cam.pos, b, fov);
+      const mid = project([m.pos[0], m.pos[1] + yb, m.pos[2]], cam.pos, b, fov);
+      const edge = project(v3.add([m.pos[0], m.pos[1] + yb, m.pos[2]], v3.mul(b.r, m.r)), cam.pos, b, fov);
+      const el = labelEls[i];
+      if (top && mid && edge) {
+        el.style.opacity = 1 - smooth(32, 42, top.z);
+        el.style.transform = `translate(${top.x}px, ${top.y}px) translate(-50%, -100%)`;
+        const rad = Math.hypot(edge.x - mid.x, edge.y - mid.y) * 1.1, d = Math.hypot(mouse.cx - mid.x, mouse.cy - (mid.y + rad * .25));
+        if (d < rad && d < bestD) { bestD = d; best = i; }
+        m._screen = top;
+      } else el.style.opacity = 0;
+      el.classList.toggle("on", i === hover);
+    });
+    if (forceHover !== null) best = forceHover;
+    if (best !== hover) { hover = best; showCard(hover); }
+    if (hover >= 0 && MODULES[hover]._screen) {
+      const s = MODULES[hover]._screen, cd = $("card");
+      const x = Math.min(innerWidth - 250, Math.max(16, s.x + 70)), y = Math.min(innerHeight - 260, Math.max(80, s.y - 10));
+      cd.style.left = x + "px"; cd.style.top = y + "px";
+    }
+  }
+  if (!STILL && now > adaptAt) {
+    adaptAt = now + 1500;
+    const ns = frameMs > 26 ? Math.max(.34, scale - .08) : frameMs < 13 && scale < (PHONE() ? .55 : .72) ? scale + .04 : scale;
+    if (ns !== scale) { scale = ns; sizeTargets(); }
+  }
+}
+function loop(now) { if (!document.hidden) frame(now); requestAnimationFrame(loop); }
+
+// ---------------------------------------------------------------- input
+const cursorEl = $("cur"); const cpos = { x: -100, y: -100, rx: -100, ry: -100 };
+addEventListener("pointermove", (e) => {
+  mouse.x = e.clientX / innerWidth; mouse.y = e.clientY / innerHeight; mouse.moved = true; mouse.cx = e.clientX; mouse.cy = e.clientY;
+  cpos.x = e.clientX; cpos.y = e.clientY;
+  if (LName === "console") {
+    const h = conHit(e.clientX, e.clientY); const hot = h && h !== "panel" ? h : null;
+    if (hot !== conHot) { conHot = hot; drawConsole(); }
+    cursorEl.classList.toggle("on", !!hot || !!e.target.closest("button, a"));
+  } else cursorEl.classList.toggle("on", !!e.target.closest("button, a") || hover >= 0);
+}, { passive: true });
+addEventListener("click", (e) => {
+  if (e.target.closest("button, a")) return;
+  if (LName === "console") {
+    const h = conHit(e.clientX, e.clientY);
+    if (h === "run") runExample(exIdx); else if (h && h.startsWith("ex")) runExample(+h.slice(2));
+  } else if (LName === "map" && hover >= 0) toast(MODULES[hover].boss ? `On the real site, this opens Module ${MODULES[hover].n}.` : "Module 3 is coming soon.");
+});
+function cursorLoop() {
+  cpos.rx += (cpos.x - cpos.rx) * (REDUCED ? 1 : .22); cpos.ry += (cpos.y - cpos.ry) * (REDUCED ? 1 : .22);
+  cursorEl.children[0].style.transform = `translate(${cpos.rx}px, ${cpos.ry}px)`;
+  cursorEl.children[1].style.transform = `translate(${cpos.x}px, ${cpos.y}px)`;
+  requestAnimationFrame(cursorLoop);
+}
+addEventListener("wheel", (e) => { scrollT = Math.min(1, Math.max(0, scrollT + e.deltaY * .00055)); }, { passive: true });
+let touchY = null;
+addEventListener("touchstart", (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+addEventListener("touchmove", (e) => {
+  if (touchY === null) return; const y = e.touches[0].clientY;
+  scrollT = Math.min(1, Math.max(0, scrollT + (touchY - y) / innerHeight * .9)); touchY = y;
+  if (e.cancelable) e.preventDefault();
+}, { passive: false });
+addEventListener("keydown", (e) => {
+  if (["ArrowDown", "PageDown"].includes(e.key)) scrollT = Math.min(1, scrollT + .12);
+  else if (["ArrowUp", "PageUp"].includes(e.key)) scrollT = Math.max(0, scrollT - .12);
+  else if (e.key === "Home") scrollT = 0; else if (e.key === "End") scrollT = 1;
+});
+// The button: the whole world leans in a little while the cursor is on it.
+const cta = $("ctaBtn");
+["pointerenter", "focus"].forEach((ev) => cta.addEventListener(ev, () => { zoomT = 1.035; }));
+["pointerleave", "blur"].forEach((ev) => cta.addEventListener(ev, () => { zoomT = 1; }));
+let toastT;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
+document.querySelectorAll("[data-cta]").forEach((b) => b.addEventListener("click", () => toast("This page only previews the layout. On the real site, this button opens the course.")));
+
+function go(name, push) {
+  if (name === LName || !LAYOUTS[name]) return;
+  canvas.classList.add("out");
+  setTimeout(() => { useLayout(name); if (push) history.replaceState(null, "", "#" + name); requestAnimationFrame(() => canvas.classList.remove("out")); }, REDUCED ? 0 : 420);
+}
+document.querySelectorAll(".picker button").forEach((b) => b.addEventListener("click", () => go(b.dataset.l, true)));
+addEventListener("hashchange", () => go(location.hash.slice(1), false));
+addEventListener("resize", () => { sizeTargets(); if (L) placeAll(); });
+
+// ---------------------------------------------------------------- start
+async function start() {
+  try { await Promise.race([Promise.all([document.fonts.load('800 100px "Bricolage Grotesque"'), document.fonts.load('400 20px "JetBrains Mono"'), document.fonts.load('600 20px Inter')]), new Promise((r) => setTimeout(r, 2500))]); } catch {}
+  post = program(POST_FS); fluid = program(FLUID_FS);
+  sizeTargets();
+  const first = qs.get("l") || location.hash.slice(1);
+  useLayout(ORDER.includes(first) ? first : "console");
+  document.fonts.ready.then(() => { if (L) { placeAll(); drawConsole(); } });
+  if (STILL) {
+    // test hook: ?still&l=map&t=3&s=.3&mx=.6&my=.4&trail=1&zoom=1.035&hover=1
+    time = +(qs.get("t") || 2); scrollT = scrollV = +(qs.get("s") || 0); zoomT = zoomV = +(qs.get("zoom") || 1);
+    mouse.x = +(qs.get("mx") || .5); mouse.y = +(qs.get("my") || .5); mouse.sx = (mouse.x - .5) * 2; mouse.sy = (.5 - mouse.y) * 2;
+    if (qs.has("hover")) forceHover = +qs.get("hover");
+    if (LName === "console") { shown = 9; drawConsole(); }
+    const trail = qs.has("trail");
+    for (let i = 0; i < 22; i++) {
+      if (trail) { mouse.px = .08 + i * .011; mouse.py = .42 + Math.sin(i * .35) * .04; mouse.x = mouse.px + .011; mouse.y = .42 + Math.sin((i + 1) * .35) * .04; mouse.moved = true; }
+      frame(performance.now());
+    }
+    window.__ready = true; return;
+  }
+  requestAnimationFrame(loop); if (FINE) cursorLoop();
+}
+start().catch((e) => { console.error(e); toast("The preview couldn't start on this device."); });
+})();
+</script>
