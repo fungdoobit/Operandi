@@ -85,8 +85,10 @@ kbd { font: 500 11px/1 var(--font-mono); padding: 3px 6px 4px; border-radius: 6p
 .badge i { width: 8px; height: 8px; border-radius: 50%; background: #28c840; box-shadow: 0 0 0 4px rgb(40 200 64 / .16); animation: pulse 2.4s ease-in-out infinite; }
 h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(46px, 6.4vw, 84px); line-height: .98; letter-spacing: -.045em; margin: 22px 0 22px; text-wrap: balance; }
 h1 { margin-bottom: 34px; }
-h1 .fun { display: inline-block; transition: transform .6s var(--spring); }
-h1 .fun:hover { transform: rotate(-4deg) scale(1.08); }
+h1 .fun { display: inline-block; white-space: nowrap; transition: transform .6s var(--spring); }
+h1 .fun:hover { transform: rotate(-3deg) scale(1.04); }
+h1 .fun span { display: inline-block; animation: wave 2.6s var(--ease-out) infinite; }
+h1 .fun span:nth-child(2) { animation-delay: .08s; } h1 .fun span:nth-child(3) { animation-delay: .16s; } h1 .fun span:nth-child(4) { animation-delay: .24s; } h1 .fun span:nth-child(5) { animation-delay: .32s; }
 h1 em, h2 em { font-family: var(--font-serif); font-weight: 400; font-style: italic; letter-spacing: -.01em; }
 .cta { display: flex; flex-wrap: wrap; gap: 12px; }
 
@@ -244,6 +246,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 .note { min-height: 22px; font-size: 14px; color: var(--muted); margin: 6px 0 0; text-align: center; }
 
 @keyframes caret { 50% { opacity: 0; } }
+@keyframes wave { 0%, 60%, 100% { transform: none; } 20% { transform: translateY(-.12em); } 40% { transform: translateY(.03em); } }
 @keyframes pulse { 50% { opacity: .45; } }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 @keyframes line { from { opacity: 0; transform: translateY(6px); } }
@@ -287,7 +290,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
     <div class="wrap">
       <div>
         <span class="badge"><i aria-hidden="true"></i>Python course · Modules 1 and 2 are open</span>
-        <h1>Learning Python should be <em class="fun">fun</em>.</h1>
+        <h1>Learning Python should be <em class="fun" aria-label="fun">fu<span>n</span><span>n</span><span>n</span><span>n</span><span>n</span></em>.</h1>
         <div class="cta">
           <a class="btn primary" href="python.html">Start learning <span class="arr" aria-hidden="true">→</span></a>
           <a class="btn" href="#how">See how it works</a>
@@ -304,7 +307,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
             <div class="con-gutter" id="liveGutter" aria-hidden="true">1</div>
             <textarea class="con-code" id="liveCode" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Python code you can edit and run" rows="5"></textarea>
           </div>
-          <div class="con-out" id="liveOut" aria-live="polite"><div class="lbl"><i></i>Output</div><p class="hint">This is real Python. Change the code, then press Run.</p></div>
+          <div class="con-out ok" id="liveOut" aria-live="polite"><div class="lbl"><i></i>Output</div><pre><span>Hello, Ada!</span><span>2 + 3 = 5</span></pre></div>
         </div>
         <div class="try" id="tryRow"><span>Try:</span>
           <button type="button" data-try='name = "Ada"&#10;print(f"Hello, {name}!")&#10;print("2 + 3 =", 2 + 3)'>hello</button>
@@ -318,9 +321,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
 
   <section class="band" id="how">
     <div class="wrap">
-      <p class="kicker reveal">How it works</p>
-      <h2 class="reveal d1">Read a little, write a little, <em>see it work.</em></h2>
-      <p class="sub reveal d2">Each lesson is a few short sections. Every section ends with a small task you solve in real Python, right next to the lesson.</p>
+      <p class="kicker reveal" style="margin-bottom: 22px">How it works</p>
       <div class="bento">
         <article class="cell c3 reveal">
           <span class="step">01 · Learn</span>
