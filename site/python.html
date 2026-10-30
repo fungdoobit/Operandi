@@ -8,28 +8,37 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M14 80C2 80 3 52 14 36C25 16 49 7 68 11C88 16 98 36 99 56C99 64 96 67 91 66C85 64 81 67 81 72C81 78 79 82 73 82L26 83C19 83 15 82 14 80Z' fill='%2389dbf7'/%3E%3Ccircle cx='33' cy='56' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3Ccircle cx='61' cy='57' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:opsz,wght@14..32,400..700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <div class="app">
-  <!-- No top bar: the ☰ button floats in the corner; logo, level, Bits and
-       streak live at the top of the course list. -->
-  <button class="rail-toggle" id="railToggle" type="button" aria-controls="rail" aria-expanded="true" title="Show or hide the course list">☰</button>
+  <!-- The top bar (revamp, PRD Addendum N): the course list button, the logo, where you are, then your level,
+       Bits, streak and the command palette (Ctrl/Cmd+K). -->
+  <header class="topbar" id="topbar">
+    <button class="icon-btn rail-toggle" id="railToggle" type="button" aria-controls="rail" aria-expanded="true" title="Show or hide the course list">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5.5h14M3 10h14M3 14.5h14"/></svg>
+    </button>
+    <a class="brand" href="./" title="Operandi home"><span class="brand-glyph" aria-hidden="true"></span>operandi</a>
+    <nav class="crumbs" id="crumbs" aria-label="Where you are"></nav>
+    <div class="top-right">
+      <div class="lvl" id="lvl" aria-label="Level"></div>
+      <div class="stat bits" title="Bits: Operandi's in-game currency"><b id="bitsVal">0</b><span>Bits</span></div>
+      <div class="stat streak" title="Days in a row with a pass"><b id="streakVal">0</b><span>day streak</span></div>
+      <button class="cmdk" id="cmdkBtn" type="button" title="Search lessons, pages and the FAQ">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
+        <span>Search</span><kbd class="kc" data-mod>K</kbd>
+      </button>
+    </div>
+  </header>
 
-  <div class="body">
+  <div class="body" id="bodyGrid">
     <section class="arena" id="arena" aria-label="Boss battle" hidden></section>
     <nav class="rail" id="rail" aria-label="Course">
-      <div class="rail-head">
-        <a class="mark" href="./" title="Home">operandi<span class="dot">.</span>code</a>
-        <div class="lvl" id="lvl" aria-label="Level"></div>
-        <div class="rail-stats">
-          <div class="stat bits" title="Bits: Operandi's in-game currency"><b id="bitsVal">0</b><span>Bits</span></div>
-          <div class="stat"><b id="streakVal">0</b><span>Day streak</span></div>
-        </div>
-      </div>
+      <button class="rail-item overview" data-view="course"><span class="n" aria-hidden="true">
+        <svg viewBox="0 0 20 20"><path d="M3 9.5 10 4l7 5.5V16a1 1 0 0 1-1 1h-3.5v-4.5h-5V17H4a1 1 0 0 1-1-1z"/></svg></span><span class="t">Course overview<span class="sub">Your path and progress</span></span></button>
       <div id="moduleList"></div>
-      <div class="rail-group">
+      <div class="rail-group more">
         <h4>More</h4>
         <ol>
           <li><button class="rail-item" id="practiceBtn" data-view="practice"><span class="n">∞</span><span class="t">Practice<span class="sub" id="practiceSub">Finish lesson 1 to unlock</span></span></button></li>
@@ -59,19 +68,24 @@
     <section class="brief" id="brief"><div class="brief-inner" id="briefInner"></div></section>
 
     <section class="work" aria-label="Code editor" id="work">
-      <div class="editor">
+      <div class="work-head">
+        <span class="file-tab"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 2.5h6.5L16 7v10.5H5z"/><path d="M11.5 2.5V7H16"/></svg>main.py</span>
         <span class="engine" id="engine"><i></i><span>Loading Python…</span></span>
+      </div>
+      <div class="editor">
         <div class="gutter" id="gutter" aria-hidden="true">1</div>
         <textarea class="code" id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Your Python code"></textarea>
       </div>
       <div class="actions">
-        <button class="btn" id="runBtn" disabled>Run</button>
-        <button class="btn primary" id="submitBtn" disabled>Submit</button>
+        <button class="btn run" id="runBtn" disabled title="Run your code (Ctrl/Cmd + Enter)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4.5v11l9-5.5z"/></svg>Run<kbd class="kc" data-mod>↵</kbd></button>
+        <button class="btn primary submit" id="submitBtn" disabled title="Submit for a mark (Ctrl/Cmd + Shift + Enter)">Submit<kbd class="kc" data-mod data-shift>↵</kbd></button>
         <span class="sep"></span>
-        <button class="btn item" id="hintBtn">Hint <span id="hintCount">15</span></button>
-        <button class="btn item" id="peekBtn">Peek <span id="peekCount">15</span></button>
-        <button class="btn item" id="solBtn">Solution <span id="solCount">5</span></button>
-        <button class="btn ghost" id="resetBtn">Reset</button>
+        <div class="items" role="group" aria-label="Help items">
+          <button class="btn item" id="hintBtn">Hint <span id="hintCount">15</span></button>
+          <button class="btn item" id="peekBtn">Peek <span id="peekCount">15</span></button>
+          <button class="btn item" id="solBtn">Solution <span id="solCount">5</span></button>
+        </div>
+        <button class="btn ghost" id="resetBtn" title="Start this task's code again">Reset</button>
       </div>
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" id="tab-output" aria-selected="true" data-tab="output">Output</button>
@@ -83,6 +97,12 @@
       <div class="panel" id="panel-feedback" role="tabpanel" hidden></div>
     </section>
   </div>
+</div>
+
+<!-- Phones: switch between the lesson and your code. -->
+<div class="pane-switch" id="paneSwitch" role="tablist" aria-label="Show">
+  <button type="button" role="tab" data-pane="lesson" aria-selected="true">Lesson</button>
+  <button type="button" role="tab" data-pane="code" aria-selected="false">Code</button>
 </div>
 
 <dialog id="faqDialog" class="faq-dialog">

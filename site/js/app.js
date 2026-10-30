@@ -19,11 +19,19 @@ import { rng, newSeed } from "./rng.js";
 import { MODULES, ALL_LESSONS, ALL_TEMPLATES } from "../content/index.js";
 import { HELP, LINT_PENALTY, compareOutput } from "../content/help.js";
 import { FAQ } from "../content/faq.js";
+import { initPalette } from "./palette.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+// Key caps say ⌘ on Apple devices and Ctrl elsewhere (css: kbd[data-mod]).
+document.documentElement.dataset.os = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent) ? "mac" : "pc";
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)");
+const PHONE = matchMedia("(max-width: 900px)");
+// Moving between pages (a lesson, the Shop...) cross-fades with the View Transitions API where the browser has it.
+// Only for moves you make yourself: the render runs a moment later, so code right after it mustn't rely on it.
+const swap = (render) => (document.startViewTransition && !REDUCED.matches ? document.startViewTransition(render) : render());
 
 const store = new Store();
 const S = () => store.state;
@@ -195,7 +203,7 @@ ed.addEventListener("input", () => {
 });
 ed.addEventListener("scroll", () => ($("gutter").scrollTop = ed.scrollTop));
 ed.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); doRun(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); e.shiftKey ? doSubmit() : doRun(); return; }
   const { selectionStart: s, selectionEnd: en, value: v } = ed;
   if (e.key === "Tab") {
     e.preventDefault();
@@ -242,7 +250,7 @@ function showTests(results) {
   const peeked = new Set(task && rec()?.peeked || []);
   const passed = results.filter((x) => x.passed).length;
   $("testCount").textContent = ` ${passed}/${results.length}`;
-  $("panel-tests").innerHTML = `<ul class="tests">${results.map((x) => `<li class="${x.passed ? "ok" : "no"}"><span class="tag">${x.passed ? "PASS" : "FAIL"}</span><span>${esc(x.name)}${!x.passed && x.message ? `<span class="msg">${esc(x.message)}</span>` : ""}${!x.passed && peeked.has(x.name) && x.peek ? `<span class="peeked">Peek: ${esc(x.peek)}</span>` : ""}</span></li>`).join("")}</ul>`;
+  $("panel-tests").innerHTML = `<ul class="tests">${results.map((x, i) => `<li class="${x.passed ? "ok" : "no"}" style="--i:${i}"><span class="tag">${x.passed ? "PASS" : "FAIL"}</span><span>${esc(x.name)}${!x.passed && x.message ? `<span class="msg">${esc(x.message)}</span>` : ""}${!x.passed && peeked.has(x.name) && x.peek ? `<span class="peeked">Peek: ${esc(x.peek)}</span>` : ""}</span></li>`).join("")}</ul>`;
 }
 
 /* ---------- Run ---------- */
@@ -345,6 +353,7 @@ async function doSubmit() {
     store.save();
 
     renderFeedback({ passed, mark, rewardLine, rewardParts, run, diff, hardcoded, styleLint, already, attempts: r.attempts, quiet });
+    if (passed && task.kind !== "boss") celebrate(rewardLine);
     showTab(passed ? "feedback" : run.error ? "output" : diff ? "tests" : "tests");
     if (quiet && !passed) battle?.say(`${passedCount} of ${results.length} tests passed. No tips on tries 1 and 2 in a fight: read Python's error in Output and the failing tests. From your third Submit I can help again${r.attempts === QUIET_TRIES ? " (that's the next one)" : ""}.`, { title: `Not yet · try ${r.attempts}`, mood: "worried" });
     else if (!passed) dotReact({ passed, mark, rewardLine, run, diff, hardcoded, styleLint, already, attempts: r.attempts, results });
@@ -421,6 +430,48 @@ function renderFeedback({ passed, mark, rewardLine, rewardParts, run, diff, hard
   if (styleLint.length) h += `<div><h5>To improve</h5><ul>${styleLint.map((l) => `<li><b>${esc(HELP[l.id].title)}</b><span class="why">${esc(HELP[l.id].body(l))}</span></li>`).join("")}</ul></div>`;
   h += `</div>`;
   $("panel-feedback").innerHTML = h;
+  countUp(document.querySelector("#panel-feedback .score"), mark);
+}
+
+// The mark counts up from 0 (revamp).
+function countUp(el, to) {
+  if (!el || REDUCED.matches) return;
+  const small = el.querySelector("small")?.outerHTML || "", t0 = performance.now(), ms = 650;
+  const tick = (now) => {
+    const k = Math.min(1, (now - t0) / ms);
+    el.innerHTML = Math.round(to * (1 - Math.pow(1 - k, 3))) + small;
+    if (k < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// A pass (revamp): a small burst from the Submit button, and the Bits you earned fly up to the counter.
+function celebrate(bitsText) {
+  if (REDUCED.matches) return;
+  const b = $("submitBtn").getBoundingClientRect(), x = b.left + b.width / 2, y = b.top + b.height / 2;
+  const colours = ["#2f5bd3", "#f2c14e", "#5cc48a", "#f08b78", "#ecebe6", "#8ea8f2"];
+  for (let i = 0; i < 26; i++) {
+    const p = document.createElement("i");
+    p.className = "burst";
+    Object.assign(p.style, { left: x + "px", top: y + "px", background: colours[i % colours.length] });
+    document.body.append(p);
+    const a = Math.random() * Math.PI * 2, r = 60 + Math.random() * 90;
+    p.animate([
+      { transform: "translate(-50%, -50%) scale(1) rotate(0deg)", opacity: 1 },
+      { transform: `translate(calc(-50% + ${Math.cos(a) * r}px), calc(-50% + ${Math.sin(a) * r - 40}px)) scale(.4) rotate(${Math.random() * 540}deg)`, opacity: 0 },
+    ], { duration: 700 + Math.random() * 400, easing: "cubic-bezier(.2, .8, .3, 1)" }).finished.then(() => p.remove());
+  }
+  const m = /\+\d+/.exec(bitsText || ""), target = document.querySelector(".stat.bits");
+  if (!m || !target) return;
+  const t = target.getBoundingClientRect(), f = document.createElement("span");
+  f.className = "fly"; f.textContent = `${m[0]} ◆`;
+  Object.assign(f.style, { left: x + "px", top: y + "px" });
+  document.body.append(f);
+  f.animate([
+    { transform: "translate(-50%, -50%) scale(.6)", opacity: 0 },
+    { transform: "translate(-50%, -130%) scale(1.1)", opacity: 1, offset: .25 },
+    { transform: `translate(calc(-50% + ${t.left + t.width / 2 - x}px), calc(-50% + ${t.top + t.height / 2 - y}px)) scale(.7)`, opacity: .9 },
+  ], { duration: 1000, easing: "cubic-bezier(.5, 0, .2, 1)" }).finished.then(() => { f.remove(); target.classList.remove("bump"); void target.offsetWidth; target.classList.add("bump"); });
 }
 
 /* ---------- Items: hint, peek, solution ---------- */
@@ -499,7 +550,13 @@ $("resetBtn").addEventListener("click", () => {
 
 /* ---------- Views ---------- */
 
-function setWorkVisible(on) { $("work").hidden = !on; document.querySelector(".body").classList.toggle("no-work", !on); }
+function setWorkVisible(on) { $("work").hidden = !on; $("bodyGrid").classList.toggle("no-work", !on); $("paneSwitch").hidden = !on; }
+// Phones and iPad portrait show the lesson or the code; the switch at the bottom flips between them.
+function setPane(p) {
+  $("bodyGrid").dataset.pane = p;
+  document.querySelectorAll("#paneSwitch [data-pane]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.pane === p)));
+}
+$("paneSwitch").addEventListener("click", (e) => { const b = e.target.closest("[data-pane]"); if (b) setPane(b.dataset.pane); });
 
 function wireExamples() {
   document.querySelectorAll("#briefInner pre[data-run]").forEach((pre) => {
@@ -510,7 +567,7 @@ function wireExamples() {
     const bar = document.createElement("div"); bar.className = "bar";
     const btn = document.createElement("button"); btn.type = "button"; btn.textContent = "Run example";
     btn.addEventListener("click", async () => {
-      try { const r = await runner.run(code); showOutput(r); showTab("output"); } catch (e) { toast(e.message); }
+      try { const r = await runner.run(code); showOutput(r); showTab("output"); if (PHONE.matches) setPane("code"); } catch (e) { toast(e.message); }
     });
     bar.append(btn); wrap.append(p, bar); pre.replaceWith(wrap);
   });
@@ -523,8 +580,10 @@ function openLesson(id, section) {
   view = { kind: "lesson", id, section };
   task = lessonTask(l, section);
   setWorkVisible(true);
+  setPane("lesson");
   const sec = secs[section];
   const i = lessonIndex(id), mod = MODULES.find((m) => m.id === l.module);
+  crumbs(`Module ${mod.id}`, l.title, ...(l.sections ? [sec.title] : []));
   // Section tabs: done ones are ticked, a section opens once the one before it is done.
   const steps = l.sections ? `<div class="sections" role="tablist" aria-label="Sections">${secs.map((x, n) => {
     const open = n === 0 || sectionDone(l, n - 1);
@@ -591,8 +650,9 @@ function openView(kind) {
   view = { kind };
   task = null;
   setWorkVisible(false);
-  if (kind === "shop") renderShop();
-  if (kind === "faq") renderFaqView();
+  if (kind === "shop") { crumbs("Shop"); renderShop(); }
+  if (kind === "faq") { crumbs("FAQ & glossary"); renderFaqView(); }
+  if (kind === "course") { crumbs("Overview"); renderCourseHome(); }
   renderRail();
   $("brief").scrollTop = 0;
 }
@@ -635,6 +695,7 @@ function wireDiff() {
 }
 
 function renderPracticeHome() {
+  crumbs("Practice");
   const total = ALL_TEMPLATES.length, open = [1, 2, 3].reduce((a, d) => a + availableTemplates(d).length, 0);
   $("briefInner").innerHTML = `<p class="eyebrow">Practice</p><h1>Challenges</h1>
     <p>Every challenge is built from a template with fresh random values, so no two play-throughs are the same. You'll only get challenges that use what you've already learned: <b>${open} of ${total}</b> challenge types are open to you right now.</p>
@@ -666,6 +727,7 @@ async function startChallenge() {
     store.save();
     task = candidate;
     setWorkVisible(true);
+    setPane("lesson");
     renderChallenge();
     calmView();
     loadEditor();
@@ -679,6 +741,7 @@ async function startChallenge() {
 
 function renderChallenge() {
   const cur = S().current, c = task;
+  crumbs("Practice", c.title);
   $("briefInner").innerHTML = `<div class="bsay" id="bossSay" hidden></div>
     <p class="eyebrow">Practice · ${DIFFS[c.difficulty]}${cur.solved ? " · solved" : ""}</p>
     <h1>${esc(c.title)}</h1>
@@ -935,7 +998,8 @@ function renderBossStage({ entering = false } = {}) {
   // The battle sits in its own band across the top, so it stays in view while
   // you scroll the instructions and type.
   $("arena").hidden = false;
-  document.querySelector(".body").classList.add("boss-mode");
+  $("bodyGrid").classList.add("boss-mode");
+  crumbs(`Module ${view.module}`, `Boss: ${BOSSES[view.module].name}`);
   battle = new BattleStage($("arena"), $("bossSay"), { skin: ROSTER.includes(f?.fighter) ? f.fighter : mate(), accessories: wearing(), name: BOSSES[view.module].name, foe: BOSSES[view.module].foe, entering });
   if (f) battle.hp(f.me, f.foe); else battle.hp(BOSS.hp, BOSS.hp);
   battle.mana(f?.mana || 0);
@@ -1097,6 +1161,101 @@ function renderBossPanel(kind, reward) {
 }
 
 /* ---------- Top bar and rail ---------- */
+
+// Where you are, in the top bar: "Course / Module 1 / Your first program / Printing text". "Course" opens the overview.
+function crumbs(...parts) {
+  $("crumbs").innerHTML = [`<button type="button" data-crumb="course">Course</button>`,
+    ...parts.map((p, i) => `<span class="${i === parts.length - 1 ? "here" : ""}">${esc(p)}</span>`)].join(`<span class="sep">/</span>`);
+}
+$("crumbs").addEventListener("click", (e) => { if (e.target.closest("[data-crumb]") && !busy) swap(() => openView("course")); });
+
+// The course overview (revamp): where to carry on, your numbers, and each module as a path of lessons ending in its boss.
+function renderCourseHome() {
+  const st = S(), li = levelFor(modulesDone());
+  const nextIdx = ALL_LESSONS.findIndex((l, i) => lessonUnlocked(i) && !lessonDone(l.id));
+  const readyBoss = MODULES.find((m) => BOSSES[m.id] && bossUnlocked(m.id) && !bossBeaten(m.id));
+  let go;
+  if (readyBoss && (nextIdx < 0 || ALL_LESSONS[nextIdx].module > readyBoss.id)) {
+    go = { k: `Module ${readyBoss.id} · Boss fight`, title: `Fight ${BOSSES[readyBoss.id].name}`, sub: "Every lesson in this module is done. Time for the boss.", btn: "Fight →", m: readyBoss.id, run: () => openBoss(readyBoss.id) };
+  } else if (nextIdx >= 0) {
+    const l = ALL_LESSONS[nextIdx], ml = MODULE_LESSONS(l.module);
+    go = { k: `Module ${l.module} · Lesson ${ml.indexOf(l) + 1} of ${ml.length}`, title: l.title, sub: l.sub, btn: lessonsDoneCount() ? "Continue →" : "Start →", m: l.module, run: () => swap(() => openLesson(l.id)) };
+  } else {
+    go = { k: "Every lesson done", title: "Practice challenges", sub: "Keep sharpening your skills: fresh challenges every time.", btn: "Practice →", m: null, run: () => swap(() => openView("practice")) };
+  }
+  const pct = go.m ? Math.round((lessonsDoneIn(go.m) / MODULE_LESSONS(go.m).length) * 100) : 100;
+  const mods = MODULES.filter((m) => !m.soon).map((m) => {
+    const ls = MODULE_LESSONS(m.id), B = BOSSES[m.id];
+    const nodes = ls.map((l, n) => {
+      const done = lessonDone(l.id), open = lessonUnlocked(lessonIndex(l.id)), cur = open && !done;
+      return `<button type="button" class="node ${done ? "done" : ""} ${cur ? "cur" : ""}" data-lesson="${l.id}" ${open ? "" : "disabled"}><span class="orb">${done ? "✓" : n + 1}</span><span class="lbl">${esc(l.title)}<small>${done ? `Marked ${st.lessons[l.id].mark}/10` : cur ? "Up next" : "Locked"}</small></span></button>`;
+    }).join("");
+    const bossNode = !B ? "" : `<button type="button" class="node boss ${bossBeaten(m.id) ? "done" : ""} ${bossUnlocked(m.id) && !bossBeaten(m.id) ? "cur" : ""}" data-boss="${m.id}" ${bossUnlocked(m.id) ? "" : "disabled"}><span class="orb">${bossBeaten(m.id) ? "✓" : "⚔"}</span><span class="lbl">${esc(B.name)}<small>${bossBeaten(m.id) ? "Defeated" : bossUnlocked(m.id) ? "Ready to fight" : "The boss"}</small></span></button>`;
+    return `<section class="ov-mod spot"><header><h3>Module ${m.id} · ${esc(m.title)}</h3><span>${lessonsDoneIn(m.id)}/${ls.length} lessons${B ? ` · boss ${bossBeaten(m.id) ? "beaten" : "ahead"}` : ""}</span></header><div class="path">${nodes}${bossNode}</div></section>`;
+  }).join("");
+  const soon = MODULES.filter((m) => m.soon);
+  $("briefInner").innerHTML = `<p class="eyebrow">Course overview</p><h1>Your path through Python</h1>
+    <div class="ov-hero spot"><div class="k">${esc(go.k)}</div><h2>${esc(go.title)}</h2><p>${esc(go.sub || "")}</p>${go.m ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}<button class="btn primary" id="ovGo">${go.btn}</button></div>
+    <div class="ov-stats">
+      <div class="ov-stat spot"><b>${LEVELS[li].name}</b><span>Level</span></div>
+      <div class="ov-stat spot"><b>◆ ${st.bits}</b><span>Bits</span></div>
+      <div class="ov-stat spot"><b>${store.streakNow()}</b><span>Day streak</span></div>
+      <div class="ov-stat spot"><b>${lessonsDoneCount()}/${ALL_LESSONS.length}</b><span>Lessons done</span></div>
+    </div>
+    ${mods}
+    ${soon.length ? `<section class="ov-mod soon"><header><h3>Coming next</h3><span>${soon.length} modules</span></header><p class="empty">${soon.map((m) => `${m.id} · ${esc(m.title)}`).join(" &nbsp;·&nbsp; ")}</p></section>` : ""}`;
+  $("ovGo").addEventListener("click", () => { if (!busy) go.run(); });
+  $("briefInner").querySelectorAll(".node").forEach((b) => b.addEventListener("click", () => {
+    if (b.disabled || busy) return;
+    if (b.dataset.lesson) swap(() => openLesson(b.dataset.lesson)); else openBoss(+b.dataset.boss);
+  }));
+}
+
+// The command palette (Ctrl/Cmd+K, or /): what's in it right now, filtered by the words typed.
+const palette = initPalette({ items: paletteItems });
+function paletteItems(q) {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean), out = [];
+  const add = (group, it) => { if (!words.length || words.every((w) => `${it.label} ${it.sub || ""} ${group} ${it.tags || ""}`.toLowerCase().includes(w))) out.push({ group, ...it }); };
+  const go = (fn) => () => { if (!busy) swap(fn); };
+  if (!$("work").hidden && task) {
+    add("Actions", { label: "Run my code", icon: "▶", keys: { mod: true, key: "↵" }, run: doRun, tags: "execute" });
+    add("Actions", { label: "Submit for a mark", icon: "✓", keys: { mod: true, shift: true, key: "↵" }, run: doSubmit, tags: "check mark" });
+    add("Actions", { label: "Use a hint", sub: `${S().items.hint} left`, icon: "?", run: useHint });
+    add("Actions", { label: "Peek at a failing test", sub: `${S().items.peek} left`, icon: "◎", run: usePeek });
+    add("Actions", { label: "Reset this task's code", icon: "↺", run: () => $("resetBtn").click() });
+  }
+  add("Go to", { label: "Course overview", icon: "⌂", run: go(() => openView("course")), tags: "home dashboard progress path" });
+  if (!$("practiceBtn").disabled) add("Go to", { label: "Practice challenges", icon: "∞", run: go(() => openView("practice")), tags: "challenge" });
+  add("Go to", { label: "Shop", sub: `◆ ${S().bits} Bits`, icon: "◆", run: go(() => openView("shop")), tags: "buy hints items themes" });
+  add("Go to", { label: "FAQ & glossary", icon: "?", run: go(() => openView("faq")), tags: "help" });
+  ALL_LESSONS.forEach((l, i) => {
+    if (lessonUnlocked(i)) add("Lessons", { label: l.title, sub: `Module ${l.module}${lessonDone(l.id) ? " · done" : ""}`, icon: lessonDone(l.id) ? "✓" : String(MODULE_LESSONS(l.module).indexOf(l) + 1), run: go(() => openLesson(l.id)), tags: l.sub });
+  });
+  MODULES.forEach((m) => { if (BOSSES[m.id] && bossUnlocked(m.id)) add("Lessons", { label: `Boss: ${BOSSES[m.id].name}`, sub: `Module ${m.id}${bossBeaten(m.id) ? " · beaten" : ""}`, icon: "⚔", run: () => { if (!busy) openBoss(m.id); }, tags: "fight" }); });
+  const s = sound.settings;
+  add("Settings", { label: `${s.music ? "Turn off" : "Turn on"} music`, icon: "♪", run: () => $("setMusic").click(), tags: "sound" });
+  add("Settings", { label: `${s.sfx ? "Turn off" : "Turn on"} sound effects`, icon: "♫", run: () => $("setSfx").click(), tags: "sound" });
+  add("Settings", { label: `${$("setRoam").checked ? "Keep" : "Let"} ${V().name} ${$("setRoam").checked ? "still" : "roam the screen"}`, icon: "✦", run: () => $("setRoam").click(), tags: "companion pet" });
+  if (words.length) search(q).slice(0, 6).forEach((f) => out.push({ group: "FAQ", label: f.q, icon: f.kind === "term" ? "Aa" : "?", run: () => openFaq(f.id) }));
+  return out;
+}
+$("cmdkBtn").addEventListener("click", () => palette.open());
+document.addEventListener("keydown", (e) => {
+  const mod = e.metaKey || e.ctrlKey, typing = e.target.closest?.("input, textarea, select, [contenteditable]");
+  if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); palette.isOpen ? palette.close() : palette.open(); return; }
+  if (e.key === "/" && !typing && !document.querySelector("dialog[open]")) { e.preventDefault(); palette.open(); return; }
+  // Run and Submit from anywhere on the page (the editor handles its own keys)
+  if (mod && e.key === "Enter" && e.target !== ed && !$("work").hidden && !document.querySelector("dialog[open]")) { e.preventDefault(); e.shiftKey ? doSubmit() : doRun(); }
+});
+
+// The cursor spotlight on cards: the soft glow follows the pointer (css: .spot::after).
+document.addEventListener("pointermove", (e) => {
+  const el = e.target.closest?.(".spot, .task, .shop-card, .team-card");
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  el.style.setProperty("--my", `${e.clientY - r.top}px`);
+}, { passive: true });
 
 // The level, Bits and streak at the top of the course list.
 function renderTop() {
