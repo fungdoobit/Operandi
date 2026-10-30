@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Operandi: learn Python by writing it</title>
+<title>Operandi: learning Python should be fun</title>
 <meta name="description" content="Learn Python from zero: short lessons, real code in your browser, instant marks with plain-word feedback, and a boss fight at the end of every module.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M14 80C2 80 3 52 14 36C25 16 49 7 68 11C88 16 98 36 99 56C99 64 96 67 91 66C85 64 81 67 81 72C81 78 79 82 73 82L26 83C19 83 15 82 14 80Z' fill='%2389dbf7'/%3E%3Ccircle cx='33' cy='56' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3Ccircle cx='61' cy='57' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -79,17 +79,16 @@ kbd { font: 500 11px/1 var(--font-mono); padding: 3px 6px 4px; border-radius: 6p
   background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 56px 56px;
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); opacity: .7; }
 .hero .wrap > div > *, .hero .stage { animation: rise .9s var(--spring) both; }
-.hero h1 { animation-delay: .06s; } .hero .lede { animation-delay: .12s; } .hero .cta { animation-delay: .18s; } .hero .ticks { animation-delay: .24s; } .hero .stage { animation-delay: .14s; }
+.hero h1 { animation-delay: .06s; } .hero .cta { animation-delay: .14s; } .hero .stage { animation-delay: .14s; }
 .hero .wrap { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
 .badge { display: inline-flex; align-items: center; gap: 9px; height: 32px; padding: 0 14px 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-sm); font-size: 13px; font-weight: 500; color: var(--ink-2); }
 .badge i { width: 8px; height: 8px; border-radius: 50%; background: #28c840; box-shadow: 0 0 0 4px rgb(40 200 64 / .16); animation: pulse 2.4s ease-in-out infinite; }
 h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(46px, 6.4vw, 84px); line-height: .98; letter-spacing: -.045em; margin: 22px 0 22px; text-wrap: balance; }
+h1 { margin-bottom: 34px; }
+h1 .fun { display: inline-block; transition: transform .6s var(--spring); }
+h1 .fun:hover { transform: rotate(-4deg) scale(1.08); }
 h1 em, h2 em { font-family: var(--font-serif); font-weight: 400; font-style: italic; letter-spacing: -.01em; }
-.lede { font-size: clamp(17px, 1.5vw, 19.5px); line-height: 1.6; color: var(--ink-2); max-width: 34em; margin: 0 0 30px; }
 .cta { display: flex; flex-wrap: wrap; gap: 12px; }
-.ticks { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 26px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted); }
-.ticks li { display: flex; align-items: center; gap: 8px; }
-.ticks li::before { content: ""; width: 15px; height: 15px; border-radius: 50%; background: var(--pass) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 8.2 2.3 2.3 4.7-4.9'/%3E%3C/svg%3E") center / 15px; }
 
 /* the live Python box */
 .stage { perspective: 1400px; }
@@ -288,17 +287,11 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
     <div class="wrap">
       <div>
         <span class="badge"><i aria-hidden="true"></i>Python course · Modules 1 and 2 are open</span>
-        <h1>Learn Python by actually <em>writing</em> it.</h1>
-        <p class="lede">Short lessons, real code in your browser, and a mark out of 10 the moment you submit, with feedback in plain words. Every module ends in a boss fight that tests what you learned.</p>
+        <h1>Learning Python should be <em class="fun">fun</em>.</h1>
         <div class="cta">
           <a class="btn primary" href="python.html">Start learning <span class="arr" aria-hidden="true">→</span></a>
           <a class="btn" href="#how">See how it works</a>
         </div>
-        <ul class="ticks">
-          <li>Free while it's being built</li>
-          <li>Nothing to install</li>
-          <li>Made for complete beginners</li>
-        </ul>
       </div>
       <div class="stage">
         <div class="console" id="console">
@@ -431,7 +424,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
     <p class="fine">Not available yet. Pricing may change. Operandi is free while it's being built.</p>
   </section>
 </main>
-<footer><div class="wrap"><span>operandi.code</span><span>Learn Python by writing it.</span></div></footer>
+<footer><div class="wrap"><span>operandi.code</span><span>Learning Python should be fun.</span></div></footer>
 
 <script type="module">
 const $ = (id) => document.getElementById(id);
