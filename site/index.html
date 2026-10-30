@@ -3,42 +3,224 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Operandi</title>
-<meta name="description" content="Learn to code from zero with NOVA, your Operandi teammate. Start with Python.">
+<title>Operandi: learn Python by writing it</title>
+<meta name="description" content="Learn Python from zero: short lessons, real code in your browser, instant marks with plain-word feedback, and a boss fight at the end of every module.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M14 80C2 80 3 52 14 36C25 16 49 7 68 11C88 16 98 36 99 56C99 64 96 67 91 66C85 64 81 67 81 72C81 78 79 82 73 82L26 83C19 83 15 82 14 80Z' fill='%2389dbf7'/%3E%3Ccircle cx='33' cy='56' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3Ccircle cx='61' cy='57' r='10' fill='white' stroke='%2316304a' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:opsz,wght@14..32,400..700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
-/* Layout: a calm, centred hero. A looping row of language tiles sits above a
-   huge wordmark, two pill buttons below. Planned pricing waits quietly at the
-   bottom of the page. */
+/* The home page (revamp, PRD Addendum N): warm editorial paper, a dark precise console for the live Python box,
+   springy feedback. Neutral: no characters here (Isaac 2026-10-30). The old language tiles and the planned pricing
+   stay in the code, hidden while testers play. */
 :root {
-  --bg: #fbfaf6;
-  --ink: #2a2c2e;
-  --muted: #7a776f;
-  --tile: #e4e2dc;
-  --tile-shadow: rgb(60 50 30 / .14);
-  --pill: #c8bea9;
-  --card: #ffffff;
-  --line: #e6e2d8;
+  --bg: #f6f4ef; --surface: #fffefb; --surface-2: #faf8f3; --ink: #17181b; --ink-2: #3a3b41; --muted: #6d6b65; --faint: #a8a59e;
+  --line: #e7e3da; --line-strong: #d6d1c6; --accent: #2f5bd3; --accent-soft: #e9eefb; --gold: #a67400; --gold-soft: #fbf1d6;
+  --pass: #1b7a48; --fail: #b8402c;
+  --console: #121316; --console-2: #17181c; --console-ink: #eceae4; --console-muted: #8c8a84; --console-line: #25262b;
+  --tile: #e4e2dc; --tile-shadow: rgb(60 50 30 / .14); --pill: #c8bea9; --card: #fffefb;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --shadow-sm: 0 1px 2px rgb(40 30 10 / .05), 0 2px 6px rgb(40 30 10 / .04);
+  --shadow-md: 0 1px 2px rgb(40 30 10 / .05), 0 12px 32px -10px rgb(40 30 10 / .16);
+  --shadow-lg: 0 2px 6px rgb(20 15 5 / .08), 0 40px 90px -24px rgb(20 15 5 / .38);
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --wrap: min(1160px, calc(100vw - 40px));
   color-scheme: light;
 }
+@supports (transition-timing-function: linear(0, 1)) {
+  :root { --spring: linear(0, .009, .035 2.1%, .141, .281 6.7%, .723 12.9%, .938 16.7%, 1.017, 1.077, 1.121 24%, 1.149 27.3%, 1.159, 1.163, 1.161, 1.154 36%, 1.124 40.2%, 1.035 50.1%, 1.017, 1.003 59.3%, .991 61.2%, .984 66.9%, .993 81.6%, 1); }
+}
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #141518; --ink: #ecebe6; --muted: #9b988f; --tile: #24262c; --tile-shadow: rgb(0 0 0 / .45); --pill: #5b5548; --card: #1b1d22; --line: #2c2e35; color-scheme: dark; }
+  :root { --bg: #0f1012; --surface: #16171a; --surface-2: #131416; --ink: #ecebe6; --ink-2: #c9c7c0; --muted: #9b988f; --faint: #66645f;
+    --line: #24252a; --line-strong: #33343a; --accent: #8ea8f2; --accent-soft: #1c2336; --gold: #e6bb52; --gold-soft: #2b2412; --pass: #5cc48a; --fail: #f08b78;
+    --console: #0b0c0e; --console-2: #111215; --console-line: #1f2024; --tile: #24262c; --tile-shadow: rgb(0 0 0 / .45); --pill: #5b5548; --card: #1b1d22;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / .35); --shadow-md: 0 1px 2px rgb(0 0 0 / .3), 0 14px 36px -10px rgb(0 0 0 / .55); --shadow-lg: 0 40px 90px -24px rgb(0 0 0 / .8);
+    color-scheme: dark; }
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
-button { font: inherit; color: inherit; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; overflow-x: hidden; }
+a { color: inherit; }
+button { font: inherit; color: inherit; cursor: pointer; }
 [hidden] { display: none !important; }   /* parts kept in the code but switched off (they set their own display) */
-:focus-visible { outline: 2px solid #3043f0; outline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+::selection { background: color-mix(in srgb, var(--accent) 24%, transparent); }
+.wrap { width: var(--wrap); margin: 0 auto; }
 
-.hero { min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, 2vw, 18px); padding: 48px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left)); }
+/* buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 24px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: 600 15.5px var(--font-body); text-decoration: none; white-space: nowrap; box-shadow: var(--shadow-sm); transition: transform .5s var(--spring), box-shadow .3s, background .2s, border-color .2s; }
+.btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--line-strong); }
+.btn:active { transform: scale(.96); transition-duration: .08s; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: transparent; box-shadow: 0 1px 2px rgb(0 0 0 / .14), 0 12px 26px -10px rgb(0 0 0 / .5); }
+.btn.primary .arr { transition: transform .5s var(--spring); }
+.btn.primary:hover .arr { transform: translateX(4px); }
+.btn.small { height: 38px; padding: 0 16px; font-size: 14px; border-radius: 11px; }
+kbd { font: 500 11px/1 var(--font-mono); padding: 3px 6px 4px; border-radius: 6px; border: 1px solid #ffffff22; border-bottom-width: 2px; background: #ffffff10; color: #c9c7c0; }
 
+/* nav */
+.nav { position: sticky; top: 0; z-index: 20; transition: background .3s, border-color .3s; border-bottom: 1px solid transparent; }
+.nav.scrolled { background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: saturate(1.5) blur(16px); backdrop-filter: saturate(1.5) blur(16px); border-bottom-color: var(--line); }
+.nav .wrap { height: 68px; display: flex; align-items: center; gap: 28px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 800; font-size: 21px; letter-spacing: -.035em; text-decoration: none; }
+.glyph { width: 24px; height: 24px; border-radius: 8px; background: var(--ink); position: relative; box-shadow: inset 0 -2px 0 rgb(0 0 0 / .25); }
+.glyph::after { content: ""; position: absolute; left: 7.5px; top: 5.5px; width: 2.6px; height: 13px; border-radius: 1px; background: var(--bg); animation: caret 1.1s steps(1) infinite; }
+.nav-links { display: flex; gap: 6px; margin-left: 8px; }
+.nav-links a { text-decoration: none; font-size: 14.5px; font-weight: 500; color: var(--muted); padding: 7px 12px; border-radius: 10px; transition: color .2s, background .2s; }
+.nav-links a:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.nav .btn { margin-left: auto; }
+
+/* hero */
+.hero { position: relative; padding: clamp(40px, 7vw, 96px) 0 clamp(56px, 8vw, 110px); overflow: hidden; }
+.hero::before { content: ""; position: absolute; inset: -1px 0 0; pointer-events: none; z-index: -1;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%); opacity: .7; }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
+.badge { display: inline-flex; align-items: center; gap: 9px; height: 32px; padding: 0 14px 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-sm); font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.badge i { width: 8px; height: 8px; border-radius: 50%; background: #28c840; box-shadow: 0 0 0 4px rgb(40 200 64 / .16); animation: pulse 2.4s ease-in-out infinite; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(46px, 6.4vw, 84px); line-height: .98; letter-spacing: -.045em; margin: 22px 0 22px; text-wrap: balance; }
+h1 em, h2 em { font-family: var(--font-serif); font-weight: 400; font-style: italic; letter-spacing: -.01em; }
+.lede { font-size: clamp(17px, 1.5vw, 19.5px); line-height: 1.6; color: var(--ink-2); max-width: 34em; margin: 0 0 30px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.ticks { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 26px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--muted); }
+.ticks li { display: flex; align-items: center; gap: 8px; }
+.ticks li::before { content: ""; width: 15px; height: 15px; border-radius: 50%; background: var(--pass) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 8.2 2.3 2.3 4.7-4.9'/%3E%3C/svg%3E") center / 15px; }
+
+/* the live Python box */
+.stage { perspective: 1400px; }
+.console { position: relative; border-radius: 20px; background: var(--console); color: var(--console-ink); box-shadow: var(--shadow-lg), 0 0 0 1px rgb(0 0 0 / .4); overflow: hidden; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .9s var(--spring); }
+.console::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: radial-gradient(500px circle at var(--mx, 70%) var(--my, 0%), rgb(142 168 242 / .14), transparent 45%); }
+.con-head { display: flex; align-items: center; gap: 12px; height: 46px; padding: 0 12px 0 16px; background: var(--console-2); border-bottom: 1px solid var(--console-line); }
+.dots { display: flex; gap: 7px; } .dots i { width: 11px; height: 11px; border-radius: 50%; background: #ff6159; } .dots i:nth-child(2) { background: #ffbd2e; } .dots i:nth-child(3) { background: #28c840; }
+.con-head .file { font: 500 12.5px var(--font-mono); color: var(--console-muted); }
+.con-head .run { margin-left: auto; height: 32px; padding: 0 12px 0 11px; border-radius: 9px; border: 0; background: #f3f1ea; color: #141518; font: 600 13px var(--font-body); display: inline-flex; align-items: center; gap: 8px; transition: transform .5s var(--spring), background .2s; }
+.con-head .run:hover { background: #fff; transform: translateY(-1px); }
+.con-head .run:active { transform: scale(.94); transition-duration: .08s; }
+.con-head .run svg { width: 11px; height: 11px; fill: currentColor; }
+.con-head .run kbd { background: #14151812; border-color: #14151826; color: #55544f; }
+.con-head .run[disabled] { opacity: .6; cursor: progress; }
+.con-body { display: grid; grid-template-columns: 44px 1fr; min-height: 168px; }
+.con-gutter { padding: 16px 12px 16px 0; text-align: right; color: #55544f; font: 14px/1.75 var(--font-mono); user-select: none; white-space: pre; border-right: 1px solid #ffffff08; }
+.con-code { border: 0; resize: none; outline: none; background: transparent; color: var(--console-ink); font: 14px/1.75 var(--font-mono); padding: 16px 18px; white-space: pre; overflow: auto; caret-color: #f2c14e; tab-size: 4; font-variant-ligatures: none; }
+.con-out { border-top: 1px solid var(--console-line); background: #0d0e10; padding: 14px 18px 18px; min-height: 108px; }
+.con-out .lbl { display: flex; align-items: center; gap: 8px; font: 600 10.5px var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--console-muted); margin-bottom: 8px; }
+.con-out .lbl i { width: 7px; height: 7px; border-radius: 50%; background: #55544f; }
+.con-out.ok .lbl i { background: #5cc48a; box-shadow: 0 0 0 3px rgb(92 196 138 / .16); }
+.con-out.err .lbl i { background: #f08b78; }
+.con-out.loading .lbl i { background: #e6bb52; animation: pulse 1s ease-in-out infinite; }
+.con-out pre { margin: 0; font: 14px/1.7 var(--font-mono); white-space: pre-wrap; word-break: break-word; }
+.con-out pre > span { display: block; animation: line .5s var(--spring) both; }
+.con-out.err pre { color: #f08b78; }
+.con-out .hint { color: var(--console-muted); font-size: 13.5px; }
+.try { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; font-size: 13px; color: var(--muted); align-items: center; }
+.try button { height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font: 500 12.5px var(--font-mono); box-shadow: var(--shadow-sm); transition: transform .5s var(--spring), border-color .2s; }
+.try button:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+
+/* sections */
+section.band { padding: clamp(72px, 9vw, 128px) 0; }
+.kicker { font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+h2 { font-family: var(--font-display); font-weight: 800; font-size: clamp(34px, 4.4vw, 56px); line-height: 1.02; letter-spacing: -.04em; margin: 0 0 18px; text-wrap: balance; max-width: 16em; }
+.sub { font-size: 18px; color: var(--ink-2); max-width: 36em; margin: 0 0 44px; }
+
+/* bento */
+.bento { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; }
+.cell { position: relative; overflow: hidden; border-radius: 24px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-sm); padding: 26px 26px 0; display: flex; flex-direction: column; min-height: 330px; transition: transform .6s var(--spring), box-shadow .35s; }
+.cell:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.cell::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; opacity: 0; transition: opacity .35s; background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--accent) 9%, transparent), transparent 45%); }
+.cell:hover::after { opacity: 1; }
+.cell.dark { background: var(--console); border-color: #000; color: var(--console-ink); }
+.cell.dark::after { background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(142 168 242 / .14), transparent 45%); }
+.c3 { grid-column: span 3; } .c2 { grid-column: span 2; } .c4 { grid-column: span 4; }
+.cell .step { font: 600 12px var(--font-mono); color: var(--muted); }
+.cell.dark .step, .cell.dark p { color: var(--console-muted); }
+.cell h3 { font-family: var(--font-display); font-size: 24px; letter-spacing: -.025em; margin: 8px 0 6px; }
+.cell p { margin: 0 0 20px; color: var(--muted); font-size: 15px; max-width: 30em; }
+.demo { margin-top: auto; }
+/* demo: a lesson page */
+.mini-lesson { margin: 0 -2px; padding: 18px 20px 0; border-radius: 16px 16px 0 0; background: var(--surface-2); border: 1px solid var(--line); border-bottom: 0; }
+.mini-lesson .t { font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+.mini-lesson .row { display: flex; gap: 6px; margin: 10px 0 12px; }
+.mini-lesson .row span { height: 22px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 11.5px; line-height: 20px; color: var(--muted); background: var(--surface); }
+.mini-lesson .row span:first-child { border-color: var(--ink); color: var(--ink); }
+.mini-lesson .ln { height: 8px; border-radius: 4px; background: var(--line); margin: 7px 0; }
+.mini-lesson pre { margin: 12px 0 0; padding: 12px 14px 16px; border-radius: 12px 12px 0 0; background: var(--console); color: var(--console-ink); font: 12.5px/1.6 var(--font-mono); }
+/* demo: tests passing */
+.tests { list-style: none; margin: 0 0 26px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tests li { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 12px; background: #ffffff08; border: 1px solid #ffffff10; font-size: 13.5px; opacity: .35; transform: translateY(6px); transition: opacity .5s, transform .7s var(--spring), background .4s, border-color .4s; }
+.tests li b { font: 600 10.5px var(--font-mono); padding: 3px 7px; border-radius: 6px; background: #ffffff10; color: var(--console-muted); }
+.in .tests li { opacity: 1; transform: none; background: rgb(92 196 138 / .1); border-color: rgb(92 196 138 / .2); }
+.in .tests li b { background: rgb(92 196 138 / .16); color: #5cc48a; }
+.in .tests li:nth-child(2) { transition-delay: .25s; } .in .tests li:nth-child(3) { transition-delay: .5s; }
+/* demo: the mark */
+.mark { display: flex; align-items: flex-end; gap: 14px; padding-bottom: 28px; }
+.mark b { font-family: var(--font-display); font-weight: 800; font-size: 104px; line-height: .8; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.mark b small { font-size: 32px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+.mark > span { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--pass); background: color-mix(in srgb, var(--pass) 14%, transparent); padding: 5px 10px; border-radius: 999px; margin-bottom: 8px; }
+/* demo: the boss */
+.duel { display: grid; gap: 14px; padding-bottom: 28px; }
+.hp { display: grid; grid-template-columns: 110px 1fr 56px; gap: 12px; align-items: center; font: 600 12px var(--font-mono); color: var(--console-muted); }
+.hp .bar { height: 10px; border-radius: 5px; background: #ffffff10; overflow: hidden; }
+.hp .bar i { display: block; height: 100%; width: 100%; border-radius: 5px; transition: width 1.6s var(--ease-out) .3s; }
+.hp.you .bar i { background: linear-gradient(90deg, #8ea8f2, #c9d5fb); }
+.hp.foe .bar i { background: linear-gradient(90deg, #f08b78, #ffb15c); }
+.in .hp.foe .bar i { width: 22%; } .in .hp.you .bar i { width: 84%; }
+.hit { font: 700 13px var(--font-mono); color: #ffb15c; opacity: 0; transform: translateY(8px) scale(.8); transition: opacity .4s 1s, transform .7s var(--spring) 1s; }
+.in .hit { opacity: 1; transform: none; }
+/* demo: plain-word help */
+.err-card { margin-bottom: 26px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+.err-card pre { margin: 0; padding: 12px 14px; background: var(--console); color: #f08b78; font: 12.5px/1.6 var(--font-mono); white-space: pre-wrap; }
+.err-card div { padding: 12px 14px; font-size: 14px; color: var(--ink-2); background: var(--accent-soft); }
+.err-card div b { color: var(--accent); }
+/* demo: Bits */
+.bits { display: flex; align-items: center; gap: 12px; padding-bottom: 30px; flex-wrap: wrap; }
+.bits .coin { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: var(--gold-soft); }
+.bits .coin i { width: 18px; height: 18px; background: linear-gradient(135deg, #f5cf5a, #c58f00); transform: rotate(45deg); border-radius: 4px; }
+.bits b { font-family: var(--font-display); font-size: 40px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.bits .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.bits .chips span { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+
+/* the course */
+.modules { display: grid; gap: 14px; }
+.module { display: grid; grid-template-columns: 220px 1fr; gap: 24px; align-items: center; padding: 24px 28px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+.module .num { font: 600 12px var(--font-mono); color: var(--muted); }
+.module h3 { font-family: var(--font-display); font-size: 24px; letter-spacing: -.025em; margin: 4px 0 2px; }
+.module p { margin: 0; font-size: 14px; color: var(--muted); }
+.trail { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 4px 0; }
+.trail .ls { flex: none; display: flex; align-items: center; }
+.trail .ls span { height: 34px; padding: 0 14px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: 13px; font-weight: 500; line-height: 32px; white-space: nowrap; }
+.trail .ls + .ls::before { content: ""; width: 16px; height: 2px; background: var(--line-strong); }
+.trail .boss span { background: var(--console); color: #ff9a6a; border-color: #000; font-family: var(--font-mono); font-size: 12px; letter-spacing: .02em; }
+.soon-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 20px 28px; border-radius: 22px; border: 1px dashed var(--line-strong); color: var(--muted); font-size: 14px; align-items: center; }
+.soon-row b { color: var(--ink); font-weight: 600; margin-right: 6px; }
+.soon-row span { padding: 4px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; }
+
+/* FAQ */
+.faq { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 48px; }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq details:first-child { border-top: 1px solid var(--line); }
+.faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 22px 2px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: ""; flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--surface) center / 12px no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%236d6b65' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M6 2v8M2 6h8'/%3E%3C/svg%3E"); border: 1px solid var(--line); transition: transform .5s var(--spring); }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { margin: -6px 0 22px; color: var(--ink-2); max-width: 40em; animation: rise .5s var(--spring) both; }
+
+/* closing band */
+.closer { margin: 0 0 clamp(48px, 6vw, 80px); padding: clamp(48px, 7vw, 88px) clamp(28px, 6vw, 80px); border-radius: 32px; background: var(--console); color: var(--console-ink); position: relative; overflow: hidden; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 28px; box-shadow: var(--shadow-lg); }
+.closer::before { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(rgb(255 255 255 / .04) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / .04) 1px, transparent 1px); background-size: 40px 40px; -webkit-mask-image: radial-gradient(ellipse at 80% 50%, #000, transparent 70%); mask-image: radial-gradient(ellipse at 80% 50%, #000, transparent 70%); }
+.closer h2 { margin: 0; color: var(--console-ink); max-width: 13em; position: relative; }
+.closer .btn.primary { background: #f3f1ea; color: #141518; position: relative; }
+footer { padding: 0 0 40px; font-size: 13.5px; color: var(--muted); }
+footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 26px; }
+
+/* scroll reveals */
+.reveal { opacity: 0; transform: translateY(26px); transition: opacity .8s var(--ease-out), transform 1s var(--spring); }
+.reveal.in { opacity: 1; transform: none; }
+.reveal.d1 { transition-delay: .08s; } .reveal.d2 { transition-delay: .16s; } .reveal.d3 { transition-delay: .24s; }
+
+/* kept, hidden: the language tiles and planned pricing */
 /* The looping tile row. Tiles are positioned by script. */
 .ring { position: relative; width: min(640px, 100%); height: 196px; overflow: hidden; touch-action: pan-y; cursor: grab;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
@@ -52,49 +234,292 @@ button { font: inherit; color: inherit; }
 .tile .label { position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; opacity: 0; transition: opacity .2s; }
 .tile:hover .label, .tile:focus-visible .label { opacity: 1; }
 
-.word { font-family: var(--font-display); font-weight: 800; font-size: clamp(64px, 15vw, 190px); line-height: .9; letter-spacing: -0.045em; margin: 6px 0 18px; }
-.buttons { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
-.pill { background: transparent; border: 2.5px solid var(--pill); border-radius: 999px; padding: 12px 40px; font-size: 18px; font-weight: 600; cursor: pointer; transition: border-color .2s, transform .2s; text-decoration: none; color: var(--ink); }
-.pill:hover { border-color: var(--ink); transform: translateY(-1px); }
-/* Polish pass (2026-10-30): the one way in is a solid ink button with a quiet shadow. */
-.buttons .pill:first-child { background: var(--ink); color: var(--bg); border-color: var(--ink); padding: 13px 44px; font-size: 17px; box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 10px 26px rgb(0 0 0 / .12); }
-.buttons .pill:first-child:hover { transform: translateY(-1px); box-shadow: 0 1px 2px rgb(0 0 0 / .1), 0 14px 30px rgb(0 0 0 / .16); }
-.note { min-height: 22px; font-size: 14px; color: var(--muted); margin: 6px 0 0; text-align: center; }
-
 .pricing { padding: 40px max(16px, env(safe-area-inset-right)) 56px max(16px, env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: center; gap: 14px; border-top: 1px solid var(--line); }
 .pricing h2 { margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .plans { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .plan { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 22px; min-width: 190px; text-align: center; }
 .plan b { display: block; font-family: var(--font-display); font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
 .plan span { font-size: 13px; color: var(--muted); }
-.fine { font-size: 12px; color: var(--muted); margin: 0; text-align: center; }
-footer { text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 28px; }
+.note { min-height: 22px; font-size: 14px; color: var(--muted); margin: 6px 0 0; text-align: center; }
+
+@keyframes caret { 50% { opacity: 0; } }
+@keyframes pulse { 50% { opacity: .45; } }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes line { from { opacity: 0; transform: translateY(6px); } }
+@media (max-width: 960px) {
+  .hero .wrap, .faq { grid-template-columns: 1fr; }
+  .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c2, .c3, .c4 { grid-column: span 2; }
+  .module { grid-template-columns: 1fr; gap: 14px; }
+  .nav-links { display: none; }
+}
+@media (max-width: 560px) {
+  .nav .wrap { height: 60px; }
+  .btn { height: 46px; padding: 0 20px; }
+  .cell { min-height: 0; padding: 22px 20px 0; }
+  .mark b { font-size: 84px; }
+  .hp { grid-template-columns: 84px 1fr 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; }
+  .reveal { opacity: 1; transform: none; }
+}
 </style>
 </head>
 <body>
-<!-- Hidden while a few people test Modules 1 and 2 (Isaac 2026-10-29): the language tiles, the Pricing button and the
-     planned pricing below. Remove the hidden attributes to bring them back. -->
-<main class="hero">
-  <div class="ring" id="ring" aria-label="Languages. Drag or scroll to spin." hidden></div>
-  <h1 class="word">Operandi</h1>
-  <div class="buttons">
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="./"><span class="glyph" aria-hidden="true"></span>operandi</a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#course">The course</a>
+      <a href="#faq">FAQ</a>
+    </nav>
     <!-- No real sign-in yet, so the button says what it does (Isaac 2026-10-30). -->
-    <a class="pill" href="python.html">Start learning</a>
-    <a class="pill" href="#pricing" hidden>Pricing</a>
+    <a class="btn primary small" href="python.html">Start learning <span class="arr" aria-hidden="true">→</span></a>
   </div>
-  <p class="note" id="note" aria-live="polite"></p>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <span class="badge reveal"><i aria-hidden="true"></i>Python course · Modules 1 and 2 are open</span>
+        <h1 class="reveal d1">Learn Python by actually <em>writing</em> it.</h1>
+        <p class="lede reveal d2">Short lessons, real code in your browser, and a mark out of 10 the moment you submit, with feedback in plain words. Every module ends in a boss fight that tests what you learned.</p>
+        <div class="cta reveal d3">
+          <a class="btn primary" href="python.html">Start learning <span class="arr" aria-hidden="true">→</span></a>
+          <a class="btn" href="#how">See how it works</a>
+        </div>
+        <ul class="ticks reveal d3">
+          <li>Free while it's being built</li>
+          <li>Nothing to install</li>
+          <li>Made for complete beginners</li>
+        </ul>
+      </div>
+      <div class="stage reveal d2">
+        <div class="console" id="console">
+          <div class="con-head">
+            <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <span class="file">hello.py</span>
+            <button class="run" id="liveRun" type="button" title="Run this code (Ctrl/Cmd + Enter)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 3.5v13l11-6.5z"/></svg>Run <kbd id="liveKbd">Ctrl ↵</kbd></button>
+          </div>
+          <div class="con-body">
+            <div class="con-gutter" id="liveGutter" aria-hidden="true">1</div>
+            <textarea class="con-code" id="liveCode" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Python code you can edit and run" rows="5"></textarea>
+          </div>
+          <div class="con-out" id="liveOut" aria-live="polite"><div class="lbl"><i></i>Output</div><p class="hint">This is real Python. Change the code, then press Run.</p></div>
+        </div>
+        <div class="try" id="tryRow"><span>Try:</span>
+          <button type="button" data-try='name = "Ada"&#10;print(f"Hello, {name}!")&#10;print("2 + 3 =", 2 + 3)'>hello</button>
+          <button type="button" data-try='for n in range(1, 6):&#10;    print(n, "x", n, "=", n * n)'>a loop</button>
+          <button type="button" data-try='age = 19&#10;if age >= 18:&#10;    print("You can vote")&#10;else:&#10;    print("Not yet")'>a decision</button>
+          <button type="button" data-try='print(prnt)'>an error</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="how">
+    <div class="wrap">
+      <p class="kicker reveal">How it works</p>
+      <h2 class="reveal d1">Read a little, write a little, <em>see it work.</em></h2>
+      <p class="sub reveal d2">Each lesson is a few short sections. Every section ends with a small task you solve in real Python, right next to the lesson.</p>
+      <div class="bento">
+        <article class="cell c3 reveal">
+          <span class="step">01 · Learn</span>
+          <h3>Small steps, one idea at a time</h3>
+          <p>Plain explanations with examples you can run. No walls of text.</p>
+          <div class="demo"><div class="mini-lesson">
+            <div class="t">Your first program</div>
+            <div class="row"><span>Printing text</span><span>Numbers and sums</span><span>Comments</span></div>
+            <div class="ln" style="width:92%"></div><div class="ln" style="width:78%"></div>
+            <pre>print("Hello!")</pre>
+          </div></div>
+        </article>
+        <article class="cell c3 dark reveal d1">
+          <span class="step">02 · Code</span>
+          <h3>Write it, then Submit</h3>
+          <p>Your code is checked by real tests, not by eye.</p>
+          <div class="demo"><ul class="tests">
+            <li><b>PASS</b>It prints two lines</li>
+            <li><b>PASS</b>The first line says Hello</li>
+            <li><b>PASS</b>Output matches the expected output</li>
+          </ul></div>
+        </article>
+        <article class="cell c2 reveal">
+          <span class="step">03 · Get marked</span>
+          <h3>A mark in a blink</h3>
+          <p>Out of 10, with what worked and what to improve.</p>
+          <div class="demo mark"><b><span class="n" data-count="10">0</span><small>/10</small></b><span>Passed</span></div>
+        </article>
+        <article class="cell c4 dark reveal d1">
+          <span class="step">04 · Beat the boss</span>
+          <h3>Every module ends in a boss fight</h3>
+          <p>Each challenge you pass is a strike. Pass it flawlessly and it's a critical hit.</p>
+          <div class="demo duel">
+            <div class="hp you"><span>YOU</span><div class="bar"><i></i></div><span>252</span></div>
+            <div class="hp foe"><span>GOLEM</span><div class="bar"><i></i></div><span>66</span></div>
+            <div class="hit">Critical hit · 30 damage</div>
+          </div>
+        </article>
+        <article class="cell c3 reveal">
+          <span class="step">Always free</span>
+          <h3>Help in plain words</h3>
+          <p>Errors are explained, typos are spotted, and hints are there when you're stuck.</p>
+          <div class="demo"><div class="err-card">
+            <pre>NameError: name 'prnt' is not defined</pre>
+            <div><b>Looks like a typo.</b> Did you mean <code>print</code>? Python only knows the names it has seen.</div>
+          </div></div>
+        </article>
+        <article class="cell c3 reveal d1">
+          <span class="step">Rewards</span>
+          <h3>Earn Bits as you go</h3>
+          <p>Passes earn Bits: more for a first try, a clean mark and a daily streak.</p>
+          <div class="demo bits"><div class="coin"><i></i></div><b><span class="n" data-count="128">0</span></b>
+            <div class="chips"><span>×2 first try</span><span>+3 for a 10/10</span><span>+5 daily</span></div></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="course" style="padding-top: 0">
+    <div class="wrap">
+      <p class="kicker reveal">The course</p>
+      <h2 class="reveal d1">From your first <em>print()</em> to real projects.</h2>
+      <p class="sub reveal d2">Modules unlock one after another. The first two are open now; more are on the way.</p>
+      <div class="modules" id="modules"></div>
+    </div>
+  </section>
+
+  <section class="band" id="faq" style="padding-top: 0">
+    <div class="wrap faq">
+      <div>
+        <p class="kicker reveal">Questions</p>
+        <h2 class="reveal d1">Good to <em>know.</em></h2>
+      </div>
+      <div class="reveal d2">
+        <details><summary>I've never written code. Is this for me?</summary><p>Yes. It starts from zero: your very first line is a print(). Every new idea comes with an example you can run, and help is always one click away.</p></details>
+        <details><summary>Do I need to install anything?</summary><p>No. Python runs right in your browser, so a laptop or desktop with a modern browser is all you need.</p></details>
+        <details><summary>How does the marking work?</summary><p>When you press Submit, real tests check your code and you get a mark out of 10: all tests passing with tidy code earns a 10. If something's wrong, the feedback tells you what and why, in plain words.</p></details>
+        <details><summary>Is it free?</summary><p>Yes, while it's being built.</p></details>
+        <details><summary>Does my progress save?</summary><p>Yes, in the browser you use. Syncing across your devices is coming.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <div class="closer reveal">
+      <h2>Your first program is <em>one click</em> away.</h2>
+      <a class="btn primary" href="python.html">Start learning <span class="arr" aria-hidden="true">→</span></a>
+    </div>
+  </div>
+
+  <!-- Kept but hidden while testers play (Isaac 2026-10-29): the language tiles and the planned pricing.
+       Remove the hidden attributes to bring them back. -->
+  <div class="ring" id="ring" aria-label="Languages. Drag or scroll to spin." hidden></div>
+  <p class="note" id="note" aria-live="polite" hidden></p>
+  <section class="pricing" id="pricing" hidden>
+    <h2>Planned pricing</h2>
+    <div class="plans">
+      <div class="plan"><b>RM80</b><span>one-time payment</span></div>
+      <div class="plan"><b>RM20</b><span>per month</span></div>
+    </div>
+    <p class="fine">Not available yet. Pricing may change. Operandi is free while it's being built.</p>
+  </section>
 </main>
+<footer><div class="wrap"><span>operandi.code</span><span>Learn Python by writing it.</span></div></footer>
 
-<section class="pricing" id="pricing" hidden>
-  <h2>Planned pricing</h2>
-  <div class="plans">
-    <div class="plan"><b>RM80</b><span>one-time payment</span></div>
-    <div class="plan"><b>RM20</b><span>per month</span></div>
-  </div>
-  <p class="fine">Not available yet. Pricing may change. Operandi is free while it's being built.</p>
-</section>
-<footer>operandi.code</footer>
+<script type="module">
+import { MODULES, ALL_LESSONS } from "./content/index.js";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+$("liveKbd").textContent = mac ? "⌘ ↵" : "Ctrl ↵";
 
+// The nav gets its frosted background once you scroll.
+const nav = $("nav");
+const onScroll = () => nav.classList.toggle("scrolled", scrollY > 8);
+addEventListener("scroll", onScroll, { passive: true }); onScroll();
+
+// The course, straight from the content: each open module as a trail of its lessons ending in its boss.
+const BOSSES = { 1: "GOLEM", 2: "THE ABYSSAL MAW" };
+const open = MODULES.filter((m) => !m.soon), soon = MODULES.filter((m) => m.soon);
+$("modules").innerHTML = open.map((m, i) => `<div class="module reveal ${i ? "d1" : ""}">
+    <div><span class="num">Module ${m.id}</span><h3>${esc(m.title)}</h3><p>${esc(m.blurb || "")}</p></div>
+    <div class="trail">${ALL_LESSONS.filter((l) => l.module === m.id).map((l) => `<div class="ls"><span>${esc(l.title)}</span></div>`).join("")}${BOSSES[m.id] ? `<div class="ls boss"><span>Boss · ${esc(BOSSES[m.id])}</span></div>` : ""}</div>
+  </div>`).join("") + (soon.length ? `<div class="soon-row reveal"><b>Coming next</b>${soon.map((m) => `<span>${m.id} · ${esc(m.title)}</span>`).join("")}</div>` : "");
+
+// Scroll reveals and the little demos that play when they come into view.
+const countTo = (el) => {
+  const to = +el.dataset.count;
+  if (REDUCED) { el.textContent = to; return; }
+  const t0 = performance.now(), ms = 1100;
+  const tick = (now) => { const k = Math.min(1, (now - t0) / ms); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+};
+const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+  if (!e.isIntersecting) return;
+  e.target.classList.add("in");
+  e.target.querySelectorAll("[data-count]").forEach(countTo);
+  io.unobserve(e.target);
+}), { threshold: 0.18, rootMargin: "0px 0px -6% 0px" });
+document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+// A soft spotlight follows the pointer across the cards and the console; the console tilts a touch toward it.
+document.addEventListener("pointermove", (e) => {
+  const el = e.target.closest?.(".cell, .console");
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+  el.style.setProperty("--my", `${e.clientY - r.top}px`);
+}, { passive: true });
+const con = $("console");
+if (!REDUCED && matchMedia("(hover: hover)").matches) {
+  con.addEventListener("pointermove", (e) => {
+    const r = con.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+    con.style.setProperty("--ry", `${x * 5}deg`); con.style.setProperty("--rx", `${-y * 4}deg`);
+  });
+  con.addEventListener("pointerleave", () => { con.style.setProperty("--ry", "0deg"); con.style.setProperty("--rx", "0deg"); });
+}
+
+// The live Python box: real Python (Pyodide), loaded the first time you press Run.
+const code = $("liveCode"), gutter = $("liveGutter"), out = $("liveOut"), runBtn = $("liveRun");
+const setCode = (s) => { code.value = s; lines(); };
+const lines = () => { gutter.textContent = Array.from({ length: code.value.split("\n").length }, (_, i) => i + 1).join("\n"); };
+setCode('name = "Ada"\nprint(f"Hello, {name}!")\nprint("2 + 3 =", 2 + 3)');
+code.addEventListener("input", lines);
+code.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); return; }
+  if (e.key === "Tab") { e.preventDefault(); code.setRangeText("    ", code.selectionStart, code.selectionEnd, "end"); lines(); }
+});
+let runner = null;
+const show = (kind, inner) => { out.className = "con-out " + kind; out.innerHTML = `<div class="lbl"><i></i>${kind === "loading" ? "Starting Python…" : kind === "err" ? "Error" : "Output"}</div>${inner}`; };
+async function getRunner() {
+  if (runner?.ready) return runner;
+  const { Runner } = await import("./js/runner.js");
+  return new Promise((resolve, reject) => {
+    runner = new Runner((state, err) => { if (state === "ready") resolve(runner); if (state === "failed") reject(new Error(err || "Python couldn't load")); });
+  });
+}
+async function run() {
+  if (runBtn.disabled) return;
+  runBtn.disabled = true;
+  try {
+    if (!runner?.ready) show("loading", `<p class="hint">Loading Python into your browser. The first run takes a few seconds; after that it's instant.</p>`);
+    const py = await getRunner();
+    const r = await py.run(code.value);
+    if (r.error) show("err", `<pre>${esc(r.error.trim())}</pre>`);
+    else show("ok", r.output ? `<pre>${r.output.replace(/\n$/, "").split("\n").map((l, i) => `<span style="animation-delay:${i * 60}ms">${esc(l) || " "}</span>`).join("")}</pre>` : `<p class="hint">It ran, but printed nothing. Add a print().</p>`);
+  } catch (e) {
+    show("err", `<p class="hint">${esc(e.message)}. Try reloading the page.</p>`);
+  } finally { runBtn.disabled = false; }
+}
+runBtn.addEventListener("click", run);
+$("tryRow").addEventListener("click", (e) => { const b = e.target.closest("[data-try]"); if (b) { setCode(b.dataset.try); code.focus(); run(); } });
+</script>
 <script>
 // Language tiles. Only Python opens a course for now.
 const LANGS = [

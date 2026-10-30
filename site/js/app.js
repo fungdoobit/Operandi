@@ -114,6 +114,7 @@ const modulesDone = () => Object.keys(S().modulesDone).length;
 // Each module ends with a boss: its lessons unlock him, and beating him completes the module.
 // foe: the battle stage's model (boss-fight.js); Module 2's is THE ABYSSAL MAW (Mittens, the cat with tentacles in his mouth).
 const BOSSES = { 1: { name: "GOLEM", foe: "golem" }, 2: { name: "THE ABYSSAL MAW", foe: "maw" } };
+const BOSS_ICON = `<svg class="ico-boss" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3.5 13.5 13M16 3.5 6.5 13M11 15.5l4.5-4.5M4.5 11 9 15.5M3.5 16.5 6 14M16.5 16.5 14 14"/></svg>`;
 const bossUnlocked = (m) => MODULE_LESSONS(m).length > 0 && MODULE_LESSONS(m).every((l) => lessonDone(l.id));
 const bossBeaten = (m) => !!S().bossWins[m] || !!S().modulesDone[m];
 
@@ -1190,7 +1191,7 @@ function renderCourseHome() {
       const done = lessonDone(l.id), open = lessonUnlocked(lessonIndex(l.id)), cur = open && !done;
       return `<button type="button" class="node ${done ? "done" : ""} ${cur ? "cur" : ""}" data-lesson="${l.id}" ${open ? "" : "disabled"}><span class="orb">${done ? "✓" : n + 1}</span><span class="lbl">${esc(l.title)}<small>${done ? `Marked ${st.lessons[l.id].mark}/10` : cur ? "Up next" : "Locked"}</small></span></button>`;
     }).join("");
-    const bossNode = !B ? "" : `<button type="button" class="node boss ${bossBeaten(m.id) ? "done" : ""} ${bossUnlocked(m.id) && !bossBeaten(m.id) ? "cur" : ""}" data-boss="${m.id}" ${bossUnlocked(m.id) ? "" : "disabled"}><span class="orb">${bossBeaten(m.id) ? "✓" : "⚔"}</span><span class="lbl">${esc(B.name)}<small>${bossBeaten(m.id) ? "Defeated" : bossUnlocked(m.id) ? "Ready to fight" : "The boss"}</small></span></button>`;
+    const bossNode = !B ? "" : `<button type="button" class="node boss ${bossBeaten(m.id) ? "done" : ""} ${bossUnlocked(m.id) && !bossBeaten(m.id) ? "cur" : ""}" data-boss="${m.id}" ${bossUnlocked(m.id) ? "" : "disabled"}><span class="orb">${bossBeaten(m.id) ? "✓" : BOSS_ICON}</span><span class="lbl">${esc(B.name)}<small>${bossBeaten(m.id) ? "Defeated" : bossUnlocked(m.id) ? "Ready to fight" : "The boss"}</small></span></button>`;
     return `<section class="ov-mod spot"><header><h3>Module ${m.id} · ${esc(m.title)}</h3><span>${lessonsDoneIn(m.id)}/${ls.length} lessons${B ? ` · boss ${bossBeaten(m.id) ? "beaten" : "ahead"}` : ""}</span></header><div class="path">${nodes}${bossNode}</div></section>`;
   }).join("");
   const soon = MODULES.filter((m) => m.soon);
@@ -1280,7 +1281,7 @@ function renderRail() {
     if (m.soon) return `<div class="module-soon"><span>${m.id} · ${esc(m.title)}</span><span>Soon</span></div>`;
     const lessons = MODULE_LESSONS(m.id);
     const B = BOSSES[m.id], f = S().boss;
-    const bossItem = !B ? "" : `<li><button class="rail-item boss ${bossBeaten(m.id) ? "done" : ""}" data-boss="${m.id}" ${bossUnlocked(m.id) ? "" : "disabled"} aria-current="${view.kind === "boss" && view.module === m.id}"><span class="n">${bossBeaten(m.id) ? "✓" : "⚔"}</span><span class="t">Boss: ${B.name}<span class="sub">${bossBeaten(m.id) ? "Defeated" : !bossUnlocked(m.id) ? "Finish the lessons to unlock" : f?.module === m.id && !f.over ? `Fight in progress · ${f.foe} HP left` : "Ready to fight"}</span></span></button></li>`;
+    const bossItem = !B ? "" : `<li><button class="rail-item boss ${bossBeaten(m.id) ? "done" : ""}" data-boss="${m.id}" ${bossUnlocked(m.id) ? "" : "disabled"} aria-current="${view.kind === "boss" && view.module === m.id}"><span class="n">${bossBeaten(m.id) ? "✓" : BOSS_ICON}</span><span class="t">Boss: ${B.name}<span class="sub">${bossBeaten(m.id) ? "Defeated" : !bossUnlocked(m.id) ? "Finish the lessons to unlock" : f?.module === m.id && !f.over ? `Fight in progress · ${f.foe} HP left` : "Ready to fight"}</span></span></button></li>`;
     return `<div class="rail-group"><h4>Module ${m.id} · ${esc(m.title)}</h4><ol>${lessons.map((l) => {
       const i = lessonIndex(l.id), done = lessonDone(l.id), open = lessonUnlocked(i);
       const cur = view.kind === "lesson" && view.id === l.id;

@@ -160,6 +160,8 @@ kbd.kc[data-mod][data-shift]::before { content: "Ctrl ⇧ "; }
 .rail-item.boss .n { border-radius: 8px; background: #1d1e22; border-color: #1d1e22; color: #ff9a6a; font-size: 13px; }
 .rail-item.boss:disabled .n { background: var(--surface-2); border-color: var(--line-strong); color: var(--faint); }
 .rail-item.boss.done .n { background: var(--ink); color: var(--surface); }
+.ico-boss { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.node.boss .ico-boss { width: 20px; height: 20px; }
 .rail-item .t { font-size: 13.5px; line-height: 1.3; font-weight: 500; }
 .rail-item[aria-current="true"] .t { font-weight: 600; }
 .rail-item .sub { display: block; font-size: 11.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
