@@ -404,7 +404,9 @@ const basisFrom = (fwd) => { const F = v3.norm(fwd), Rr = v3.norm(v3.cross(F, [0
 // yaw + spin: where the camera sits round the island (it starts front-right); pitch: how far it looks down.
 export const cam = { yaw: Math.PI / 4, spin: 0, pitch: Math.PI / 6, vs: 0, target: null, pitchT: null, drag: null, auto: false };
 export const N = { x: 0, z: 0, y: 0, dir: 0, yaw: 0, lean: 0, hideArrow: false, rect: null, depth: 0, arrowDepth: 0 };
-export const view = { time: 0, WW: 1, WH: 1, art: 2, scale: 30, target: [0, -1.55, 0] };
+// CSS px per art pixel: 1.8 normally (Isaac 2026-10-31: 2 was a bit heavy, 10% finer), 2.7 on slow devices
+export const ART = { normal: 1.8, slow: 2.7 };
+export const view = { time: 0, WW: 1, WH: 1, art: ART.normal, scale: 30, target: [0, -1.55, 0] };
 let G = null, pix = null, comp = null, nova = null, els = null, critters = [];
 export let bits = [], sws = [];   // what the island shows: [{x, z, s, lift}], [{x, z, on}]
 const NOVA_ART = { w: 64, h: 76 };
@@ -456,7 +458,7 @@ export function sizeIsland() {
   els.dirCv.width = w; els.dirCv.height = h;
   fit();
 }
-// slower devices get bigger art pixels (3 CSS px instead of 2): a little chunkier, about half the work
+// slower devices get bigger art pixels (ART.slow instead of ART.normal): a little chunkier, less than half the work
 export function setArtPixel(px) { if (px !== view.art) { view.art = px; sizeIsland(); } }
 
 // The island's small life: fireflies drifting round the trees and the island's edge, butterflies over the lawn.

@@ -330,7 +330,7 @@ function loop(now) {
     stepTweens(dt); I.stepCamera(dt);
     sky.draw(I.view.time, I.cam.yaw + I.cam.spin, dt);
     I.drawIsland();
-    if (I.view.art === 2 && watched < 8) { watched += dt; slow = slow * .95 + (dt > .03 ? .05 : 0); if (watched > 2 && slow > .6) { I.setArtPixel(3); resize(); } }
+    if (I.view.art === I.ART.normal && watched < 8) { watched += dt; slow = slow * .95 + (dt > .03 ? .05 : 0); if (watched > 2 && slow > .6) { I.setArtPixel(I.ART.slow); resize(); } }
   }
   requestAnimationFrame(loop);
 }
@@ -346,7 +346,7 @@ async function start() {
   requestAnimationFrame(loop);
 }
 // test hook: ?still&level=1.2&code=...&run (waits for Python, then plays the run instantly)&at=<event>&spin=<0..1>
-// &pitch=<radians>&hint=<n>&intro=<page>&it=<seconds into its scene>&t=<seconds>&art=3
+// &pitch=<radians>&hint=<n>&intro=<page>&it=<seconds into its scene>&t=<seconds>&art=<css px per art pixel>
 async function still() {
   I.view.time = +(qs.get("t") || 3);
   if (qs.has("art")) { I.setArtPixel(+qs.get("art")); resize(); }
