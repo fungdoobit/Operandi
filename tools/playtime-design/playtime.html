@@ -5,8 +5,9 @@
 <style>
 /* Playtime mode, preview (Isaac 2026-10-31, inspired by Swift Playgrounds): your Python moves NOVA round a floating
    island. The island is hi-bit pixel art, drawn by the same pipeline as NOVA and GOLEM (Isaac picked it over a smooth
-   3D look). NOVA always faces the front, turned a little left or right like when she roams; a purple arrow on the
-   ground shows which way she is heading. */
+   3D look). Drag the island to turn the camera all the way round (and tilt it a little). NOVA turns to face where she
+   goes; her ring always faces the camera. She is drawn into the island's picture with a depth test, so trees and
+   blocks in front of her hide her from any angle. A purple arrow on the tile ahead shows where her next move() goes. */
 :root {
   --paper: #07081a; --pane: #10111f; --pane-2: #171829; --line: rgba(236, 234, 250, .12); --ink: #eeecf9; --ink-soft: rgba(238, 236, 249, .66);
   --ink-faint: rgba(238, 236, 249, .4); --accent: #a9bcff; --gold: #ffd36e; --good: #7ee0a1; --bad: #ff9a8a;
@@ -71,7 +72,20 @@ code, .mono { font-family: var(--font-mono); }
 .world canvas.view[hidden] { display: none; }
 #pixCv { image-rendering: pixelated; }
 #starCv, #dirCv { image-rendering: pixelated; }
-.novaHost { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
+.novaHost { position: absolute; left: 0; top: 0; pointer-events: none; visibility: hidden; }   /* she renders here, the island shows her */
+#dirCv { display: none; }
+.world { cursor: grab; touch-action: none; }
+.world.dragging { cursor: grabbing; }
+.world .bar, .world .card, .world .camctl { cursor: auto; }
+.camctl { position: absolute; right: 16px; top: 16px; display: flex; gap: 6px; z-index: 3; }
+.camctl button { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: rgba(10, 11, 30, .7);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); cursor: pointer; transition: transform .3s var(--spring), background-color .2s; }
+.camctl button:hover { background: rgba(40, 42, 80, .85); }
+.camctl button:active { transform: scale(.92); }
+.camctl svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.dragHint { position: absolute; left: 50%; bottom: 84px; translate: -50% 0; padding: 7px 12px; border-radius: 999px; background: rgba(10, 11, 30, .72); border: 1px solid var(--line);
+  font-size: 12.5px; color: var(--ink-soft); pointer-events: none; transition: opacity .6s; white-space: nowrap; }
+.dragHint.gone { opacity: 0; }
 .novaHost canvas { image-rendering: pixelated; display: block; }
 .counter { position: absolute; left: 16px; top: 16px; display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 8px; border-radius: 999px; background: rgba(10, 11, 30, .7);
   border: 1px solid var(--line); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font: 700 15px/1 var(--font-display); font-variant-numeric: tabular-nums; }
@@ -165,7 +179,7 @@ canvas.scene { display: block; image-rendering: pixelated; }
 .start { border: 0; border-radius: 999px; background: var(--gold); color: #2a1a00; padding: 12px 22px; font-weight: 700; cursor: pointer; }
 .skip { position: absolute; right: 18px; top: 16px; z-index: 2; }
 
-.note { position: absolute; right: 16px; top: 16px; max-width: 250px; font-size: 12px; color: var(--ink-faint); text-align: right; }
+.note { position: absolute; right: 16px; top: 60px; max-width: 250px; font-size: 12px; color: var(--ink-faint); text-align: right; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @media (max-width: 820px) {
@@ -230,6 +244,12 @@ canvas.scene { display: block; image-rendering: pixelated; }
       <canvas class="view" id="dirCv" aria-hidden="true"></canvas>
       <div class="novaHost" id="novaHost" aria-hidden="true"></div>
       <div class="counter" id="counter"><span class="coin" aria-hidden="true">B</span><span id="count">0/2</span><span class="sr"> Bits collected</span></div>
+      <div class="camctl" role="group" aria-label="Camera">
+        <button type="button" id="camLeft" aria-label="Turn the island left"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg></button>
+        <button type="button" id="camRight" aria-label="Turn the island right"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/></svg></button>
+        <button type="button" id="camReset" aria-label="Back to the starting view"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg></button>
+      </div>
+      <span class="dragHint gone" id="dragHint">Drag to look around the island</span>
       <p class="note" id="note">Preview: this page reads the commands itself. The real mode will run your code in real Python.</p>
       <div class="card" id="card" role="status" aria-live="polite"></div>
       <div class="bar">
@@ -540,7 +560,10 @@ const v3 = { sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot: (a, b)
   cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
   norm: (a) => { const l = Math.hypot(...a) || 1; return a.map((x) => x / l); }, add: (a, b) => a.map((x, i) => x + b[i]), mul: (a, s) => a.map((x) => x * s) };
 function basisFrom(fwd) { const F = v3.norm(fwd), Rr = v3.norm(v3.cross(F, [0, 1, 0])); return { F, R: Rr, U: v3.cross(Rr, F) }; }
-const cam = { yaw: Math.PI / 4, spin: 0 };   // yaw: where the camera sits round the island (front-right)
+// yaw + spin: where the camera sits round the island (it starts front-right); pitch: how far it looks down.
+// Dragging moves spin and pitch directly; let go and it coasts, then settles on the nearest 45 degrees (the views
+// where the pixel tiles line up best). The buttons and the win's lap set a target the same way.
+const cam = { yaw: Math.PI / 4, spin: 0, pitch: Math.PI / 6, vs: 0, target: null, pitchT: null, drag: null, auto: false };
 function camBasis(pitch) { const y = cam.yaw + cam.spin; return basisFrom([-Math.sin(y) * Math.cos(pitch), -Math.sin(pitch), -Math.cos(y) * Math.cos(pitch)]); }
 const world = $("world");
 let WW = 1, WH = 1, dpr = 1;
@@ -549,7 +572,7 @@ let WW = 1, WH = 1, dpr = 1;
 const pixCv = $("pixCv");
 let pix = null, pixScale = 30;
 const PIX_TARGET = [0, -1.15, 0];
-function pixCam() { return camBasis(Math.PI / 6); }
+function pixCam() { return camBasis(cam.pitch); }
 function pixProject(p) {
   const B = pixCam(), d = v3.sub(p, PIX_TARGET);
   return [WW / 2 + v3.dot(d, B.R) * pixScale * 2, WH / 2 - v3.dot(d, B.U) * pixScale * 2];
@@ -587,15 +610,18 @@ function placeNova() {
   const wantH = Math.round(ua * 2.3), wantW = Math.round(ua * 1.9);
   if (Math.abs(wantH - NOVA_ART.h) > 2) { NOVA_ART.h = wantH; NOVA_ART.w = wantW; nova.gl.resize(wantW, wantH); }
   nova.view = NOVA_ART.h / (ua * .54);
-  const W = NOVA_ART.w * 2, H = NOVA_ART.h * 2;
-  nova.canvas.style.width = W + "px"; nova.canvas.style.height = H + "px";
-  novaHost.style.transform = `translate(${(s2[0] - W / 2).toFixed(1)}px, ${(s2[1] - H * .56).toFixed(1)}px)`;
-  // She is drawn to be seen from the front (her ring is a flat disc behind her head), so she only ever turns a little,
-  // to the left or right of the screen, as when she roams. Turned further she showed her side and back.
-  const B = pixCam(), f = [Math.cos(N.yaw), 0, -Math.sin(N.yaw)], want = v3.dot(f, B.R) >= 0 ? -.3 : .3;
-  nova.yaw += (want - nova.yaw) * .18;
+  // where her picture goes in the island's (art px, from the top left), and how deep she stands, for the depth test
+  N.rect = [Math.round(s2[0] / 2 - NOVA_ART.w / 2), Math.round(s2[1] / 2 - NOVA_ART.h * .56), NOVA_ART.w, NOVA_ART.h];
+  N.depth = depthOf([N.x - 2.5, top + .62 + N.y, N.z - 2.5]);
+  // She turns to face where she goes, as seen from the camera. Her ring faces the camera (bill), or it would squash
+  // into an oval beside her head when she turns side on.
+  const B = pixCam(), f = [Math.cos(N.yaw), 0, -Math.sin(N.yaw)];
+  nova.bill = 1;
+  nova.yaw = -Math.atan2(v3.dot(f, B.R), -v3.dot(f, B.F));
   nova.sway = N.lean;
 }
+// how far a point is along the island camera's rays (the model pass stores the same, as t / 48)
+function depthOf(p) { return v3.dot(v3.sub(p, PIX_TARGET), pixCam().F) + 24; }
 // the purple arrow on the tile ahead of her, pointing the way she faces: where her next move() goes (it turns as
 // she turns). One tile out, it stays clear of her body whichever way she faces.
 const dirCv = $("dirCv");
@@ -606,6 +632,7 @@ function drawHeading() {
   const f = [Math.cos(N.yaw), 0, -Math.sin(N.yaw)];
   const ax = Math.round(N.x + f[0]), az = Math.round(N.z + f[2]);
   const top = (cell(ax, az) ? topAt(ax, az) : topAt(Math.round(N.x), Math.round(N.z))) + .012;
+  N.arrowDepth = depthOf([N.x - 2.5 + f[0] * .95, top, N.z - 2.5 + f[2] * .95]);
   // a symmetric arrow drawn on screen (in art px), centred on the next tile and pointing along her heading as the
   // island shows it (drawn flat on the ground, the slanted view squashed it into a lopsided flag)
   const at = (a) => { const q = project([N.x - 2.5 + f[0] * a, top, N.z - 2.5 + f[2] * a]); return [q[0] / 2, q[1] / 2]; };
@@ -638,11 +665,62 @@ function bitVec(i) {
   return [bx - 2.5, topAt(bx, bz) + .46 + Math.sin(time * 2 + i) * .05 + b.lift, bz - 2.5, b.s];
 }
 function novaVec() { const top = topAt(Math.round(N.x), Math.round(N.z)); return [N.x - 2.5, top, N.z - 2.5, 1 - Math.min(1, N.y * 2)]; }
+// Runs in the island's own WebGL context right after it is drawn: copies the finished island, then lays the arrow and
+// NOVA's picture over it, pixel for pixel, except where the island's surface is nearer the camera than they are (the
+// model pass keeps each pixel's depth), so a tree or a raised block in front of her hides her from any angle.
+const COMP_FS = `#version 300 es
+precision highp float;
+uniform sampler2D uWorld, uModel, uNova, uArrow; uniform vec2 uRes; uniform vec4 uNovaRect; uniform float uNovaT, uArrowT;
+out vec4 o;
+vec4 over(vec4 a, vec4 b){ float k = a.a + b.a*(1. - a.a); return k < 1e-4 ? vec4(0.) : vec4((a.rgb*a.a + b.rgb*b.a*(1. - a.a))/k, k); }
+void main(){
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  vec4 w = texelFetch(uWorld, p, 0), m = texelFetch(uModel, p, 0);
+  bool solid = (int(m.g*16. + .5) & 15) > 0; float wt = m.b*48.;
+  vec4 a = texelFetch(uArrow, ivec2(p.x, int(uRes.y) - 1 - p.y), 0);
+  if (a.a > 0. && !(solid && wt < uArrowT - .3)) w = over(a, w);
+  ivec2 q = p - ivec2(uNovaRect.xy);
+  if (q.x >= 0 && q.y >= 0 && q.x < int(uNovaRect.z) && q.y < int(uNovaRect.w)) {
+    vec4 n = texelFetch(uNova, ivec2(q.x, int(uNovaRect.w) - 1 - q.y), 0);
+    if (n.a > 0. && !(solid && wt < uNovaT - .4)) w = over(n, w);
+  }
+  o = w;
+}`;
+let comp = null;
+function makeComposite() {
+  const gl = pix.gl;
+  const sh = (type, src) => { const x = gl.createShader(type); gl.shaderSource(x, src); gl.compileShader(x);
+    if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
+  const pr = gl.createProgram();
+  gl.attachShader(pr, sh(gl.VERTEX_SHADER, "#version 300 es\nin vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }"));
+  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, COMP_FS)); gl.bindAttribLocation(pr, 0, "a"); gl.linkProgram(pr);
+  const tex = () => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    for (const k of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, k, gl.NEAREST);
+    for (const k of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE); return t; };
+  const loc = {}; const L = (n) => (n in loc ? loc[n] : (loc[n] = gl.getUniformLocation(pr, n)));
+  return { pr, L, world: tex(), nova: tex(), arrow: tex() };
+}
+function composite() {
+  const gl = pix.gl, c = comp ||= makeComposite(), w = pixCv.width, h = pixCv.height;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, c.world); gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, w, h, 0);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, c.nova); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, nova.canvas);
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, c.arrow); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, dirCv);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, pix.tex);
+  gl.useProgram(c.pr); gl.viewport(0, 0, w, h);
+  [["uWorld", 0], ["uModel", 1], ["uNova", 2], ["uArrow", 3]].forEach(([n, u]) => gl.uniform1i(c.L(n), u));
+  const [x, y, rw, rh] = N.rect || [0, 0, 0, 0];
+  gl.uniform2f(c.L("uRes"), w, h); gl.uniform4f(c.L("uNovaRect"), x, h - y - rh, rw, rh);
+  gl.uniform1f(c.L("uNovaT"), N.depth || 0); gl.uniform1f(c.L("uArrowT"), N.arrowDepth || 0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.activeTexture(gl.TEXTURE0);
+}
 function draw() {
   const B = pixCam();
   pix.draw({ uTime: time, uBitA: bitVec(0), uBitB: bitVec(1), uNova: novaVec(), uCT: PIX_TARGET, uCR: B.R, uCU: B.U, uCF: B.F, uScale: pixScale },
     { uTime: time, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: .5, uFlat: 0, uPlume: [0, 0, 0, 0] });
-  placeNova(); drawHeading();
+  placeNova(); drawHeading(); composite();
 }
 
 // ================================================================ playing the run back
@@ -657,7 +735,7 @@ function stepTweens(dt) {
 function resetWorld() {
   Object.assign(N, { x: PUZZLE.start.x, z: PUZZLE.start.z, y: 0, dir: PUZZLE.start.dir, yaw: PUZZLE.start.dir * Math.PI / 2, lean: 0, hideArrow: false });
   bitsShown.forEach((b) => Object.assign(b, { s: 1, lift: 0 }));
-  setCount(0); if (nova) moodOf(nova, "idle"); cam.spin = 0;
+  setCount(0); if (nova) moodOf(nova, "idle");
 }
 function setCount(n, pop) { $("count").textContent = `${n}/${PUZZLE.bits.length}`; if (pop) { const c = $("counter"); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); } }
 function lineHL(line, bad) {
@@ -732,7 +810,7 @@ function explain(err, res) {
 }
 async function runCode() {
   if (playing) { stopRun(); return; }
-  hideCard(); resetWorld(); lineHL(0);
+  hideCard(); cam.auto = false; resetWorld(); lineHL(0);
   let prog;
   try { prog = parse($("code").value); }
   catch (e) { if (!(e instanceof PyErr)) throw e; nova.setMood("sad"); lineHL(e.line, true); const [h, p] = explain(e, { ev: [] }); showCard("bad", `<h3>${h}</h3><p>${p}</p>`); return; }
@@ -747,7 +825,7 @@ async function runCode() {
     const [h, p] = explain(res.error, res); showCard("bad", `<h3>${h}</h3><p>${p}</p>`);
   } else if (res.got === PUZZLE.bits.length) {
     lineHL(0); moodOf(nova, "happy");
-    N.hideArrow = true; tween(3600, (k) => { cam.spin = easeIO(k) * Math.PI * 2; });
+    N.hideArrow = true; lap();
     showCard("win", `<h3>Both Bits collected!</h3><p>NOVA did exactly what you wrote, in exactly the order you wrote it. That's all code is: steps, in order.</p>
       <div class="foot"><span class="earn"><span class="coin">B</span>+10 Bits</span><button class="link" type="button" id="again">Play again</button></div>`);
     $("again").onclick = () => { hideCard(); resetWorld(); };
@@ -758,7 +836,7 @@ async function runCode() {
       ? `Line ${nudge.line} says <code>${nudge.name}</code> without <code>()</code>, so it didn't run.` : "Add more commands and run it again."}</p>`);
   }
 }
-function stopRun() { playing = null; tweens = []; setRunning(false); resetWorld(); lineHL(0); }
+function stopRun() { playing = null; tweens = []; cam.auto = false; setRunning(false); resetWorld(); lineHL(0); }
 function setRunning(on) { const b = $("run"); b.classList.toggle("stop", on); b.querySelector("span").textContent = on ? "Stop" : "Run my code";
   b.querySelector("svg").innerHTML = on ? '<rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/>' : '<path d="M3 1.5v11l9-5.5z" fill="currentColor"/>'; }
 
@@ -1129,6 +1207,7 @@ function closeIntro() {
   $("intro").classList.add("gone");
   try { localStorage.setItem("operandi:playtime:intro", "1"); } catch {}
   if (matchMedia("(pointer: fine)").matches && !STILL) code.focus({ preventScroll: true });
+  setTimeout(showDragHint, 700);
 }
 function initIntro() {
   teaSteps($("tea1steps"), "right"); teaSteps($("tea2steps"), "wrong");
@@ -1136,6 +1215,7 @@ function initIntro() {
   SMOVE = stage("stMove"); SCOL = stage("stCollect"); makeGround();
   // the same NOVA as in the game: her mooncloak body at the roaming size (art px), drawn 2x on the title page
   introNova = new PixelNova($("introNova"), { kind: "mooncloak", w: 107, h: 113, px: 2, view: 4.79, shadow: false });
+  introNova.bill = 1;
   sizeIntro(); addEventListener("resize", sizeIntro);
 }
 $("prevP").onclick = () => showPage(page - 1); $("nextP").onclick = () => showPage(page + 1);
@@ -1150,12 +1230,56 @@ $("hint").onclick = () => (card.classList.contains("show") && card.classList.con
 $("speed").onclick = () => { SPEED.k = SPEED.k === 1 ? 2 : 1; $("speed").textContent = SPEED.k + "×"; };
 new ResizeObserver(() => sizeViews()).observe(world);
 
+// ---- the camera: drag the island to turn it all the way round (and tilt it a little); let go and it coasts, then
+// settles on the nearest 45 degrees. The buttons turn it a quarter, or back to the start.
+const STEP = Math.PI / 4, TAU = Math.PI * 2, near45 = (a) => Math.round(a / STEP) * STEP;
+world.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || e.target.closest("button, .card, .bar, .camctl")) return;
+  Object.assign(cam, { drag: { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() }, vs: 0, target: null, pitchT: null, auto: false });
+  world.setPointerCapture(e.pointerId); world.classList.add("dragging"); hideDragHint();
+});
+world.addEventListener("pointermove", (e) => {
+  const d = cam.drag; if (!d || e.pointerId !== d.id) return;
+  const now = performance.now(), dx = e.clientX - d.x, dy = e.clientY - d.y, dts = Math.max(.008, (now - d.t) / 1000);
+  const k = 2.4 / Math.max(320, world.clientWidth);   // a drag across the whole pane turns it about 140 degrees
+  cam.spin -= dx * k; cam.vs = cam.vs * .5 + (-dx * k / dts) * .5;
+  cam.pitch = Math.max(.3, Math.min(1, cam.pitch + dy * .004));
+  Object.assign(d, { x: e.clientX, y: e.clientY, t: now });
+});
+const endDrag = (e) => {
+  const d = cam.drag; if (!d || e.pointerId !== d.id) return;
+  if (performance.now() - d.t > 90) cam.vs = 0;   // held still before letting go: no coasting
+  cam.drag = null; world.classList.remove("dragging");
+};
+world.addEventListener("pointerup", endDrag); world.addEventListener("pointercancel", endDrag);
+const turnTo = (a) => { cam.auto = false; cam.vs = 0; cam.target = a; };
+$("camLeft").onclick = () => turnTo(near45(cam.target ?? cam.yaw + cam.spin) + Math.PI / 2);
+$("camRight").onclick = () => turnTo(near45(cam.target ?? cam.yaw + cam.spin) - Math.PI / 2);
+$("camReset").onclick = () => { const t = cam.yaw + cam.spin; turnTo(cam.yaw + Math.round((t - cam.yaw) / TAU) * TAU); cam.pitchT = Math.PI / 6; };
+function stepCamera(dt) {
+  if (cam.pitchT != null) { cam.pitch += (cam.pitchT - cam.pitch) * Math.min(1, dt * 6); if (Math.abs(cam.pitchT - cam.pitch) < .002) cam.pitchT = null; }
+  if (cam.drag || cam.auto) return;
+  const total = cam.yaw + cam.spin;
+  if (Math.abs(cam.vs) > .45) { cam.spin += cam.vs * dt; cam.vs *= Math.exp(-3.5 * dt); return; }
+  cam.vs = 0;
+  if (cam.target == null) cam.target = near45(total);
+  cam.spin += (cam.target - total) * Math.min(1, dt * 7);
+}
+// the win: one slow lap round the island, from wherever you are looking
+function lap() {
+  const s0 = cam.spin; cam.auto = true; cam.vs = 0;
+  tween(3600, (k) => { if (cam.auto) cam.spin = s0 + easeIO(k) * TAU; }).then(() => { if (cam.auto) { cam.auto = false; cam.target = near45(cam.yaw + cam.spin); } });
+}
+let hintT = 0;
+function showDragHint() { if (STILL) return; $("dragHint").classList.remove("gone"); clearTimeout(hintT); hintT = setTimeout(hideDragHint, 6000); }
+function hideDragHint() { $("dragHint").classList.add("gone"); }
+
 let frameMs = 16;
 function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   if (!$("intro").classList.contains("gone")) { requestAnimationFrame(loop); return; }   // the island rests while the intro is open
   if (!REDUCED) time += dt;
-  stepTweens(dt);
+  stepTweens(dt); stepCamera(dt);
   draw();
   frameMs = frameMs * .95 + dt * 1000 * .05;
   requestAnimationFrame(loop);
@@ -1171,7 +1295,7 @@ function start() {
   initIntro();
   if (seen || STILL) closeIntro(); else showPage(0);
   if (STILL) {
-    // test hook: ?still&t=3&code=...&run (plays the run instantly)&at=<event index>&spin=<0..1>&intro=<page>&it=<seconds into its scene>
+    // test hook: ?still&t=3&code=...&run (plays the run instantly)&at=<event index>&spin=<0..1>&pitch=<radians>&intro=<page>&it=<seconds into its scene>
     time = +(qs.get("t") || 3);
     if (qs.has("intro")) { $("intro").classList.remove("gone"); stillT = +(qs.get("it") || 30); showPage(+qs.get("intro")); }
     if (qs.has("run")) {
@@ -1191,8 +1315,10 @@ function start() {
       }
     }
     if (qs.has("hint")) { hintAt = +qs.get("hint"); showHint(); }
-    cam.spin = (+(qs.get("spin") || 0)) * Math.PI * 2;
-    setTimeout(() => { draw(); window.__ready = true; }, 1200);
+    cam.spin = (+(qs.get("spin") || 0)) * Math.PI * 2; if (qs.has("pitch")) cam.pitch = +qs.get("pitch");
+    if (qs.has("intro")) introNova.bill = 1;
+    // twice: the first sizes NOVA's picture, the second shows her once she has drawn at that size
+    setTimeout(draw, 700); setTimeout(() => { draw(); window.__ready = true; }, 1500);
     return;
   }
   requestAnimationFrame(loop);

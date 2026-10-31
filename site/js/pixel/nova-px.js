@@ -26,13 +26,16 @@ export const NOVA_KINDS = ["flame", "eclipse", "wraith", "moon", "imp", "darkfla
 const model = (kind) => `
 #define KIND ${kind}
 uniform vec2 uRes; uniform float uTime, uYaw, uView, uBlink, uBob, uSway, uMood, uEnergy;
+// uBill 1: the eclipse ring always faces the camera while she turns (Playtime turns her all the way round; it is a
+// flat disc, so turned with her it squashed into an oval beside her head). 0 everywhere else.
+uniform float uBill;
 // idles: orrery strength, portal open, bucket risen, head chomp; a flying kernel (xyz, size)
 uniform float uOrb, uPortal, uBucket, uChomp; uniform vec4 uKern;
 // orrery: orbit size, his dust ring (presence, radius, extra spin), a shake; a magic burst (size 0..1) at uBurstAt
 uniform float uOrbR, uRingK, uRingR, uRingSpin, uShake, uBurst, uImplode; uniform vec3 uBurstAt;
 // snack time: the tear before the portal opens, telekinesis beam strength, where the bucket is
 uniform float uTear, uTK; uniform vec3 uBucketAt;
-float gm; float gEye; float gMagic;
+float gm; float gEye; float gMagic; vec3 gPw;
 void U(inout float d, float nd, float m){ if (nd < d) { d = nd; gm = m; } }
 float sdEll(vec3 p, vec3 r){ float k0 = length(p/r), k1 = length(p/(r*r)); return k0*(k0 - 1.)/k1; }
 float fbm(vec3 p){ return vnoise(p)*.6 + vnoise(p*2.1 + 4.)*.3 + vnoise(p*4.3 + 9.)*.1; }
@@ -66,7 +69,7 @@ float horn(inout float body, inout float d, vec3 p, vec3 a, vec3 b, vec3 c, floa
 // The eclipse corona behind a head at c (radius rr): a ring and flickering rays of purple fire.
 // uEnergy scales the rays: long and fast when angry, short and slow when sad or sleepy.
 void corona(inout float d, vec3 p, vec3 c0, float rr){
-  vec3 c = p - c0 - vec3(0., 0., .32);
+  vec3 c = mix(p, gPw, uBill) - c0 - vec3(0., 0., .32);
   float ring = sdTorZ(c, rr, .04);
   float n = 20., sec = 6.2831853/n, a = atan(c.y, c.x);
   float id = floor((a + sec*.5)/sec), an = mod(a + sec*.5, sec) - sec*.5;
@@ -116,6 +119,7 @@ float map(vec3 p){
   float d = 1e5;
   p.y -= uBob;
   p.x += sin(uTime*55.)*.035*uShake;   // shaking things off
+  gPw = p;   // before she turns (for the ring that faces the camera)
   p.xz = R(uYaw) * p.xz;
   float big = max(max(uOrb*uOrbR, uPortal + uTear), max(uBurst, uBucket));
   if (sdBox(p - vec3(0., .2, 0.), vec3(1.6 + big*.45, 1.8, 1.3 + big*.5)) > .3) return 1.;
@@ -548,7 +552,7 @@ export class PixelNova {
     const blink = s > this.nextBlink ? 0.1 : 1;
     this.lastBob = this.bob(s) + this.lift;   // NovaMate places things she holds from it
     this.gl.draw(
-      { uTime: s, uYaw: this.yaw, uView: this.view, uBlink: this.m.id === 4 ? 1 : blink, uBob: this.lastBob, uSway: this.sway, uMood: this.m.id, uEnergy: this.m.energy,
+      { uTime: s, uYaw: this.yaw, uBill: this.bill || 0, uView: this.view, uBlink: this.m.id === 4 ? 1 : blink, uBob: this.lastBob, uSway: this.sway, uMood: this.m.id, uEnergy: this.m.energy,
         uOrb: this.idle.orb, uPortal: this.idle.portal, uBucket: this.idle.bucket, uChomp: this.idle.chomp, uKern: this.idle.kern,
         uOrbR: this.idle.orbR, uRingK: this.idle.ringK, uRingR: this.idle.ringR, uRingSpin: this.idle.spin, uShake: this.idle.shake,
         uBurst: this.idle.burst, uBurstAt: this.idle.burstAt, uImplode: this.idle.implode, uTear: this.idle.tear, uTK: this.idle.tk, uBucketAt: this.idle.bucketAt },
