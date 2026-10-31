@@ -663,3 +663,68 @@ Sources: [Awwwards: Lando Norris](https://www.awwwards.com/sites/lando-norris), 
 2. **Preview branch:** yes, a new branch `revamp`.
 3. **NOVA stays off the home page;** it is neutral.
 4. **"Sign in" becomes "Start learning"** until real sign-in exists (done on the live site straight away).
+
+## Addendum O: Playtime levels (draft 2026-10-31, awaiting "go")
+
+Isaac 2026-10-31: "i want more levels, where they get more challenging as you progress, with puzzles etc". Playtime is its own path (his answer), NOVA walks it, pixel art (his pick). One level exists as a preview (`tools/playtime-design/playtime.html`, at `/playtime` on the revamp preview). This addendum is the plan for the real thing.
+
+**What exists already (checked first).** Swift Playgrounds (the inspiration: commands → functions → loops → conditions → while, one new idea per chapter, a challenge at the end of each) is Swift-only and iPad/Mac-only. Reeborg's World and Karel the Robot teach the same ideas in Python with a robot on a grid; they are separate sites with no link to Operandi's progress or Bits. Operandi already has the hard parts: real Python in the browser (Pyodide in a worker, stopped after 5 s), a validator that runs every reference solution, Bits, saving and sync, NOVA's renderer and the island renderer. So: borrow the teaching order, build the levels ourselves.
+
+1. **Problem.** Playtime has one level. A beginner needs a ladder: each level adds one small idea or twist, and each chapter ends with a puzzle that makes you use it. Without that it is a toy, not a way to learn.
+2. **Success criteria.**
+   - Someone who has never coded finishes Chapter 1 in about 15 minutes (Isaac plus two testers).
+   - Each chapter brings in exactly one new idea, and its last level can't be solved without it.
+   - Levels that teach `if` and `while` can't be passed by writing the moves out by hand: the code is run on several different layouts of the same level (Bits and blocks in different places, a different length), the way course challenges rerun your code with other values.
+   - Every level's reference solution passes in real Python on all its layouts, checked by `tools/validate.mjs` on every push. For the `if`/`while` levels, a typical wrong answer (the moves hard-coded for one layout) must fail.
+   - Smooth on Isaac's iPad (no long stutters), usable on a phone.
+   - Progress and Bits save and sync like the course.
+3. **Scope (in).**
+   - **The level ladder** (about 22 levels, 5 chapters):
+
+     | Level | Name | New idea or twist |
+     |---|---|---|
+     | 1.1 | First Steps | `move()` and `collect()`: a straight line, one Bit |
+     | 1.2 | Collect the Bits | `turn_left()` (today's preview level) |
+     | 1.3 | The Long Way Round | there is no `turn_right()`: three left turns make a right |
+     | 1.4 | Switches | `toggle()` on switch tiles; light them all |
+     | 1.5 | Garden Run (challenge) | a winding path with Bits and switches |
+     | 2.1 | Make Your Own Turn | `def turn_right():` from three left turns |
+     | 2.2 | Same Steps Again | a pattern repeated three times, written once as a function |
+     | 2.3 | Functions in Functions | `collect_row()` built from a smaller function |
+     | 2.4 | Twin Gardens (challenge) | two identical gardens, one function solves both |
+     | 3.1 | Ten Steps | `for i in range(10):` over a long bridge |
+     | 3.2 | Loop the Pattern | a loop around a function |
+     | 3.3 | Round the Island | `for` with a turn: walk the four sides, Bits at the corners |
+     | 3.4 | Through the Portals | NOVA's portals as tiles: step in one, come out of its pair |
+     | 3.5 | Spiral (challenge) | a loop inside a loop |
+     | 4.1 | Maybe a Bit | Bits on different tiles each run: `if on_bit(): collect()` |
+     | 4.2 | On or Off | switches start on or off at random: `if not switch_on(): toggle()` |
+     | 4.3 | Blocked? | `if is_blocked(): ... else: ...` round random rocks |
+     | 4.4 | Crossroads (challenge) | `elif`, three kinds of tile |
+     | 5.1 | To the Edge | the path is a different length each run: `while not is_blocked(): move()` |
+     | 5.2 | Until They're Gone | `while` with a count: keep going until every Bit is collected |
+     | 5.3 | The Maze | follow the wall through a maze that changes each run |
+     | 5.4 | NOVA's Island (final challenge) | everything at once |
+
+   - **Puzzle pieces** (each brought in by a level above): Bits, switches, raised blocks and water (blocked), NOVA's portals (teleport pairs), random layouts for `if` and `while` levels, islands of different sizes and shapes.
+   - **Stars per level:** solved; solved in no more than the level's line count ("par"); solved without hints.
+   - **Real Python:** your code runs in Pyodide like the course. The commands are Python functions in a small harness that moves NOVA in a model of the island and writes down what happens; the page then plays that back on the island, line by line, as the preview does now. Python's own error messages, explained in plain words. A step limit (about 1,000 commands) stops endless loops with a friendly message.
+   - **Level select:** chapters as a row of small islands, each level a tile with its stars; locked levels show what unlocks them.
+   - **Levels are data** (`site/content/playtime-levels.js`): the map, start, Bits, switches, portals, goal, par, three hints, the reference solution, and for `if`/`while` levels a seeded layout maker.
+   - **Bits and saving** in the existing save (`state.playtime`), synced with the course.
+4. **Scope (out).** Chapters on variables and lists (later). A level editor. New characters. Sounds (later, with the course's sound work). Leaderboards.
+5. **Constraints.** Zero cost; no build step; the same Pyodide and NOVA's renderer. No AI at runtime: hints and explanations are written ahead of time. Personal project, no approval needed. Isaac tests live (no videos).
+6. **Plan (smallest working version first).**
+   1. **Engine:** levels as data; the island drawn from the level's data instead of the one fixed map; the real Python runner in place of the preview's reader; the level select; today's level becomes 1.2.
+   2. **Chapter 1** (5 levels), saving, Bits, validator checks. Isaac plays it and gives feedback before anything else.
+   3. **Chapters 2 and 3** (functions, loops, portals).
+   4. **Chapters 4 and 5** (`if`, `while`, random layouts, the maze).
+   5. **Polish:** stars and par, phone pass, iPad speed, a door to Playtime from the course.
+7. **Open questions.**
+   1. **Command names:** `move()`, `turn_left()`, `collect()`, `toggle()`, and the checks `is_blocked()`, `on_bit()`, `switch_on()`. Recommendation: these short ones (Python style: small letters, underscores).
+   2. **Hints:** free in Playtime, or taken from the same stock as the course? Recommendation: free; Playtime is the gentle path.
+   3. **Bits:** 10 per level the first time, +5 for meeting par, +30 per chapter? (All in `economy.js`.)
+   4. **Unlocking:** all chapters open from the start, or each chapter after the one before? Recommendation: each chapter after the one before; within a chapter, levels in order.
+   5. **The door:** a Playtime button in the course top bar and on the course home? Recommendation: both.
+
+**Done already in the preview (2026-10-31, before this plan):** Isaac's art notes: the waterfall arcs out over the lip, ripples and wobbles, breaks up at the bottom and splashes (churning foam and droplets that fly out and fall back; the glow is gone); the cut across the tree leaves (a ray could step into a tree in the next square; it now never steps past the squares it checked); the floating islets are small copies of the island (a square tile on a tapering rock), not a square on a ball.

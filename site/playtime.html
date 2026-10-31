@@ -440,7 +440,7 @@ const WORLD = `
 uniform float uTime; uniform vec4 uBitA, uBitB, uNova;
 const int MAPG[36] = int[36](${MAP.join(",")});
 const int PROPG[36] = int[36](${PROP.join(",")});
-float gm; float gCoin; float gFall;
+float gm; float gCoin;
 int cellAt(ivec2 c){ return (c.x < 0 || c.y < 0 || c.x > 5 || c.y > 5) ? 0 : MAPG[c.y*6 + c.x]; }
 int propAt(ivec2 c){ return (c.x < 0 || c.y < 0 || c.x > 5 || c.y > 5) ? 0 : PROPG[c.y*6 + c.x]; }
 float topOf(int t){ return t == 4 ? .5 : t == 5 ? 1. : t == 2 ? .05 : t == 3 ? -.12 : 0.; }
@@ -477,12 +477,43 @@ void coin(inout float d, vec3 p, vec4 b, float ph){
   float cd = min(max(e.x, e.y), 0.) + length(max(e, 0.)) - .02*b.w;
   gCoin = min(gCoin, cd); Un(d, cd, 3.);
 }
+// The splash where the waterfall lands: churning foam along its foot, and droplets thrown up and out that fall back.
+const vec3 SPLASH = vec3(3.4, -3.78, 0.);
+void splash(inout float d, vec3 p){
+  vec3 q = p - SPLASH;
+  // only worked out near the foot of the falls (an egg round the foam and the droplets' arcs)
+  float bound = length((q - vec3(.2, .35, 0.))/vec3(1.15, .95, 1.75));
+  if (bound > 1.) { d = min(d, (bound - 1.)*.95 + .02); return; }
+  float f = 1e5;
+  for (int j = 0; j < 5; j++) {
+    float fj = float(j);
+    vec3 c = vec3(.04*sin(uTime*3. + fj), sin(uTime*6. + fj*1.9)*.035, (fj - 2.)*.42);
+    f = smin(f, length(q - c) - (.2 + .05*sin(uTime*5. + fj*1.7)), .16);
+  }
+  f += (vnoise(vec3(q.x*7., q.y*7. - uTime*3., q.z*7.)) - .5)*.08;
+  f = max(f, -q.y - .12);
+  Un(d, f, 9.);
+  for (int i = 0; i < 14; i++) {
+    float fi = float(i), h = fract(sin(fi*12.9898)*43758.5453), h2 = fract(sin(fi*78.233)*12543.21);
+    float ph = fract(uTime*.95 + h);
+    vec3 v = vec3(.25 + h2*.75, .9 + h*.8, (h2 - .5)*1.1);
+    if (i % 4 == 0) v.x = -v.x*.5;   // a few spray back against the rock
+    vec3 at = vec3(0., .02, (fract(h*7.31) - .5)*1.7) + vec3(v.x*ph, v.y*ph - 2.1*ph*ph, v.z*ph);
+    Un(d, length(q - at) - .08*(1. - ph*.6), 9.);
+  }
+}
 float map(vec3 p){
   gm = 0.; float d = 1e5;
   vec2 g = p.xz + 2.5; ivec2 c = ivec2(floor(g + .5)); ivec2 n = c + ivec2(g.x > float(c.x) ? 1 : -1, g.y > float(c.y) ? 1 : -1);
   if (p.y < 2.4 && p.y > -1.) {
     tile(d, p, c); tile(d, p, ivec2(n.x, c.y)); tile(d, p, ivec2(c.x, n.y)); tile(d, p, n);
     prop(d, p, c); prop(d, p, ivec2(n.x, c.y)); prop(d, p, ivec2(c.x, n.y)); prop(d, p, n);
+    // Only these four squares were checked. Anything in another square is at least as far as the edge of these four,
+    // so never step further than that, or a ray can land inside a tree in the next square (the seam across the leaves).
+    // (and nothing lies outside the island's 6 x 6 squares, so beside the island the distance to it is the bound)
+    vec2 lo = vec2(min(c, n)) - .5, hi = vec2(max(c, n)) + .5;
+    float edge = min(min(g.x - lo.x, hi.x - g.x), min(g.y - lo.y, hi.y - g.y)), grid = max(abs(p.x), abs(p.z)) - 3.;
+    d = min(d, max(edge, grid) + .02);
   } else d = min(abs(p.y - 2.4), abs(p.y + 1.)) + .05;
   // the rock underneath, tapering to a point
   float y = -.5 - p.y, k = clamp(y/4.4, 0., 1.), hs = mix(2.95, .2, pow(k, .75));
@@ -490,20 +521,31 @@ float map(vec3 p){
   float body = (length(max(bq, 0.)) + min(max(bq.x, bq.y), 0.) - .45 + (vnoise(p*2.3)*.5 + vnoise(p*5.3)*.18)*k*1.3);
   body = max(body, p.y + .52); body = max(body, -p.y - 5.);
   Un(d, body*.6, y > 1.5 + vnoise(p*1.7)*.8 ? 8. : 7.);
-  // the waterfall pouring off the pool's open side
+  // the waterfall: it arcs out over the pool's lip (a thrown curve), ripples and wobbles at the edges as it falls,
+  // thickens, and breaks up raggedly at the bottom into a splash of foam and droplets
   float wy = clamp(-p.y - .1, 0., 4.);
-  vec3 w = p - vec3(3.0 + .05 + wy*wy*.015, -1.95, 0.);
-  float wf = sdBox(w, vec3(.035 + wy*.012, 1.85, .93 - wy*.06));
-  gFall = min(gFall, length(p - vec3(3.1, -3.9, 0.)) - .4);
-  Un(d, wf, 4.);
+  if (p.x > 2.6 && p.x < 4.4 && p.y < .2 && p.y > -4.3 && abs(p.z) < 1.3) {
+    float xc = 3.02 + .2*sqrt(wy) + (vnoise(vec3(p.z*5., p.y*2.2 + uTime*6., 0.)) - .5)*.07;
+    float hz = .93 - wy*.03 + (vnoise(vec3(wy*2.6 - uTime*5.5, sign(p.z)*7., 1.)) - .5)*.16;
+    float bottom = -3.55 - vnoise(vec3(p.z*6., uTime*3.5, 2.))*.35;
+    vec3 w = vec3(p.x - xc, p.y - (bottom - .1)*.5, p.z);
+    float wf = sdBox(w, vec3(.04 + wy*.018, (-.1 - bottom)*.5, max(hz, .1)))*.7;
+    Un(d, wf, 4.);
+  } else d = min(d, max(max(2.6 - p.x, p.x - 4.4), max(max(p.y - .2, -4.3 - p.y), abs(p.z) - 1.3)) + .05);
+  splash(d, p);
   // two little islands drifting behind
   for (int i = 0; i < 2; i++) {
     vec3 c0 = i == 0 ? vec3(-5.4, .2 + sin(uTime*.6)*.1, -2.6) : vec3(4.2, 1.5 + sin(uTime*.5 + 2.)*.12, -5.6);
-    vec3 q = p - c0;
+    vec3 q = p - c0 - vec3(0., -.4, 0.);
     if (length(q) > 2.) { d = min(d, length(q) - 1.6); continue; }
-    Un(d, sdRBox(q, vec3(.55, .1, .55), .09), 1.);
-    float u = length(q*vec3(1., 1.5, 1.) + vec3(0., .5, 0.)) - .58 + (vnoise(q*5.) - .5)*.1;
-    Un(d, max(u, q.y + .03), 7.);
+    // a grass tile on an earth block, like the island's own tiles
+    Un(d, sdRBox(q - vec3(0., .2, 0.), vec3(.485, .2, .485), .045), q.y > .29 ? 1. : 7.);
+    // a rock under it that tapers to a point, like the island's own
+    float y = -q.y, k = clamp(y/1.1, 0., 1.), hs = mix(.46, .05, pow(k, .8));
+    vec2 bq = abs(q.xz) - hs + .1;
+    float rk = length(max(bq, 0.)) + min(max(bq.x, bq.y), 0.) - .1 + (vnoise(q*4.3) - .5)*.12*k;
+    rk = max(rk, q.y - .02); rk = max(rk, -q.y - 1.15);
+    Un(d, rk*.7, y > .35 ? 8. : 7.);
   }
   coin(d, p, uBitA, 0.); coin(d, p, uBitB, 2.);
   return d;
@@ -538,15 +580,23 @@ out vec4 o;
 void main(){
   vec2 q = (gl_FragCoord.xy - .5*uRes)/uScale;
   vec3 ro = uCT + uCR*q.x + uCU*q.y - uCF*24., rd = uCF;
-  gCoin = 1e5; gFall = 1e5;
+  gCoin = 1e5;
   float t = 0.; bool hit = false;
-  for (int i = 0; i < 170; i++) { float d = map(ro + rd*t); if (d < .0025) { hit = true; break; } t += max(d*.85, .003); if (t > 48.) break; }
-  float glow = exp(-max(gCoin, 0.)*9.), mist = exp(-max(gFall, 0.)*1.6);
-  if (!hit) { o = vec4(mist*.75, 0., 0., glow*.9); return; }
+  for (int i = 0; i < 200; i++) { float d = map(ro + rd*t); if (d < .0025) { hit = true; break; } t += max(d*.85, .003); if (t > 48.) break; }
+  float glow = exp(-max(gCoin, 0.)*9.);
+  if (!hit) { o = vec4(0., 0., 0., glow*.9); return; }
   vec3 p = ro + rd*t; float m = gm; vec3 n = nrm(p);
   float dif = max(dot(n, L), 0.)*shadow(p + n*.01, L);
   float sh = .14 + .62*dif + .24*ao(p, n)*(.55 + .45*n.y) + detail(p, n, m);
-  if (m == 4.) sh = n.y > .5 ? .45 + (vnoise(vec3(p.xz*6., uTime*1.2)) - .5)*.4 + dif*.25 : .4 + .5*vnoise(vec3(p.z*9., p.y*1.5 + uTime*3., 0.));
+  if (m == 4.) {
+    if (n.y > .5) {   // the pool: ripples drifting toward the edge it spills over, brighter near the lip
+      sh = .42 + (vnoise(vec3((p.x - uTime*.7)*5., p.z*7., uTime*.6)) - .5)*.42 + dif*.22 + .22*smoothstep(2.6, 3., p.x);
+    } else {          // the falls: long streaks pouring down, white water at the lip and at the foot
+      float wy2 = -p.y - .1, s1 = vnoise(vec3(p.z*8., p.y*.7 + uTime*4.8, 0.)), s2 = vnoise(vec3(p.z*15. + 3., p.y*1.6 + uTime*7.5, 1.));
+      sh = .26 + .42*s1 + .28*smoothstep(.6, .78, s2) + .32*smoothstep(.45, 0., wy2) + .3*smoothstep(2.9, 3.6, wy2) + .12*dif;
+    }
+  }
+  if (m == 9.) sh = .58 + .3*dif + .12*n.y + (vnoise(p*14. + uTime*2.) - .5)*.18;
   if (m == 3.) { vec4 b = length(p - uBitA.xyz) < length(p - uBitB.xyz) ? uBitA : uBitB; float rr = length(p - b.xyz)/max(b.w, .01);
     sh = .36 + .5*dif + (rr > .16 ? .22 : rr < .07 ? .14 : 0.); }
   sh *= novaShade(p, n);
@@ -561,8 +611,9 @@ const PIX_PALETTES = [
   ["#24160f", "#3a2417", "#53351f", "#70492b", "#90613b", "#b48356"],   // 6 wood
   ["#1b1220", "#2b1b2a", "#422a34", "#5f3c40", "#81564d", "#a97a63"],   // 7 earth
   ["#161624", "#252538", "#38384f", "#4f4f69", "#6d6d88", "#9696b0"],   // 8 rock
+  ["#2b5aa8", "#5a8fd8", "#8fbdf0", "#c2e2ff", "#e6f4ff", "#ffffff"],   // 9 foam and spray
 ];
-const PIX_GLOW = ["#5a3c0e", "#c08a20", "#ffe08a", "#14306e", "#3a6ad0", "#a8d6ff"];
+const PIX_GLOW = ["#5a3c0e", "#c08a20", "#ffe08a", "#000000", "#000000", "#000000"];   // the Bits glow; nothing else does
 
 // ================================================================ cameras
 const v3 = { sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
