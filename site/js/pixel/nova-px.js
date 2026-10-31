@@ -27,7 +27,8 @@ const model = (kind) => `
 #define KIND ${kind}
 uniform vec2 uRes; uniform float uTime, uYaw, uView, uBlink, uBob, uSway, uMood, uEnergy;
 // uBill 1: the eclipse ring always faces the camera while she turns (Playtime turns her all the way round; it is a
-// flat disc, so turned with her it squashed into an oval beside her head). 0 everywhere else.
+// flat disc, so turned with her it squashed into an oval or a line side on), but it stays behind her head as she
+// turns. 0 everywhere else.
 uniform float uBill;
 // idles: orrery strength, portal open, bucket risen, head chomp; a flying kernel (xyz, size)
 uniform float uOrb, uPortal, uBucket, uChomp; uniform vec4 uKern;
@@ -69,7 +70,10 @@ float horn(inout float body, inout float d, vec3 p, vec3 a, vec3 b, vec3 c, floa
 // The eclipse corona behind a head at c (radius rr): a ring and flickering rays of purple fire.
 // uEnergy scales the rays: long and fast when angry, short and slow when sad or sleepy.
 void corona(inout float d, vec3 p, vec3 c0, float rr){
-  vec3 c = mix(p, gPw, uBill) - c0 - vec3(0., 0., .32);
+  // behind her head, from where she faces: with uBill the ring keeps facing the camera, but its place still goes round
+  // with her (her yaw turned back into camera space), so with her back to you it is between you and her head
+  vec3 back = uBill > 0. ? vec3(sin(uYaw), 0., cos(uYaw))*.32 : vec3(0., 0., .32);
+  vec3 c = mix(p, gPw, uBill) - c0 - back;
   float ring = sdTorZ(c, rr, .04);
   float n = 20., sec = 6.2831853/n, a = atan(c.y, c.x);
   float id = floor((a + sec*.5)/sec), an = mod(a + sec*.5, sec) - sec*.5;
