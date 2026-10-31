@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <!-- A preview of Playtime mode (revamp branch only): a copy of tools/playtime-design/playtime.html wrapped as a page.
-     Nothing links here; Isaac picks a look, then a PRD before anything is built into the course. -->
+     Nothing links here yet; a PRD comes before anything is built into the course. -->
 <title>Operandi Playtime</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@1,9..144,800&display=swap">
 <style>
-/* Playtime mode, preview 1 (Isaac 2026-10-31, inspired by Swift Playgrounds): your Python moves NOVA round a floating
-   island. One puzzle, shown in two looks to choose from: hi-bit pixel art (the same pipeline as NOVA and GOLEM) and
-   smooth 3D. Both draw the same island from one shared 3D model. */
+/* Playtime mode, preview (Isaac 2026-10-31, inspired by Swift Playgrounds): your Python moves NOVA round a floating
+   island. The island is hi-bit pixel art, drawn by the same pipeline as NOVA and GOLEM (Isaac picked it over a smooth
+   3D look). NOVA always faces the front, turned a little left or right like when she roams; a purple arrow on the
+   ground shows which way she is heading. */
 :root {
   --paper: #07081a; --pane: #10111f; --pane-2: #171829; --line: rgba(236, 234, 250, .12); --ink: #eeecf9; --ink-soft: rgba(238, 236, 249, .66);
   --ink-faint: rgba(238, 236, 249, .4); --accent: #a9bcff; --gold: #ffd36e; --good: #7ee0a1; --bad: #ff9a8a;
@@ -37,10 +38,6 @@ code, .mono { font-family: var(--font-mono); }
 .crumb { color: var(--ink-faint); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crumb b { color: var(--ink-soft); font-weight: 500; }
 .top .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-.seg { display: flex; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .06); border: 1px solid var(--line); }
-.seg button { border: 0; background: none; padding: 7px 12px; border-radius: 999px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background-color .25s, color .25s; }
-.seg button[aria-pressed="true"] { background: var(--ink); color: #0b0c18; }
-.seglab { font-size: 12px; color: var(--ink-faint); }
 .ghost { border: 1px solid var(--line); background: rgba(255, 255, 255, .05); padding: 8px 13px; border-radius: 999px; font-weight: 600; font-size: 13px; cursor: pointer; }
 .ghost:hover { background: rgba(255, 255, 255, .1); }
 .short { display: none; }
@@ -81,7 +78,7 @@ code, .mono { font-family: var(--font-mono); }
 .world canvas.view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .world canvas.view[hidden] { display: none; }
 #pixCv { image-rendering: pixelated; }
-#starCv { image-rendering: pixelated; }
+#starCv, #dirCv { image-rendering: pixelated; }
 .novaHost { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
 .novaHost canvas { image-rendering: pixelated; display: block; }
 .counter { position: absolute; left: 16px; top: 16px; display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 8px; border-radius: 999px; background: rgba(10, 11, 30, .7);
@@ -127,6 +124,7 @@ code, .mono { font-family: var(--font-mono); }
 .page h2 { margin: 0; max-width: 20ch; font: 800 clamp(26px, 4vw, 40px)/1.08 var(--font-display); letter-spacing: -.035em; text-wrap: balance; }
 .page h2 em { font-family: var(--font-fun); color: var(--gold); }
 .page p { margin: 0; max-width: 44ch; color: var(--ink-soft); font-size: 17px; text-wrap: balance; }
+.page p em { font: italic 800 1.18em/1 var(--font-fun); color: var(--gold); letter-spacing: -.01em; }
 .big { font: italic 800 clamp(54px, 9vw, 96px)/1 var(--font-fun); color: var(--gold); letter-spacing: -.02em; }
 .introNova { display: grid; place-items: center; }
 .introNova canvas { display: block; image-rendering: pixelated; }
@@ -173,16 +171,15 @@ canvas.scene { display: block; image-rendering: pixelated; }
 .pager .round { background: rgba(255, 255, 255, .06); }
 .pager .count { min-width: 64px; text-align: center; color: var(--ink-faint); font-size: 13px; font-variant-numeric: tabular-nums; }
 .start { border: 0; border-radius: 999px; background: var(--gold); color: #2a1a00; padding: 12px 22px; font-weight: 700; cursor: pointer; }
-.skip { position: absolute; right: 18px; top: 16px; }
+.skip { position: absolute; right: 18px; top: 16px; z-index: 2; }
 
 .note { position: absolute; right: 16px; top: 16px; max-width: 250px; font-size: 12px; color: var(--ink-faint); text-align: right; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @media (max-width: 820px) {
-  .crumb, .seglab, .long { display: none; }
+  .crumb, .long { display: none; }
   .short { display: inline; }
   .top { gap: 10px; }
-  .seg button { padding: 7px 11px; }
   .split { grid-template-columns: minmax(0, 1fr); grid-template-rows: 46vh minmax(0, 1fr); }
   .world { grid-row: 1; }
   .task { grid-row: 2; border-right: 0; border-top: 1px solid var(--line); }
@@ -203,11 +200,6 @@ canvas.scene { display: block; image-rendering: pixelated; }
     <span class="mode">Playtime</span>
     <span class="crumb">Chapter 1: Commands · <b>Collect the Bits</b></span>
     <div class="right">
-      <span class="seglab">Preview the look</span>
-      <div class="seg" role="group" aria-label="Look of the world">
-        <button type="button" data-look="pixel" aria-pressed="true">Pixel</button>
-        <button type="button" data-look="smooth" aria-pressed="false"><span class="long">Smooth </span>3D</button>
-      </div>
       <button class="ghost" type="button" id="replayIntro" aria-label="Replay the intro"><span class="long">Intro</span><span class="short" aria-hidden="true">?</span></button>
     </div>
   </header>
@@ -244,7 +236,7 @@ canvas.scene { display: block; image-rendering: pixelated; }
     <section class="world" id="world" aria-label="The island">
       <canvas class="view" id="starCv" aria-hidden="true"></canvas>
       <canvas class="view" id="pixCv" aria-hidden="true"></canvas>
-      <canvas class="view" id="smCv" aria-hidden="true" hidden></canvas>
+      <canvas class="view" id="dirCv" aria-hidden="true"></canvas>
       <div class="novaHost" id="novaHost" aria-hidden="true"></div>
       <div class="counter" id="counter"><span class="coin" aria-hidden="true">B</span><span id="count">0/2</span><span class="sr"> Bits collected</span></div>
       <p class="note" id="note">Preview: this page reads the commands itself. The real mode will run your code in real Python.</p>
@@ -263,7 +255,7 @@ canvas.scene { display: block; image-rendering: pixelated; }
   <div class="page" data-p="0">
     <div class="introNova" id="introNova"></div>
     <div class="big">Playtime</div>
-    <p>Learn to think like a programmer by guiding NOVA round a floating island, with real Python.</p>
+    <p>Learn to think like a programmer by guiding NOVA with <em>Python</em>.</p>
   </div>
   <div class="page" data-p="1">
     <h2>Code is a list of steps. The computer follows them <em>exactly</em>, in order.</h2>
@@ -312,7 +304,7 @@ canvas.scene { display: block; image-rendering: pixelated; }
 
 <script type="module">
 import { PixelNova } from "./js/pixel/nova-px.js";
-import { PixelGL, SDF_LIB } from "./js/pixel/pixel-gl.js";
+import { PixelGL } from "./js/pixel/pixel-gl.js";
 
 const $ = (id) => document.getElementById(id);
 const qs = new URLSearchParams(location.search);
@@ -552,56 +544,12 @@ const PIX_PALETTES = [
 ];
 const PIX_GLOW = ["#5a3c0e", "#c08a20", "#ffe08a", "#14306e", "#3a6ad0", "#a8d6ff"];
 
-// Look 2: smooth 3D. The same island, lit softly, with a starry sky, water that shines and a little haze.
-const SMOOTH_FS = `#version 300 es
-precision highp float;
-uniform vec2 uRes; uniform vec3 uCam, uCR, uCU, uCF; uniform float uFov;
-${SDF_LIB}
-${WORLD}
-out vec4 o;
-const vec3 L = normalize(vec3(-.4, .8, .45));
-vec3 sky(vec3 rd){
-  vec3 c = mix(vec3(.016, .016, .06), vec3(.003, .004, .018), smoothstep(-.2, .7, rd.y));
-  c += vec3(.12, .05, .2)*pow(vnoise(rd*3.5 + 2.)*vnoise(rd*7.), 2.)*1.2;
-  vec3 s = floor(rd*260.); float h = fract(sin(dot(s, vec3(12.9898, 78.233, 37.719)))*43758.5453);
-  if (h > .994) c += vec3(.9, .9, 1.)*smoothstep(.22, .0, length(fract(rd*260.) - .5))*(.6 + .4*sin(uTime*2. + h*90.));
-  return c; }
-vec3 alb(float m, vec3 p){
-  return m == 1. ? vec3(.2, .55, .13) : m == 2. ? vec3(.58, .55, .56) : m == 3. ? vec3(1., .72, .18) : m == 4. ? vec3(.05, .26, .7)
-       : m == 5. ? vec3(.11, .4, .15) : m == 6. ? vec3(.36, .22, .12) : m == 7. ? vec3(.4, .23, .2) : vec3(.3, .3, .4); }
-vec3 aces(vec3 x){ return clamp((x*(2.51*x + .03))/(x*(2.43*x + .59) + .14), 0., 1.); }
-void main(){
-  vec2 q = (gl_FragCoord.xy - .5*uRes)/uRes.y;
-  vec3 rd = normalize(uCF + (q.x*uCR + q.y*uCU)*uFov), ro = uCam;
-  gCoin = 1e5; gFall = 1e5;
-  float t = 0.; bool hit = false;
-  for (int i = 0; i < 180; i++) { float d = map(ro + rd*t); if (d < .0012*t) { hit = true; break; } t += d*.9; if (t > 60.) break; }
-  vec3 col = sky(rd);
-  if (hit) {
-    vec3 p = ro + rd*t; float m = gm; vec3 n = nrm(p);
-    float sh = shadow(p + n*.01, L), a = ao(p, n);
-    vec3 base = alb(m, p)*(1. + detail(p, n, m)*1.4);
-    vec3 lit = base*(vec3(1.5, 1.3, 1.08)*max(dot(n, L), 0.)*sh + vec3(.17, .2, .4)*(.45 + .55*n.y)*a + vec3(.16, .08, .05)*max(-n.y, 0.)*a);
-    if (m == 4.) {
-      float fr = pow(1. - max(dot(n, -rd), 0.), 4.);
-      vec3 r = reflect(rd, n);
-      lit = mix(base*(.35 + .5*sh), sky(r)*1.6 + vec3(.3, .4, .7)*.2, .45 + .5*fr) + vec3(1.)*pow(max(dot(r, L), 0.), 60.)*sh;
-      if (n.y < .5) lit = mix(vec3(.25, .5, .9), vec3(.85, .95, 1.), vnoise(vec3(p.z*9., p.y*1.5 + uTime*3., 0.)))*.9;
-    }
-    if (m == 3.) lit = base*(.45 + .7*max(dot(n, L), 0.)) + vec3(.5, .32, .05)*.3 + vec3(1.)*pow(max(dot(reflect(rd, n), L), 0.), 30.)*.6;
-    lit *= novaShade(p, n);
-    col = mix(lit, col, smoothstep(26., 50., t));
-  }
-  col += vec3(1., .72, .25)*exp(-max(gCoin, 0.)*14.)*.22 + vec3(.5, .7, 1.)*exp(-max(gFall, 0.)*2.2)*.22;
-  o = vec4(pow(aces(col*1.05), vec3(1./2.2)), 1.);
-}`;
-
 // ================================================================ cameras
 const v3 = { sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
   cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
   norm: (a) => { const l = Math.hypot(...a) || 1; return a.map((x) => x / l); }, add: (a, b) => a.map((x, i) => x + b[i]), mul: (a, s) => a.map((x) => x * s) };
 function basisFrom(fwd) { const F = v3.norm(fwd), Rr = v3.norm(v3.cross(F, [0, 1, 0])); return { F, R: Rr, U: v3.cross(Rr, F) }; }
-const cam = { yaw: Math.PI / 4, spin: 0, look: "pixel" };   // yaw: where the camera sits round the island (front-right)
+const cam = { yaw: Math.PI / 4, spin: 0 };   // yaw: where the camera sits round the island (front-right)
 function camBasis(pitch) { const y = cam.yaw + cam.spin; return basisFrom([-Math.sin(y) * Math.cos(pitch), -Math.sin(pitch), -Math.cos(y) * Math.cos(pitch)]); }
 const world = $("world");
 let WW = 1, WH = 1, dpr = 1;
@@ -615,36 +563,14 @@ function pixProject(p) {
   const B = pixCam(), d = v3.sub(p, PIX_TARGET);
   return [WW / 2 + v3.dot(d, B.R) * pixScale * 2, WH / 2 - v3.dot(d, B.U) * pixScale * 2];
 }
-// smooth look: perspective
-const smCv = $("smCv");
-let sm = null, smScale = .75;
-const SM = { target: [0, -1.3, 0], dist: 22, fov: .42 };
-function smCam() { const B = camBasis(.5); return { ...B, pos: v3.sub(SM.target, v3.mul(B.F, SM.dist)) }; }
-function smProject(p) {
-  const C = smCam(), d = v3.sub(p, C.pos), z = v3.dot(d, C.F);
-  return [WW / 2 + (v3.dot(d, C.R) / (z * SM.fov)) * WH, WH / 2 - (v3.dot(d, C.U) / (z * SM.fov)) * WH, WH / (z * SM.fov)];
-}
-const project = (p) => (cam.look === "pixel" ? pixProject(p) : smProject(p));
+const project = pixProject;
 
-function makeSmooth() {
-  const gl = smCv.getContext("webgl2", { antialias: false, alpha: false });
-  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
-  const pr = gl.createProgram();
-  gl.attachShader(pr, sh(gl.VERTEX_SHADER, "#version 300 es\nin vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }"));
-  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, SMOOTH_FS)); gl.bindAttribLocation(pr, 0, "a"); gl.linkProgram(pr);
-  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-  const loc = {}; const L = (n) => (n in loc ? loc[n] : (loc[n] = gl.getUniformLocation(pr, n)));
-  return { gl, pr, L };
-}
 function sizeViews() {
   const r = world.getBoundingClientRect(); WW = r.width; WH = r.height; dpr = Math.min(devicePixelRatio || 1, 2);
   // fit the island: about 10.5 units across and 10 high
   pixScale = Math.max(8, Math.min(WW / 2 / 10.6, WH / 2 / 10.2));
   if (pix) pix.resize(Math.max(32, Math.round(WW / 2)), Math.max(32, Math.round(WH / 2)));
-  smCv.width = Math.max(64, Math.round(WW * dpr * smScale)); smCv.height = Math.max(64, Math.round(WH * dpr * smScale));
-  SM.dist = Math.max(20, 4.8 / (.21 * WW / WH));
+  dirCv.width = Math.max(32, Math.round(WW / 2)); dirCv.height = Math.max(32, Math.round(WH / 2));
   drawStars();
 }
 // pixel look's sky: dithered stars on a canvas at the same art-pixel size
@@ -664,23 +590,54 @@ const N = { x: 0, z: 0, y: 0, dir: 0, yaw: 0, lean: 0, bob: 0 };   // where she 
 function placeNova() {
   if (!nova) return;
   const top = Math.max(topAt(Math.floor(N.x + .5), Math.floor(N.z + .5)), topAt(Math.round(N.x), Math.round(N.z)));
-  const P = [N.x - 2.5, top + .62 + N.y, N.z - 2.5];
-  const s = project(P);
-  // her art pixels: 2 CSS px in the pixel look; scaled by distance in the smooth look
-  const unit = cam.look === "pixel" ? pixScale * 2 : s[2];
-  const k = cam.look === "pixel" ? 2 : Math.max(1, unit / 26), ua = unit / k;   // art px per world unit
+  const s2 = project([N.x - 2.5, top + .62 + N.y, N.z - 2.5]);
+  // her art pixels are 2 CSS px, the same as the island's
+  const ua = pixScale;   // art px per world unit
   const wantH = Math.round(ua * 2.3), wantW = Math.round(ua * 1.9);
   if (Math.abs(wantH - NOVA_ART.h) > 2) { NOVA_ART.h = wantH; NOVA_ART.w = wantW; nova.gl.resize(wantW, wantH); }
   nova.view = NOVA_ART.h / (ua * .54);
-  const W = NOVA_ART.w * k, H = NOVA_ART.h * k;
+  const W = NOVA_ART.w * 2, H = NOVA_ART.h * 2;
   nova.canvas.style.width = W + "px"; nova.canvas.style.height = H + "px";
-  novaHost.style.transform = `translate(${(s[0] - W / 2).toFixed(1)}px, ${(s[1] - H * .56).toFixed(1)}px)`;
-  // she faces the way she's going, as seen from the camera
-  const B = cam.look === "pixel" ? pixCam() : smCam(), [dx, dz] = [Math.cos(N.yaw), -Math.sin(N.yaw)];
-  const f = [dx, 0, dz];
-  nova.yaw = -Math.atan2(v3.dot(f, B.R), -v3.dot(f, B.F));
+  novaHost.style.transform = `translate(${(s2[0] - W / 2).toFixed(1)}px, ${(s2[1] - H * .56).toFixed(1)}px)`;
+  // She is drawn to be seen from the front (her ring is a flat disc behind her head), so she only ever turns a little,
+  // to the left or right of the screen, as when she roams. Turned further she showed her side and back.
+  const B = pixCam(), f = [Math.cos(N.yaw), 0, -Math.sin(N.yaw)], want = v3.dot(f, B.R) >= 0 ? -.3 : .3;
+  nova.yaw += (want - nova.yaw) * .18;
   nova.sway = N.lean;
 }
+// the purple arrow on the tile ahead of her, pointing the way she faces: where her next move() goes (it turns as
+// she turns). One tile out, it stays clear of her body whichever way she faces.
+const dirCv = $("dirCv");
+function drawHeading() {
+  const g = dirCv.getContext("2d"), w = dirCv.width, h = dirCv.height;
+  g.clearRect(0, 0, w, h);
+  if (N.hideArrow) return;
+  const f = [Math.cos(N.yaw), 0, -Math.sin(N.yaw)];
+  const ax = Math.round(N.x + f[0]), az = Math.round(N.z + f[2]);
+  const top = (cell(ax, az) ? topAt(ax, az) : topAt(Math.round(N.x), Math.round(N.z))) + .012;
+  // a symmetric arrow drawn on screen (in art px), centred on the next tile and pointing along her heading as the
+  // island shows it (drawn flat on the ground, the slanted view squashed it into a lopsided flag)
+  const at = (a) => { const q = project([N.x - 2.5 + f[0] * a, top, N.z - 2.5 + f[2] * a]); return [q[0] / 2, q[1] / 2]; };
+  const C = at(.95), A = at(1.25), len = Math.hypot(A[0] - C[0], A[1] - C[1]) || 1, d = [(A[0] - C[0]) / len, (A[1] - C[1]) / len], n = [-d[1], d[0]];
+  const P = (u, v) => [C[0] + d[0] * u + n[0] * v, C[1] + d[1] * u + n[1] * v];
+  // a shaft and a head (an arrow like this one: →), which reads at any angle at this size
+  const s0 = P(-8, -1.1), s1 = P(-8, 1.1), s2 = P(3, 1.1), s3 = P(3, -1.1), tip = P(9, 0), h1 = P(2, 4.6), h2 = P(2, -4.6);
+  const tris = [[s0, s1, s2], [s0, s2, s3], [tip, h1, h2]];
+  const xs = [s0, s1, tip, h1, h2].map((p) => p[0]), ys = [s0, s1, tip, h1, h2].map((p) => p[1]);
+  const x0 = Math.floor(Math.min(...xs)) - 2, x1 = Math.ceil(Math.max(...xs)) + 2, y0 = Math.floor(Math.min(...ys)) - 2, y1 = Math.ceil(Math.max(...ys)) + 2;
+  const inTri = (px, py, [a, b, c]) => { const d = (p, q, r2) => (p[0] - r2[0]) * (q[1] - r2[1]) - (q[0] - r2[0]) * (p[1] - r2[1]);
+    const P = [px, py], d1 = d(P, a, b), d2 = d(P, b, c), d3 = d(P, c, a); return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0)); };
+  const W = x1 - x0 + 1, mask = new Uint8Array(W * (y1 - y0 + 1));
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (tris.some((t) => inTri(x + .5, y + .5, t))) mask[(y - y0) * W + (x - x0)] = 1;
+  const on = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1 && mask[(y - y0) * W + (x - x0)];
+  const glow = .5 + .5 * Math.sin(time * 3);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    if (on(x, y)) { g.fillStyle = on(x, y - 1) ? (glow > .5 ? "#cba2ff" : "#a066f0") : "#f3e6ff"; g.fillRect(x, y, 1, 1); }
+    else if (on(x + 1, y) || on(x - 1, y) || on(x, y + 1) || on(x, y - 1)) { g.fillStyle = "#2e0f5c"; g.fillRect(x, y, 1, 1); }
+  }
+}
+// NOVA's moods, but floating: her "happy" bob is a hop, so it is swapped for her calm float
+function moodOf(n, name) { n.setMood(name); if (n.m.hop) n.m = { ...n.m, hop: false, bob: 1.6, amp: .05 }; }
 
 // ================================================================ drawing
 const bitsShown = PUZZLE.bits.map(() => ({ s: 1, lift: 0 }));
@@ -691,20 +648,10 @@ function bitVec(i) {
 }
 function novaVec() { const top = topAt(Math.round(N.x), Math.round(N.z)); return [N.x - 2.5, top, N.z - 2.5, 1 - Math.min(1, N.y * 2)]; }
 function draw() {
-  const u = { uTime: time, uBitA: bitVec(0), uBitB: bitVec(1), uNova: novaVec() };
-  if (cam.look === "pixel") {
-    const B = pixCam();
-    pix.draw({ ...u, uCT: PIX_TARGET, uCR: B.R, uCU: B.U, uCF: B.F, uScale: pixScale },
-      { uTime: time, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: .5, uFlat: 0, uPlume: [0, 0, 0, 0] });
-  } else {
-    const { gl, pr, L } = sm, C = smCam();
-    gl.viewport(0, 0, smCv.width, smCv.height); gl.useProgram(pr);
-    gl.uniform2f(L("uRes"), smCv.width, smCv.height); gl.uniform1f(L("uTime"), time); gl.uniform1f(L("uFov"), SM.fov);
-    gl.uniform3fv(L("uCam"), C.pos); gl.uniform3fv(L("uCR"), C.R); gl.uniform3fv(L("uCU"), C.U); gl.uniform3fv(L("uCF"), C.F);
-    gl.uniform4fv(L("uBitA"), u.uBitA); gl.uniform4fv(L("uBitB"), u.uBitB); gl.uniform4fv(L("uNova"), u.uNova);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
-  }
-  placeNova();
+  const B = pixCam();
+  pix.draw({ uTime: time, uBitA: bitVec(0), uBitB: bitVec(1), uNova: novaVec(), uCT: PIX_TARGET, uCR: B.R, uCU: B.U, uCF: B.F, uScale: pixScale },
+    { uTime: time, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: .5, uFlat: 0, uPlume: [0, 0, 0, 0] });
+  placeNova(); drawHeading();
 }
 
 // ================================================================ playing the run back
@@ -717,9 +664,9 @@ function stepTweens(dt) {
   tweens = tweens.filter((tw) => { tw.t = Math.min(tw.ms, tw.t + dt * 1000); tw.fn(tw.ms ? tw.t / tw.ms : 1); if (tw.t >= tw.ms) { tw.done(); return false; } return true; });
 }
 function resetWorld() {
-  Object.assign(N, { x: PUZZLE.start.x, z: PUZZLE.start.z, y: 0, dir: PUZZLE.start.dir, yaw: PUZZLE.start.dir * Math.PI / 2, lean: 0 });
+  Object.assign(N, { x: PUZZLE.start.x, z: PUZZLE.start.z, y: 0, dir: PUZZLE.start.dir, yaw: PUZZLE.start.dir * Math.PI / 2, lean: 0, hideArrow: false });
   bitsShown.forEach((b) => Object.assign(b, { s: 1, lift: 0 }));
-  setCount(0); nova?.setMood("idle"); cam.spin = 0;
+  setCount(0); if (nova) moodOf(nova, "idle"); cam.spin = 0;
 }
 function setCount(n, pop) { $("count").textContent = `${n}/${PUZZLE.bits.length}`; if (pop) { const c = $("counter"); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); } }
 function lineHL(line, bad) {
@@ -736,7 +683,7 @@ async function play(ev) {
     lineHL(e.line);
     if (e.kind === "move") {
       const [x0, z0] = e.from, [x1, z1] = e.to;
-      await tween(470, (k) => { const q = easeIO(k); N.x = x0 + (x1 - x0) * q; N.z = z0 + (z1 - z0) * q; N.y = Math.sin(k * Math.PI) * .12; N.lean = Math.sin(k * Math.PI) * -.25; });
+      await tween(470, (k) => { const q = easeIO(k); N.x = x0 + (x1 - x0) * q; N.z = z0 + (z1 - z0) * q; N.lean = Math.sin(k * Math.PI) * -.18; });
     } else if (e.kind === "turn") {
       const a0 = N.yaw, a1 = a0 + Math.PI / 2;
       await tween(320, (k) => { N.yaw = a0 + (a1 - a0) * easeIO(k); });
@@ -808,8 +755,8 @@ async function runCode() {
     lineHL(res.error.line, true); if (res.error.kind !== "Blocked") nova.setMood("sad");
     const [h, p] = explain(res.error, res); showCard("bad", `<h3>${h}</h3><p>${p}</p>`);
   } else if (res.got === PUZZLE.bits.length) {
-    lineHL(0); nova.setMood("happy");
-    tween(3600, (k) => { cam.spin = easeIO(k) * Math.PI * 2; });
+    lineHL(0); moodOf(nova, "happy");
+    N.hideArrow = true; tween(3600, (k) => { cam.spin = easeIO(k) * Math.PI * 2; });
     showCard("win", `<h3>Both Bits collected!</h3><p>NOVA did exactly what you wrote, in exactly the order you wrote it. That's all code is: steps, in order.</p>
       <div class="foot"><span class="earn"><span class="coin">B</span>+10 Bits</span><button class="link" type="button" id="again">Play again</button></div>`);
     $("again").onclick = () => { hideCard(); resetWorld(); };
@@ -897,22 +844,46 @@ function drawPortal(back, front, st, x, y, rimSide) {
   for (let i = 0; i < 128 * 128; i++) { const o = i * 4; if ((i % 128 < 60 ? -1 : 1) !== rimSide || D[o] !== 30 || D[o + 1] !== 8 || (i >> 7) >= yGround) D[o + 3] = 0; }
   pg.putImageData(d, 0, 0); front.drawImage(pcv, Math.round(x - 60), Math.round(y - 70));
 }
-// the row of ground tiles NOVA stands on (art px); hi lights one tile
+// The row of tiles NOVA stands on, seen straight from the side: the island's own tiles (same rounded blocks, grass
+// band, earth strata, palettes, dithering and outlines), drawn once by the pixel pipeline and kept as two pictures:
+// plain, and with the second tile lit (where move() takes her).
 const TILES = [80, 128, 176], GY = 104, TW = 48;
-function drawGround(g, hi = -1) {
-  const h = TW / 2;
-  TILES.forEach((cx, i) => {
-    const x0 = cx - h;
-    g.fillStyle = "#3a2832"; g.fillRect(x0, GY + 4, TW, 20);
-    g.fillStyle = "#523844"; for (let y = GY + 6; y < GY + 20; y += 3) for (let x = x0 + ((y / 3) % 2) * 2; x < x0 + TW; x += 5) g.fillRect(x, y, 2, 1);
-    g.fillStyle = "#27191f"; g.fillRect(x0, GY + 19, TW, 5);
-    g.fillStyle = i === hi ? "#7cc34e" : "#4b8c3a"; g.fillRect(x0, GY, TW, 4);
-    g.fillStyle = i === hi ? "#c4f08a" : "#73b146"; g.fillRect(x0 + 1, GY, TW - 2, 1);
-    g.fillStyle = "#2f6a2c"; for (let x = x0 + 3; x < x0 + TW; x += 6) g.fillRect(x, GY + 4, 1, 2);
-    g.fillStyle = "#06060f"; g.fillRect(x0, GY, 1, 24);
+const GROUND_MODEL = `
+uniform vec2 uRes; uniform float uHi, uScale; uniform vec2 uOrigin;
+float gm;
+float map(vec3 p){
+  gm = 0.; float d = 1e5;
+  for (int k = 0; k < 3; k++) {
+    float nd = sdRBox(p - vec3(float(k) - 1., -.21, 0.), vec3(.485, .21, .485), .045);
+    if (nd < d) { d = nd; gm = p.y > -.11 ? 1. : 7.; }
+  }
+  return d; }
+vec3 nrm(vec3 p){ vec2 e = vec2(.002, -.002);
+  return normalize(e.xyy*map(p + e.xyy) + e.yyx*map(p + e.yyx) + e.yxy*map(p + e.yxy) + e.xxx*map(p + e.xxx)); }
+const vec3 L = normalize(vec3(-.35, .85, .5));
+out vec4 o;
+void main(){
+  vec3 ro = vec3((gl_FragCoord.xy - uOrigin)/uScale, 3.), rd = vec3(0., 0., -1.);
+  float t = 0.; bool hit = false;
+  for (int i = 0; i < 48; i++) { float d = map(ro + rd*t); if (d < .002) { hit = true; break; } t += d; if (t > 6.) break; }
+  if (!hit) { o = vec4(0.); return; }
+  vec3 p = ro + rd*t; float m = gm; vec3 n = nrm(p);
+  float sh = .14 + .62*max(dot(n, L), 0.) + .2*(.55 + .45*n.y);
+  if (m == 1.) { if (n.y > .6) sh += (vnoise(p*vec3(11., 1., 11.)) - .5)*.22; if (uHi >= 0. && abs(p.x - (uHi - 1.)) < .5) sh += .22; }
+  else sh += sin(p.y*20. + vnoise(p*3.)*5.)*.07 + (vnoise(p*13.) - .5)*.12;
+  o = vec4(clamp(sh, 0., 1.), m/16., clamp(t/6., 0., 1.), 0.);
+}`;
+const groundPics = [];
+function makeGround() {
+  const cv = document.createElement("canvas"); cv.width = 232; cv.height = 124;
+  const gl = new PixelGL(cv, { model: GROUND_MODEL, palettes: PIX_PALETTES, glow: PIX_GLOW, extra: ["#9fb0ff", "#ffffff", "#06060f"] });
+  [-1, 1].forEach((hi) => {
+    gl.draw({ uHi: hi, uScale: TW, uOrigin: [TILES[1], 124 - GY] }, { uTime: 0, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: .5, uFlat: 0, uPlume: [0, 0, 0, 0] });
+    const c = document.createElement("canvas"); c.width = 232; c.height = 124; c.getContext("2d").drawImage(cv, 0, 0); groundPics.push(c);
   });
-  g.fillStyle = "#06060f"; g.fillRect(TILES[0] - h, GY - 1, TW * TILES.length, 1); g.fillRect(TILES.at(-1) + h, GY, 1, 24);
+  gl.gl.getExtension("WEBGL_lose_context")?.loseContext();   // drawn once; give the context back
 }
+function drawGround(g, hi = -1) { if (groundPics.length) g.drawImage(groundPics[hi === 1 ? 1 : 0], 0, 0); }
 // a Bit: a gold coin, spinning (spin = angle), with NOVA's purple telekinesis round it (aura 0..1)
 function drawCoin(g, cx, cy, spin, aura, t) {
   cx = Math.round(cx); cy = Math.round(cy);
@@ -1106,7 +1077,7 @@ function sceneMove(t) {
   if (t >= MV.iS) o.clipR = BX;
   placeOnStage(S, x, ST.NY, o);
   introNova.yaw = -.35; introNova.sway = t > MV.mS && t < MV.mE ? -Math.sin((t - MV.mS) / (MV.mE - MV.mS) * Math.PI) * .25 : 0;
-  introNova.setMood(t > MV.bO - .2 && t < MV.iS ? "angry" : "idle");   // she frowns to tear the portal open, as in her warp
+  moodOf(introNova, t > MV.bO - .2 && t < MV.iS ? "angry" : "idle");   // she frowns to tear the portal open, as in her warp
   typing("cmd3", "bub3", "move()", t, MV.tS, MV.run);
   return t >= MV.end;
 }
@@ -1136,7 +1107,7 @@ function sceneCollect(t) {
   const wx = (cpx - W / 2) / H * n.view, wy = (H / 2 - cpy) / H * n.view + .1 - (n.lastBob || 0);
   n.idle.tk = tk; n.idle.bucketAt = [wx / Math.cos(n.yaw), wy, 0]; n.idle.bucket = 0;
   n.yaw = -.35; n.sway = 0;
-  n.setMood(t >= CL.pS + .1 ? "happy" : t >= CL.tk ? "angry" : "idle");
+  moodOf(n, t >= CL.pS + .1 ? "happy" : t >= CL.tk ? "angry" : "idle");
   typing("cmd4", "bub4", "collect()", t, CL.tS, CL.run);
   const got = t >= CL.pE ? 1 : 0, cn = $("scountN");
   if (cn.textContent !== String(got)) { cn.textContent = got; if (got) { const c = $("scount"); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); } }
@@ -1158,7 +1129,7 @@ function showPage(n) {
   $("nextP").hidden = page === PAGES - 1; $("startBtn").hidden = page !== PAGES - 1;
   // NOVA lives on whichever page shows her
   if (introNova) {
-    const n = introNova; n.idle.tk = 0; n.setMood(page === 0 ? "happy" : "idle"); n.sway = 0;
+    const n = introNova; n.idle.tk = 0; moodOf(n, page === 0 ? "happy" : "idle"); n.sway = 0;
     if (page === 0) { $("introNova").append(n.canvas); n.canvas.style.width = n.canvas.width * 2 + "px"; n.canvas.style.height = n.canvas.height * 2 + "px"; n.yaw = .25; }
   }
   if (!introRunning) { introRunning = true; requestAnimationFrame(introLoop); }
@@ -1171,7 +1142,7 @@ function closeIntro() {
 function initIntro() {
   teaSteps($("tea1steps"), "right"); teaSteps($("tea2steps"), "wrong");
   SCENES[1] = teaScene(1, "right"); SCENES[2] = teaScene(2, "wrong");
-  SMOVE = stage("stMove"); SCOL = stage("stCollect");
+  SMOVE = stage("stMove"); SCOL = stage("stCollect"); makeGround();
   // the same NOVA as in the game: her mooncloak body at the roaming size (art px), drawn 2x on the title page
   introNova = new PixelNova($("introNova"), { kind: "mooncloak", w: 107, h: 113, px: 2, view: 4.79, shadow: false });
   sizeIntro(); addEventListener("resize", sizeIntro);
@@ -1186,17 +1157,9 @@ addEventListener("keydown", (e) => { if ($("intro").classList.contains("gone")) 
 $("run").onclick = runCode;
 $("hint").onclick = () => (card.classList.contains("show") && card.classList.contains("hint") ? hideCard() : showHint());
 $("speed").onclick = () => { SPEED.k = SPEED.k === 1 ? 2 : 1; $("speed").textContent = SPEED.k + "×"; };
-function setLook(l) {
-  cam.look = l;
-  document.querySelectorAll("[data-look]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.look === l)));
-  pixCv.hidden = l !== "pixel"; $("starCv").hidden = l !== "pixel"; smCv.hidden = l !== "smooth";
-  if (l === "smooth" && !sm) sm = makeSmooth();
-  try { localStorage.setItem("operandi:playtime:look", l); } catch {}
-}
-document.querySelectorAll("[data-look]").forEach((b) => b.addEventListener("click", () => setLook(b.dataset.look)));
 new ResizeObserver(() => sizeViews()).observe(world);
 
-let frameMs = 16, adaptAt = performance.now() + 2500;
+let frameMs = 16;
 function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now;
   if (!$("intro").classList.contains("gone")) { requestAnimationFrame(loop); return; }   // the island rests while the intro is open
@@ -1204,26 +1167,20 @@ function loop(now) {
   stepTweens(dt);
   draw();
   frameMs = frameMs * .95 + dt * 1000 * .05;
-  if (cam.look === "smooth" && now > adaptAt) {   // the smooth look drops its resolution on slower devices
-    adaptAt = now + 1500;
-    const ns = frameMs > 26 ? Math.max(.4, smScale - .1) : frameMs < 14 && smScale < 1 ? smScale + .05 : smScale;
-    if (ns !== smScale) { smScale = ns; sizeViews(); }
-  }
   requestAnimationFrame(loop);
 }
 
 function start() {
   pix = new PixelGL(pixCv, { model: PIX_MODEL, palettes: PIX_PALETTES, glow: PIX_GLOW, extra: ["#9fb0ff", "#ffffff", "#06060f"] });
   nova = new PixelNova(novaHost, { kind: "mooncloak", w: NOVA_ART.w, h: NOVA_ART.h, px: 2, view: 3.6, shadow: false });
-  let saved = null, look = "pixel", seen = false;
-  try { saved = localStorage.getItem("operandi:playtime:draft"); look = localStorage.getItem("operandi:playtime:look") || "pixel"; seen = !!localStorage.getItem("operandi:playtime:intro"); } catch {}
+  let saved = null, seen = false;
+  try { saved = localStorage.getItem("operandi:playtime:draft"); seen = !!localStorage.getItem("operandi:playtime:intro"); } catch {}
   code.value = qs.get("code") ?? saved ?? STARTER;
-  setLook(qs.get("look") || look);
   sizeViews(); resetWorld(); paintCode();
   initIntro();
   if (seen || STILL) closeIntro(); else showPage(0);
   if (STILL) {
-    // test hook: ?still&look=pixel|smooth&t=3&code=...&run (plays the run instantly)&at=<event index>&spin=<0..1>&intro=<page>&it=<seconds into its scene>
+    // test hook: ?still&t=3&code=...&run (plays the run instantly)&at=<event index>&spin=<0..1>&intro=<page>&it=<seconds into its scene>
     time = +(qs.get("t") || 3);
     if (qs.has("intro")) { $("intro").classList.remove("gone"); stillT = +(qs.get("it") || 30); showPage(+qs.get("intro")); }
     if (qs.has("run")) {
@@ -1235,10 +1192,11 @@ function start() {
       });
       setCount(bitsShown.filter((b) => b.s < .05).length);
       const e = res.ev[Math.min(upto, res.ev.length) - 1];
+      if (upto >= res.ev.length && res.got === 2) N.hideArrow = true;
       if (res.error && upto >= res.ev.length) lineHL(res.error.line, true); else if (e) lineHL(e.line);
       if (upto >= res.ev.length) {
         if (res.error) { const [h, p] = explain(res.error, res); showCard("bad", `<h3>${h}</h3><p>${p}</p>`); nova.setMood("sad"); }
-        else if (res.got === 2) { nova.setMood("happy"); showCard("win", `<h3>Both Bits collected!</h3><p>NOVA did exactly what you wrote, in exactly the order you wrote it. That's all code is: steps, in order.</p><div class="foot"><span class="earn"><span class="coin">B</span>+10 Bits</span><button class="link" type="button">Play again</button></div>`); }
+        else if (res.got === 2) { moodOf(nova, "happy"); showCard("win", `<h3>Both Bits collected!</h3><p>NOVA did exactly what you wrote, in exactly the order you wrote it. That's all code is: steps, in order.</p><div class="foot"><span class="earn"><span class="coin">B</span>+10 Bits</span><button class="link" type="button">Play again</button></div>`); }
       }
     }
     if (qs.has("hint")) { hintAt = +qs.get("hint"); showHint(); }
