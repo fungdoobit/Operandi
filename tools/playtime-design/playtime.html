@@ -1,0 +1,906 @@
+<title>Operandi Playtime</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@1,9..144,800&display=swap">
+<style>
+/* Playtime mode, preview 1 (Isaac 2026-10-31, inspired by Swift Playgrounds): your Python moves NOVA round a floating
+   island. One puzzle, shown in two looks to choose from: hi-bit pixel art (the same pipeline as NOVA and GOLEM) and
+   smooth 3D. Both draw the same island from one shared 3D model. */
+:root {
+  --paper: #07081a; --pane: #10111f; --pane-2: #171829; --line: rgba(236, 234, 250, .12); --ink: #eeecf9; --ink-soft: rgba(238, 236, 249, .66);
+  --ink-faint: rgba(238, 236, 249, .4); --accent: #a9bcff; --gold: #ffd36e; --good: #7ee0a1; --bad: #ff9a8a;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: Inter, "Segoe UI", system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --font-fun: "Fraunces", Georgia, serif;
+  --spring: cubic-bezier(.34, 1.56, .64, 1); --ease: cubic-bezier(.22, 1, .36, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--font-body); -webkit-font-smoothing: antialiased; overflow: hidden; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, .mono { font-family: var(--font-mono); }
+
+.app { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; }
+.top { display: flex; align-items: center; gap: 14px; padding: 12px max(18px, env(safe-area-inset-right)) 12px max(18px, env(safe-area-inset-left)); border-bottom: 1px solid var(--line); background: var(--pane); }
+.brand { font: 800 19px/1 var(--font-display); letter-spacing: -.04em; color: var(--ink); text-decoration: none; }
+.mode { font: italic 800 15px/1 var(--font-fun); color: var(--gold); padding: 5px 10px 6px; border-radius: 999px; background: rgba(255, 211, 110, .1); }
+.crumb { color: var(--ink-faint); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumb b { color: var(--ink-soft); font-weight: 500; }
+.top .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.seg { display: flex; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .06); border: 1px solid var(--line); }
+.seg button { border: 0; background: none; padding: 7px 12px; border-radius: 999px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background-color .25s, color .25s; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #0b0c18; }
+.seglab { font-size: 12px; color: var(--ink-faint); }
+.ghost { border: 1px solid var(--line); background: rgba(255, 255, 255, .05); padding: 8px 13px; border-radius: 999px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.ghost:hover { background: rgba(255, 255, 255, .1); }
+.short { display: none; }
+
+.split { display: grid; grid-template-columns: minmax(330px, 38%) minmax(0, 1fr); min-height: 0; }
+.task, .world { min-width: 0; }
+/* left: the task and your code */
+.task { display: grid; grid-template-rows: auto 1fr auto; min-height: 0; background: var(--pane); border-right: 1px solid var(--line); }
+.brief { padding: 22px 24px 16px; border-bottom: 1px solid var(--line); }
+.brief h1 { margin: 0 0 8px; font: 800 26px/1.05 var(--font-display); letter-spacing: -.035em; }
+.brief p { margin: 0 0 10px; color: var(--ink-soft); }
+.brief ol { margin: 0; padding-left: 0; list-style: none; counter-reset: s; display: grid; gap: 4px; color: var(--ink-soft); font-size: 14px; }
+.brief li { counter-increment: s; display: grid; grid-template-columns: 12px 1fr; gap: 10px; }
+.brief li::before { content: counter(s); color: var(--ink-faint); width: 12px; font-variant-numeric: tabular-nums; }
+.brief code { color: var(--accent); font-size: .92em; }
+.editor { position: relative; min-height: 0; overflow: auto; background: var(--pane); }
+.ed { position: relative; display: grid; grid-template-columns: 44px 1fr; min-height: 100%; font: 15px/26px var(--font-mono); }
+.gutter { padding: 14px 10px 14px 0; text-align: right; color: #4a5070; user-select: none; }
+.gutter span { display: block; transition: color .2s; }
+.gutter span.on { color: var(--ink); }
+.codewrap { position: relative; }
+.codewrap pre, .codewrap textarea { margin: 0; padding: 14px 16px 60px 12px; font: inherit; white-space: pre; tab-size: 4; letter-spacing: 0; }
+.codewrap pre { position: absolute; inset: 0; pointer-events: none; color: #e3e8ff; }
+.codewrap textarea { position: relative; display: block; width: 100%; min-height: 100%; height: 100%; resize: none; border: 0; outline: 0; background: transparent; color: transparent; caret-color: var(--accent); overflow: hidden; }
+.codewrap textarea::selection { background: rgba(169, 188, 255, .25); }
+.hl { position: absolute; left: 0; right: 0; height: 26px; top: 14px; background: rgba(169, 188, 255, .1); border-left: 3px solid var(--accent); opacity: 0; transition: transform .25s var(--ease), opacity .2s, background-color .2s, border-color .2s; pointer-events: none; }
+.hl.on { opacity: 1; }
+.hl.bad { background: rgba(255, 120, 100, .14); border-color: var(--bad); }
+.tk-fn { color: #8fd1ff; } .tk-kw { color: #c9a6ff; } .tk-num { color: #ffc38a; } .tk-com { color: #5d6584; font-style: italic; } .tk-str { color: #b6e8a4; }
+.chips { display: flex; gap: 8px; align-items: center; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--pane-2); overflow-x: auto; }
+.chips .lab { font-size: 12px; color: var(--ink-faint); margin-right: 4px; white-space: nowrap; }
+.chip { flex: none; border: 1px solid var(--line); background: rgba(255, 255, 255, .06); padding: 8px 12px; border-radius: 10px; font: 500 14px/1 var(--font-mono); color: #8fd1ff; cursor: pointer; transition: transform .3s var(--spring), background-color .2s; }
+.chip:hover { background: rgba(255, 255, 255, .11); }
+.chip:active { transform: scale(.94); }
+
+/* right: the world */
+.world { position: relative; min-height: 0; overflow: hidden; background: radial-gradient(120% 90% at 50% 15%, #1b1747 0%, #0c0d2a 45%, #05061a 100%); }
+.world canvas.view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.world canvas.view[hidden] { display: none; }
+#pixCv { image-rendering: pixelated; }
+#starCv { image-rendering: pixelated; }
+.novaHost { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; }
+.novaHost canvas { image-rendering: pixelated; display: block; }
+.counter { position: absolute; left: 16px; top: 16px; display: flex; align-items: center; gap: 8px; padding: 7px 12px 7px 8px; border-radius: 999px; background: rgba(10, 11, 30, .7);
+  border: 1px solid var(--line); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font: 700 15px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.counter.pop { animation: pop .45s var(--spring); }
+@keyframes pop { 40% { transform: scale(1.18); } }
+.coin { width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff4b0, #ffd36e 45%, #c48a18 100%); box-shadow: inset 0 0 0 2px #b8862b; display: grid; place-items: center;
+  font: 800 11px/1 var(--font-display); color: #8a5a10; }
+.flycoin { position: fixed; left: 0; top: 0; z-index: 20; pointer-events: none; width: 22px; height: 22px; }
+.bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); pointer-events: none; }
+.bar > * { pointer-events: auto; }
+.run { border: 0; border-radius: 999px; background: var(--accent); color: #0b0c18; padding: 12px 22px; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 9px; cursor: pointer; transition: transform .35s var(--spring), background-color .2s; box-shadow: 0 8px 30px rgba(120, 140, 255, .35); }
+.run:hover { background: #c4d1ff; }
+.run:active { transform: scale(.95); }
+.run.stop { background: #ffb4a6; box-shadow: 0 8px 30px rgba(255, 120, 100, .3); }
+.run svg { width: 14px; height: 14px; }
+.round { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: rgba(10, 11, 30, .7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-weight: 700; font-size: 13px; cursor: pointer; }
+.pillbtn { border: 1px solid var(--line); background: rgba(10, 11, 30, .7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); padding: 10px 16px; border-radius: 999px; font-weight: 600; cursor: pointer; }
+/* the card that slides up over the world: hints, problems, the win */
+.card { position: absolute; left: 50%; bottom: 74px; width: min(440px, calc(100% - 32px)); translate: -50% 20px; opacity: 0; pointer-events: none; z-index: 5;
+  padding: 18px 20px 14px; border-radius: 18px; background: rgba(18, 19, 40, .94); border: 1px solid var(--line); box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+  transition: opacity .3s, translate .5s var(--spring); }
+.card.show { opacity: 1; translate: -50% 0; pointer-events: auto; }
+.card h3 { margin: 0 0 6px; font: 800 18px/1.2 var(--font-display); letter-spacing: -.02em; }
+.card p { margin: 0 0 8px; color: var(--ink-soft); }
+.card code { color: var(--accent); }
+.card.bad h3 { color: var(--bad); }
+.card.win h3 { color: var(--good); }
+.card .foot { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.card .dots { display: flex; gap: 5px; margin-right: auto; }
+.card .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.card .dots i.on { background: var(--ink); }
+.card .x { position: absolute; right: 10px; top: 10px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, .07); cursor: pointer; }
+.card .link { border: 0; background: none; color: var(--accent); font-weight: 600; cursor: pointer; padding: 6px 2px; }
+.card .earn { display: inline-flex; align-items: center; gap: 6px; font: 700 14px/1 var(--font-display); color: var(--gold); margin-right: auto; }
+
+/* the opening pages */
+.intro { position: fixed; inset: 0; z-index: 30; display: grid; grid-template-rows: 1fr auto; background: radial-gradient(110% 80% at 50% 0%, #17163d, #07081a 70%); transition: opacity .5s var(--ease), visibility 0s .5s; }
+.intro.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+.page { grid-area: 1 / 1; display: grid; place-items: center; align-content: center; gap: 26px; padding: 40px 24px; text-align: center; opacity: 0; translate: 30px 0; transition: opacity .45s var(--ease), translate .6s var(--ease); pointer-events: none; }
+.page.on { opacity: 1; translate: 0 0; pointer-events: auto; }
+.page.past { translate: -30px 0; }
+.page h2 { margin: 0; max-width: 20ch; font: 800 clamp(26px, 4vw, 40px)/1.08 var(--font-display); letter-spacing: -.035em; text-wrap: balance; }
+.page h2 em { font-family: var(--font-fun); color: var(--gold); }
+.page p { margin: 0; max-width: 44ch; color: var(--ink-soft); font-size: 17px; text-wrap: balance; }
+.big { font: italic 800 clamp(54px, 9vw, 96px)/1 var(--font-fun); color: var(--gold); letter-spacing: -.02em; }
+.introNova { width: 150px; height: 150px; display: grid; place-items: center; }
+.recipe { display: grid; gap: 8px; width: min(320px, 80vw); }
+.recipe div { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px; background: var(--pane-2); border: 1px solid var(--line); text-align: left; transition: transform .7s var(--spring), border-color .3s; }
+.recipe b { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .08); font-size: 12px; }
+.recipe .verdict { justify-content: center; border-style: dashed; color: var(--ink-soft); }
+.recipe.mixed .verdict { color: var(--bad); border-color: rgba(255, 154, 138, .4); }
+.recipe:not(.mixed) .verdict { color: var(--good); border-color: rgba(126, 224, 161, .4); }
+.say { display: grid; justify-items: center; gap: 10px; }
+.bubble { position: relative; padding: 8px 12px; border-radius: 10px; background: #2b3170; color: #e6e9ff; font-size: 13.5px; }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -6px; translate: -50% 0; border: 6px solid transparent; border-bottom: 0; border-top-color: #2b3170; }
+.cmd { font: 500 22px/1 var(--font-mono); color: #8fd1ff; padding: 10px 16px; border-radius: 10px; background: rgba(143, 209, 255, .1); }
+.cmd u { text-decoration: none; color: var(--gold); background: rgba(255, 211, 110, .14); border-radius: 4px; padding: 0 2px; }
+.pager { grid-row: 2; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 18px 18px calc(22px + env(safe-area-inset-bottom)); }
+.pager .round { background: rgba(255, 255, 255, .06); }
+.pager .count { min-width: 64px; text-align: center; color: var(--ink-faint); font-size: 13px; font-variant-numeric: tabular-nums; }
+.start { border: 0; border-radius: 999px; background: var(--gold); color: #2a1a00; padding: 12px 22px; font-weight: 700; cursor: pointer; }
+.skip { position: absolute; right: 18px; top: 16px; }
+
+.note { position: absolute; right: 16px; top: 16px; max-width: 250px; font-size: 12px; color: var(--ink-faint); text-align: right; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 820px) {
+  .crumb, .seglab, .long { display: none; }
+  .short { display: inline; }
+  .top { gap: 10px; }
+  .seg button { padding: 7px 11px; }
+  .split { grid-template-columns: minmax(0, 1fr); grid-template-rows: 46vh minmax(0, 1fr); }
+  .world { grid-row: 1; }
+  .task { grid-row: 2; border-right: 0; border-top: 1px solid var(--line); }
+  .brief { padding: 14px 18px 10px; }
+  .brief h1 { font-size: 21px; }
+  .brief ol { display: none; }
+  .note { display: none; }
+  .card { bottom: 62px; padding: 13px 16px 9px; font-size: 14px; }
+  .card h3 { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <a class="brand" href="#" aria-label="Operandi">operandi</a>
+    <span class="mode">Playtime</span>
+    <span class="crumb">Chapter 1: Commands · <b>Collect the Bits</b></span>
+    <div class="right">
+      <span class="seglab">Preview the look</span>
+      <div class="seg" role="group" aria-label="Look of the world">
+        <button type="button" data-look="pixel" aria-pressed="true">Pixel</button>
+        <button type="button" data-look="smooth" aria-pressed="false"><span class="long">Smooth </span>3D</button>
+      </div>
+      <button class="ghost" type="button" id="replayIntro" aria-label="Replay the intro"><span class="long">Intro</span><span class="short" aria-hidden="true">?</span></button>
+    </div>
+  </header>
+
+  <main class="split">
+    <section class="task" aria-label="The puzzle and your code">
+      <div class="brief">
+        <h1>Collect the Bits</h1>
+        <p><b>Goal:</b> guide NOVA to both Bits and collect them.</p>
+        <ol>
+          <li><span>Find the two Bits on the island.</span></li>
+          <li><span>Write the right mix of <code>move()</code>, <code>turn_left()</code> and <code>collect()</code>.</span></li>
+          <li><span>Press Run my code.</span></li>
+        </ol>
+      </div>
+      <div class="editor" id="editor">
+        <div class="ed">
+          <div class="gutter" id="gutter" aria-hidden="true"></div>
+          <div class="codewrap">
+            <div class="hl" id="hl"></div>
+            <pre id="pre" aria-hidden="true"></pre>
+            <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Your Python code"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="chips" role="group" aria-label="Commands to add">
+        <span class="lab">Tap to add</span>
+        <button class="chip" type="button" data-cmd="move()">move()</button>
+        <button class="chip" type="button" data-cmd="turn_left()">turn_left()</button>
+        <button class="chip" type="button" data-cmd="collect()">collect()</button>
+      </div>
+    </section>
+
+    <section class="world" id="world" aria-label="The island">
+      <canvas class="view" id="starCv" aria-hidden="true"></canvas>
+      <canvas class="view" id="pixCv" aria-hidden="true"></canvas>
+      <canvas class="view" id="smCv" aria-hidden="true" hidden></canvas>
+      <div class="novaHost" id="novaHost" aria-hidden="true"></div>
+      <div class="counter" id="counter"><span class="coin" aria-hidden="true">B</span><span id="count">0/2</span><span class="sr"> Bits collected</span></div>
+      <p class="note" id="note">Preview: this page reads the commands itself. The real mode will run your code in real Python.</p>
+      <div class="card" id="card" role="status" aria-live="polite"></div>
+      <div class="bar">
+        <button class="round" type="button" id="speed" aria-label="Speed">1×</button>
+        <button class="run" type="button" id="run"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg><span>Run my code</span></button>
+        <button class="pillbtn" type="button" id="hint">Hint</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="intro" id="intro" role="dialog" aria-modal="true" aria-label="Welcome to Playtime">
+  <button class="ghost skip" type="button" id="skipIntro">Skip</button>
+  <div class="page" data-p="0">
+    <div class="introNova" id="introNova"></div>
+    <div class="big">Playtime</div>
+    <p>Learn to think like a programmer by guiding NOVA round a floating island, with real Python.</p>
+  </div>
+  <div class="page" data-p="1">
+    <h2>Code is a list of steps. The computer follows them <em>exactly</em>, in order.</h2>
+    <div class="recipe" id="recipe">
+      <div data-i="0"><b>1</b>Fill the kettle</div>
+      <div data-i="1"><b>2</b>Boil it</div>
+      <div data-i="2"><b>3</b>Pour the tea</div>
+      <div class="verdict" id="verdict">A nice cup of tea</div>
+    </div>
+  </div>
+  <div class="page" data-p="2">
+    <h2>You'll write <em>commands</em>. Each one is a step for NOVA.</h2>
+    <div class="say"><span class="bubble">move() takes NOVA one tile forward</span><span class="cmd">move()</span></div>
+    <div class="say"><span class="bubble">collect() picks up a Bit she's standing on</span><span class="cmd">collect()</span></div>
+  </div>
+  <div class="page" data-p="3">
+    <h2>Notice the round brackets? They make the command <em>run</em>.</h2>
+    <div class="say"><span class="bubble">No spaces in a name: use an underscore</span><span class="cmd">turn<u>_</u>left<u>()</u></span></div>
+    <p>Without the <span class="mono">()</span>, Python just names the command and does nothing.</p>
+  </div>
+  <nav class="pager" aria-label="Intro pages">
+    <button class="round" type="button" id="prevP" aria-label="Previous page">‹</button>
+    <span class="count" id="pcount">1 of 4</span>
+    <button class="round" type="button" id="nextP" aria-label="Next page">›</button>
+    <button class="start" type="button" id="startBtn" hidden>Start coding</button>
+  </nav>
+</div>
+
+<script type="module">
+import { PixelNova } from "./js/pixel/nova-px.js";
+import { PixelGL, SDF_LIB } from "./js/pixel/pixel-gl.js";
+
+const $ = (id) => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+const STILL = qs.has("still");                       // test hook: fixed frames
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ================================================================ the puzzle
+// 6 x 6 cells. 0 none, 1 grass, 2 stone path, 3 water, 4 raised grass, 5 tall grass block.
+const MAP = [5,4,1,1,4,5, 4,1,2,2,2,1, 1,1,2,1,2,3, 1,1,2,1,2,3, 1,2,2,2,2,1, 0,1,1,1,1,1];
+// things standing on cells: 0 none, 1 tree, 2 rock, 3 bush
+const PROP = [1,0,0,0,0,1, 0,0,0,0,0,0, 3,1,0,0,0,0, 0,0,0,2,0,0, 0,0,0,0,0,0, 0,3,0,0,0,0];
+const TOP = { 0: 0, 1: 0, 2: .05, 3: -.12, 4: .5, 5: 1 };
+const PUZZLE = { start: { x: 1, z: 4, dir: 0 }, bits: [[4, 4], [4, 2]] };
+const DIRS = [[1, 0], [0, -1], [-1, 0], [0, 1]];          // east, north, west, south (north is away from the camera)
+const cell = (x, z) => (x < 0 || z < 0 || x > 5 || z > 5 ? 0 : MAP[z * 6 + x]);
+const prop = (x, z) => (x < 0 || z < 0 || x > 5 || z > 5 ? 0 : PROP[z * 6 + x]);
+const topAt = (x, z) => TOP[cell(x, z)];
+const STARTER = "# NOVA follows these lines, top to bottom.\n";
+const HINTS = [
+  "Count the tiles. How many <code>move()</code> commands does NOVA need to reach the first Bit?",
+  "<code>collect()</code> only works when NOVA is standing on the Bit's tile.",
+  "After the first Bit, <code>turn_left()</code> points NOVA at the second one. Then count again.",
+];
+
+// ================================================================ a small reader for the preview
+// The real mode will run real Python (Pyodide, like the course). This preview reads the few forms the puzzle needs:
+// command calls, comments, for ... in range(n): and def name(): with indented blocks, with Python's own error messages.
+const BUILTIN = { move: 1, turn_left: 1, collect: 1 };
+class PyErr extends Error { constructor(kind, msg, line, extra = "") { super(msg); Object.assign(this, { kind, line, extra }); } }
+function suggest(name) {
+  const dist = (a, b) => { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[a.length][b.length]; };
+  const best = Object.keys(BUILTIN).map((k) => [k, dist(name.toLowerCase(), k)]).sort((a, b) => a[1] - b[1])[0];
+  return best[1] <= 2 ? best[0] : "";
+}
+function parse(src) {
+  const toks = [];
+  src.replace(/\t/g, "    ").split("\n").forEach((text, i) => {
+    const s = text.replace(/#.*$/, "").replace(/\s+$/, "");
+    if (s.trim()) toks.push({ line: i + 1, ind: s.length - s.trimStart().length, s: s.trim().replace(/;$/, "") });
+  });
+  let k = 0;
+  const block = (ind) => {
+    const out = [];
+    while (k < toks.length) {
+      const t = toks[k];
+      if (t.ind < ind) break;
+      if (t.ind > ind) throw new PyErr("IndentationError", out.at(-1)?.body ? "unindent does not match any outer indentation level" : "unexpected indent", t.line);
+      k++;
+      let m;
+      if ((m = t.s.match(/^for\s+[A-Za-z_]\w*\s+in\s+range\s*\(\s*(\d+)\s*\)\s*(:?)$/))) {
+        if (!m[2]) throw new PyErr("SyntaxError", "expected ':'", t.line);
+        out.push({ type: "for", n: +m[1], line: t.line, body: body(t, "for") });
+      } else if ((m = t.s.match(/^def\s+([A-Za-z_]\w*)\s*\(\s*\)\s*(:?)$/))) {
+        if (!m[2]) throw new PyErr("SyntaxError", "expected ':'", t.line);
+        out.push({ type: "def", name: m[1], line: t.line, body: body(t, "function definition") });
+      } else if ((m = t.s.match(/^([A-Za-z_]\w*)\s*\((.*)\)$/))) out.push({ type: "call", name: m[1], args: m[2].trim(), line: t.line });
+      else if (t.s === "pass") out.push({ type: "pass", line: t.line });
+      else if (/^[A-Za-z_]\w*$/.test(t.s)) out.push({ type: "bare", name: t.s, line: t.line });
+      else if (/\($/.test(t.s) || (t.s.split("(").length > t.s.split(")").length)) throw new PyErr("SyntaxError", "'(' was never closed", t.line);
+      else throw new PyErr("SyntaxError", "invalid syntax", t.line);
+    }
+    return out;
+  };
+  const body = (head, what) => {
+    const nx = toks[k];
+    if (!nx || nx.ind <= head.ind) throw new PyErr("IndentationError", `expected an indented block after '${what}' statement on line ${head.line}`, nx ? nx.line : head.line);
+    return block(nx.ind);
+  };
+  return block(0);
+}
+// Runs the program against the puzzle and writes down what NOVA does, step by step (each with its line).
+function execute(prog) {
+  const st = { x: PUZZLE.start.x, z: PUZZLE.start.z, dir: PUZZLE.start.dir, got: PUZZLE.bits.map(() => false) };
+  const ev = [], fns = {}; let steps = 0, depth = 0, error = null;
+  const run = (list) => {
+    for (const s of list) {
+      if (s.type === "def") { fns[s.name] = s; continue; }
+      if (s.type === "pass") continue;
+      if (s.type === "for") { for (let i = 0; i < s.n; i++) run(s.body); continue; }
+      if (s.type === "bare") {
+        if (BUILTIN[s.name] || fns[s.name]) { ev.push({ kind: "nudge", line: s.line, name: s.name }); continue; }
+        throw new PyErr("NameError", `name '${s.name}' is not defined`, s.line, suggest(s.name));
+      }
+      if (fns[s.name]) {
+        if (s.args) throw new PyErr("TypeError", `${s.name}() takes 0 positional arguments but 1 was given`, s.line);
+        if (++depth > 40) throw new PyErr("RecursionError", "maximum recursion depth exceeded", s.line);
+        run(fns[s.name].body); depth--; continue;
+      }
+      if (!BUILTIN[s.name]) throw new PyErr("NameError", `name '${s.name}' is not defined`, s.line, suggest(s.name));
+      if (s.args) throw new PyErr("TypeError", `${s.name}() takes 0 positional arguments but 1 was given`, s.line);
+      if (++steps > 200) throw new PyErr("RuntimeError", "NOVA stopped after 200 commands", s.line);
+      if (s.name === "move") {
+        const [dx, dz] = DIRS[st.dir], nx = st.x + dx, nz = st.z + dz, c = cell(nx, nz);
+        const why = c === 0 ? "edge" : c === 3 ? "water" : c >= 4 ? "wall" : prop(nx, nz) === 1 ? "tree" : prop(nx, nz) === 2 ? "rock" : prop(nx, nz) === 3 ? "bush" : "";
+        if (why) { ev.push({ kind: "bump", line: s.line, from: [st.x, st.z], dir: st.dir, why }); throw new PyErr("Blocked", why, s.line); }
+        ev.push({ kind: "move", line: s.line, from: [st.x, st.z], to: [nx, nz] }); st.x = nx; st.z = nz;
+      } else if (s.name === "turn_left") {
+        ev.push({ kind: "turn", line: s.line, from: st.dir, to: (st.dir + 1) % 4 }); st.dir = (st.dir + 1) % 4;
+      } else {
+        const b = PUZZLE.bits.findIndex(([bx, bz], i) => bx === st.x && bz === st.z && !st.got[i]);
+        if (b < 0) { ev.push({ kind: "miss", line: s.line, at: [st.x, st.z] }); throw new PyErr("Nothing", "no Bit here", s.line); }
+        st.got[b] = true; ev.push({ kind: "collect", line: s.line, bit: b });
+      }
+    }
+  };
+  try { run(prog); } catch (e) { if (e instanceof PyErr) error = e; else throw e; }
+  return { ev, error, got: st.got.filter(Boolean).length };
+}
+
+// ================================================================ the island, one 3D model for both looks
+const WORLD = `
+uniform float uTime; uniform vec4 uBitA, uBitB, uNova;
+const int MAPG[36] = int[36](${MAP.join(",")});
+const int PROPG[36] = int[36](${PROP.join(",")});
+float gm; float gCoin; float gFall;
+int cellAt(ivec2 c){ return (c.x < 0 || c.y < 0 || c.x > 5 || c.y > 5) ? 0 : MAPG[c.y*6 + c.x]; }
+int propAt(ivec2 c){ return (c.x < 0 || c.y < 0 || c.x > 5 || c.y > 5) ? 0 : PROPG[c.y*6 + c.x]; }
+float topOf(int t){ return t == 4 ? .5 : t == 5 ? 1. : t == 2 ? .05 : t == 3 ? -.12 : 0.; }
+void Un(inout float d, float nd, float m){ if (nd < d) { d = nd; gm = m; } }
+void tile(inout float d, vec3 p, ivec2 c){
+  int t = cellAt(c); if (t == 0) return;
+  float top = topOf(t), bot = -.62;
+  vec3 q = p - vec3(float(c.x) - 2.5, (top + bot)*.5, float(c.y) - 2.5);
+  float nd = sdRBox(q, vec3(.485, (top - bot)*.5, .485), .045);
+  float m = t == 2 ? 2. : t == 3 ? (p.y > top - .04 ? 4. : 7.) : (p.y > top - .13 ? 1. : 7.);
+  Un(d, nd, m);
+}
+void prop(inout float d, vec3 p, ivec2 c){
+  int k = propAt(c); if (k == 0) return;
+  vec3 q = p - vec3(float(c.x) - 2.5, topOf(cellAt(c)), float(c.y) - 2.5);
+  if (k == 1) {
+    Un(d, sdCapT(q, vec3(0.), vec3(0., .5, 0.), .1, .065), 6.);
+    float lv = length(q - vec3(0., .74, 0.)) - .36;
+    lv = smin(lv, length(q - vec3(.1, 1.02, -.04)) - .25, .14);
+    lv = smin(lv, length(q - vec3(-.16, .86, .12)) - .22, .1);
+    Un(d, lv + (vnoise(q*8.) - .5)*.07, 5.);
+  } else if (k == 2) {
+    vec3 r = q - vec3(0., .13, 0.); r.xz = R(.6)*r.xz;
+    Un(d, sdRBox(r, vec3(.24, .15, .2), .08) + (vnoise(q*9.) - .5)*.04, 8.);
+  } else {
+    float b = smin(length(q - vec3(-.08, .14, 0.)) - .2, length(q - vec3(.14, .11, .07)) - .15, .08);
+    Un(d, b + (vnoise(q*11.) - .5)*.05, 5.);
+  }
+}
+void coin(inout float d, vec3 p, vec4 b, float ph){
+  if (b.w < .01) return;
+  vec3 q = p - b.xyz; q.xz = R(uTime*2.2 + ph)*q.xz;
+  vec2 e = vec2(length(q.xy) - .2*b.w, abs(q.z) - .045*b.w);
+  float cd = min(max(e.x, e.y), 0.) + length(max(e, 0.)) - .02*b.w;
+  gCoin = min(gCoin, cd); Un(d, cd, 3.);
+}
+float map(vec3 p){
+  gm = 0.; float d = 1e5;
+  vec2 g = p.xz + 2.5; ivec2 c = ivec2(floor(g + .5)); ivec2 n = c + ivec2(g.x > float(c.x) ? 1 : -1, g.y > float(c.y) ? 1 : -1);
+  if (p.y < 2.4 && p.y > -1.) {
+    tile(d, p, c); tile(d, p, ivec2(n.x, c.y)); tile(d, p, ivec2(c.x, n.y)); tile(d, p, n);
+    prop(d, p, c); prop(d, p, ivec2(n.x, c.y)); prop(d, p, ivec2(c.x, n.y)); prop(d, p, n);
+  } else d = min(abs(p.y - 2.4), abs(p.y + 1.)) + .05;
+  // the rock underneath, tapering to a point
+  float y = -.5 - p.y, k = clamp(y/4.4, 0., 1.), hs = mix(2.95, .2, pow(k, .75));
+  vec2 bq = abs(p.xz) - hs + .45;
+  float body = (length(max(bq, 0.)) + min(max(bq.x, bq.y), 0.) - .45 + (vnoise(p*2.3)*.5 + vnoise(p*5.3)*.18)*k*1.3);
+  body = max(body, p.y + .52); body = max(body, -p.y - 5.);
+  Un(d, body*.6, y > 1.5 + vnoise(p*1.7)*.8 ? 8. : 7.);
+  // the waterfall pouring off the pool's open side
+  float wy = clamp(-p.y - .1, 0., 4.);
+  vec3 w = p - vec3(3.0 + .05 + wy*wy*.015, -1.95, 0.);
+  float wf = sdBox(w, vec3(.035 + wy*.012, 1.85, .93 - wy*.06));
+  gFall = min(gFall, length(p - vec3(3.1, -3.9, 0.)) - .4);
+  Un(d, wf, 4.);
+  // two little islands drifting behind
+  for (int i = 0; i < 2; i++) {
+    vec3 c0 = i == 0 ? vec3(-5.4, .2 + sin(uTime*.6)*.1, -2.6) : vec3(4.2, 1.5 + sin(uTime*.5 + 2.)*.12, -5.6);
+    vec3 q = p - c0;
+    if (length(q) > 2.) { d = min(d, length(q) - 1.6); continue; }
+    Un(d, sdRBox(q, vec3(.55, .1, .55), .09), 1.);
+    float u = length(q*vec3(1., 1.5, 1.) + vec3(0., .5, 0.)) - .58 + (vnoise(q*5.) - .5)*.1;
+    Un(d, max(u, q.y + .03), 7.);
+  }
+  coin(d, p, uBitA, 0.); coin(d, p, uBitB, 2.);
+  return d;
+}
+vec3 nrm(vec3 p){ vec2 e = vec2(.002, -.002);
+  return normalize(e.xyy*map(p + e.xyy) + e.yyx*map(p + e.yyx) + e.yxy*map(p + e.yxy) + e.xxx*map(p + e.xxx)); }
+float shadow(vec3 ro, vec3 rd){ float r = 1., t = .03;
+  for (int i = 0; i < 28; i++) { float h = map(ro + rd*t); r = min(r, 9.*h/t); t += clamp(h, .03, .3); if (r < .02 || t > 6.) break; } return clamp(r, 0., 1.); }
+float ao(vec3 p, vec3 n){ float o = 0., s = 1.; for (int i = 1; i <= 4; i++) { float h = .05*float(i); o += (h - map(p + n*h))*s; s *= .6; } return clamp(1. - 2.4*o, 0., 1.); }
+// surface detail shared by both looks: a brightness change for each material
+float detail(vec3 p, vec3 n, float m){
+  float v = 0.;
+  if (m == 1. && n.y > .6) v += (vnoise(p*vec3(11., 1., 11.)) - .5)*.22 + (vnoise(p*31.) - .5)*.1;
+  if (m == 2. && n.y > .6) { vec2 f = fract((p.xz + 3.)*2.); float s = min(min(f.x, 1. - f.x), min(f.y, 1. - f.y)); v += s < .07 ? -.28 : (vnoise(p*14.) - .5)*.12; }
+  if (m == 7.) v += sin(p.y*20. + vnoise(p*3.)*5.)*.07 + (vnoise(p*13.) - .5)*.12;
+  if (m == 8.) v += (vnoise(p*7.) - .5)*.25;
+  if (m == 5.) v += (vnoise(p*16.) - .5)*.25;
+  return v;
+}
+// NOVA's soft shadow on the ground under her
+float novaShade(vec3 p, vec3 n){ if (uNova.w <= 0. || n.y < .5) return 1.; float r = length(p.xz - uNova.xz); return 1. - .5*uNova.w*smoothstep(.34, .08, r); }
+`;
+
+// Look 1: hi-bit pixel art. This is the "model" pass of NOVA's and GOLEM's renderer (pixel-gl.js): per art pixel it
+// reports light, material and depth, and the shared pixel pass turns that into ramps, dithering and outlines.
+const PIX_MODEL = `
+uniform vec2 uRes;
+${WORLD}
+uniform vec3 uCT, uCR, uCU, uCF; uniform float uScale;
+const vec3 L = normalize(vec3(-.35, .85, .5));
+out vec4 o;
+void main(){
+  vec2 q = (gl_FragCoord.xy - .5*uRes)/uScale;
+  vec3 ro = uCT + uCR*q.x + uCU*q.y - uCF*24., rd = uCF;
+  gCoin = 1e5; gFall = 1e5;
+  float t = 0.; bool hit = false;
+  for (int i = 0; i < 170; i++) { float d = map(ro + rd*t); if (d < .0025) { hit = true; break; } t += max(d*.85, .003); if (t > 48.) break; }
+  float glow = exp(-max(gCoin, 0.)*9.), mist = exp(-max(gFall, 0.)*1.6);
+  if (!hit) { o = vec4(mist*.75, 0., 0., glow*.9); return; }
+  vec3 p = ro + rd*t; float m = gm; vec3 n = nrm(p);
+  float dif = max(dot(n, L), 0.)*shadow(p + n*.01, L);
+  float sh = .14 + .62*dif + .24*ao(p, n)*(.55 + .45*n.y) + detail(p, n, m);
+  if (m == 4.) sh = n.y > .5 ? .45 + (vnoise(vec3(p.xz*6., uTime*1.2)) - .5)*.4 + dif*.25 : .4 + .5*vnoise(vec3(p.z*9., p.y*1.5 + uTime*3., 0.));
+  if (m == 3.) { vec4 b = length(p - uBitA.xyz) < length(p - uBitB.xyz) ? uBitA : uBitB; float rr = length(p - b.xyz)/max(b.w, .01);
+    sh = .36 + .5*dif + (rr > .16 ? .22 : rr < .07 ? .14 : 0.); }
+  sh *= novaShade(p, n);
+  o = vec4(clamp(sh, 0., 1.), m/16., clamp(t/48., 0., 1.), 0.);
+}`;
+const PIX_PALETTES = [
+  ["#16301f", "#22492a", "#336a32", "#4b8c3a", "#73b146", "#b2df62"],   // 1 grass
+  ["#26242f", "#3c3946", "#57535f", "#77727e", "#9c97a0", "#cfcac8"],   // 2 stone
+  ["#5a3a0a", "#8a5a10", "#c48a18", "#eab42a", "#ffd75a", "#fff4b0"],   // 3 Bit gold
+  ["#0b1a48", "#11307a", "#1b4bb0", "#2e72de", "#5ea2f2", "#c4e8ff"],   // 4 water
+  ["#0f2a1d", "#173f28", "#235a31", "#367c3a", "#56a046", "#94cc62"],   // 5 leaves
+  ["#24160f", "#3a2417", "#53351f", "#70492b", "#90613b", "#b48356"],   // 6 wood
+  ["#1b1220", "#2b1b2a", "#422a34", "#5f3c40", "#81564d", "#a97a63"],   // 7 earth
+  ["#161624", "#252538", "#38384f", "#4f4f69", "#6d6d88", "#9696b0"],   // 8 rock
+];
+const PIX_GLOW = ["#5a3c0e", "#c08a20", "#ffe08a", "#14306e", "#3a6ad0", "#a8d6ff"];
+
+// Look 2: smooth 3D. The same island, lit softly, with a starry sky, water that shines and a little haze.
+const SMOOTH_FS = `#version 300 es
+precision highp float;
+uniform vec2 uRes; uniform vec3 uCam, uCR, uCU, uCF; uniform float uFov;
+${SDF_LIB}
+${WORLD}
+out vec4 o;
+const vec3 L = normalize(vec3(-.4, .8, .45));
+vec3 sky(vec3 rd){
+  vec3 c = mix(vec3(.016, .016, .06), vec3(.003, .004, .018), smoothstep(-.2, .7, rd.y));
+  c += vec3(.12, .05, .2)*pow(vnoise(rd*3.5 + 2.)*vnoise(rd*7.), 2.)*1.2;
+  vec3 s = floor(rd*260.); float h = fract(sin(dot(s, vec3(12.9898, 78.233, 37.719)))*43758.5453);
+  if (h > .994) c += vec3(.9, .9, 1.)*smoothstep(.22, .0, length(fract(rd*260.) - .5))*(.6 + .4*sin(uTime*2. + h*90.));
+  return c; }
+vec3 alb(float m, vec3 p){
+  return m == 1. ? vec3(.2, .55, .13) : m == 2. ? vec3(.58, .55, .56) : m == 3. ? vec3(1., .72, .18) : m == 4. ? vec3(.05, .26, .7)
+       : m == 5. ? vec3(.11, .4, .15) : m == 6. ? vec3(.36, .22, .12) : m == 7. ? vec3(.4, .23, .2) : vec3(.3, .3, .4); }
+vec3 aces(vec3 x){ return clamp((x*(2.51*x + .03))/(x*(2.43*x + .59) + .14), 0., 1.); }
+void main(){
+  vec2 q = (gl_FragCoord.xy - .5*uRes)/uRes.y;
+  vec3 rd = normalize(uCF + (q.x*uCR + q.y*uCU)*uFov), ro = uCam;
+  gCoin = 1e5; gFall = 1e5;
+  float t = 0.; bool hit = false;
+  for (int i = 0; i < 180; i++) { float d = map(ro + rd*t); if (d < .0012*t) { hit = true; break; } t += d*.9; if (t > 60.) break; }
+  vec3 col = sky(rd);
+  if (hit) {
+    vec3 p = ro + rd*t; float m = gm; vec3 n = nrm(p);
+    float sh = shadow(p + n*.01, L), a = ao(p, n);
+    vec3 base = alb(m, p)*(1. + detail(p, n, m)*1.4);
+    vec3 lit = base*(vec3(1.5, 1.3, 1.08)*max(dot(n, L), 0.)*sh + vec3(.17, .2, .4)*(.45 + .55*n.y)*a + vec3(.16, .08, .05)*max(-n.y, 0.)*a);
+    if (m == 4.) {
+      float fr = pow(1. - max(dot(n, -rd), 0.), 4.);
+      vec3 r = reflect(rd, n);
+      lit = mix(base*(.35 + .5*sh), sky(r)*1.6 + vec3(.3, .4, .7)*.2, .45 + .5*fr) + vec3(1.)*pow(max(dot(r, L), 0.), 60.)*sh;
+      if (n.y < .5) lit = mix(vec3(.25, .5, .9), vec3(.85, .95, 1.), vnoise(vec3(p.z*9., p.y*1.5 + uTime*3., 0.)))*.9;
+    }
+    if (m == 3.) lit = base*(.45 + .7*max(dot(n, L), 0.)) + vec3(.5, .32, .05)*.3 + vec3(1.)*pow(max(dot(reflect(rd, n), L), 0.), 30.)*.6;
+    lit *= novaShade(p, n);
+    col = mix(lit, col, smoothstep(26., 50., t));
+  }
+  col += vec3(1., .72, .25)*exp(-max(gCoin, 0.)*14.)*.22 + vec3(.5, .7, 1.)*exp(-max(gFall, 0.)*2.2)*.22;
+  o = vec4(pow(aces(col*1.05), vec3(1./2.2)), 1.);
+}`;
+
+// ================================================================ cameras
+const v3 = { sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  norm: (a) => { const l = Math.hypot(...a) || 1; return a.map((x) => x / l); }, add: (a, b) => a.map((x, i) => x + b[i]), mul: (a, s) => a.map((x) => x * s) };
+function basisFrom(fwd) { const F = v3.norm(fwd), Rr = v3.norm(v3.cross(F, [0, 1, 0])); return { F, R: Rr, U: v3.cross(Rr, F) }; }
+const cam = { yaw: Math.PI / 4, spin: 0, look: "pixel" };   // yaw: where the camera sits round the island (front-right)
+function camBasis(pitch) { const y = cam.yaw + cam.spin; return basisFrom([-Math.sin(y) * Math.cos(pitch), -Math.sin(pitch), -Math.cos(y) * Math.cos(pitch)]); }
+const world = $("world");
+let WW = 1, WH = 1, dpr = 1;
+
+// pixel look: orthographic, 2 CSS px per art pixel, the island fitted to the pane
+const pixCv = $("pixCv");
+let pix = null, pixScale = 30;
+const PIX_TARGET = [0, -1.15, 0];
+function pixCam() { return camBasis(Math.PI / 6); }
+function pixProject(p) {
+  const B = pixCam(), d = v3.sub(p, PIX_TARGET);
+  return [WW / 2 + v3.dot(d, B.R) * pixScale * 2, WH / 2 - v3.dot(d, B.U) * pixScale * 2];
+}
+// smooth look: perspective
+const smCv = $("smCv");
+let sm = null, smScale = .75;
+const SM = { target: [0, -1.3, 0], dist: 22, fov: .42 };
+function smCam() { const B = camBasis(.5); return { ...B, pos: v3.sub(SM.target, v3.mul(B.F, SM.dist)) }; }
+function smProject(p) {
+  const C = smCam(), d = v3.sub(p, C.pos), z = v3.dot(d, C.F);
+  return [WW / 2 + (v3.dot(d, C.R) / (z * SM.fov)) * WH, WH / 2 - (v3.dot(d, C.U) / (z * SM.fov)) * WH, WH / (z * SM.fov)];
+}
+const project = (p) => (cam.look === "pixel" ? pixProject(p) : smProject(p));
+
+function makeSmooth() {
+  const gl = smCv.getContext("webgl2", { antialias: false, alpha: false });
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  const pr = gl.createProgram();
+  gl.attachShader(pr, sh(gl.VERTEX_SHADER, "#version 300 es\nin vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }"));
+  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, SMOOTH_FS)); gl.bindAttribLocation(pr, 0, "a"); gl.linkProgram(pr);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  const loc = {}; const L = (n) => (n in loc ? loc[n] : (loc[n] = gl.getUniformLocation(pr, n)));
+  return { gl, pr, L };
+}
+function sizeViews() {
+  const r = world.getBoundingClientRect(); WW = r.width; WH = r.height; dpr = Math.min(devicePixelRatio || 1, 2);
+  // fit the island: about 10.5 units across and 10 high
+  pixScale = Math.max(8, Math.min(WW / 2 / 10.6, WH / 2 / 10.2));
+  if (pix) pix.resize(Math.max(32, Math.round(WW / 2)), Math.max(32, Math.round(WH / 2)));
+  smCv.width = Math.max(64, Math.round(WW * dpr * smScale)); smCv.height = Math.max(64, Math.round(WH * dpr * smScale));
+  SM.dist = Math.max(20, 4.8 / (.21 * WW / WH));
+  drawStars();
+}
+// pixel look's sky: dithered stars on a canvas at the same art-pixel size
+function drawStars() {
+  const c = $("starCv"), w = Math.max(32, Math.round(WW / 2)), h = Math.max(32, Math.round(WH / 2));
+  c.width = w; c.height = h; const g = c.getContext("2d"); g.clearRect(0, 0, w, h);
+  let s = 7; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < w * h / 260; i++) { const x = rnd() * w | 0, y = rnd() * h | 0, b = rnd(); g.fillStyle = b > .9 ? "#fff6d8" : b > .6 ? "#b8c0ff" : "#5d5fa0"; g.fillRect(x, y, 1, 1);
+    if (b > .97) { g.fillStyle = "#6a6cb0"; g.fillRect(x - 1, y, 1, 1); g.fillRect(x + 1, y, 1, 1); g.fillRect(x, y - 1, 1, 1); g.fillRect(x, y + 1, 1, 1); } }
+}
+
+// ================================================================ NOVA
+const novaHost = $("novaHost");
+const NOVA_ART = { w: 64, h: 76 };
+let nova = null;
+const N = { x: 0, z: 0, y: 0, dir: 0, yaw: 0, lean: 0, bob: 0 };   // where she is (cell units, can be between cells)
+function placeNova() {
+  if (!nova) return;
+  const top = Math.max(topAt(Math.floor(N.x + .5), Math.floor(N.z + .5)), topAt(Math.round(N.x), Math.round(N.z)));
+  const P = [N.x - 2.5, top + .62 + N.y, N.z - 2.5];
+  const s = project(P);
+  // her art pixels: 2 CSS px in the pixel look; scaled by distance in the smooth look
+  const unit = cam.look === "pixel" ? pixScale * 2 : s[2];
+  const k = cam.look === "pixel" ? 2 : Math.max(1, unit / 26), ua = unit / k;   // art px per world unit
+  const wantH = Math.round(ua * 2.3), wantW = Math.round(ua * 1.9);
+  if (Math.abs(wantH - NOVA_ART.h) > 2) { NOVA_ART.h = wantH; NOVA_ART.w = wantW; nova.gl.resize(wantW, wantH); }
+  nova.view = NOVA_ART.h / (ua * .54);
+  const W = NOVA_ART.w * k, H = NOVA_ART.h * k;
+  nova.canvas.style.width = W + "px"; nova.canvas.style.height = H + "px";
+  novaHost.style.transform = `translate(${(s[0] - W / 2).toFixed(1)}px, ${(s[1] - H * .56).toFixed(1)}px)`;
+  // she faces the way she's going, as seen from the camera
+  const B = cam.look === "pixel" ? pixCam() : smCam(), [dx, dz] = [Math.cos(N.yaw), -Math.sin(N.yaw)];
+  const f = [dx, 0, dz];
+  nova.yaw = -Math.atan2(v3.dot(f, B.R), -v3.dot(f, B.F));
+  nova.sway = N.lean;
+}
+
+// ================================================================ drawing
+const bitsShown = PUZZLE.bits.map(() => ({ s: 1, lift: 0 }));
+let time = 0, last = performance.now();
+function bitVec(i) {
+  const [bx, bz] = PUZZLE.bits[i], b = bitsShown[i];
+  return [bx - 2.5, topAt(bx, bz) + .46 + Math.sin(time * 2 + i) * .05 + b.lift, bz - 2.5, b.s];
+}
+function novaVec() { const top = topAt(Math.round(N.x), Math.round(N.z)); return [N.x - 2.5, top, N.z - 2.5, 1 - Math.min(1, N.y * 2)]; }
+function draw() {
+  const u = { uTime: time, uBitA: bitVec(0), uBitB: bitVec(1), uNova: novaVec() };
+  if (cam.look === "pixel") {
+    const B = pixCam();
+    pix.draw({ ...u, uCT: PIX_TARGET, uCR: B.R, uCU: B.U, uCF: B.F, uScale: pixScale },
+      { uTime: time, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: .5, uFlat: 0, uPlume: [0, 0, 0, 0] });
+  } else {
+    const { gl, pr, L } = sm, C = smCam();
+    gl.viewport(0, 0, smCv.width, smCv.height); gl.useProgram(pr);
+    gl.uniform2f(L("uRes"), smCv.width, smCv.height); gl.uniform1f(L("uTime"), time); gl.uniform1f(L("uFov"), SM.fov);
+    gl.uniform3fv(L("uCam"), C.pos); gl.uniform3fv(L("uCR"), C.R); gl.uniform3fv(L("uCU"), C.U); gl.uniform3fv(L("uCF"), C.F);
+    gl.uniform4fv(L("uBitA"), u.uBitA); gl.uniform4fv(L("uBitB"), u.uBitB); gl.uniform4fv(L("uNova"), u.uNova);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  placeNova();
+}
+
+// ================================================================ playing the run back
+const SPEED = { k: 1 };
+let tweens = [], playing = null;
+const easeIO = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const tween = (ms, fn) => new Promise((done) => tweens.push({ t: 0, ms: ms / SPEED.k, fn, done }));
+const wait = (ms) => tween(ms, () => {});
+function stepTweens(dt) {
+  tweens = tweens.filter((tw) => { tw.t = Math.min(tw.ms, tw.t + dt * 1000); tw.fn(tw.ms ? tw.t / tw.ms : 1); if (tw.t >= tw.ms) { tw.done(); return false; } return true; });
+}
+function resetWorld() {
+  Object.assign(N, { x: PUZZLE.start.x, z: PUZZLE.start.z, y: 0, dir: PUZZLE.start.dir, yaw: PUZZLE.start.dir * Math.PI / 2, lean: 0 });
+  bitsShown.forEach((b) => Object.assign(b, { s: 1, lift: 0 }));
+  setCount(0); nova?.setMood("idle"); cam.spin = 0;
+}
+function setCount(n, pop) { $("count").textContent = `${n}/${PUZZLE.bits.length}`; if (pop) { const c = $("counter"); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); } }
+function lineHL(line, bad) {
+  const hl = $("hl");
+  if (!line) { hl.classList.remove("on", "bad"); markGutter(0); return; }
+  hl.style.transform = `translateY(${(line - 1) * 26}px)`; hl.classList.add("on"); hl.classList.toggle("bad", !!bad); markGutter(line);
+  const ed = $("editor"), y = 14 + (line - 1) * 26;
+  if (y < ed.scrollTop + 10 || y > ed.scrollTop + ed.clientHeight - 60) ed.scrollTo({ top: y - ed.clientHeight / 3, behavior: "smooth" });
+}
+function markGutter(line) { [...$("gutter").children].forEach((s, i) => s.classList.toggle("on", i + 1 === line)); }
+async function play(ev) {
+  for (const e of ev) {
+    if (!playing) return;
+    lineHL(e.line);
+    if (e.kind === "move") {
+      const [x0, z0] = e.from, [x1, z1] = e.to;
+      await tween(470, (k) => { const q = easeIO(k); N.x = x0 + (x1 - x0) * q; N.z = z0 + (z1 - z0) * q; N.y = Math.sin(k * Math.PI) * .12; N.lean = Math.sin(k * Math.PI) * -.25; });
+    } else if (e.kind === "turn") {
+      const a0 = N.yaw, a1 = a0 + Math.PI / 2;
+      await tween(320, (k) => { N.yaw = a0 + (a1 - a0) * easeIO(k); });
+    } else if (e.kind === "collect") {
+      const b = bitsShown[e.bit];
+      flyCoin(e.bit);
+      await tween(520, (k) => { b.lift = easeIO(k) * .7; b.s = 1 - easeIO(Math.max(0, k - .35) / .65); });
+      setCount(PUZZLE.bits.filter((_, i) => bitsShown[i].s < .05).length, true);
+    } else if (e.kind === "nudge") {
+      await wait(420);
+    } else if (e.kind === "bump") {
+      const [dx, dz] = DIRS[e.dir], x0 = N.x, z0 = N.z;
+      nova.setMood("angry");
+      await tween(480, (k) => { const q = Math.sin(Math.min(1, k * 1.6) * Math.PI) * .28; N.x = x0 + dx * q; N.z = z0 + dz * q; N.lean = Math.sin(k * 30) * .15 * (1 - k); });
+    } else if (e.kind === "miss") {
+      nova.setMood("sad"); await wait(420);
+    }
+    await wait(70);
+  }
+}
+function flyCoin(i) {
+  const r = world.getBoundingClientRect(), [sx, sy] = project(bitVec(i).slice(0, 3)), c = $("counter").querySelector(".coin").getBoundingClientRect();
+  const el = document.createElement("span"); el.className = "coin flycoin"; el.textContent = "B"; document.body.append(el);
+  const x0 = r.left + sx - 11, y0 = r.top + sy - 11, x1 = c.left - 1, y1 = c.top - 1;
+  el.animate([{ transform: `translate(${x0}px, ${y0}px) scale(.6)`, opacity: 0 }, { transform: `translate(${(x0 + x1) / 2}px, ${Math.min(y0, y1) - 60}px) scale(1.2)`, opacity: 1, offset: .45 },
+    { transform: `translate(${x1}px, ${y1}px) scale(1)`, opacity: 1 }], { duration: 760 / SPEED.k, easing: "cubic-bezier(.5,0,.3,1)", delay: 160 / SPEED.k }).onfinish = () => el.remove();
+}
+
+// ================================================================ the card under the world (hints, problems, the win)
+const card = $("card");
+let hintAt = 0;
+function showCard(kind, html) {
+  card.className = "card " + kind; card.innerHTML = `<button class="x" type="button" aria-label="Close">×</button>` + html;
+  card.querySelector(".x").onclick = hideCard;
+  requestAnimationFrame(() => card.classList.add("show"));
+}
+function hideCard() { card.classList.remove("show"); }
+function showHint() {
+  showCard("hint", `<h3>Hint ${hintAt + 1} of ${HINTS.length}</h3><p>${HINTS[hintAt]}</p>
+    <div class="foot"><span class="dots">${HINTS.map((_, i) => `<i class="${i === hintAt ? "on" : ""}"></i>`).join("")}</span>
+    ${hintAt < HINTS.length - 1 ? '<button class="link" type="button" id="moreHint">Next hint</button>' : ""}</div>`);
+  const m = $("moreHint"); if (m) m.onclick = () => { hintAt++; showHint(); };
+}
+const WHY = { water: "into the water", edge: "off the edge of the island", wall: "into a raised block", tree: "into a tree", rock: "into a rock", bush: "into a bush" };
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+function explain(err, res) {
+  const after = "Nothing after that line ran.";
+  if (err.kind === "Blocked") return ["NOVA can't go there", `Line ${err.line}: <code>move()</code> would take her ${WHY[err.message]}. ${after}`];
+  if (err.kind === "Nothing") return ["No Bit here", `Line ${err.line}: <code>collect()</code> only works on a tile with a Bit, and NOVA's tile is empty. ${after}`];
+  const msg = `<code>${err.kind}: ${esc(err.message)}</code>`;
+  const tip = err.kind === "NameError" ? (err.extra ? `Did you mean <code>${err.extra}()</code>? Names must match exactly, small letters and all.` : "Python doesn't know that name.")
+    : err.kind === "IndentationError" ? "Commands only move in when they belong to a <code>for</code> or <code>def</code> above them."
+    : err.kind === "TypeError" ? "These commands don't take anything inside the brackets." : err.kind === "SyntaxError" ? "Check the brackets and the spelling on that line." : "";
+  return ["Python stopped on line " + err.line, `${msg}<br>${tip} ${res.ev.length ? after : "Nothing ran."}`];
+}
+async function runCode() {
+  if (playing) { stopRun(); return; }
+  hideCard(); resetWorld(); lineHL(0);
+  let prog;
+  try { prog = parse($("code").value); }
+  catch (e) { if (!(e instanceof PyErr)) throw e; nova.setMood("sad"); lineHL(e.line, true); const [h, p] = explain(e, { ev: [] }); showCard("bad", `<h3>${h}</h3><p>${p}</p>`); return; }
+  const res = execute(prog);
+  playing = res; setRunning(true);
+  await wait(200);
+  await play(res.ev);
+  if (playing !== res) return;
+  setRunning(false); playing = null;
+  if (res.error) {
+    lineHL(res.error.line, true); if (res.error.kind !== "Blocked") nova.setMood("sad");
+    const [h, p] = explain(res.error, res); showCard("bad", `<h3>${h}</h3><p>${p}</p>`);
+  } else if (res.got === PUZZLE.bits.length) {
+    lineHL(0); nova.setMood("happy");
+    tween(3600, (k) => { cam.spin = easeIO(k) * Math.PI * 2; });
+    showCard("win", `<h3>Both Bits collected!</h3><p>NOVA did exactly what you wrote, in exactly the order you wrote it. That's all code is: steps, in order.</p>
+      <div class="foot"><span class="earn"><span class="coin">B</span>+10 Bits</span><button class="link" type="button" id="again">Play again</button></div>`);
+    $("again").onclick = () => { hideCard(); resetWorld(); };
+  } else {
+    lineHL(0); nova.setMood("sad");
+    const nudge = res.ev.find((e) => e.kind === "nudge");
+    showCard("bad", `<h3>${res.got} of ${PUZZLE.bits.length} Bits</h3><p>Your code finished, but ${PUZZLE.bits.length - res.got === 1 ? "a Bit is" : "the Bits are"} still out there. ${nudge
+      ? `Line ${nudge.line} says <code>${nudge.name}</code> without <code>()</code>, so it didn't run.` : "Add more commands and run it again."}</p>`);
+  }
+}
+function stopRun() { playing = null; tweens = []; setRunning(false); resetWorld(); lineHL(0); }
+function setRunning(on) { const b = $("run"); b.classList.toggle("stop", on); b.querySelector("span").textContent = on ? "Stop" : "Run my code";
+  b.querySelector("svg").innerHTML = on ? '<rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/>' : '<path d="M3 1.5v11l9-5.5z" fill="currentColor"/>'; }
+
+// ================================================================ the editor
+const code = $("code");
+const KW = /^(for|in|range|def|pass|if|else|elif|while|and|or|not|True|False)$/;
+function paintCode() {
+  const src = code.value;
+  $("pre").innerHTML = src.split("\n").map((line) => {
+    const m = line.match(/^(.*?)(#.*)?$/), body = m[1], com = m[2] || "";
+    return body.replace(/[A-Za-z_]\w*(?=\s*\()|\b\d+\b|[A-Za-z_]\w*|[&<>]/g, (t) => {
+      if (/^[&<>]$/.test(t)) return esc(t);
+      if (/^\d/.test(t)) return `<span class="tk-num">${t}</span>`;
+      if (KW.test(t)) return `<span class="tk-kw">${t}</span>`;
+      if (BUILTIN[t]) return `<span class="tk-fn">${t}</span>`;
+      return t;
+    }) + (com ? `<span class="tk-com">${esc(com)}</span>` : "");
+  }).join("\n") + "\n";
+  const n = Math.max(1, src.split("\n").length);
+  $("gutter").innerHTML = Array.from({ length: n }, (_, i) => `<span>${i + 1}</span>`).join("");
+  code.style.height = "0px"; code.style.height = Math.max(code.parentElement.clientHeight, code.scrollHeight) + "px";
+}
+code.addEventListener("input", () => { paintCode(); try { localStorage.setItem("operandi:playtime:draft", code.value); } catch {} });
+code.addEventListener("keydown", (e) => {
+  if (e.key === "Tab") { e.preventDefault(); insertText("    "); }
+  if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {   // keep the indent; one more after a colon
+    e.preventDefault(); const v = code.value, i = code.selectionStart, ls = v.lastIndexOf("\n", i - 1) + 1, line = v.slice(ls, i);
+    insertText("\n" + (line.match(/^\s*/)[0]) + (/:\s*$/.test(line) ? "    " : ""));
+  }
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runCode(); }
+});
+function insertText(t) {
+  const s = code.selectionStart, e = code.selectionEnd;
+  code.setRangeText(t, s, e, "end"); code.dispatchEvent(new Event("input"));
+}
+// a command button adds the command on its own line, at the indent of the line you're on
+document.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => {
+  const v = code.value, i = code.selectionStart, ls = v.lastIndexOf("\n", i - 1) + 1, le = v.indexOf("\n", i) < 0 ? v.length : v.indexOf("\n", i);
+  const line = v.slice(ls, le), ind = line.match(/^\s*/)[0] + (/:\s*$/.test(line) ? "    " : "");
+  if (line.trim()) { code.setSelectionRange(le, le); insertText("\n" + ind + b.dataset.cmd); }
+  else { code.setSelectionRange(ls, le); insertText(ind + b.dataset.cmd); }
+  if (!matchMedia("(pointer: coarse)").matches) code.focus();
+}));
+
+// ================================================================ the intro pages
+let page = 0, recipeT = null;
+function showPage(n) {
+  page = Math.max(0, Math.min(3, n));
+  document.querySelectorAll(".page").forEach((p) => { const k = +p.dataset.p; p.classList.toggle("on", k === page); p.classList.toggle("past", k < page); });
+  $("pcount").textContent = `${page + 1} of 4`; $("prevP").disabled = page === 0;
+  $("nextP").hidden = page === 3; $("startBtn").hidden = page !== 3;
+  clearInterval(recipeT);
+  if (page === 1 && !REDUCED) { let mixed = false; recipeT = setInterval(() => { mixed = !mixed; mixRecipe(mixed); }, 1800); } else mixRecipe(false);
+}
+function mixRecipe(mixed) {   // the same three steps, swapped: order matters
+  const r = $("recipe"), rows = [...r.querySelectorAll("[data-i]")], order = mixed ? [2, 0, 1] : [0, 1, 2];
+  r.classList.toggle("mixed", mixed);
+  rows.forEach((el) => { const i = +el.dataset.i; el.style.transform = `translateY(${(order.indexOf(i) - i) * (el.offsetHeight + 8)}px)`; });
+  $("verdict").textContent = mixed ? "A cup of cold air" : "A nice cup of tea";
+}
+function closeIntro() {
+  $("intro").classList.add("gone"); clearInterval(recipeT);
+  try { localStorage.setItem("operandi:playtime:intro", "1"); } catch {}
+  if (matchMedia("(pointer: fine)").matches && !STILL) code.focus({ preventScroll: true });
+}
+$("prevP").onclick = () => showPage(page - 1); $("nextP").onclick = () => showPage(page + 1);
+$("startBtn").onclick = closeIntro; $("skipIntro").onclick = closeIntro;
+$("replayIntro").onclick = () => { $("intro").classList.remove("gone"); showPage(0); };
+addEventListener("keydown", (e) => { if ($("intro").classList.contains("gone")) return; if (e.key === "ArrowRight") showPage(page + 1); if (e.key === "ArrowLeft") showPage(page - 1); if (e.key === "Escape") closeIntro(); });
+
+// ================================================================ wiring
+$("run").onclick = runCode;
+$("hint").onclick = () => (card.classList.contains("show") && card.classList.contains("hint") ? hideCard() : showHint());
+$("speed").onclick = () => { SPEED.k = SPEED.k === 1 ? 2 : 1; $("speed").textContent = SPEED.k + "×"; };
+function setLook(l) {
+  cam.look = l;
+  document.querySelectorAll("[data-look]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.look === l)));
+  pixCv.hidden = l !== "pixel"; $("starCv").hidden = l !== "pixel"; smCv.hidden = l !== "smooth";
+  if (l === "smooth" && !sm) sm = makeSmooth();
+  try { localStorage.setItem("operandi:playtime:look", l); } catch {}
+}
+document.querySelectorAll("[data-look]").forEach((b) => b.addEventListener("click", () => setLook(b.dataset.look)));
+new ResizeObserver(() => sizeViews()).observe(world);
+
+let frameMs = 16, adaptAt = performance.now() + 2500;
+function loop(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (!REDUCED) time += dt;
+  stepTweens(dt);
+  draw();
+  frameMs = frameMs * .95 + dt * 1000 * .05;
+  if (cam.look === "smooth" && now > adaptAt) {   // the smooth look drops its resolution on slower devices
+    adaptAt = now + 1500;
+    const ns = frameMs > 26 ? Math.max(.4, smScale - .1) : frameMs < 14 && smScale < 1 ? smScale + .05 : smScale;
+    if (ns !== smScale) { smScale = ns; sizeViews(); }
+  }
+  requestAnimationFrame(loop);
+}
+
+function start() {
+  pix = new PixelGL(pixCv, { model: PIX_MODEL, palettes: PIX_PALETTES, glow: PIX_GLOW, extra: ["#9fb0ff", "#ffffff", "#06060f"] });
+  nova = new PixelNova(novaHost, { kind: "mooncloak", w: NOVA_ART.w, h: NOVA_ART.h, px: 2, view: 3.6, shadow: false });
+  let saved = null, look = "pixel", seen = false;
+  try { saved = localStorage.getItem("operandi:playtime:draft"); look = localStorage.getItem("operandi:playtime:look") || "pixel"; seen = !!localStorage.getItem("operandi:playtime:intro"); } catch {}
+  code.value = qs.get("code") ?? saved ?? STARTER;
+  setLook(qs.get("look") || look);
+  sizeViews(); resetWorld(); paintCode();
+  // the intro's NOVA
+  const intro = new PixelNova($("introNova"), { kind: "mooncloak", w: 75, h: 75, px: 2, view: 3.4, shadow: false });
+  intro.setMood("happy");
+  if (seen || STILL) closeIntro(); else showPage(0);
+  if (STILL) {
+    // test hook: ?still&look=pixel|smooth&t=3&code=...&run (plays the run instantly)&at=<event index>&spin=<0..1>&intro=<page>
+    time = +(qs.get("t") || 3);
+    if (qs.has("intro")) { $("intro").classList.remove("gone"); showPage(+qs.get("intro")); }
+    if (qs.has("run")) {
+      const res = execute(parse(code.value)), upto = qs.has("at") ? +qs.get("at") : res.ev.length;
+      res.ev.slice(0, upto).forEach((e) => {
+        if (e.kind === "move") { N.x = e.to[0]; N.z = e.to[1]; }
+        if (e.kind === "turn") N.yaw += Math.PI / 2;
+        if (e.kind === "collect") bitsShown[e.bit].s = 0;
+      });
+      setCount(bitsShown.filter((b) => b.s < .05).length);
+      const e = res.ev[Math.min(upto, res.ev.length) - 1];
+      if (res.error && upto >= res.ev.length) lineHL(res.error.line, true); else if (e) lineHL(e.line);
+      if (upto >= res.ev.length) {
+        if (res.error) { const [h, p] = explain(res.error, res); showCard("bad", `<h3>${h}</h3><p>${p}</p>`); nova.setMood("sad"); }
+        else if (res.got === 2) { nova.setMood("happy"); showCard("win", `<h3>Both Bits collected!</h3><p>NOVA did exactly what you wrote, in exactly the order you wrote it. That's all code is: steps, in order.</p><div class="foot"><span class="earn"><span class="coin">B</span>+10 Bits</span><button class="link" type="button">Play again</button></div>`); }
+      }
+    }
+    if (qs.has("hint")) { hintAt = +qs.get("hint"); showHint(); }
+    cam.spin = (+(qs.get("spin") || 0)) * Math.PI * 2;
+    setTimeout(() => { draw(); window.__ready = true; }, 1200);
+    return;
+  }
+  requestAnimationFrame(loop);
+}
+start();
+</script>
