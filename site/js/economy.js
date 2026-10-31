@@ -16,6 +16,10 @@ export const EARN = {
 
 export const DIFFS = { 1: "Easy", 2: "Medium", 3: "Hard" };
 
+// Playtime (PRD Addendum O, Isaac 2026-10-31 "agree on all"): Bits the first time a level is solved, the first time
+// it is solved within its par (line count), and once for finishing a chapter. Hints there are free.
+export const PLAYTIME = { level: 10, par: 5, chapter: 30 };
+
 export const SHOP = [
   { id: "hint", kind: "item", name: "Hint", price: 10, desc: "A nudge in the right direction. Up to 3 per task, gentle to nearly-there." },
   { id: "peek", kind: "item", name: "Test peek", price: 15, desc: "See exactly what one failing test expected." },

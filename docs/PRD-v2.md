@@ -664,7 +664,7 @@ Sources: [Awwwards: Lando Norris](https://www.awwwards.com/sites/lando-norris), 
 3. **NOVA stays off the home page;** it is neutral.
 4. **"Sign in" becomes "Start learning"** until real sign-in exists (done on the live site straight away).
 
-## Addendum O: Playtime levels (draft 2026-10-31, awaiting "go")
+## Addendum O: Playtime levels ("go" 2026-10-31; engine and Chapter 1 built)
 
 Isaac 2026-10-31: "i want more levels, where they get more challenging as you progress, with puzzles etc". Playtime is its own path (his answer), NOVA walks it, pixel art (his pick). One level exists as a preview (`tools/playtime-design/playtime.html`, at `/playtime` on the revamp preview). This addendum is the plan for the real thing.
 
@@ -726,5 +726,9 @@ Isaac 2026-10-31: "i want more levels, where they get more challenging as you pr
    3. **Bits:** 10 per level the first time, +5 for meeting par, +30 per chapter? (All in `economy.js`.)
    4. **Unlocking:** all chapters open from the start, or each chapter after the one before? Recommendation: each chapter after the one before; within a chapter, levels in order.
    5. **The door:** a Playtime button in the course top bar and on the course home? Recommendation: both.
+
+**Isaac's answers (2026-10-31, "agree on all"):** the command names as listed; hints free; Bits 10 / +5 par / +30 chapter; each chapter after the one before; the door in both places ("so user can start at playtime, or go there anytime they want"). Before building he also asked for polish: more life on the island ("very AI ish, very little life"), an organic rock under it, a more interesting sky; "the water is amazing".
+
+**Built (2026-10-31): plan steps 1 and 2.** The engine (levels as data, the island written from each level's map, real Python via `py/playtime.py` in the course's worker, level picker, stars, Bits, saving, validator checks, the doors from the course) and Chapter 1's five levels. Next: Isaac plays Chapter 1; then Chapters 2 and 3.
 
 **Done already in the preview (2026-10-31, before this plan):** Isaac's art notes: the waterfall arcs out over the lip, ripples and wobbles, breaks up at the bottom and splashes (churning foam and droplets that fly out and fall back; the glow is gone); the cut across the tree leaves (a ray could step into a tree in the next square; it now never steps past the squares it checked); the floating islets are small copies of the island (a square tile on a tapering rock), not a square on a ball.

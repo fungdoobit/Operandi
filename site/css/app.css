@@ -142,6 +142,16 @@ svg { flex: none; }
 .cmdk:active { transform: scale(.97); transition-duration: .08s; }
 .cmdk svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .cmdk kbd { margin-left: auto; }
+/* Playtime (Addendum O): the way to NOVA's puzzle island, from the top bar and the course home */
+.cmdk.play-link { min-width: 0; text-decoration: none; color: var(--ink); }
+.ov-play { display: flex; align-items: center; gap: 18px; margin: -10px 0 28px; padding: 18px 22px; border-radius: 20px; text-decoration: none; color: inherit;
+  background: linear-gradient(120deg, #141433, #241a4a 60%, #3a2468); color: #eeecf9; border: 1px solid rgb(255 255 255 / .08); box-shadow: var(--shadow-md); transition: transform .5s var(--spring), box-shadow .3s; }
+.ov-play:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.ov-play .k { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: #ffd36e; }
+.ov-play h3, #briefInner .ov-play h3 { margin: 4px 0 4px; font-family: var(--font-display); font-size: 21px; letter-spacing: -.02em; color: #fff; }
+.ov-play p, #briefInner .ov-play p { margin: 0; font-size: 14px; color: rgb(238 236 249 / .72); }
+.ov-play .go { margin-left: auto; flex: none; padding: 9px 16px; border-radius: 999px; background: #ffd36e; color: #2a1a00; font-weight: 700; font-size: 14px; }
+@media (max-width: 640px) { .ov-play { flex-direction: column; align-items: flex-start; } .ov-play .go { margin-left: 0; } }
 
 /* key caps: "Ctrl" or ⌘ is added from the OS (app.js sets data-os) */
 kbd.kc { display: inline-flex; align-items: center; gap: 2px; font: 500 10.5px/1 var(--font-mono); padding: 3px 6px 4px; border-radius: 6px; border: 1px solid var(--line-strong); border-bottom-width: 2px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }

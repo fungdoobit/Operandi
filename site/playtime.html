@@ -3,19 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex">
-<!-- A preview of Playtime mode (revamp branch only): a copy of tools/playtime-design/playtime.html wrapped as a page.
-     Nothing links here yet; a PRD comes before anything is built into the course. -->
 <title>Operandi Playtime</title>
+<meta name="description" content="Learn to think like a programmer by guiding NOVA round a floating island with Python.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@1,9..144,800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@1,9..144,800&display=swap">
 <style>
-/* Playtime mode, preview (Isaac 2026-10-31, inspired by Swift Playgrounds): your Python moves NOVA round a floating
-   island. The island is hi-bit pixel art, drawn by the same pipeline as NOVA and GOLEM (Isaac picked it over a smooth
-   3D look). Drag the island to turn the camera all the way round (and tilt it a little). NOVA turns to face where she
-   goes; her ring always faces the camera. She is drawn into the island's picture with a depth test, so trees and
-   blocks in front of her hide her from any angle. A purple arrow on the tile ahead shows where her next move() goes. */
+/* Playtime (PRD Addendum O): your Python moves NOVA round a floating island, level by level. The island is hi-bit
+   pixel art (js/playtime/island.js), drag it to turn the camera all the way round; the sky is js/playtime/sky.js;
+   the opening pages are js/playtime/intro.js; this page's own logic is js/playtime/main.js. Dark only. */
 :root {
   --paper: #07081a; --pane: #10111f; --pane-2: #171829; --line: rgba(236, 234, 250, .12); --ink: #eeecf9; --ink-soft: rgba(238, 236, 249, .66);
   --ink-faint: rgba(238, 236, 249, .4); --accent: #a9bcff; --gold: #ffd36e; --good: #7ee0a1; --bad: #ff9a8a;
@@ -79,7 +75,7 @@ code, .mono { font-family: var(--font-mono); }
 .world canvas.view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .world canvas.view[hidden] { display: none; }
 #pixCv { image-rendering: pixelated; }
-#starCv, #dirCv { image-rendering: pixelated; }
+#skyCv, #dirCv { image-rendering: pixelated; }
 .novaHost { position: absolute; left: 0; top: 0; pointer-events: none; visibility: hidden; }   /* she renders here, the island shows her */
 #dirCv { display: none; }
 .world { cursor: grab; touch-action: none; }
@@ -205,29 +201,79 @@ canvas.scene { display: block; image-rendering: pixelated; }
   .card h3 { font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; } }
+
+/* the top bar's Bits, levels and the way back to the course */
+.crumb { border: 0; background: none; padding: 6px 8px; border-radius: 8px; cursor: pointer; text-align: left; min-width: 0; }
+.crumb:hover { background: rgba(255, 255, 255, .06); }
+.crumb .caret { color: var(--ink-faint); margin-left: 4px; }
+.bitsTop { display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 7px; border-radius: 999px; background: rgba(255, 211, 110, .08); font: 700 14px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.bitsTop .coin { width: 18px; height: 18px; font-size: 10px; }
+a.ghost { color: var(--ink); text-decoration: none; }
+.newcmd { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.newcmd span { font: 500 12.5px/1 var(--font-mono); color: #2a1a00; background: var(--gold); padding: 5px 8px; border-radius: 6px; }
+.newcmd span::before { content: "New "; font: 700 11px/1 var(--font-body); letter-spacing: .02em; }
+.brief .par { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-faint); }
+.counter .gem { width: 14px; height: 18px; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); background: linear-gradient(160deg, #efe3ff, #8a5ae0 55%, #3a1f6e); margin-left: 6px; }
+.counter[data-switches="0"] .gem, .counter[data-switches="0"] #swCount { display: none; }
+.status { position: absolute; left: 50%; top: 16px; translate: -50% 0; padding: 7px 12px; border-radius: 999px; background: rgba(10, 11, 30, .72); border: 1px solid var(--line);
+  font-size: 12.5px; color: var(--ink-soft); pointer-events: none; transition: opacity .5s; white-space: nowrap; }
+.status.gone { opacity: 0; }
+.run[disabled] { opacity: .55; cursor: progress; }
+.card .stars { display: flex; gap: 10px; margin: 6px 0 10px; flex-wrap: wrap; }
+.card .stars span { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-faint); }
+.card .stars span::before { content: "★"; font-size: 16px; color: rgba(255, 255, 255, .18); }
+.card .stars span.got { color: var(--ink-soft); }
+.card .stars span.got::before { color: var(--gold); }
+.card .next { border: 0; border-radius: 999px; background: var(--gold); color: #2a1a00; padding: 9px 16px; font-weight: 700; cursor: pointer; }
+
+/* the level picker: chapters, each level a tile with its stars */
+.picker { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; padding: 20px; background: rgba(4, 5, 18, .72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.picker[hidden] { display: none; }
+.sheet { width: min(760px, 100%); max-height: min(86vh, 900px); overflow: auto; padding: 22px 24px 24px; border-radius: 20px; background: var(--pane); border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
+.sheet header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.sheet h2 { margin: 0; font: 800 24px/1 var(--font-display); letter-spacing: -.03em; }
+.sheet header .x { margin-left: auto; }
+.chap { padding: 14px 0 6px; border-top: 1px solid var(--line); }
+.chap h3 { margin: 0 0 2px; font: 700 16px/1.2 var(--font-display); }
+.chap h3 small { font: 500 12px/1 var(--font-body); color: var(--ink-faint); margin-left: 8px; }
+.chap p { margin: 0 0 10px; font-size: 13.5px; color: var(--ink-soft); }
+.chap.soon { opacity: .5; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+.tile { display: grid; gap: 4px; text-align: left; padding: 11px 12px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--pane-2); cursor: pointer; transition: transform .3s var(--spring), border-color .2s; }
+.tile:hover:not([disabled]) { border-color: var(--accent); transform: translateY(-2px); }
+.tile[disabled] { opacity: .45; cursor: not-allowed; }
+.tile.cur { border-color: var(--accent); }
+.tile .n { font: 500 12px/1 var(--font-mono); color: var(--ink-faint); }
+.tile b { font: 700 14.5px/1.15 var(--font-display); }
+.tile .st { font-size: 13px; letter-spacing: 2px; color: rgba(255, 255, 255, .2); }
+.tile .st i { font-style: normal; }
+.tile .st i.got { color: var(--gold); }
+.tile.challenge b::after { content: " · challenge"; font: 500 11px/1 var(--font-body); color: var(--gold); }
+@media (max-width: 820px) { .bitsTop, a.ghost .long { display: none; } .status { top: 64px; } }
 </style>
 </head>
 <body>
 <div class="app">
   <header class="top">
-    <a class="brand" href="#" aria-label="Operandi">operandi</a>
+    <a class="brand" href="./" aria-label="Operandi home">operandi</a>
     <span class="mode">Playtime</span>
-    <span class="crumb">Chapter 1: Commands · <b>Collect the Bits</b></span>
+    <button class="crumb" type="button" id="crumb" aria-haspopup="dialog" aria-label="Choose a level"></button>
     <div class="right">
+      <span class="bitsTop" title="Bits: Operandi's in-game currency"><span class="coin" aria-hidden="true">B</span><b id="bitsTop">0</b><span class="sr"> Bits</span></span>
+      <button class="ghost" type="button" id="levelsBtn">Levels</button>
+      <a class="ghost" href="python.html" id="courseLink" title="The Python course"><span class="long">Course</span><span class="short" aria-hidden="true">≡</span></a>
       <button class="ghost" type="button" id="replayIntro" aria-label="Replay the intro"><span class="long">Intro</span><span class="short" aria-hidden="true">?</span></button>
     </div>
   </header>
 
   <main class="split">
-    <section class="task" aria-label="The puzzle and your code">
+    <section class="task" aria-label="The level and your code">
       <div class="brief">
-        <h1>Collect the Bits</h1>
-        <p><b>Goal:</b> guide NOVA to both Bits and collect them.</p>
-        <ol>
-          <li><span>Find the two Bits on the island.</span></li>
-          <li><span>Write the right mix of <code>move()</code>, <code>turn_left()</code> and <code>collect()</code>.</span></li>
-          <li><span>Press Run my code.</span></li>
-        </ol>
+        <h1 id="lvTitle">Playtime</h1>
+        <div class="newcmd" id="lvNew"></div>
+        <p id="lvGoal"></p>
+        <ol id="lvSteps"></ol>
+        <p class="par" id="lvPar"></p>
       </div>
       <div class="editor" id="editor">
         <div class="ed">
@@ -239,27 +285,22 @@ canvas.scene { display: block; image-rendering: pixelated; }
           </div>
         </div>
       </div>
-      <div class="chips" role="group" aria-label="Commands to add">
-        <span class="lab">Tap to add</span>
-        <button class="chip" type="button" data-cmd="move()">move()</button>
-        <button class="chip" type="button" data-cmd="turn_left()">turn_left()</button>
-        <button class="chip" type="button" data-cmd="collect()">collect()</button>
-      </div>
+      <div class="chips" id="chips" role="group" aria-label="Commands to add"></div>
     </section>
 
     <section class="world" id="world" aria-label="The island">
-      <canvas class="view" id="starCv" aria-hidden="true"></canvas>
+      <canvas class="view" id="skyCv" aria-hidden="true"></canvas>
       <canvas class="view" id="pixCv" aria-hidden="true"></canvas>
       <canvas class="view" id="dirCv" aria-hidden="true"></canvas>
       <div class="novaHost" id="novaHost" aria-hidden="true"></div>
-      <div class="counter" id="counter"><span class="coin" aria-hidden="true">B</span><span id="count">0/2</span><span class="sr"> Bits collected</span></div>
+      <div class="counter" id="counter" data-switches="0"><span class="coin" aria-hidden="true">B</span><span id="count">0/0</span><span class="gem" aria-hidden="true"></span><span id="swCount">0/0</span><span class="sr"> collected</span></div>
       <div class="camctl" role="group" aria-label="Camera">
         <button type="button" id="camLeft" aria-label="Turn the island left"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg></button>
         <button type="button" id="camRight" aria-label="Turn the island right"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/></svg></button>
         <button type="button" id="camReset" aria-label="Back to the starting view"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/></svg></button>
       </div>
+      <span class="status" id="status">Python is loading…</span>
       <span class="dragHint gone" id="dragHint">Drag to look around the island</span>
-      <p class="note" id="note">Preview: this page reads the commands itself. The real mode will run your code in real Python.</p>
       <div class="card" id="card" role="status" aria-live="polite"></div>
       <div class="bar">
         <button class="round" type="button" id="speed" aria-label="Speed">1×</button>
@@ -270,7 +311,14 @@ canvas.scene { display: block; image-rendering: pixelated; }
   </main>
 </div>
 
-<div class="intro" id="intro" role="dialog" aria-modal="true" aria-label="Welcome to Playtime">
+<div class="picker" id="picker" role="dialog" aria-modal="true" aria-labelledby="pickerTitle" hidden>
+  <div class="sheet">
+    <header><h2 id="pickerTitle">Levels</h2><button class="ghost x" type="button" id="pickerClose">Close</button></header>
+    <div id="chapters"></div>
+  </div>
+</div>
+
+<div class="intro gone" id="intro" role="dialog" aria-modal="true" aria-label="Welcome to Playtime">
   <button class="ghost skip" type="button" id="skipIntro">Skip</button>
   <div class="page" data-p="0">
     <div class="introNova" id="introNova"></div>
@@ -322,1068 +370,6 @@ canvas.scene { display: block; image-rendering: pixelated; }
   </nav>
 </div>
 
-<script type="module">
-import { PixelNova } from "./js/pixel/nova-px.js";
-import { PixelGL } from "./js/pixel/pixel-gl.js";
-
-const $ = (id) => document.getElementById(id);
-const qs = new URLSearchParams(location.search);
-const STILL = qs.has("still");                       // test hook: fixed frames
-const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-// ================================================================ the puzzle
-// 6 x 6 cells. 0 none, 1 grass, 2 stone path, 3 water, 4 raised grass, 5 tall grass block.
-const MAP = [5,4,1,1,4,5, 4,1,2,2,2,1, 1,1,2,1,2,3, 1,1,2,1,2,3, 1,2,2,2,2,1, 0,1,1,1,1,1];
-// things standing on cells: 0 none, 1 tree, 2 rock, 3 bush
-const PROP = [1,0,0,0,0,1, 0,0,0,0,0,0, 3,1,0,0,0,0, 0,0,0,2,0,0, 0,0,0,0,0,0, 0,3,0,0,0,0];
-const TOP = { 0: 0, 1: 0, 2: .05, 3: -.12, 4: .5, 5: 1 };
-const PUZZLE = { start: { x: 1, z: 4, dir: 0 }, bits: [[4, 4], [4, 2]] };
-const DIRS = [[1, 0], [0, -1], [-1, 0], [0, 1]];          // east, north, west, south (north is away from the camera)
-const cell = (x, z) => (x < 0 || z < 0 || x > 5 || z > 5 ? 0 : MAP[z * 6 + x]);
-const prop = (x, z) => (x < 0 || z < 0 || x > 5 || z > 5 ? 0 : PROP[z * 6 + x]);
-const topAt = (x, z) => TOP[cell(x, z)];
-const STARTER = "# NOVA follows these lines, top to bottom.\n";
-const HINTS = [
-  "Count the tiles. How many <code>move()</code> commands does NOVA need to reach the first Bit?",
-  "<code>collect()</code> only works when NOVA is standing on the Bit's tile.",
-  "After the first Bit, <code>turn_left()</code> points NOVA at the second one. Then count again.",
-];
-
-// ================================================================ a small reader for the preview
-// The real mode will run real Python (Pyodide, like the course). This preview reads the few forms the puzzle needs:
-// command calls, comments, for ... in range(n): and def name(): with indented blocks, with Python's own error messages.
-const BUILTIN = { move: 1, turn_left: 1, collect: 1 };
-class PyErr extends Error { constructor(kind, msg, line, extra = "") { super(msg); Object.assign(this, { kind, line, extra }); } }
-function suggest(name) {
-  const dist = (a, b) => { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j;
-    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[a.length][b.length]; };
-  const best = Object.keys(BUILTIN).map((k) => [k, dist(name.toLowerCase(), k)]).sort((a, b) => a[1] - b[1])[0];
-  return best[1] <= 2 ? best[0] : "";
-}
-function parse(src) {
-  const toks = [];
-  src.replace(/\t/g, "    ").split("\n").forEach((text, i) => {
-    const s = text.replace(/#.*$/, "").replace(/\s+$/, "");
-    if (s.trim()) toks.push({ line: i + 1, ind: s.length - s.trimStart().length, s: s.trim().replace(/;$/, "") });
-  });
-  let k = 0;
-  const block = (ind) => {
-    const out = [];
-    while (k < toks.length) {
-      const t = toks[k];
-      if (t.ind < ind) break;
-      if (t.ind > ind) throw new PyErr("IndentationError", out.at(-1)?.body ? "unindent does not match any outer indentation level" : "unexpected indent", t.line);
-      k++;
-      let m;
-      if ((m = t.s.match(/^for\s+[A-Za-z_]\w*\s+in\s+range\s*\(\s*(\d+)\s*\)\s*(:?)$/))) {
-        if (!m[2]) throw new PyErr("SyntaxError", "expected ':'", t.line);
-        out.push({ type: "for", n: +m[1], line: t.line, body: body(t, "for") });
-      } else if ((m = t.s.match(/^def\s+([A-Za-z_]\w*)\s*\(\s*\)\s*(:?)$/))) {
-        if (!m[2]) throw new PyErr("SyntaxError", "expected ':'", t.line);
-        out.push({ type: "def", name: m[1], line: t.line, body: body(t, "function definition") });
-      } else if ((m = t.s.match(/^([A-Za-z_]\w*)\s*\((.*)\)$/))) out.push({ type: "call", name: m[1], args: m[2].trim(), line: t.line });
-      else if (t.s === "pass") out.push({ type: "pass", line: t.line });
-      else if (/^[A-Za-z_]\w*$/.test(t.s)) out.push({ type: "bare", name: t.s, line: t.line });
-      else if (/\($/.test(t.s) || (t.s.split("(").length > t.s.split(")").length)) throw new PyErr("SyntaxError", "'(' was never closed", t.line);
-      else throw new PyErr("SyntaxError", "invalid syntax", t.line);
-    }
-    return out;
-  };
-  const body = (head, what) => {
-    const nx = toks[k];
-    if (!nx || nx.ind <= head.ind) throw new PyErr("IndentationError", `expected an indented block after '${what}' statement on line ${head.line}`, nx ? nx.line : head.line);
-    return block(nx.ind);
-  };
-  return block(0);
-}
-// Runs the program against the puzzle and writes down what NOVA does, step by step (each with its line).
-function execute(prog) {
-  const st = { x: PUZZLE.start.x, z: PUZZLE.start.z, dir: PUZZLE.start.dir, got: PUZZLE.bits.map(() => false) };
-  const ev = [], fns = {}; let steps = 0, depth = 0, error = null;
-  const run = (list) => {
-    for (const s of list) {
-      if (s.type === "def") { fns[s.name] = s; continue; }
-      if (s.type === "pass") continue;
-      if (s.type === "for") { for (let i = 0; i < s.n; i++) run(s.body); continue; }
-      if (s.type === "bare") {
-        if (BUILTIN[s.name] || fns[s.name]) { ev.push({ kind: "nudge", line: s.line, name: s.name }); continue; }
-        throw new PyErr("NameError", `name '${s.name}' is not defined`, s.line, suggest(s.name));
-      }
-      if (fns[s.name]) {
-        if (s.args) throw new PyErr("TypeError", `${s.name}() takes 0 positional arguments but 1 was given`, s.line);
-        if (++depth > 40) throw new PyErr("RecursionError", "maximum recursion depth exceeded", s.line);
-        run(fns[s.name].body); depth--; continue;
-      }
-      if (!BUILTIN[s.name]) throw new PyErr("NameError", `name '${s.name}' is not defined`, s.line, suggest(s.name));
-      if (s.args) throw new PyErr("TypeError", `${s.name}() takes 0 positional arguments but 1 was given`, s.line);
-      if (++steps > 200) throw new PyErr("RuntimeError", "NOVA stopped after 200 commands", s.line);
-      if (s.name === "move") {
-        const [dx, dz] = DIRS[st.dir], nx = st.x + dx, nz = st.z + dz, c = cell(nx, nz);
-        const why = c === 0 ? "edge" : c === 3 ? "water" : c >= 4 ? "wall" : prop(nx, nz) === 1 ? "tree" : prop(nx, nz) === 2 ? "rock" : prop(nx, nz) === 3 ? "bush" : "";
-        if (why) { ev.push({ kind: "bump", line: s.line, from: [st.x, st.z], dir: st.dir, why }); throw new PyErr("Blocked", why, s.line); }
-        ev.push({ kind: "move", line: s.line, from: [st.x, st.z], to: [nx, nz] }); st.x = nx; st.z = nz;
-      } else if (s.name === "turn_left") {
-        ev.push({ kind: "turn", line: s.line, from: st.dir, to: (st.dir + 1) % 4 }); st.dir = (st.dir + 1) % 4;
-      } else {
-        const b = PUZZLE.bits.findIndex(([bx, bz], i) => bx === st.x && bz === st.z && !st.got[i]);
-        if (b < 0) { ev.push({ kind: "miss", line: s.line, at: [st.x, st.z] }); throw new PyErr("Nothing", "no Bit here", s.line); }
-        st.got[b] = true; ev.push({ kind: "collect", line: s.line, bit: b });
-      }
-    }
-  };
-  try { run(prog); } catch (e) { if (e instanceof PyErr) error = e; else throw e; }
-  return { ev, error, got: st.got.filter(Boolean).length };
-}
-
-// ================================================================ the island, one 3D model for both looks
-const WORLD = `
-uniform float uTime; uniform vec4 uBitA, uBitB, uNova;
-const int MAPG[36] = int[36](${MAP.join(",")});
-const int PROPG[36] = int[36](${PROP.join(",")});
-float gm; float gCoin;
-int cellAt(ivec2 c){ return (c.x < 0 || c.y < 0 || c.x > 5 || c.y > 5) ? 0 : MAPG[c.y*6 + c.x]; }
-int propAt(ivec2 c){ return (c.x < 0 || c.y < 0 || c.x > 5 || c.y > 5) ? 0 : PROPG[c.y*6 + c.x]; }
-float topOf(int t){ return t == 4 ? .5 : t == 5 ? 1. : t == 2 ? .05 : t == 3 ? -.12 : 0.; }
-void Un(inout float d, float nd, float m){ if (nd < d) { d = nd; gm = m; } }
-void tile(inout float d, vec3 p, ivec2 c){
-  int t = cellAt(c); if (t == 0) return;
-  float top = topOf(t), bot = -.62;
-  vec3 q = p - vec3(float(c.x) - 2.5, (top + bot)*.5, float(c.y) - 2.5);
-  float nd = sdRBox(q, vec3(.485, (top - bot)*.5, .485), .045);
-  float m = t == 2 ? 2. : t == 3 ? (p.y > top - .04 ? 4. : 7.) : (p.y > top - .13 ? 1. : 7.);
-  Un(d, nd, m);
-}
-void prop(inout float d, vec3 p, ivec2 c){
-  int k = propAt(c); if (k == 0) return;
-  vec3 q = p - vec3(float(c.x) - 2.5, topOf(cellAt(c)), float(c.y) - 2.5);
-  if (k == 1) {
-    Un(d, sdCapT(q, vec3(0.), vec3(0., .5, 0.), .1, .065), 6.);
-    float lv = length(q - vec3(0., .74, 0.)) - .36;
-    lv = smin(lv, length(q - vec3(.1, 1.02, -.04)) - .25, .14);
-    lv = smin(lv, length(q - vec3(-.16, .86, .12)) - .22, .1);
-    Un(d, lv + (vnoise(q*8.) - .5)*.07, 5.);
-  } else if (k == 2) {
-    vec3 r = q - vec3(0., .13, 0.); r.xz = R(.6)*r.xz;
-    Un(d, sdRBox(r, vec3(.24, .15, .2), .08) + (vnoise(q*9.) - .5)*.04, 8.);
-  } else {
-    float b = smin(length(q - vec3(-.08, .14, 0.)) - .2, length(q - vec3(.14, .11, .07)) - .15, .08);
-    Un(d, b + (vnoise(q*11.) - .5)*.05, 5.);
-  }
-}
-void coin(inout float d, vec3 p, vec4 b, float ph){
-  if (b.w < .01) return;
-  vec3 q = p - b.xyz; q.xz = R(uTime*2.2 + ph)*q.xz;
-  vec2 e = vec2(length(q.xy) - .2*b.w, abs(q.z) - .045*b.w);
-  float cd = min(max(e.x, e.y), 0.) + length(max(e, 0.)) - .02*b.w;
-  gCoin = min(gCoin, cd); Un(d, cd, 3.);
-}
-// The splash where the waterfall lands: churning foam along its foot, and droplets thrown up and out that fall back.
-const vec3 SPLASH = vec3(3.4, -3.78, 0.);
-void splash(inout float d, vec3 p){
-  vec3 q = p - SPLASH;
-  // only worked out near the foot of the falls (an egg round the foam and the droplets' arcs)
-  float bound = length((q - vec3(.2, .35, 0.))/vec3(1.15, .95, 1.75));
-  if (bound > 1.) { d = min(d, (bound - 1.)*.95 + .02); return; }
-  float f = 1e5;
-  for (int j = 0; j < 5; j++) {
-    float fj = float(j);
-    vec3 c = vec3(.04*sin(uTime*3. + fj), sin(uTime*6. + fj*1.9)*.035, (fj - 2.)*.42);
-    f = smin(f, length(q - c) - (.2 + .05*sin(uTime*5. + fj*1.7)), .16);
-  }
-  f += (vnoise(vec3(q.x*7., q.y*7. - uTime*3., q.z*7.)) - .5)*.08;
-  f = max(f, -q.y - .12);
-  Un(d, f, 9.);
-  for (int i = 0; i < 14; i++) {
-    float fi = float(i), h = fract(sin(fi*12.9898)*43758.5453), h2 = fract(sin(fi*78.233)*12543.21);
-    float ph = fract(uTime*.95 + h);
-    vec3 v = vec3(.25 + h2*.75, .9 + h*.8, (h2 - .5)*1.1);
-    if (i % 4 == 0) v.x = -v.x*.5;   // a few spray back against the rock
-    vec3 at = vec3(0., .02, (fract(h*7.31) - .5)*1.7) + vec3(v.x*ph, v.y*ph - 2.1*ph*ph, v.z*ph);
-    Un(d, length(q - at) - .08*(1. - ph*.6), 9.);
-  }
-}
-float map(vec3 p){
-  gm = 0.; float d = 1e5;
-  vec2 g = p.xz + 2.5; ivec2 c = ivec2(floor(g + .5)); ivec2 n = c + ivec2(g.x > float(c.x) ? 1 : -1, g.y > float(c.y) ? 1 : -1);
-  if (p.y < 2.4 && p.y > -1.) {
-    tile(d, p, c); tile(d, p, ivec2(n.x, c.y)); tile(d, p, ivec2(c.x, n.y)); tile(d, p, n);
-    prop(d, p, c); prop(d, p, ivec2(n.x, c.y)); prop(d, p, ivec2(c.x, n.y)); prop(d, p, n);
-    // Only these four squares were checked. Anything in another square is at least as far as the edge of these four,
-    // so never step further than that, or a ray can land inside a tree in the next square (the seam across the leaves).
-    // (and nothing lies outside the island's 6 x 6 squares, so beside the island the distance to it is the bound)
-    vec2 lo = vec2(min(c, n)) - .5, hi = vec2(max(c, n)) + .5;
-    float edge = min(min(g.x - lo.x, hi.x - g.x), min(g.y - lo.y, hi.y - g.y)), grid = max(abs(p.x), abs(p.z)) - 3.;
-    d = min(d, max(edge, grid) + .02);
-  } else d = min(abs(p.y - 2.4), abs(p.y + 1.)) + .05;
-  // the rock underneath, tapering to a point
-  float y = -.5 - p.y, k = clamp(y/4.4, 0., 1.), hs = mix(2.95, .2, pow(k, .75));
-  vec2 bq = abs(p.xz) - hs + .45;
-  float body = (length(max(bq, 0.)) + min(max(bq.x, bq.y), 0.) - .45 + (vnoise(p*2.3)*.5 + vnoise(p*5.3)*.18)*k*1.3);
-  body = max(body, p.y + .52); body = max(body, -p.y - 5.);
-  Un(d, body*.6, y > 1.5 + vnoise(p*1.7)*.8 ? 8. : 7.);
-  // the waterfall: it arcs out over the pool's lip (a thrown curve), ripples and wobbles at the edges as it falls,
-  // thickens, and breaks up raggedly at the bottom into a splash of foam and droplets
-  float wy = clamp(-p.y - .1, 0., 4.);
-  if (p.x > 2.6 && p.x < 4.4 && p.y < .2 && p.y > -4.3 && abs(p.z) < 1.3) {
-    float xc = 3.02 + .2*sqrt(wy) + (vnoise(vec3(p.z*5., p.y*2.2 + uTime*6., 0.)) - .5)*.07;
-    float hz = .93 - wy*.03 + (vnoise(vec3(wy*2.6 - uTime*5.5, sign(p.z)*7., 1.)) - .5)*.16;
-    float bottom = -3.55 - vnoise(vec3(p.z*6., uTime*3.5, 2.))*.35;
-    vec3 w = vec3(p.x - xc, p.y - (bottom - .1)*.5, p.z);
-    float wf = sdBox(w, vec3(.04 + wy*.018, (-.1 - bottom)*.5, max(hz, .1)))*.7;
-    Un(d, wf, 4.);
-  } else d = min(d, max(max(2.6 - p.x, p.x - 4.4), max(max(p.y - .2, -4.3 - p.y), abs(p.z) - 1.3)) + .05);
-  splash(d, p);
-  // two little islands drifting behind
-  for (int i = 0; i < 2; i++) {
-    vec3 c0 = i == 0 ? vec3(-5.4, .2 + sin(uTime*.6)*.1, -2.6) : vec3(4.2, 1.5 + sin(uTime*.5 + 2.)*.12, -5.6);
-    vec3 q = p - c0 - vec3(0., -.4, 0.);
-    if (length(q) > 2.) { d = min(d, length(q) - 1.6); continue; }
-    // a grass tile on an earth block, like the island's own tiles
-    Un(d, sdRBox(q - vec3(0., .2, 0.), vec3(.485, .2, .485), .045), q.y > .29 ? 1. : 7.);
-    // a rock under it that tapers to a point, like the island's own
-    float y = -q.y, k = clamp(y/1.1, 0., 1.), hs = mix(.46, .05, pow(k, .8));
-    vec2 bq = abs(q.xz) - hs + .1;
-    float rk = length(max(bq, 0.)) + min(max(bq.x, bq.y), 0.) - .1 + (vnoise(q*4.3) - .5)*.12*k;
-    rk = max(rk, q.y - .02); rk = max(rk, -q.y - 1.15);
-    Un(d, rk*.7, y > .35 ? 8. : 7.);
-  }
-  coin(d, p, uBitA, 0.); coin(d, p, uBitB, 2.);
-  return d;
-}
-vec3 nrm(vec3 p){ vec2 e = vec2(.002, -.002);
-  return normalize(e.xyy*map(p + e.xyy) + e.yyx*map(p + e.yyx) + e.yxy*map(p + e.yxy) + e.xxx*map(p + e.xxx)); }
-float shadow(vec3 ro, vec3 rd){ float r = 1., t = .03;
-  for (int i = 0; i < 28; i++) { float h = map(ro + rd*t); r = min(r, 9.*h/t); t += clamp(h, .03, .3); if (r < .02 || t > 6.) break; } return clamp(r, 0., 1.); }
-float ao(vec3 p, vec3 n){ float o = 0., s = 1.; for (int i = 1; i <= 4; i++) { float h = .05*float(i); o += (h - map(p + n*h))*s; s *= .6; } return clamp(1. - 2.4*o, 0., 1.); }
-// surface detail shared by both looks: a brightness change for each material
-float detail(vec3 p, vec3 n, float m){
-  float v = 0.;
-  if (m == 1. && n.y > .6) v += (vnoise(p*vec3(11., 1., 11.)) - .5)*.22 + (vnoise(p*31.) - .5)*.1;
-  if (m == 2. && n.y > .6) { vec2 f = fract((p.xz + 3.)*2.); float s = min(min(f.x, 1. - f.x), min(f.y, 1. - f.y)); v += s < .07 ? -.28 : (vnoise(p*14.) - .5)*.12; }
-  if (m == 7.) v += sin(p.y*20. + vnoise(p*3.)*5.)*.07 + (vnoise(p*13.) - .5)*.12;
-  if (m == 8.) v += (vnoise(p*7.) - .5)*.25;
-  if (m == 5.) v += (vnoise(p*16.) - .5)*.25;
-  return v;
-}
-// NOVA's soft shadow on the ground under her
-float novaShade(vec3 p, vec3 n){ if (uNova.w <= 0. || n.y < .5) return 1.; float r = length(p.xz - uNova.xz); return 1. - .5*uNova.w*smoothstep(.34, .08, r); }
-`;
-
-// Look 1: hi-bit pixel art. This is the "model" pass of NOVA's and GOLEM's renderer (pixel-gl.js): per art pixel it
-// reports light, material and depth, and the shared pixel pass turns that into ramps, dithering and outlines.
-const PIX_MODEL = `
-uniform vec2 uRes;
-${WORLD}
-uniform vec3 uCT, uCR, uCU, uCF; uniform float uScale;
-const vec3 L = normalize(vec3(-.35, .85, .5));
-out vec4 o;
-void main(){
-  vec2 q = (gl_FragCoord.xy - .5*uRes)/uScale;
-  vec3 ro = uCT + uCR*q.x + uCU*q.y - uCF*24., rd = uCF;
-  gCoin = 1e5;
-  float t = 0.; bool hit = false;
-  for (int i = 0; i < 200; i++) { float d = map(ro + rd*t); if (d < .0025) { hit = true; break; } t += max(d*.85, .003); if (t > 48.) break; }
-  float glow = exp(-max(gCoin, 0.)*9.);
-  if (!hit) { o = vec4(0., 0., 0., glow*.9); return; }
-  vec3 p = ro + rd*t; float m = gm; vec3 n = nrm(p);
-  float dif = max(dot(n, L), 0.)*shadow(p + n*.01, L);
-  float sh = .14 + .62*dif + .24*ao(p, n)*(.55 + .45*n.y) + detail(p, n, m);
-  if (m == 4.) {
-    if (n.y > .5) {   // the pool: ripples drifting toward the edge it spills over, brighter near the lip
-      sh = .42 + (vnoise(vec3((p.x - uTime*.7)*5., p.z*7., uTime*.6)) - .5)*.42 + dif*.22 + .22*smoothstep(2.6, 3., p.x);
-    } else {          // the falls: long streaks pouring down, white water at the lip and at the foot
-      float wy2 = -p.y - .1, s1 = vnoise(vec3(p.z*8., p.y*.7 + uTime*4.8, 0.)), s2 = vnoise(vec3(p.z*15. + 3., p.y*1.6 + uTime*7.5, 1.));
-      sh = .26 + .42*s1 + .28*smoothstep(.6, .78, s2) + .32*smoothstep(.45, 0., wy2) + .3*smoothstep(2.9, 3.6, wy2) + .12*dif;
-    }
-  }
-  if (m == 9.) sh = .58 + .3*dif + .12*n.y + (vnoise(p*14. + uTime*2.) - .5)*.18;
-  if (m == 3.) { vec4 b = length(p - uBitA.xyz) < length(p - uBitB.xyz) ? uBitA : uBitB; float rr = length(p - b.xyz)/max(b.w, .01);
-    sh = .36 + .5*dif + (rr > .16 ? .22 : rr < .07 ? .14 : 0.); }
-  sh *= novaShade(p, n);
-  o = vec4(clamp(sh, 0., 1.), m/16., clamp(t/48., 0., 1.), 0.);
-}`;
-const PIX_PALETTES = [
-  ["#16301f", "#22492a", "#336a32", "#4b8c3a", "#73b146", "#b2df62"],   // 1 grass
-  ["#26242f", "#3c3946", "#57535f", "#77727e", "#9c97a0", "#cfcac8"],   // 2 stone
-  ["#5a3a0a", "#8a5a10", "#c48a18", "#eab42a", "#ffd75a", "#fff4b0"],   // 3 Bit gold
-  ["#0b1a48", "#11307a", "#1b4bb0", "#2e72de", "#5ea2f2", "#c4e8ff"],   // 4 water
-  ["#0f2a1d", "#173f28", "#235a31", "#367c3a", "#56a046", "#94cc62"],   // 5 leaves
-  ["#24160f", "#3a2417", "#53351f", "#70492b", "#90613b", "#b48356"],   // 6 wood
-  ["#1b1220", "#2b1b2a", "#422a34", "#5f3c40", "#81564d", "#a97a63"],   // 7 earth
-  ["#161624", "#252538", "#38384f", "#4f4f69", "#6d6d88", "#9696b0"],   // 8 rock
-  ["#2b5aa8", "#5a8fd8", "#8fbdf0", "#c2e2ff", "#e6f4ff", "#ffffff"],   // 9 foam and spray
-];
-const PIX_GLOW = ["#5a3c0e", "#c08a20", "#ffe08a", "#000000", "#000000", "#000000"];   // the Bits glow; nothing else does
-
-// ================================================================ cameras
-const v3 = { sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
-  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
-  norm: (a) => { const l = Math.hypot(...a) || 1; return a.map((x) => x / l); }, add: (a, b) => a.map((x, i) => x + b[i]), mul: (a, s) => a.map((x) => x * s) };
-function basisFrom(fwd) { const F = v3.norm(fwd), Rr = v3.norm(v3.cross(F, [0, 1, 0])); return { F, R: Rr, U: v3.cross(Rr, F) }; }
-// yaw + spin: where the camera sits round the island (it starts front-right); pitch: how far it looks down.
-// Dragging moves spin and pitch directly; let go and it coasts, then settles on the nearest 45 degrees (the views
-// where the pixel tiles line up best). The buttons and the win's lap set a target the same way.
-const cam = { yaw: Math.PI / 4, spin: 0, pitch: Math.PI / 6, vs: 0, target: null, pitchT: null, drag: null, auto: false };
-function camBasis(pitch) { const y = cam.yaw + cam.spin; return basisFrom([-Math.sin(y) * Math.cos(pitch), -Math.sin(pitch), -Math.cos(y) * Math.cos(pitch)]); }
-const world = $("world");
-let WW = 1, WH = 1, dpr = 1;
-
-// pixel look: orthographic, 2 CSS px per art pixel, the island fitted to the pane
-const pixCv = $("pixCv");
-let pix = null, pixScale = 30;
-const PIX_TARGET = [0, -1.15, 0];
-function pixCam() { return camBasis(cam.pitch); }
-function pixProject(p) {
-  const B = pixCam(), d = v3.sub(p, PIX_TARGET);
-  return [WW / 2 + v3.dot(d, B.R) * pixScale * 2, WH / 2 - v3.dot(d, B.U) * pixScale * 2];
-}
-const project = pixProject;
-
-function sizeViews() {
-  const r = world.getBoundingClientRect(); WW = r.width; WH = r.height; dpr = Math.min(devicePixelRatio || 1, 2);
-  // fit the island: about 10.5 units across and 10 high
-  pixScale = Math.max(8, Math.min(WW / 2 / 10.6, WH / 2 / 10.2));
-  if (pix) pix.resize(Math.max(32, Math.round(WW / 2)), Math.max(32, Math.round(WH / 2)));
-  dirCv.width = Math.max(32, Math.round(WW / 2)); dirCv.height = Math.max(32, Math.round(WH / 2));
-  drawStars();
-}
-// pixel look's sky: dithered stars on a canvas at the same art-pixel size
-function drawStars() {
-  const c = $("starCv"), w = Math.max(32, Math.round(WW / 2)), h = Math.max(32, Math.round(WH / 2));
-  c.width = w; c.height = h; const g = c.getContext("2d"); g.clearRect(0, 0, w, h);
-  let s = 7; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < w * h / 260; i++) { const x = rnd() * w | 0, y = rnd() * h | 0, b = rnd(); g.fillStyle = b > .9 ? "#fff6d8" : b > .6 ? "#b8c0ff" : "#5d5fa0"; g.fillRect(x, y, 1, 1);
-    if (b > .97) { g.fillStyle = "#6a6cb0"; g.fillRect(x - 1, y, 1, 1); g.fillRect(x + 1, y, 1, 1); g.fillRect(x, y - 1, 1, 1); g.fillRect(x, y + 1, 1, 1); } }
-}
-
-// ================================================================ NOVA
-const novaHost = $("novaHost");
-const NOVA_ART = { w: 64, h: 76 };
-let nova = null;
-const N = { x: 0, z: 0, y: 0, dir: 0, yaw: 0, lean: 0, bob: 0 };   // where she is (cell units, can be between cells)
-function placeNova() {
-  if (!nova) return;
-  const top = Math.max(topAt(Math.floor(N.x + .5), Math.floor(N.z + .5)), topAt(Math.round(N.x), Math.round(N.z)));
-  const s2 = project([N.x - 2.5, top + .62 + N.y, N.z - 2.5]);
-  // her art pixels are 2 CSS px, the same as the island's
-  const ua = pixScale;   // art px per world unit
-  const wantH = Math.round(ua * 2.3), wantW = Math.round(ua * 1.9);
-  if (Math.abs(wantH - NOVA_ART.h) > 2) { NOVA_ART.h = wantH; NOVA_ART.w = wantW; nova.gl.resize(wantW, wantH); }
-  nova.view = NOVA_ART.h / (ua * .54);
-  // where her picture goes in the island's (art px, from the top left), and how deep she stands, for the depth test
-  N.rect = [Math.round(s2[0] / 2 - NOVA_ART.w / 2), Math.round(s2[1] / 2 - NOVA_ART.h * .56), NOVA_ART.w, NOVA_ART.h];
-  N.depth = depthOf([N.x - 2.5, top + .62 + N.y, N.z - 2.5]);
-  // She turns to face where she goes, as seen from the camera. Her ring faces the camera (bill), or it would squash
-  // into an oval beside her head when she turns side on.
-  const B = pixCam(), f = [Math.cos(N.yaw), 0, -Math.sin(N.yaw)];
-  nova.bill = 1;
-  nova.yaw = -Math.atan2(v3.dot(f, B.R), -v3.dot(f, B.F));
-  nova.sway = N.lean;
-}
-// how far a point is along the island camera's rays (the model pass stores the same, as t / 48)
-function depthOf(p) { return v3.dot(v3.sub(p, PIX_TARGET), pixCam().F) + 24; }
-// the purple arrow on the tile ahead of her, pointing the way she faces: where her next move() goes (it turns as
-// she turns). One tile out, it stays clear of her body whichever way she faces.
-const dirCv = $("dirCv");
-function drawHeading() {
-  const g = dirCv.getContext("2d"), w = dirCv.width, h = dirCv.height;
-  g.clearRect(0, 0, w, h);
-  if (N.hideArrow) return;
-  const f = [Math.cos(N.yaw), 0, -Math.sin(N.yaw)];
-  const ax = Math.round(N.x + f[0]), az = Math.round(N.z + f[2]);
-  const top = (cell(ax, az) ? topAt(ax, az) : topAt(Math.round(N.x), Math.round(N.z))) + .012;
-  N.arrowDepth = depthOf([N.x - 2.5 + f[0] * .95, top, N.z - 2.5 + f[2] * .95]);
-  // a symmetric arrow drawn on screen (in art px), centred on the next tile and pointing along her heading as the
-  // island shows it (drawn flat on the ground, the slanted view squashed it into a lopsided flag)
-  const at = (a) => { const q = project([N.x - 2.5 + f[0] * a, top, N.z - 2.5 + f[2] * a]); return [q[0] / 2, q[1] / 2]; };
-  const C = at(.95), A = at(1.25), len = Math.hypot(A[0] - C[0], A[1] - C[1]) || 1, d = [(A[0] - C[0]) / len, (A[1] - C[1]) / len], n = [-d[1], d[0]];
-  const P = (u, v) => [C[0] + d[0] * u + n[0] * v, C[1] + d[1] * u + n[1] * v];
-  // a shaft and a head (an arrow like this one: →), which reads at any angle at this size
-  const s0 = P(-8, -1.1), s1 = P(-8, 1.1), s2 = P(3, 1.1), s3 = P(3, -1.1), tip = P(9, 0), h1 = P(2, 4.6), h2 = P(2, -4.6);
-  const tris = [[s0, s1, s2], [s0, s2, s3], [tip, h1, h2]];
-  const xs = [s0, s1, tip, h1, h2].map((p) => p[0]), ys = [s0, s1, tip, h1, h2].map((p) => p[1]);
-  const x0 = Math.floor(Math.min(...xs)) - 2, x1 = Math.ceil(Math.max(...xs)) + 2, y0 = Math.floor(Math.min(...ys)) - 2, y1 = Math.ceil(Math.max(...ys)) + 2;
-  const inTri = (px, py, [a, b, c]) => { const d = (p, q, r2) => (p[0] - r2[0]) * (q[1] - r2[1]) - (q[0] - r2[0]) * (p[1] - r2[1]);
-    const P = [px, py], d1 = d(P, a, b), d2 = d(P, b, c), d3 = d(P, c, a); return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0)); };
-  const W = x1 - x0 + 1, mask = new Uint8Array(W * (y1 - y0 + 1));
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (tris.some((t) => inTri(x + .5, y + .5, t))) mask[(y - y0) * W + (x - x0)] = 1;
-  const on = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1 && mask[(y - y0) * W + (x - x0)];
-  const glow = .5 + .5 * Math.sin(time * 3);
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-    if (on(x, y)) { g.fillStyle = on(x, y - 1) ? (glow > .5 ? "#cba2ff" : "#a066f0") : "#f3e6ff"; g.fillRect(x, y, 1, 1); }
-    else if (on(x + 1, y) || on(x - 1, y) || on(x, y + 1) || on(x, y - 1)) { g.fillStyle = "#2e0f5c"; g.fillRect(x, y, 1, 1); }
-  }
-}
-// NOVA's moods, but floating: her "happy" bob is a hop, so it is swapped for her calm float
-function moodOf(n, name) { n.setMood(name); if (n.m.hop) n.m = { ...n.m, hop: false, bob: 1.6, amp: .05 }; }
-
-// ================================================================ drawing
-const bitsShown = PUZZLE.bits.map(() => ({ s: 1, lift: 0 }));
-let time = 0, last = performance.now();
-function bitVec(i) {
-  const [bx, bz] = PUZZLE.bits[i], b = bitsShown[i];
-  return [bx - 2.5, topAt(bx, bz) + .46 + Math.sin(time * 2 + i) * .05 + b.lift, bz - 2.5, b.s];
-}
-function novaVec() { const top = topAt(Math.round(N.x), Math.round(N.z)); return [N.x - 2.5, top, N.z - 2.5, 1 - Math.min(1, N.y * 2)]; }
-// Runs in the island's own WebGL context right after it is drawn: copies the finished island, then lays the arrow and
-// NOVA's picture over it, pixel for pixel, except where the island's surface is nearer the camera than they are (the
-// model pass keeps each pixel's depth), so a tree or a raised block in front of her hides her from any angle.
-const COMP_FS = `#version 300 es
-precision highp float;
-uniform sampler2D uWorld, uModel, uNova, uArrow; uniform vec2 uRes; uniform vec4 uNovaRect; uniform float uNovaT, uArrowT;
-out vec4 o;
-vec4 over(vec4 a, vec4 b){ float k = a.a + b.a*(1. - a.a); return k < 1e-4 ? vec4(0.) : vec4((a.rgb*a.a + b.rgb*b.a*(1. - a.a))/k, k); }
-void main(){
-  ivec2 p = ivec2(gl_FragCoord.xy);
-  vec4 w = texelFetch(uWorld, p, 0), m = texelFetch(uModel, p, 0);
-  bool solid = (int(m.g*16. + .5) & 15) > 0; float wt = m.b*48.;
-  vec4 a = texelFetch(uArrow, ivec2(p.x, int(uRes.y) - 1 - p.y), 0);
-  if (a.a > 0. && !(solid && wt < uArrowT - .3)) w = over(a, w);
-  ivec2 q = p - ivec2(uNovaRect.xy);
-  if (q.x >= 0 && q.y >= 0 && q.x < int(uNovaRect.z) && q.y < int(uNovaRect.w)) {
-    vec4 n = texelFetch(uNova, ivec2(q.x, int(uNovaRect.w) - 1 - q.y), 0);
-    if (n.a > 0. && !(solid && wt < uNovaT - .4)) w = over(n, w);
-  }
-  o = w;
-}`;
-let comp = null;
-function makeComposite() {
-  const gl = pix.gl;
-  const sh = (type, src) => { const x = gl.createShader(type); gl.shaderSource(x, src); gl.compileShader(x);
-    if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
-  const pr = gl.createProgram();
-  gl.attachShader(pr, sh(gl.VERTEX_SHADER, "#version 300 es\nin vec2 a; void main(){ gl_Position = vec4(a, 0., 1.); }"));
-  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, COMP_FS)); gl.bindAttribLocation(pr, 0, "a"); gl.linkProgram(pr);
-  const tex = () => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
-    for (const k of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, k, gl.NEAREST);
-    for (const k of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE); return t; };
-  const loc = {}; const L = (n) => (n in loc ? loc[n] : (loc[n] = gl.getUniformLocation(pr, n)));
-  return { pr, L, world: tex(), nova: tex(), arrow: tex() };
-}
-function composite() {
-  const gl = pix.gl, c = comp ||= makeComposite(), w = pixCv.width, h = pixCv.height;
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, c.world); gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 0, 0, w, h, 0);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, c.nova); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, nova.canvas);
-  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, c.arrow); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, dirCv);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, pix.tex);
-  gl.useProgram(c.pr); gl.viewport(0, 0, w, h);
-  [["uWorld", 0], ["uModel", 1], ["uNova", 2], ["uArrow", 3]].forEach(([n, u]) => gl.uniform1i(c.L(n), u));
-  const [x, y, rw, rh] = N.rect || [0, 0, 0, 0];
-  gl.uniform2f(c.L("uRes"), w, h); gl.uniform4f(c.L("uNovaRect"), x, h - y - rh, rw, rh);
-  gl.uniform1f(c.L("uNovaT"), N.depth || 0); gl.uniform1f(c.L("uArrowT"), N.arrowDepth || 0);
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
-  gl.activeTexture(gl.TEXTURE0);
-}
-function draw() {
-  const B = pixCam();
-  pix.draw({ uTime: time, uBitA: bitVec(0), uBitB: bitVec(1), uNova: novaVec(), uCT: PIX_TARGET, uCR: B.R, uCU: B.U, uCF: B.F, uScale: pixScale },
-    { uTime: time, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: .5, uFlat: 0, uPlume: [0, 0, 0, 0] });
-  placeNova(); drawHeading(); composite();
-}
-
-// ================================================================ playing the run back
-const SPEED = { k: 1 };
-let tweens = [], playing = null;
-const easeIO = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const tween = (ms, fn) => new Promise((done) => tweens.push({ t: 0, ms: ms / SPEED.k, fn, done }));
-const wait = (ms) => tween(ms, () => {});
-function stepTweens(dt) {
-  tweens = tweens.filter((tw) => { tw.t = Math.min(tw.ms, tw.t + dt * 1000); tw.fn(tw.ms ? tw.t / tw.ms : 1); if (tw.t >= tw.ms) { tw.done(); return false; } return true; });
-}
-function resetWorld() {
-  Object.assign(N, { x: PUZZLE.start.x, z: PUZZLE.start.z, y: 0, dir: PUZZLE.start.dir, yaw: PUZZLE.start.dir * Math.PI / 2, lean: 0, hideArrow: false });
-  bitsShown.forEach((b) => Object.assign(b, { s: 1, lift: 0 }));
-  setCount(0); if (nova) moodOf(nova, "idle");
-}
-function setCount(n, pop) { $("count").textContent = `${n}/${PUZZLE.bits.length}`; if (pop) { const c = $("counter"); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); } }
-function lineHL(line, bad) {
-  const hl = $("hl");
-  if (!line) { hl.classList.remove("on", "bad"); markGutter(0); return; }
-  hl.style.transform = `translateY(${(line - 1) * 26}px)`; hl.classList.add("on"); hl.classList.toggle("bad", !!bad); markGutter(line);
-  const ed = $("editor"), y = 14 + (line - 1) * 26;
-  if (y < ed.scrollTop + 10 || y > ed.scrollTop + ed.clientHeight - 60) ed.scrollTo({ top: y - ed.clientHeight / 3, behavior: "smooth" });
-}
-function markGutter(line) { [...$("gutter").children].forEach((s, i) => s.classList.toggle("on", i + 1 === line)); }
-async function play(ev) {
-  for (const e of ev) {
-    if (!playing) return;
-    lineHL(e.line);
-    if (e.kind === "move") {
-      const [x0, z0] = e.from, [x1, z1] = e.to;
-      await tween(470, (k) => { const q = easeIO(k); N.x = x0 + (x1 - x0) * q; N.z = z0 + (z1 - z0) * q; N.lean = Math.sin(k * Math.PI) * -.18; });
-    } else if (e.kind === "turn") {
-      const a0 = N.yaw, a1 = a0 + Math.PI / 2;
-      await tween(320, (k) => { N.yaw = a0 + (a1 - a0) * easeIO(k); });
-    } else if (e.kind === "collect") {
-      const b = bitsShown[e.bit];
-      flyCoin(e.bit);
-      await tween(520, (k) => { b.lift = easeIO(k) * .7; b.s = 1 - easeIO(Math.max(0, k - .35) / .65); });
-      setCount(PUZZLE.bits.filter((_, i) => bitsShown[i].s < .05).length, true);
-    } else if (e.kind === "nudge") {
-      await wait(420);
-    } else if (e.kind === "bump") {
-      const [dx, dz] = DIRS[e.dir], x0 = N.x, z0 = N.z;
-      nova.setMood("angry");
-      await tween(480, (k) => { const q = Math.sin(Math.min(1, k * 1.6) * Math.PI) * .28; N.x = x0 + dx * q; N.z = z0 + dz * q; N.lean = Math.sin(k * 30) * .15 * (1 - k); });
-    } else if (e.kind === "miss") {
-      nova.setMood("sad"); await wait(420);
-    }
-    await wait(70);
-  }
-}
-function flyCoin(i) {
-  const r = world.getBoundingClientRect(), [sx, sy] = project(bitVec(i).slice(0, 3)), c = $("counter").querySelector(".coin").getBoundingClientRect();
-  const el = document.createElement("span"); el.className = "coin flycoin"; el.textContent = "B"; document.body.append(el);
-  const x0 = r.left + sx - 11, y0 = r.top + sy - 11, x1 = c.left - 1, y1 = c.top - 1;
-  el.animate([{ transform: `translate(${x0}px, ${y0}px) scale(.6)`, opacity: 0 }, { transform: `translate(${(x0 + x1) / 2}px, ${Math.min(y0, y1) - 60}px) scale(1.2)`, opacity: 1, offset: .45 },
-    { transform: `translate(${x1}px, ${y1}px) scale(1)`, opacity: 1 }], { duration: 760 / SPEED.k, easing: "cubic-bezier(.5,0,.3,1)", delay: 160 / SPEED.k }).onfinish = () => el.remove();
-}
-
-// ================================================================ the card under the world (hints, problems, the win)
-const card = $("card");
-let hintAt = 0;
-function showCard(kind, html) {
-  card.className = "card " + kind; card.innerHTML = `<button class="x" type="button" aria-label="Close">×</button>` + html;
-  card.querySelector(".x").onclick = hideCard;
-  requestAnimationFrame(() => card.classList.add("show"));
-}
-function hideCard() { card.classList.remove("show"); }
-function showHint() {
-  showCard("hint", `<h3>Hint ${hintAt + 1} of ${HINTS.length}</h3><p>${HINTS[hintAt]}</p>
-    <div class="foot"><span class="dots">${HINTS.map((_, i) => `<i class="${i === hintAt ? "on" : ""}"></i>`).join("")}</span>
-    ${hintAt < HINTS.length - 1 ? '<button class="link" type="button" id="moreHint">Next hint</button>' : ""}</div>`);
-  const m = $("moreHint"); if (m) m.onclick = () => { hintAt++; showHint(); };
-}
-const WHY = { water: "into the water", edge: "off the edge of the island", wall: "into a raised block", tree: "into a tree", rock: "into a rock", bush: "into a bush" };
-const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
-function explain(err, res) {
-  const after = "Nothing after that line ran.";
-  if (err.kind === "Blocked") return ["NOVA can't go there", `Line ${err.line}: <code>move()</code> would take her ${WHY[err.message]}. ${after}`];
-  if (err.kind === "Nothing") return ["No Bit here", `Line ${err.line}: <code>collect()</code> only works on a tile with a Bit, and NOVA's tile is empty. ${after}`];
-  const msg = `<code>${err.kind}: ${esc(err.message)}</code>`;
-  const tip = err.kind === "NameError" ? (err.extra ? `Did you mean <code>${err.extra}()</code>? Names must match exactly, small letters and all.` : "Python doesn't know that name.")
-    : err.kind === "IndentationError" ? "Commands only move in when they belong to a <code>for</code> or <code>def</code> above them."
-    : err.kind === "TypeError" ? "These commands don't take anything inside the brackets." : err.kind === "SyntaxError" ? "Check the brackets and the spelling on that line." : "";
-  return ["Python stopped on line " + err.line, `${msg}<br>${tip} ${res.ev.length ? after : "Nothing ran."}`];
-}
-async function runCode() {
-  if (playing) { stopRun(); return; }
-  hideCard(); cam.auto = false; resetWorld(); lineHL(0);
-  let prog;
-  try { prog = parse($("code").value); }
-  catch (e) { if (!(e instanceof PyErr)) throw e; nova.setMood("sad"); lineHL(e.line, true); const [h, p] = explain(e, { ev: [] }); showCard("bad", `<h3>${h}</h3><p>${p}</p>`); return; }
-  const res = execute(prog);
-  playing = res; setRunning(true);
-  await wait(200);
-  await play(res.ev);
-  if (playing !== res) return;
-  setRunning(false); playing = null;
-  if (res.error) {
-    lineHL(res.error.line, true); if (res.error.kind !== "Blocked") nova.setMood("sad");
-    const [h, p] = explain(res.error, res); showCard("bad", `<h3>${h}</h3><p>${p}</p>`);
-  } else if (res.got === PUZZLE.bits.length) {
-    lineHL(0); moodOf(nova, "happy");
-    N.hideArrow = true; lap();
-    showCard("win", `<h3>Both Bits collected!</h3><p>NOVA did exactly what you wrote, in exactly the order you wrote it. That's all code is: steps, in order.</p>
-      <div class="foot"><span class="earn"><span class="coin">B</span>+10 Bits</span><button class="link" type="button" id="again">Play again</button></div>`);
-    $("again").onclick = () => { hideCard(); resetWorld(); };
-  } else {
-    lineHL(0); nova.setMood("sad");
-    const nudge = res.ev.find((e) => e.kind === "nudge");
-    showCard("bad", `<h3>${res.got} of ${PUZZLE.bits.length} Bits</h3><p>Your code finished, but ${PUZZLE.bits.length - res.got === 1 ? "a Bit is" : "the Bits are"} still out there. ${nudge
-      ? `Line ${nudge.line} says <code>${nudge.name}</code> without <code>()</code>, so it didn't run.` : "Add more commands and run it again."}</p>`);
-  }
-}
-function stopRun() { playing = null; tweens = []; cam.auto = false; setRunning(false); resetWorld(); lineHL(0); }
-function setRunning(on) { const b = $("run"); b.classList.toggle("stop", on); b.querySelector("span").textContent = on ? "Stop" : "Run my code";
-  b.querySelector("svg").innerHTML = on ? '<rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/>' : '<path d="M3 1.5v11l9-5.5z" fill="currentColor"/>'; }
-
-// ================================================================ the editor
-const code = $("code");
-const KW = /^(for|in|range|def|pass|if|else|elif|while|and|or|not|True|False)$/;
-function paintCode() {
-  const src = code.value;
-  $("pre").innerHTML = src.split("\n").map((line) => {
-    const m = line.match(/^(.*?)(#.*)?$/), body = m[1], com = m[2] || "";
-    return body.replace(/[A-Za-z_]\w*(?=\s*\()|\b\d+\b|[A-Za-z_]\w*|[&<>]/g, (t) => {
-      if (/^[&<>]$/.test(t)) return esc(t);
-      if (/^\d/.test(t)) return `<span class="tk-num">${t}</span>`;
-      if (KW.test(t)) return `<span class="tk-kw">${t}</span>`;
-      if (BUILTIN[t]) return `<span class="tk-fn">${t}</span>`;
-      return t;
-    }) + (com ? `<span class="tk-com">${esc(com)}</span>` : "");
-  }).join("\n") + "\n";
-  const n = Math.max(1, src.split("\n").length);
-  $("gutter").innerHTML = Array.from({ length: n }, (_, i) => `<span>${i + 1}</span>`).join("");
-  code.style.height = "0px"; code.style.height = Math.max(code.parentElement.clientHeight, code.scrollHeight) + "px";
-}
-code.addEventListener("input", () => { paintCode(); try { localStorage.setItem("operandi:playtime:draft", code.value); } catch {} });
-code.addEventListener("keydown", (e) => {
-  if (e.key === "Tab") { e.preventDefault(); insertText("    "); }
-  if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {   // keep the indent; one more after a colon
-    e.preventDefault(); const v = code.value, i = code.selectionStart, ls = v.lastIndexOf("\n", i - 1) + 1, line = v.slice(ls, i);
-    insertText("\n" + (line.match(/^\s*/)[0]) + (/:\s*$/.test(line) ? "    " : ""));
-  }
-  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runCode(); }
-});
-function insertText(t) {
-  const s = code.selectionStart, e = code.selectionEnd;
-  code.setRangeText(t, s, e, "end"); code.dispatchEvent(new Event("input"));
-}
-// a command button adds the command on its own line, at the indent of the line you're on
-document.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => {
-  const v = code.value, i = code.selectionStart, ls = v.lastIndexOf("\n", i - 1) + 1, le = v.indexOf("\n", i) < 0 ? v.length : v.indexOf("\n", i);
-  const line = v.slice(ls, le), ind = line.match(/^\s*/)[0] + (/:\s*$/.test(line) ? "    " : "");
-  if (line.trim()) { code.setSelectionRange(le, le); insertText("\n" + ind + b.dataset.cmd); }
-  else { code.setSelectionRange(ls, le); insertText(ind + b.dataset.cmd); }
-  if (!matchMedia("(pointer: coarse)").matches) code.focus();
-}));
-
-// ================================================================ the intro pages
-// Six pages. Pages 2 and 3 play a small pixel tea scene: the right order, then the same steps mixed up. Pages 4
-// and 5 show NOVA stepping out of her portal (the same portal sheet as her warp idle) and doing a command while it
-// types itself. Every scene is a function of time, so it can replay, or pause on any moment for tests.
-const PAGES = 6;
-let page = 0, sceneT0 = performance.now(), stillT = null, introNova = null, stageK = 2;
-const easeOut = (t) => 1 - Math.pow(1 - t, 3), easeIn = (t) => t * t * t;
-const c01 = (x) => Math.max(0, Math.min(1, x)), lerp = (a, b, t) => a + (b - a) * t;
-const sm01 = (a, b, x) => { const t = c01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
-
-// ---- NOVA's portal: Isaac's 4-colour portal sheet (8 open frames, 8 looping, 6 closing; 128 art px each)
-const portalSheet = new Image(); portalSheet.src = "assets/nova/portal.png";
-const pcv = document.createElement("canvas"); pcv.width = pcv.height = 128;
-const pg = pcv.getContext("2d", { willReadFrequently: true });
-function portalAt(t, open, close) {   // which frame shows at time t, or null
-  if (t < open) return null;
-  if (t < open + .64) return [1, Math.floor((t - open) / .08)];
-  if (t < close) return [0, Math.floor((t - open - .64) / .08) % 8];
-  if (t < close + .48) return [2, Math.floor((t - close) / .08)];
-  return null;
-}
-// The swirl goes behind NOVA; the half of its dark rim she is passing through is drawn again in front of her,
-// so she goes in and out of it (as in the warp idle).
-function drawPortal(back, front, st, x, y, rimSide) {
-  if (!st || !portalSheet.naturalWidth) return;
-  pg.clearRect(0, 0, 128, 128); pg.drawImage(portalSheet, st[1] * 128, st[0] * 128, 128, 128, 0, 0, 128, 128);
-  back.drawImage(pcv, Math.round(x - 60), Math.round(y - 70));
-  const d = pg.getImageData(0, 0, 128, 128), D = d.data;
-  const yGround = GY - Math.round(y - 70);   // no rim below the ground line
-  for (let i = 0; i < 128 * 128; i++) { const o = i * 4; if ((i % 128 < 60 ? -1 : 1) !== rimSide || D[o] !== 30 || D[o + 1] !== 8 || (i >> 7) >= yGround) D[o + 3] = 0; }
-  pg.putImageData(d, 0, 0); front.drawImage(pcv, Math.round(x - 60), Math.round(y - 70));
-}
-// The row of tiles NOVA stands on, seen straight from the side: the island's own tiles (same rounded blocks, grass
-// band, earth strata, palettes, dithering and outlines), drawn once by the pixel pipeline and kept as two pictures:
-// plain, and with the second tile lit (where move() takes her).
-const TILES = [80, 128, 176], GY = 104, TW = 48;
-const GROUND_MODEL = `
-uniform vec2 uRes; uniform float uHi, uScale; uniform vec2 uOrigin;
-float gm;
-float map(vec3 p){
-  gm = 0.; float d = 1e5;
-  for (int k = 0; k < 3; k++) {
-    float nd = sdRBox(p - vec3(float(k) - 1., -.21, 0.), vec3(.485, .21, .485), .045);
-    if (nd < d) { d = nd; gm = p.y > -.11 ? 1. : 7.; }
-  }
-  return d; }
-vec3 nrm(vec3 p){ vec2 e = vec2(.002, -.002);
-  return normalize(e.xyy*map(p + e.xyy) + e.yyx*map(p + e.yyx) + e.yxy*map(p + e.yxy) + e.xxx*map(p + e.xxx)); }
-const vec3 L = normalize(vec3(-.35, .85, .5));
-out vec4 o;
-void main(){
-  vec3 ro = vec3((gl_FragCoord.xy - uOrigin)/uScale, 3.), rd = vec3(0., 0., -1.);
-  float t = 0.; bool hit = false;
-  for (int i = 0; i < 48; i++) { float d = map(ro + rd*t); if (d < .002) { hit = true; break; } t += d; if (t > 6.) break; }
-  if (!hit) { o = vec4(0.); return; }
-  vec3 p = ro + rd*t; float m = gm; vec3 n = nrm(p);
-  float sh = .14 + .62*max(dot(n, L), 0.) + .2*(.55 + .45*n.y);
-  if (m == 1.) { if (n.y > .6) sh += (vnoise(p*vec3(11., 1., 11.)) - .5)*.22; if (uHi >= 0. && abs(p.x - (uHi - 1.)) < .5) sh += .22; }
-  else sh += sin(p.y*20. + vnoise(p*3.)*5.)*.07 + (vnoise(p*13.) - .5)*.12;
-  o = vec4(clamp(sh, 0., 1.), m/16., clamp(t/6., 0., 1.), 0.);
-}`;
-const groundPics = [];
-function makeGround() {
-  const cv = document.createElement("canvas"); cv.width = 232; cv.height = 124;
-  const gl = new PixelGL(cv, { model: GROUND_MODEL, palettes: PIX_PALETTES, glow: PIX_GLOW, extra: ["#9fb0ff", "#ffffff", "#06060f"] });
-  [-1, 1].forEach((hi) => {
-    gl.draw({ uHi: hi, uScale: TW, uOrigin: [TILES[1], 124 - GY] }, { uTime: 0, uFlash: 0, uBlock: 1, uGlitch: 0, uShadow: 0, uShadowX: .5, uFlat: 0, uPlume: [0, 0, 0, 0] });
-    const c = document.createElement("canvas"); c.width = 232; c.height = 124; c.getContext("2d").drawImage(cv, 0, 0); groundPics.push(c);
-  });
-  gl.gl.getExtension("WEBGL_lose_context")?.loseContext();   // drawn once; give the context back
-}
-function drawGround(g, hi = -1) { if (groundPics.length) g.drawImage(groundPics[hi === 1 ? 1 : 0], 0, 0); }
-// a Bit: a gold coin, spinning (spin = angle), with NOVA's purple telekinesis round it (aura 0..1)
-function drawCoin(g, cx, cy, spin, aura, t) {
-  cx = Math.round(cx); cy = Math.round(cy);
-  const r = 5, w = Math.max(1.2, Math.abs(Math.cos(spin)) * r);
-  if (aura > 0) for (let y = -10; y <= 10; y++) for (let x = -10; x <= 10; x++) {
-    const d = Math.hypot(x, y), b = ((x & 3) * 4 + (y & 3)) / 16, f = aura * (1 - d / 10) + Math.sin(t * 9 + d) * .06;
-    if (d > 4 && d < 10 && f > b * .9) { g.fillStyle = f > .55 ? "#cba2ff" : "#7838d0"; g.fillRect(cx + x, cy + y, 1, 1); }
-  }
-  const ell = (x, y, a, b) => (x / a) ** 2 + (y / b) ** 2 <= 1;
-  for (let y = -r - 1; y <= r + 1; y++) for (let x = -Math.ceil(w) - 1; x <= Math.ceil(w) + 1; x++) {
-    if (ell(x, y, w + .9, r + .9) && !ell(x, y, w, r)) { g.fillStyle = "#06060f"; g.fillRect(cx + x, cy + y, 1, 1); }
-    else if (ell(x, y, w, r)) {
-      const edge = !ell(x, y, w - 1.1, r - 1.1);
-      g.fillStyle = edge ? "#c48a18" : x < 0 && y < 0 ? "#fff4b0" : x + y > 3 ? "#eab42a" : "#ffd75a";
-      g.fillRect(cx + x, cy + y, 1, 1);
-    }
-  }
-}
-
-// ---- the tea scene (art 170 x 96): a tap, a kettle on a hob, a cup on a saucer
-const TEA = { W: 150, H: 70, step: 1.9, t0: .5 };
-const TEA_ORDER = { right: ["fill", "boil", "pour"], wrong: ["pour", "fill", "boil"] };
-const TEA_LABEL = { fill: "Fill the kettle", boil: "Boil it", pour: "Pour the tea" };
-const kcv = document.createElement("canvas"); kcv.width = 36; kcv.height = 30;
-const KMASK = (() => {   // 0 empty, 1 body, 2 dark parts (knob, spout, handle), 3 the water window. Origin (17, 28).
-  const W = 36, m = new Uint8Array(W * 30), set = (x, y, v) => { if (x >= 0 && y >= 0 && x < W && y < 30) m[y * W + x] = v; };
-  for (let y = 10; y <= 28; y++) { const hw = y >= 18 ? 10 : Math.round(10 * Math.sqrt(Math.max(0, 1 - ((18 - y) / 9.5) ** 2))); for (let x = 17 - hw; x < 17 + hw; x++) set(x, y, 1); }
-  for (let y = 7; y <= 9; y++) for (let x = 15; x <= 18; x++) set(x, y, 2);
-  for (let i = 0; i <= 9; i++) { const x = 26 + Math.round(i * .7), y = 22 - i; set(x, y, 2); set(x + 1, y, 2); set(x, y + 1, 2); }
-  for (let a = 0; a <= 1.001; a += .04) { const x = Math.round(6 - Math.sin(a * Math.PI) * 5), y = Math.round(13 + a * 10); set(x, y, 2); set(x + 1, y, 2); }
-  for (let y = 17; y <= 25; y++) { set(10, y, 3); set(11, y, 3); }
-  return m;
-})();
-function paintKettle(level, hot) {
-  const g = kcv.getContext("2d"), W = 36; g.clearRect(0, 0, 36, 30);
-  for (let y = 0; y < 30; y++) for (let x = 0; x < W; x++) {
-    const v = KMASK[y * W + x];
-    if (!v) {
-      const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const X = x + dx, Y = y + dy; return X >= 0 && Y >= 0 && X < W && Y < 30 && KMASK[Y * W + X]; });
-      if (near) { g.fillStyle = "#06060f"; g.fillRect(x, y, 1, 1); }
-      continue;
-    }
-    let c;
-    if (v === 2) c = x < 14 || y < 10 ? "#565d96" : "#3a3f6b";
-    else if (v === 3) c = y >= 25 - Math.round(level * 8) ? (hot ? "#9fd0ff" : "#4f8de8") : "#1c2040";
-    else { const f = (x - 7) / 20; c = f < .22 ? "#c9d3ff" : f < .62 ? "#8b97d6" : "#5a64a3"; if ((x === 12 || x === 13) && y > 12 && y < 21) c = "#eef2ff"; }
-    g.fillStyle = c; g.fillRect(x, y, 1, 1);
-  }
-}
-function teaState(order, t) {
-  const S = { level: 0, hot: false, cup: 0, tea: false, x: 46, y: 56, ang: 0, stream: false, tapOn: false, puff: -1, steam: 0, shake: false, light: false, active: -1, done: [], bad: [], end: false };
-  TEA_ORDER[order].forEach((a, i) => {
-    const s0 = TEA.t0 + i * TEA.step; if (t < s0) return;
-    const k = c01((t - s0) / 1.7); if (k < 1) S.active = i;
-    if (a === "fill") { S.level = Math.max(S.level, sm01(.12, .85, k)); S.tapOn = k > .06 && k < .9; }
-    if (a === "boil") {
-      S.light = k < .96; S.shake = k > .15 && k < .9 && S.level > 0;
-      S.steam = S.level > 0 ? sm01(.15, .6, k) * (1 - .55 * sm01(.85, 1, k)) : 0;
-      if (k >= .6 && S.level > 0) S.hot = true;
-    }
-    if (a === "pour") {
-      const lift = sm01(0, .22, k) * (1 - sm01(.8, 1, k)), tilt = sm01(.22, .38, k) * (1 - sm01(.72, .82, k));
-      S.x = lerp(46, 102, lift); S.y = lerp(56, 44, lift); S.ang = .8 * tilt;
-      const lv = S.level;
-      if (lv > 0) { const m = c01((k - .4) / .3); S.stream = k > .38 && k < .72; S.cup = Math.max(S.cup, m * lv); S.level = lv * (1 - m); S.tea = S.hot; }
-      else { if (k > .4 && k < .85) S.puff = (k - .4) / .45; if (k > .8) S.bad.push(i); }
-    }
-    if (k >= 1 && !S.bad.includes(i)) S.done.push(i);
-  });
-  if (t > TEA.t0 + 3 * TEA.step) S.end = true;
-  if (S.end && S.tea) S.cupSteam = 1;
-  return S;
-}
-const GLYPH_Q = ["01110", "10001", "00001", "00110", "00100", "00000", "00100"];
-function drawTea(cv, order, t) {
-  const g = cv.getContext("2d"), S = teaState(order, t);
-  g.imageSmoothingEnabled = false; g.clearRect(0, 0, TEA.W, TEA.H);
-  // the counter top
-  g.fillStyle = "#1d1b33"; g.fillRect(6, 62, 138, 3); g.fillStyle = "#2c2a4a"; g.fillRect(6, 61, 138, 1);
-  // the hob, its light red while it boils
-  g.fillStyle = "#06060f"; g.fillRect(27, 56, 38, 5); g.fillStyle = "#2a2a3a"; g.fillRect(28, 57, 36, 3); g.fillStyle = "#3e3e52"; g.fillRect(28, 57, 36, 1);
-  g.fillStyle = S.light ? (Math.floor(t * 6) % 2 ? "#ff6a4a" : "#ffb04a") : "#4a4058"; g.fillRect(58, 58, 3, 1);
-  // the tap, and its water
-  g.fillStyle = "#06060f"; g.fillRect(0, 5, 51, 5); g.fillRect(44, 5, 7, 11);
-  g.fillStyle = "#8a90a8"; g.fillRect(0, 6, 50, 3); g.fillRect(45, 6, 5, 9); g.fillStyle = "#c3c8dc"; g.fillRect(0, 6, 50, 1);
-  g.fillStyle = "#06060f"; g.fillRect(36, 0, 8, 6); g.fillStyle = S.tapOn ? "#ff9a8a" : "#a9bcff"; S.tapOn ? g.fillRect(37, 2, 6, 2) : g.fillRect(39, 1, 2, 4);
-  if (S.tapOn) for (let y = 16; y < S.y - 18; y++) { g.fillStyle = (y + Math.floor(t * 30)) % 4 ? "#4f8de8" : "#bde4ff"; g.fillRect(46 + ((y * 7 + Math.floor(t * 20)) % 3 === 0 ? 1 : 0), y, 2, 1); }
-  // the kettle (turned to pour)
-  paintKettle(S.level, S.hot);
-  const sx = S.shake ? (Math.floor(t * 40) % 2 ? 1 : -1) : 0;
-  g.save(); g.translate(Math.round(S.x + sx), Math.round(S.y - 10)); g.rotate(S.ang); g.drawImage(kcv, -17, -18); g.restore();
-  const tip = (() => { const px = 16, py = -9, c = Math.cos(S.ang), s = Math.sin(S.ang); return [S.x + px * c - py * s, S.y - 10 + px * s + py * c]; })();
-  if (S.stream) for (let y = Math.round(tip[1]) + 1; y < 47; y++) { g.fillStyle = S.tea ? ((y + Math.floor(t * 30)) % 3 ? "#a8743c" : "#e0b070") : "#4f8de8"; g.fillRect(Math.round(tip[0]), y, 2, 1); }
-  // steam from the spout while it boils, from the cup when the tea is made
-  const steam = (x0, y0, k, n) => { for (let i = 0; i < n; i++) { const ph = (t * .7 + i / n) % 1, x = x0 + Math.round(Math.sin(ph * 7 + i) * 2.5), y = y0 - Math.round(ph * 16);
-    if (k * (1 - ph) > ((i * 5 + Math.floor(t * 10)) % 7) / 10) { g.fillStyle = ph < .4 ? "#eef2ff" : "#a9b2d6"; g.fillRect(x, y, 2, 2); } } };
-  if (S.steam > 0) steam(tip[0], tip[1] - 2, S.steam, 8);
-  // a puff of nothing from an empty kettle
-  if (S.puff >= 0) for (let i = 0; i < 9; i++) { const a = i * .7 + .4, r = 2 + S.puff * 9; const x = Math.round(tip[0] + Math.cos(a) * r), y = Math.round(tip[1] + 2 + Math.sin(a) * r * .6);
-    if ((1 - S.puff) > (i % 3) * .25) { g.fillStyle = "#8e93b0"; g.fillRect(x, y, 1, 1); } }
-  // the cup on its saucer (inside: empty, or tea)
-  const cx = 122, cy = 61;
-  g.fillStyle = "#06060f"; g.fillRect(cx - 11, cy - 1, 22, 3); g.fillStyle = "#d9cfbd"; g.fillRect(cx - 10, cy - 1, 20, 1);
-  for (let y = 0; y < 12; y++) { const hw = Math.round(7 - y * .2); g.fillStyle = "#06060f"; g.fillRect(cx - hw - 1, cy - 13 + y, hw * 2 + 2, 1);
-    g.fillStyle = "#f2eadb"; g.fillRect(cx - hw, cy - 13 + y, hw * 2, 1); g.fillStyle = "#c9bfae"; g.fillRect(cx + hw - 3, cy - 13 + y, 3, 1); }
-  g.fillStyle = "#06060f"; g.fillRect(cx + 7, cy - 11, 4, 1); g.fillRect(cx + 10, cy - 11, 1, 6); g.fillRect(cx + 7, cy - 5, 4, 1);
-  g.fillStyle = "#06060f"; g.fillRect(cx - 7, cy - 15, 14, 3);
-  g.fillStyle = S.cup > .05 ? (S.tea ? "#8a5a2b" : "#4f8de8") : "#2a2438"; g.fillRect(cx - 6, cy - 14, 12, 1);
-  if (S.cup > .05 && S.tea) { g.fillStyle = "#c58a4a"; g.fillRect(cx - 4, cy - 14, 3, 1); }
-  if (S.cupSteam) steam(cx - 2, cy - 17, 1, 6);
-  // the empty cup wonders
-  if (S.end && S.cup < .05) GLYPH_Q.forEach((row, y) => [...row].forEach((b, x) => { if (b === "1") { g.fillStyle = "#ff9a8a"; g.fillRect(cx - 2 + x, cy - 30 + y + Math.round(Math.sin(t * 3)), 1, 1); } }));
-  return S;
-}
-function teaSteps(el, order) {
-  el.innerHTML = TEA_ORDER[order].map((a, i) => `<li><b>${i + 1}</b>${TEA_LABEL[a]}<span class="mark"></span></li>`).join("") +
-    `<li class="verdict">${order === "right" ? "A nice cup of tea" : "A cup of cold air"}</li>`;
-}
-function teaScene(n, order) {
-  const cv = $("tea" + n), list = $(`tea${n}steps`);
-  return (t) => {
-    const S = drawTea(cv, order, t);
-    [...list.children].forEach((li, i) => {
-      if (li.classList.contains("verdict")) { li.classList.toggle("show", S.end); li.classList.toggle("good", order === "right"); li.classList.toggle("bad", order !== "right"); return; }
-      li.classList.toggle("on", S.active === i); li.classList.toggle("ok", S.done.includes(i)); li.classList.toggle("bad", S.bad.includes(i));
-    });
-    return S.end;
-  };
-}
-
-// ---- NOVA's stages (art 232 x 124): she comes out of a portal, the command types itself, she does it
-const ST = { W: 232, H: 124, NY: 78, PY: 70, AX: 36 };
-function stage(id) {
-  const el = $(id), [back, front] = el.querySelectorAll("canvas");
-  [back, front].forEach((c) => { c.width = ST.W; c.height = ST.H; });
-  return { el, host: el.querySelector(".snova"), bg: back.getContext("2d"), fg: front.getContext("2d") };
-}
-function sizeIntro() {
-  const fit = (n) => Math.floor(n * 2) / 2;
-  stageK = Math.max(1.5, Math.min(3, fit((Math.min(innerWidth, 900) - 40) / ST.W), fit((innerHeight - 400) / ST.H)));
-  [$("stMove"), $("stCollect")].forEach((el) => { el.style.width = ST.W * stageK + "px"; el.style.height = ST.H * stageK + "px";
-    el.querySelectorAll("canvas").forEach((c) => { c.style.width = ST.W * stageK + "px"; c.style.height = ST.H * stageK + "px"; }); });
-  const tk = Math.max(1.5, Math.min(3, fit((Math.min(innerWidth, 900) - 40) / TEA.W), fit((innerHeight - 470) / TEA.H)));
-  ["tea1", "tea2"].forEach((id) => { const c = $(id); c.width = TEA.W; c.height = TEA.H; c.style.width = TEA.W * tk + "px"; c.style.height = TEA.H * tk + "px"; });
-}
-// put NOVA (her canvas centred on art x, y) on a stage: clipL/clipR hide her past a portal's middle, dark dims her near it
-function placeOnStage(S, x, y, { vis = true, clipL = null, clipR = null, dark = 0 } = {}) {
-  const k = stageK, c = introNova.canvas, W = c.width, H = c.height, left = x - W / 2, top = y - H / 2;
-  if (c.parentElement !== S.host) S.host.append(c);
-  c.style.width = W * k + "px"; c.style.height = H * k + "px";
-  S.host.style.width = W * k + "px"; S.host.style.height = H * k + "px";   // clip-path measures from this box
-  S.host.style.transform = `translate(${(left * k).toFixed(1)}px, ${(top * k).toFixed(1)}px)`;
-  S.host.style.clipPath = clipL != null ? `inset(0 0 0 ${Math.max(0, (clipL - left) * k)}px)` : clipR != null ? `inset(0 ${Math.max(0, (left + W - clipR) * k)}px 0 0)` : "none";
-  S.host.style.filter = dark > .01 ? `brightness(${(1 - .45 * dark).toFixed(2)})` : "";
-  S.host.style.visibility = vis ? "" : "hidden";
-}
-const near = (x, px) => c01(1 - Math.abs(x - px) / 40);
-function typing(id, bubble, text, t, t0, tRun) {
-  const el = $(id), n = Math.max(0, Math.min(text.length, Math.floor((t - t0) / .1) + 1));
-  el.style.minWidth = `calc(${text.length + 1}ch + 34px)`;
-  el.querySelector(".typed").textContent = t < t0 ? "" : text.slice(0, n);
-  el.classList.toggle("empty", t < t0);
-  el.classList.toggle("done", n >= text.length && t >= t0 + text.length * .1);
-  el.classList.toggle("run", t >= tRun && t < tRun + 1.1);
-  $(bubble).classList.toggle("wait", t < t0 + text.length * .1 + .1);
-}
-// move(): out of portal A onto tile 1, move() types, one tile right, portal B opens ahead, in she goes
-const MV = { aO: .2, oS: .9, oE: 1.9, aC: 2.05, tS: 2.5, run: 3.3, mS: 3.4, mE: 4.2, bO: 4.55, iS: 5.3, iE: 6.2, bC: 6.35, end: 7 };
-let SMOVE = null, SCOL = null;
-function sceneMove(t) {
-  const S = SMOVE, T1 = TILES[0], T2 = TILES[1], BX = 172;
-  S.bg.clearRect(0, 0, ST.W, ST.H); S.fg.clearRect(0, 0, ST.W, ST.H);
-  drawPortal(S.bg, S.fg, portalAt(t, MV.aO, MV.aC), ST.AX, ST.PY, 1);
-  drawPortal(S.bg, S.fg, portalAt(t, MV.bO, MV.bC), BX, ST.PY, -1);
-  drawGround(S.bg, t >= MV.mE - .1 && t < MV.iE ? 1 : -1);
-  if (t >= MV.mS && t < MV.bO) {   // the one tile she moves, marked on the ground
-    const a = c01((t - MV.mS) / .3) * (1 - c01((t - MV.bO + .3) / .3));
-    S.fg.globalAlpha = a; S.fg.fillStyle = "#a9bcff";
-    for (let x = T1 + 2; x < T2 - 3; x += 3) S.fg.fillRect(x, GY - 3, 2, 1);
-    S.fg.fillRect(T2 - 4, GY - 4, 1, 3); S.fg.fillRect(T2 - 3, GY - 3, 1, 1); S.fg.globalAlpha = 1;
-  }
-  let x = T1, o = { vis: true };
-  if (t < MV.oS) o.vis = false;
-  else if (t < MV.oE) { x = lerp(ST.AX - 30, T1, easeOut((t - MV.oS) / (MV.oE - MV.oS))); o.dark = near(x, ST.AX); }
-  else if (t < MV.mS) x = T1;
-  else if (t < MV.mE) x = lerp(T1, T2, easeIO((t - MV.mS) / (MV.mE - MV.mS)));
-  else if (t < MV.iS) x = T2;
-  else if (t < MV.iE) { x = lerp(T2, BX + 32, easeIn((t - MV.iS) / (MV.iE - MV.iS))); o.dark = near(x, BX); }
-  else o.vis = false;
-  if (t < MV.aC + .5) o.clipL = ST.AX;
-  if (t >= MV.iS) o.clipR = BX;
-  placeOnStage(S, x, ST.NY, o);
-  introNova.yaw = -.35; introNova.sway = t > MV.mS && t < MV.mE ? -Math.sin((t - MV.mS) / (MV.mE - MV.mS) * Math.PI) * .25 : 0;
-  moodOf(introNova, t > MV.bO - .2 && t < MV.iS ? "angry" : "idle");   // she frowns to tear the portal open, as in her warp
-  typing("cmd3", "bub3", "move()", t, MV.tS, MV.run);
-  return t >= MV.end;
-}
-// collect(): out of portal A onto the Bit's tile, collect() types, her telekinesis lifts the Bit and takes it
-const CL = { aO: .2, oS: .9, oE: 1.9, aC: 2.05, tS: 2.45, run: 3.45, tk: 3.5, lS: 3.8, lE: 4.9, pS: 4.95, pE: 5.4, end: 6.2 };
-function sceneCollect(t) {
-  const S = SCOL, T1 = TILES[0];
-  S.bg.clearRect(0, 0, ST.W, ST.H); S.fg.clearRect(0, 0, ST.W, ST.H);
-  drawPortal(S.bg, S.fg, portalAt(t, CL.aO, CL.aC), ST.AX, ST.PY, 1);
-  drawGround(S.bg);
-  let x = T1, o = { vis: true };
-  if (t < CL.oS) o.vis = false;
-  else if (t < CL.oE) { x = lerp(ST.AX - 30, T1, easeOut((t - CL.oS) / (CL.oE - CL.oS))); o.dark = near(x, ST.AX); }
-  if (t < CL.aC + .5) o.clipL = ST.AX;
-  placeOnStage(S, x, ST.NY, o);
-  // the Bit: resting on her tile, then lifted beside her in purple telekinesis, then taken
-  const lift = easeIO(c01((t - CL.lS) / (CL.lE - CL.lS))), pop = c01((t - CL.pS) / (CL.pE - CL.pS));
-  const bx = lerp(T1 + 14, T1 + 22, lift), by = lerp(GY - 6, ST.NY - 8, lift) + Math.sin(t * 4) * lift;
-  const tk = sm01(CL.tk, CL.tk + .3, t) * (1 - sm01(CL.pS, CL.pE, t));
-  if (pop < 1) drawCoin(S.fg, bx, by, t * (2 + lift * 6 + pop * 20), tk, t);
-  if (pop > 0 && pop < 1) for (let i = 0; i < 10; i++) {   // the Bit bursts into sparkles
-    const a = i * .628, r = 3 + pop * 13; S.fg.fillStyle = i % 2 ? "#ffd75a" : "#cba2ff";
-    S.fg.fillRect(Math.round(bx + Math.cos(a) * r), Math.round(by + Math.sin(a) * r), 1 + (pop < .5), 1 + (pop < .5));
-  }
-  // her telekinesis strands reach from her to the Bit (her renderer draws them; we tell it where the Bit is)
-  const n = introNova, W = n.canvas.width, H = n.canvas.height, cpx = bx - (x - W / 2), cpy = by - (ST.NY - H / 2);
-  const wx = (cpx - W / 2) / H * n.view, wy = (H / 2 - cpy) / H * n.view + .1 - (n.lastBob || 0);
-  n.idle.tk = tk; n.idle.bucketAt = [wx / Math.cos(n.yaw), wy, 0]; n.idle.bucket = 0;
-  n.yaw = -.35; n.sway = 0;
-  moodOf(n, t >= CL.pS + .1 ? "happy" : t >= CL.tk ? "angry" : "idle");
-  typing("cmd4", "bub4", "collect()", t, CL.tS, CL.run);
-  const got = t >= CL.pE ? 1 : 0, cn = $("scountN");
-  if (cn.textContent !== String(got)) { cn.textContent = got; if (got) { const c = $("scount"); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); } }
-  return t >= CL.end;
-}
-const SCENES = { 1: null, 2: null, 3: sceneMove, 4: sceneCollect };
-function introLoop(now) {
-  if ($("intro").classList.contains("gone")) { introRunning = false; return; }
-  const sc = SCENES[page], t = stillT ?? (REDUCED ? 99 : (now - sceneT0) / 1000);
-  const done = sc ? sc(t) : false;
-  $("nextP").classList.toggle("nudge", !!done && page < PAGES - 1);
-  requestAnimationFrame(introLoop);
-}
-let introRunning = false;
-function showPage(n) {
-  page = Math.max(0, Math.min(PAGES - 1, n)); sceneT0 = performance.now();
-  document.querySelectorAll(".page").forEach((p) => { const k = +p.dataset.p; p.classList.toggle("on", k === page); p.classList.toggle("past", k < page); });
-  $("pcount").textContent = `${page + 1} of ${PAGES}`; $("prevP").disabled = page === 0;
-  $("nextP").hidden = page === PAGES - 1; $("startBtn").hidden = page !== PAGES - 1;
-  // NOVA lives on whichever page shows her
-  if (introNova) {
-    const n = introNova; n.idle.tk = 0; moodOf(n, page === 0 ? "happy" : "idle"); n.sway = 0;
-    if (page === 0) { $("introNova").append(n.canvas); n.canvas.style.width = n.canvas.width * 2 + "px"; n.canvas.style.height = n.canvas.height * 2 + "px"; n.yaw = .25; }
-  }
-  if (!introRunning) { introRunning = true; requestAnimationFrame(introLoop); }
-}
-function closeIntro() {
-  $("intro").classList.add("gone");
-  try { localStorage.setItem("operandi:playtime:intro", "1"); } catch {}
-  if (matchMedia("(pointer: fine)").matches && !STILL) code.focus({ preventScroll: true });
-  setTimeout(showDragHint, 700);
-}
-function initIntro() {
-  teaSteps($("tea1steps"), "right"); teaSteps($("tea2steps"), "wrong");
-  SCENES[1] = teaScene(1, "right"); SCENES[2] = teaScene(2, "wrong");
-  SMOVE = stage("stMove"); SCOL = stage("stCollect"); makeGround();
-  // the same NOVA as in the game: her mooncloak body at the roaming size (art px), drawn 2x on the title page
-  introNova = new PixelNova($("introNova"), { kind: "mooncloak", w: 107, h: 113, px: 2, view: 4.79, shadow: false });
-  introNova.bill = 1;
-  sizeIntro(); addEventListener("resize", sizeIntro);
-}
-$("prevP").onclick = () => showPage(page - 1); $("nextP").onclick = () => showPage(page + 1);
-$("startBtn").onclick = closeIntro; $("skipIntro").onclick = closeIntro;
-document.querySelectorAll("[data-replay]").forEach((b) => (b.onclick = () => (sceneT0 = performance.now())));
-$("replayIntro").onclick = () => { $("intro").classList.remove("gone"); showPage(0); };
-addEventListener("keydown", (e) => { if ($("intro").classList.contains("gone")) return; if (e.key === "ArrowRight") showPage(page + 1); if (e.key === "ArrowLeft") showPage(page - 1); if (e.key === "Escape") closeIntro(); });
-
-// ================================================================ wiring
-$("run").onclick = runCode;
-$("hint").onclick = () => (card.classList.contains("show") && card.classList.contains("hint") ? hideCard() : showHint());
-$("speed").onclick = () => { SPEED.k = SPEED.k === 1 ? 2 : 1; $("speed").textContent = SPEED.k + "×"; };
-new ResizeObserver(() => sizeViews()).observe(world);
-
-// ---- the camera: drag the island to turn it all the way round (and tilt it a little); let go and it coasts, then
-// settles on the nearest 45 degrees. The buttons turn it a quarter, or back to the start.
-const STEP = Math.PI / 4, TAU = Math.PI * 2, near45 = (a) => Math.round(a / STEP) * STEP;
-world.addEventListener("pointerdown", (e) => {
-  if (e.button !== 0 || e.target.closest("button, .card, .bar, .camctl")) return;
-  Object.assign(cam, { drag: { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() }, vs: 0, target: null, pitchT: null, auto: false });
-  world.setPointerCapture(e.pointerId); world.classList.add("dragging"); hideDragHint();
-});
-world.addEventListener("pointermove", (e) => {
-  const d = cam.drag; if (!d || e.pointerId !== d.id) return;
-  const now = performance.now(), dx = e.clientX - d.x, dy = e.clientY - d.y, dts = Math.max(.008, (now - d.t) / 1000);
-  const k = 2.4 / Math.max(320, world.clientWidth);   // a drag across the whole pane turns it about 140 degrees
-  cam.spin -= dx * k; cam.vs = cam.vs * .5 + (-dx * k / dts) * .5;
-  cam.pitch = Math.max(.3, Math.min(1, cam.pitch + dy * .004));
-  Object.assign(d, { x: e.clientX, y: e.clientY, t: now });
-});
-const endDrag = (e) => {
-  const d = cam.drag; if (!d || e.pointerId !== d.id) return;
-  if (performance.now() - d.t > 90) cam.vs = 0;   // held still before letting go: no coasting
-  cam.drag = null; world.classList.remove("dragging");
-};
-world.addEventListener("pointerup", endDrag); world.addEventListener("pointercancel", endDrag);
-const turnTo = (a) => { cam.auto = false; cam.vs = 0; cam.target = a; };
-$("camLeft").onclick = () => turnTo(near45(cam.target ?? cam.yaw + cam.spin) + Math.PI / 2);
-$("camRight").onclick = () => turnTo(near45(cam.target ?? cam.yaw + cam.spin) - Math.PI / 2);
-$("camReset").onclick = () => { const t = cam.yaw + cam.spin; turnTo(cam.yaw + Math.round((t - cam.yaw) / TAU) * TAU); cam.pitchT = Math.PI / 6; };
-function stepCamera(dt) {
-  if (cam.pitchT != null) { cam.pitch += (cam.pitchT - cam.pitch) * Math.min(1, dt * 6); if (Math.abs(cam.pitchT - cam.pitch) < .002) cam.pitchT = null; }
-  if (cam.drag || cam.auto) return;
-  const total = cam.yaw + cam.spin;
-  if (Math.abs(cam.vs) > .45) { cam.spin += cam.vs * dt; cam.vs *= Math.exp(-3.5 * dt); return; }
-  cam.vs = 0;
-  if (cam.target == null) cam.target = near45(total);
-  cam.spin += (cam.target - total) * Math.min(1, dt * 7);
-}
-// the win: one slow lap round the island, from wherever you are looking
-function lap() {
-  const s0 = cam.spin; cam.auto = true; cam.vs = 0;
-  tween(3600, (k) => { if (cam.auto) cam.spin = s0 + easeIO(k) * TAU; }).then(() => { if (cam.auto) { cam.auto = false; cam.target = near45(cam.yaw + cam.spin); } });
-}
-let hintT = 0;
-function showDragHint() { if (STILL) return; $("dragHint").classList.remove("gone"); clearTimeout(hintT); hintT = setTimeout(hideDragHint, 6000); }
-function hideDragHint() { $("dragHint").classList.add("gone"); }
-
-let frameMs = 16;
-function loop(now) {
-  const dt = Math.min(.05, (now - last) / 1000); last = now;
-  if (!$("intro").classList.contains("gone")) { requestAnimationFrame(loop); return; }   // the island rests while the intro is open
-  if (!REDUCED) time += dt;
-  stepTweens(dt); stepCamera(dt);
-  draw();
-  frameMs = frameMs * .95 + dt * 1000 * .05;
-  requestAnimationFrame(loop);
-}
-
-function start() {
-  pix = new PixelGL(pixCv, { model: PIX_MODEL, palettes: PIX_PALETTES, glow: PIX_GLOW, extra: ["#9fb0ff", "#ffffff", "#06060f"] });
-  nova = new PixelNova(novaHost, { kind: "mooncloak", w: NOVA_ART.w, h: NOVA_ART.h, px: 2, view: 3.6, shadow: false });
-  let saved = null, seen = false;
-  try { saved = localStorage.getItem("operandi:playtime:draft"); seen = !!localStorage.getItem("operandi:playtime:intro"); } catch {}
-  code.value = qs.get("code") ?? saved ?? STARTER;
-  sizeViews(); resetWorld(); paintCode();
-  initIntro();
-  if (seen || STILL) closeIntro(); else showPage(0);
-  if (STILL) {
-    // test hook: ?still&t=3&code=...&run (plays the run instantly)&at=<event index>&spin=<0..1>&pitch=<radians>&intro=<page>&it=<seconds into its scene>
-    time = +(qs.get("t") || 3);
-    if (qs.has("intro")) { $("intro").classList.remove("gone"); stillT = +(qs.get("it") || 30); showPage(+qs.get("intro")); }
-    if (qs.has("run")) {
-      const res = execute(parse(code.value)), upto = qs.has("at") ? +qs.get("at") : res.ev.length;
-      res.ev.slice(0, upto).forEach((e) => {
-        if (e.kind === "move") { N.x = e.to[0]; N.z = e.to[1]; }
-        if (e.kind === "turn") N.yaw += Math.PI / 2;
-        if (e.kind === "collect") bitsShown[e.bit].s = 0;
-      });
-      setCount(bitsShown.filter((b) => b.s < .05).length);
-      const e = res.ev[Math.min(upto, res.ev.length) - 1];
-      if (upto >= res.ev.length && res.got === 2) N.hideArrow = true;
-      if (res.error && upto >= res.ev.length) lineHL(res.error.line, true); else if (e) lineHL(e.line);
-      if (upto >= res.ev.length) {
-        if (res.error) { const [h, p] = explain(res.error, res); showCard("bad", `<h3>${h}</h3><p>${p}</p>`); nova.setMood("sad"); }
-        else if (res.got === 2) { moodOf(nova, "happy"); showCard("win", `<h3>Both Bits collected!</h3><p>NOVA did exactly what you wrote, in exactly the order you wrote it. That's all code is: steps, in order.</p><div class="foot"><span class="earn"><span class="coin">B</span>+10 Bits</span><button class="link" type="button">Play again</button></div>`); }
-      }
-    }
-    if (qs.has("hint")) { hintAt = +qs.get("hint"); showHint(); }
-    cam.spin = (+(qs.get("spin") || 0)) * Math.PI * 2; if (qs.has("pitch")) cam.pitch = +qs.get("pitch");
-    if (qs.has("intro")) introNova.bill = 1;
-    // twice: the first sizes NOVA's picture, the second shows her once she has drawn at that size
-    setTimeout(draw, 700); setTimeout(() => { draw(); window.__ready = true; }, 1500);
-    return;
-  }
-  requestAnimationFrame(loop);
-}
-start();
-</script>
+<script type="module" src="js/playtime/main.js"></script>
 </body>
 </html>

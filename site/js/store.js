@@ -24,6 +24,7 @@ export function freshState() {
     fight: null,         // the lesson / challenge fight in progress (Addendum K): enemy, HP, wave
     kit: { mana: 0, cd: {} },   // mana and card cooldowns, carried from fight to fight
     ultSeen: {},         // card id -> the day its full ultimate last played (later that day: the short cut)
+    playtime: { levels: {}, intro: false, last: null },   // Playtime: level id -> { done, par, clean, best }; intro seen; last level
     streak: { count: 0, last: null },
     history: [],
     updatedAt: 0,
@@ -37,6 +38,7 @@ function upgrade(st) {
   st.equipped = Object.assign({}, fresh.equipped, st.equipped);
   st.pet = Object.assign({}, fresh.pet, st.pet);
   st.kit = Object.assign({}, fresh.kit, st.kit); st.ultSeen ||= {};
+  st.playtime = Object.assign({}, fresh.playtime, st.playtime); st.playtime.levels ||= {};
   if (st.owned.glasses) { st.owned.nerd = true; delete st.owned.glasses; }
   const old = st.equipped.dot;
   if (old) {

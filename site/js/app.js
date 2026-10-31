@@ -21,6 +21,7 @@ import { HELP, LINT_PENALTY, compareOutput } from "../content/help.js";
 import { FAQ } from "../content/faq.js";
 import { initPalette } from "./palette.js";
 import { wireThemeButton, toggleTheme, isDark, THEME_ICONS } from "./theme.js";
+import { LEVELS as PLAYTIME_LEVELS } from "../content/playtime-levels.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1196,6 +1197,7 @@ function renderCourseHome() {
     return `<section class="ov-mod spot"><header><h3>Module ${m.id} · ${esc(m.title)}</h3><span>${lessonsDoneIn(m.id)}/${ls.length} lessons${B ? ` · boss ${bossBeaten(m.id) ? "beaten" : "ahead"}` : ""}</span></header><div class="path">${nodes}${bossNode}</div></section>`;
   }).join("");
   const soon = MODULES.filter((m) => m.soon);
+  const playtimeDone = Object.values(st.playtime?.levels || {}).filter((r) => r.done).length, playtimeTotal = PLAYTIME_LEVELS.length;
   $("briefInner").innerHTML = `<p class="eyebrow">Course overview</p><h1>Your path through Python</h1>
     <div class="ov-hero spot"><div class="k">${esc(go.k)}</div><h2>${esc(go.title)}</h2><p>${esc(go.sub || "")}</p>${go.m ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ""}<button class="btn primary" id="ovGo">${go.btn}</button></div>
     <div class="ov-stats">
@@ -1204,6 +1206,7 @@ function renderCourseHome() {
       <div class="ov-stat spot"><b>${store.streakNow()}</b><span>Day streak</span></div>
       <div class="ov-stat spot"><b>${lessonsDoneCount()}/${ALL_LESSONS.length}</b><span>Lessons done</span></div>
     </div>
+    <a class="ov-play spot" href="playtime.html"><div><span class="k">Playtime</span><h3>Guide NOVA round a floating island</h3><p>Puzzles where your Python moves NOVA: commands first, then functions, loops and decisions.${playtimeDone ? ` ${playtimeDone} of ${playtimeTotal} levels done.` : ""}</p></div><span class="go">Open Playtime →</span></a>
     ${mods}
     ${soon.length ? `<section class="ov-mod soon"><header><h3>Coming next</h3><span>${soon.length} modules</span></header><p class="empty">${soon.map((m) => `${m.id} · ${esc(m.title)}`).join(" &nbsp;·&nbsp; ")}</p></section>` : ""}`;
   $("ovGo").addEventListener("click", () => { if (!busy) go.run(); });
@@ -1230,6 +1233,7 @@ function paletteItems(q) {
   if (!$("practiceBtn").disabled) add("Go to", { label: "Practice challenges", icon: "∞", run: go(() => openView("practice")), tags: "challenge" });
   add("Go to", { label: "Shop", sub: `◆ ${S().bits} Bits`, icon: "◆", run: go(() => openView("shop")), tags: "buy hints items themes" });
   add("Go to", { label: "FAQ & glossary", icon: "?", run: go(() => openView("faq")), tags: "help" });
+  add("Go to", { label: "Playtime", sub: "Guide NOVA round a floating island", icon: "◇", run: () => { location.href = "playtime.html"; }, tags: "puzzle island game nova levels" });
   ALL_LESSONS.forEach((l, i) => {
     if (lessonUnlocked(i)) add("Lessons", { label: l.title, sub: `Module ${l.module}${lessonDone(l.id) ? " · done" : ""}`, icon: lessonDone(l.id) ? "✓" : String(MODULE_LESSONS(l.module).indexOf(l) + 1), run: go(() => openLesson(l.id)), tags: l.sub });
   });

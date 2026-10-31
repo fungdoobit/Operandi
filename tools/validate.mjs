@@ -15,6 +15,7 @@ import { rng } from "../site/js/rng.js";
 import { LINT_PENALTY } from "../site/content/help.js";
 import { specialApplies, applySpecial } from "../site/js/boss-rules.js";
 import { QUICK_TESTS } from "../site/content/quick-tests.js";
+import { LEVELS as PLAY_LEVELS, layoutsOf, codeLines } from "../site/content/playtime-levels.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SEEDS = Number(process.argv[2] || 60);
@@ -100,10 +101,34 @@ for (const [i, q] of QUICK_TESTS.entries()) {
 }
 py.stdin.end();
 
+// Playtime (PRD Addendum O): every level's reference solution wins in real Python on every layout, within its par;
+// the starter doesn't; each level has three hints and a well-formed map with NOVA, and at least one Bit or switch.
+const pt = spawn("python3", [join(root, "site/py/playtime.py")], { stdio: ["pipe", "pipe", "inherit"] });
+const ptRl = createInterface({ input: pt.stdout });
+const ptWaiting = [];
+ptRl.on("line", (line) => ptWaiting.shift()(JSON.parse(line)));
+const play = (code, layouts) => new Promise((res) => { ptWaiting.push(res); pt.stdin.write(JSON.stringify({ code, layouts }) + "\n"); });
+for (const lv of PLAY_LEVELS) {
+  const where = `playtime ${lv.id} (${lv.title})`;
+  const w = lv.ground[0].length;
+  if (!lv.ground.every((r) => r.length === w) || lv.things.length !== lv.ground.length || !lv.things.every((r) => r.length === w)) { fail(where, "ground and things must be the same size"); continue; }
+  const layouts = layoutsOf(lv);
+  if (layouts.some((l) => !l.start)) { fail(where, "NOVA has no start (> < ^ v)"); continue; }
+  if (layouts.some((l) => !l.bits.length && !l.switches.length)) fail(where, "nothing to collect or switch on");
+  if (lv.hints.length !== 3) fail(where, `needs 3 hints, has ${lv.hints.length}`);
+  const sol = await play(lv.solution, layouts);
+  if (!sol.won) fail(where, `the solution doesn't win: ${JSON.stringify(sol.syntax || sol.runs.find((r) => !r.won)?.error || sol.runs.find((r) => !r.won)?.stop || "goal not reached")}`);
+  if (codeLines(lv.solution) > lv.par) fail(where, `the solution is ${codeLines(lv.solution)} lines, over par ${lv.par}`);
+  const starter = await play("# NOVA follows these lines, top to bottom.\n", layouts);
+  if (starter.won) fail(where, "the empty starter already wins");
+}
+pt.stdin.end();
+
 const ids = ALL_TEMPLATES.map((t) => t.id);
 const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
 if (dupes.length) fail("templates", `duplicate ids: ${dupes.join(", ")}`);
 
+console.log(`Checked ${PLAY_LEVELS.length} Playtime levels.`);
 console.log(`Checked ${ALL_LESSONS.length} lessons (${ALL_LESSONS.reduce((n, l) => n + (l.sections?.length || 1), 0)} sections) and ${ALL_TEMPLATES.length} templates (${count} runs).`);
 const byDiff = [1, 2, 3].map((d) => ALL_TEMPLATES.filter((t) => t.difficulty === d).length);
 console.log(`Templates by difficulty: Easy ${byDiff[0]}, Medium ${byDiff[1]}, Hard ${byDiff[2]}.`);
